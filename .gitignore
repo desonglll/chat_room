@@ -1,0 +1,8 @@
+/target
+/chat_rooms.db
+/chat_rooms.db-shm
+/chat_rooms.db-wal
+/chat_rooms.json
+/chat_rooms.json.tmp
+/chat_rooms.json.backup
+.DS_Store
