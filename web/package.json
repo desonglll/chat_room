@@ -1,0 +1,23 @@
+{
+  "name": "chat-room-vue-scaffold-20260814",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "test": "bun test",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^1.0.0",
+    "vue": "^3.5.40"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "typescript": "5.9.3",
+    "vite": "^8.2.0",
+    "vue-tsc": "^3.3.9"
+  }
+}

@@ -1,7 +1,5 @@
 //! CLI client for room discovery, creation, and interactive chat.
 
-use std::path::{Path, PathBuf};
-
 use anyhow::{bail, Context, Result};
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
@@ -9,59 +7,14 @@ use futures_util::{SinkExt, StreamExt};
 use rustyline::{
     error::ReadlineError, Config as ReadlineConfig, DefaultEditor, EditMode, ExternalPrinter,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
-#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-struct UserConfig {
-    username: String,
-}
+mod client_auth;
 
-fn config_path() -> PathBuf {
-    if let Ok(path) = std::env::var("CHAT_ROOM_CONFIG_PATH") {
-        return PathBuf::from(path);
-    }
-    if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home).join(".chatroom.conf");
-    }
-    PathBuf::from("chatroom.conf")
-}
-
-fn history_path() -> PathBuf {
-    config_path().with_file_name(".chatroom_history")
-}
-
-fn load_config_from(path: &Path) -> Result<UserConfig> {
-    if !path.exists() {
-        return Ok(UserConfig::default());
-    }
-    let data =
-        std::fs::read_to_string(path).with_context(|| format!("read config {}", path.display()))?;
-    serde_json::from_str(&data).with_context(|| format!("parse config {}", path.display()))
-}
-
-fn save_config_to(path: &Path, config: &UserConfig) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("create config directory {}", parent.display()))?;
-        }
-    }
-
-    let temporary = PathBuf::from(format!("{}.tmp", path.display()));
-    let data = serde_json::to_string_pretty(config).context("serialize user config")?;
-    std::fs::write(&temporary, data)
-        .with_context(|| format!("write config {}", temporary.display()))?;
-    std::fs::rename(&temporary, path)
-        .with_context(|| format!("install config {}", path.display()))?;
-    Ok(())
-}
-
-fn load_config() -> Result<UserConfig> {
-    load_config_from(&config_path())
-}
+use client_auth::{history_path, require_session};
 
 #[derive(Parser)]
 #[command(name = "chat-client", about = "Chat room CLI client")]
@@ -76,11 +29,24 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Show or set the saved default username.
-    Config {
+    /// Show the current saved login.
+    Config,
+    /// Register an account and save its login session.
+    Register {
         #[arg(long)]
-        username: Option<String>,
+        username: String,
+        #[arg(long)]
+        password: String,
     },
+    /// Log in and save the issued session.
+    Login {
+        #[arg(long)]
+        username: String,
+        #[arg(long)]
+        password: String,
+    },
+    /// Revoke and clear the saved login session.
+    Logout,
     /// List all rooms.
     List,
     /// Create a room. Omit --password for a public room.
@@ -105,10 +71,6 @@ struct JoinArgs {
     #[arg(long, group = "room")]
     room_id: Option<Uuid>,
 
-    /// Override the saved username for this connection.
-    #[arg(long)]
-    username: Option<String>,
-
     /// Room password. Omit for public rooms.
     #[arg(long)]
     password: Option<String>,
@@ -129,47 +91,6 @@ enum ServerMessage {
     },
     #[serde(rename = "system")]
     System { content: String },
-}
-
-fn resolve_username(cli_username: Option<String>) -> Result<String> {
-    let username = match cli_username {
-        Some(username) => username,
-        None => load_config()?.username,
-    };
-    let username = username.trim().to_string();
-    if username.is_empty() {
-        bail!(
-            "no username configured; run 'client config --username <name>' \
-             or pass --username"
-        );
-    }
-    Ok(username)
-}
-
-fn command_config(username: Option<String>) -> Result<()> {
-    match username {
-        Some(username) => {
-            let username = username.trim();
-            if username.is_empty() {
-                bail!("username cannot be empty");
-            }
-            let config = UserConfig {
-                username: username.to_string(),
-            };
-            let path = config_path();
-            save_config_to(&path, &config)?;
-            println!("Username saved: '{}' ({})", username, path.display());
-        }
-        None => {
-            let config = load_config()?;
-            if config.username.is_empty() {
-                println!("No username saved. Use: client config --username <name>");
-            } else {
-                println!("Saved username: '{}'", config.username);
-            }
-        }
-    }
-    Ok(())
 }
 
 async fn lookup_room(http_base: &str, name: &str) -> Result<Option<Uuid>> {
@@ -264,6 +185,7 @@ async fn create_room(http_base: &str, name: &str, password: Option<&str>) -> Res
 async fn join_room(
     http_base: &str,
     room_id: Uuid,
+    token: Uuid,
     username: &str,
     password: Option<&str>,
 ) -> Result<()> {
@@ -277,12 +199,12 @@ async fn join_room(
     let greeting = match password {
         Some(password) => serde_json::json!({
             "type": "auth",
-            "username": username,
+            "token": token,
             "password": password
         }),
         None => serde_json::json!({
             "type": "join",
-            "username": username
+            "token": token
         }),
     };
     sink.send(Message::Text(greeting.to_string()))
@@ -309,31 +231,50 @@ async fn join_room(
         .edit_mode(EditMode::Emacs)
         .auto_add_history(true)
         .build();
-    let mut editor = DefaultEditor::with_config(readline_config)?;
+    let mut editor = DefaultEditor::with_config(readline_config)
+        .context("initialize interactive line editor")?;
     let history = history_path();
     if history.exists() {
         let _ = editor.load_history(&history);
     }
-    let mut printer = editor.create_external_printer()?;
+    let mut printer = match editor.create_external_printer() {
+        Ok(printer) => Some(printer),
+        Err(error) => {
+            eprintln!(
+                "{}",
+                render_system(&format!(
+                    "asynchronous prompt refresh unavailable ({error}); using basic output"
+                ))
+            );
+            None
+        }
+    };
     let current_user = username.to_string();
 
     let reader = tokio::spawn(async move {
+        let mut print_message = move |message: String| {
+            if let Some(printer) = printer.as_mut() {
+                let _ = printer.print(message);
+            } else {
+                println!("{message}");
+            }
+        };
+
         while let Some(frame) = stream.next().await {
             let message = match frame {
                 Ok(Message::Text(text)) => match serde_json::from_str::<ServerMessage>(&text) {
                     Ok(message) => message,
                     Err(error) => {
-                        let _ = printer
-                            .print(render_error(&format!("invalid server message: {error}")));
+                        print_message(render_error(&format!("invalid server message: {error}")));
                         continue;
                     }
                 },
                 Ok(Message::Close(_)) => {
-                    let _ = printer.print(render_system("connection closed"));
+                    print_message(render_system("connection closed"));
                     break;
                 }
                 Err(error) => {
-                    let _ = printer.print(render_error(&format!("WebSocket error: {error}")));
+                    print_message(render_error(&format!("WebSocket error: {error}")));
                     break;
                 }
                 _ => continue,
@@ -349,7 +290,7 @@ async fn join_room(
                 ServerMessage::AuthFail { reason } => render_error(&reason),
                 ServerMessage::AuthOk { .. } => continue,
             };
-            let _ = printer.print(rendered);
+            print_message(rendered);
         }
     });
 
@@ -444,7 +385,14 @@ async fn main() -> Result<()> {
     let http_base = cli.server.trim_end_matches('/');
 
     match cli.command {
-        Command::Config { username } => command_config(username),
+        Command::Config => client_auth::show_config(),
+        Command::Register { username, password } => {
+            client_auth::authenticate(http_base, "register", &username, &password).await
+        }
+        Command::Login { username, password } => {
+            client_auth::authenticate(http_base, "login", &username, &password).await
+        }
+        Command::Logout => client_auth::logout(http_base).await,
         Command::List => list_rooms(http_base).await,
         Command::Create { name, password } => {
             create_room(http_base, &name, password.as_deref()).await
@@ -457,8 +405,15 @@ async fn main() -> Result<()> {
                     .with_context(|| format!("room '{name}' not found"))?,
                 (None, None) => unreachable!("clap requires room name or id"),
             };
-            let username = resolve_username(arguments.username)?;
-            join_room(http_base, room_id, &username, arguments.password.as_deref()).await
+            let config = require_session()?;
+            join_room(
+                http_base,
+                room_id,
+                config.token.expect("validated session token"),
+                &config.username,
+                arguments.password.as_deref(),
+            )
+            .await
         }
     }
 }
@@ -472,12 +427,13 @@ mod tests {
         let directory =
             std::env::temp_dir().join(format!("chat-room-client-config-{}", Uuid::new_v4()));
         let path = directory.join("config.json");
-        let expected = UserConfig {
+        let expected = client_auth::UserConfig {
             username: "alice".to_string(),
+            token: Some(Uuid::new_v4()),
         };
 
-        save_config_to(&path, &expected).unwrap();
-        let actual = load_config_from(&path).unwrap();
+        client_auth::save_config_to(&path, &expected).unwrap();
+        let actual = client_auth::load_config_from(&path).unwrap();
 
         assert_eq!(actual, expected);
         let _ = std::fs::remove_dir_all(directory);

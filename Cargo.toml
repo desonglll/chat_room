@@ -2,6 +2,8 @@
 name = "chat_room"
 version = "0.1.0"
 edition = "2021"
+autobins = false
+default-run = "server"
 
 [[bin]]
 name = "server"
@@ -29,6 +31,7 @@ tokio-tungstenite = "0.23"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", features = ["json"] }
 anyhow = "1"
+argon2 = "0.5"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
 rustyline = "17"
 colored = "3"
