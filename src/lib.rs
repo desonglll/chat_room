@@ -1,15 +1,25 @@
 //! chat_room — Axum-based chat server with WebSocket and OpenAPI.
 
+pub mod account_ws;
 pub mod attachment_handlers;
+pub mod config;
 pub mod handlers;
+pub mod membership_handlers;
+pub mod membership_mutations;
+pub mod message_actions;
 pub mod message_store;
 pub mod models;
+pub mod participants;
+pub mod read_store;
+pub mod room_access;
 pub mod state;
 pub mod storage;
 pub mod user_handlers;
 pub mod users;
 pub mod web;
 pub mod ws;
+mod ws_auth;
+mod ws_inbound;
 
 use axum::{routing::get, Json, Router};
 use std::sync::Arc;
@@ -35,6 +45,7 @@ use crate::state::AppState;
         user_handlers::register,
         user_handlers::login,
         user_handlers::me,
+        user_handlers::update_me,
         user_handlers::logout,
     ),
     components(schemas(
@@ -43,9 +54,15 @@ use crate::state::AppState;
         models::UpdateRoomRequest,
         models::StoredMessage,
         models::Attachment,
+        models::ReplyPreview,
         models::User,
         models::AuthRequest,
         models::AuthSession,
+        models::UpdateProfileRequest,
+        models::JoinRoomRequest,
+        models::InviteMemberRequest,
+        models::UpdateMembershipRequest,
+        models::RoomMembership,
     ))
 )]
 pub struct ApiDoc;
@@ -64,7 +81,11 @@ pub fn build_app(state: Arc<AppState>) -> Router {
 
 /// Build the axum router and optionally serve the embedded browser client.
 pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
+    let multipart_body_limit = state
+        .max_upload_bytes()
+        .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);
     let mut app = Router::new()
+        .route("/api/config", get(config::public_config))
         .route(
             "/api/rooms",
             get(handlers::list_rooms).post(handlers::create_room),
@@ -77,10 +98,29 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         )
         .route("/api/rooms/:id/messages", get(handlers::list_messages))
         .route(
+            "/api/rooms/:id/members/me",
+            axum::routing::delete(membership_handlers::leave_room),
+        )
+        .route(
+            "/api/rooms/:id/join-requests",
+            axum::routing::post(membership_handlers::request_join),
+        )
+        .route(
+            "/api/rooms/:id/members",
+            get(membership_handlers::list_members),
+        )
+        .route(
+            "/api/rooms/:id/invitations",
+            axum::routing::post(membership_handlers::invite_member),
+        )
+        .route(
+            "/api/rooms/:id/members/:user_id",
+            axum::routing::patch(membership_handlers::update_member),
+        )
+        .route(
             "/api/rooms/:id/attachments",
-            axum::routing::post(attachment_handlers::upload_attachment).layer(
-                axum::extract::DefaultBodyLimit::max(attachment_handlers::MULTIPART_BODY_LIMIT),
-            ),
+            axum::routing::post(attachment_handlers::upload_attachment)
+                .layer(axum::extract::DefaultBodyLimit::max(multipart_body_limit)),
         )
         .route(
             "/api/attachments/:id",
@@ -94,11 +134,15 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/users/login",
             axum::routing::post(user_handlers::login),
         )
-        .route("/api/users/me", get(user_handlers::me))
+        .route(
+            "/api/users/me",
+            get(user_handlers::me).patch(user_handlers::update_me),
+        )
         .route(
             "/api/users/logout",
             axum::routing::post(user_handlers::logout),
         )
+        .route("/ws/account", get(account_ws::account_ws_handler))
         .route("/ws/:room_id", get(ws::ws_handler))
         .route("/api-docs/openapi.json", get(openapi_json));
 
@@ -107,7 +151,8 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             .route("/", get(web::index))
             .route("/favicon.svg", get(web::favicon))
             .route("/assets/app.css", get(web::stylesheet))
-            .route("/assets/app.js", get(web::app_script));
+            .route("/assets/app.js", get(web::app_script))
+            .route("/assets/jszip.min.js", get(web::jszip_script));
     }
 
     app.layer(CorsLayer::permissive())

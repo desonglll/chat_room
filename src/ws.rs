@@ -8,7 +8,6 @@ use axum::{
     response::IntoResponse,
 };
 use futures_util::{SinkExt, StreamExt};
-use sha2::{Digest, Sha256};
 use tokio::{
     sync::broadcast,
     time::{interval, timeout, MissedTickBehavior},
@@ -16,16 +15,16 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::message_store::MessageCursor;
-use crate::models::{ChatMessage, Room, StoredMessage, User};
+use crate::models::{ChatMessage, StoredMessage};
 use crate::state::{RoomEvent, SharedState};
+use crate::ws_auth::authenticate;
+use crate::ws_inbound::handle_client_message;
 
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const HISTORY_REPLAY_LIMIT: i64 = 100;
 const MESSAGE_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 const MESSAGE_POLL_LIMIT: i64 = 200;
-const MAX_MESSAGE_CHARS: usize = 4096;
-const MAX_PASSWORD_CHARS: usize = 256;
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -89,20 +88,91 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     };
     let username = user.username.clone();
+    let membership = match state.membership_identity(room_id, user.id).await {
+        Ok(Some((status, _))) if status == "active" => None,
+        Ok(_) if room.join_policy == "open" => {
+            match state.request_room_membership(room_id, user.id, true).await {
+                Ok(membership) => Some(membership),
+                Err(error) => {
+                    tracing::error!("activate open room membership failed: {}", error);
+                    let _ = send_json(
+                        &mut sink,
+                        &ChatMessage::AuthFail {
+                            reason: "authentication unavailable".into(),
+                        },
+                    )
+                    .await;
+                    return;
+                }
+            }
+        }
+        Ok(Some((status, _))) if status == "pending" => {
+            let _ = send_json(
+                &mut sink,
+                &ChatMessage::AuthFail {
+                    reason: "membership pending".into(),
+                },
+            )
+            .await;
+            return;
+        }
+        Ok(_) => {
+            let _ = send_json(
+                &mut sink,
+                &ChatMessage::AuthFail {
+                    reason: "membership required".into(),
+                },
+            )
+            .await;
+            return;
+        }
+        Err(error) => {
+            tracing::error!("load room membership failed: {}", error);
+            return;
+        }
+    };
+    let (members, first_connection) = state.member_connected(room_id, &user).await;
+    let participants = match state.room_participants(room_id).await {
+        Ok(participants) => participants,
+        Err(error) => {
+            tracing::error!("record room participant failed: {}", error);
+            state.member_disconnected(room_id, user.id).await;
+            let _ = send_json(
+                &mut sink,
+                &ChatMessage::AuthFail {
+                    reason: "authentication unavailable".into(),
+                },
+            )
+            .await;
+            return;
+        }
+    };
+    let read_receipts = match state.room_read_receipts(room_id).await {
+        Ok(receipts) => receipts,
+        Err(error) => {
+            tracing::warn!("load room read receipts failed: {}", error);
+            Vec::new()
+        }
+    };
 
     if send_json(
         &mut sink,
         &ChatMessage::AuthOk {
             room_name: room.name.clone(),
+            members: members.clone(),
+            participants: participants.clone(),
+            read_receipts,
         },
     )
     .await
     .is_err()
     {
+        state.member_disconnected(room_id, user.id).await;
         return;
     }
 
     let Some(mut room_messages) = state.subscribe(room_id).await else {
+        state.member_disconnected(room_id, user.id).await;
         return;
     };
 
@@ -114,10 +184,27 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                 &mut sink,
                 &ChatMessage::System {
                     content: "message history is temporarily unavailable".into(),
+                    members: None,
+                    participants: None,
                 },
             )
             .await;
+            state.member_disconnected(room_id, user.id).await;
             return;
+        }
+    };
+    let recall_boundary = match state.latest_recall_cursor(room_id).await {
+        Ok(cursor) => cursor,
+        Err(error) => {
+            tracing::warn!("read recall boundary failed: {}", error);
+            None
+        }
+    };
+    let edit_boundary = match state.latest_edit_cursor(room_id).await {
+        Ok(cursor) => cursor,
+        Err(error) => {
+            tracing::warn!("read edit boundary failed: {}", error);
+            None
         }
     };
 
@@ -132,9 +219,12 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                 &mut sink,
                 &ChatMessage::System {
                     content: "message history is temporarily unavailable".into(),
+                    members: None,
+                    participants: None,
                 },
             )
             .await;
+            state.member_disconnected(room_id, user.id).await;
             return;
         }
     };
@@ -144,22 +234,40 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             .await
             .is_err()
         {
+            state.member_disconnected(room_id, user.id).await;
             return;
         }
     }
 
-    state
-        .broadcast(
-            room_id,
-            ChatMessage::System {
-                content: format!("{} joined the room", username),
-            },
-        )
-        .await;
+    if membership.is_some() {
+        state
+            .broadcast(
+                room_id,
+                ChatMessage::System {
+                    content: format!("{} joined the room", username),
+                    members: Some(members.clone()),
+                    participants: Some(participants.clone()),
+                },
+            )
+            .await;
+    } else if first_connection {
+        state
+            .broadcast(
+                room_id,
+                ChatMessage::Presence {
+                    members: members.clone(),
+                    participants: participants.clone(),
+                },
+            )
+            .await;
+    }
 
     let forwarding_state = state.clone();
+    let forwarding_user_id = user.id;
     let forwarder = tokio::spawn(async move {
         let mut message_cursor = history_boundary;
+        let mut recall_cursor = recall_boundary;
+        let mut edit_cursor = edit_boundary;
         let mut message_poll = interval(MESSAGE_POLL_INTERVAL);
         let mut heartbeat = interval(HEARTBEAT_INTERVAL);
         message_poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -175,9 +283,32 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                         }
                     }
                     Ok(RoomEvent::Disconnect { reason }) => {
-                        let _ = send_json(&mut sink, &ChatMessage::System { content: reason }).await;
+                        let _ = send_json(
+                            &mut sink,
+                            &ChatMessage::System {
+                                content: reason,
+                                members: None,
+                                participants: None,
+                            },
+                        )
+                        .await;
                         let _ = sink.close().await;
                         break;
+                    }
+                    Ok(RoomEvent::DisconnectUser { user_id, reason }) => {
+                        if user_id == forwarding_user_id {
+                            let _ = send_json(
+                                &mut sink,
+                                &ChatMessage::System {
+                                    content: reason,
+                                    members: None,
+                                    participants: None,
+                                },
+                            )
+                            .await;
+                            let _ = sink.close().await;
+                            break;
+                        }
                     }
                     Err(broadcast::error::RecvError::Lagged(count)) => {
                         tracing::warn!("client lagged by {} messages", count);
@@ -185,6 +316,22 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                     Err(broadcast::error::RecvError::Closed) => break,
                 },
                 _ = message_poll.tick() => {
+                    match forwarding_state.is_room_participant(room_id, forwarding_user_id).await {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            let _ = send_json(
+                                &mut sink,
+                                &ChatMessage::System {
+                                    content: "membership left".into(),
+                                    members: None,
+                                    participants: None,
+                                },
+                            ).await;
+                            let _ = sink.close().await;
+                            return;
+                        }
+                        Err(error) => tracing::warn!("check room membership failed: {}", error),
+                    }
                     match forwarding_state
                         .messages_after(room_id, message_cursor.as_ref(), MESSAGE_POLL_LIMIT)
                         .await
@@ -203,6 +350,53 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                         Err(error) => {
                             tracing::warn!("poll room messages failed: {}", error);
                         }
+                    }
+                    match forwarding_state
+                        .recalls_after(room_id, recall_cursor.as_ref(), MESSAGE_POLL_LIMIT)
+                        .await
+                    {
+                        Ok(recalls) => {
+                            for recalled in recalls {
+                                recall_cursor = Some(recalled.clone());
+                                if send_json(
+                                    &mut sink,
+                                    &ChatMessage::MessageRecalled {
+                                        message_id: recalled.id,
+                                        recalled_at: recalled.recalled_at,
+                                    },
+                                )
+                                .await
+                                .is_err()
+                                {
+                                    return;
+                                }
+                            }
+                        }
+                        Err(error) => tracing::warn!("poll recalled messages failed: {}", error),
+                    }
+                    match forwarding_state
+                        .edits_after(room_id, edit_cursor.as_ref(), MESSAGE_POLL_LIMIT)
+                        .await
+                    {
+                        Ok(edits) => {
+                            for edited in edits {
+                                edit_cursor = Some(edited.clone());
+                                if send_json(
+                                    &mut sink,
+                                    &ChatMessage::MessageEdited {
+                                        message_id: edited.id,
+                                        content: edited.content,
+                                        edited_at: edited.edited_at,
+                                    },
+                                )
+                                .await
+                                .is_err()
+                                {
+                                    return;
+                                }
+                            }
+                        }
+                        Err(error) => tracing::warn!("poll edited messages failed: {}", error),
                     }
                 },
                 _ = heartbeat.tick() => {
@@ -226,43 +420,33 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             Err(_) => continue,
         };
 
-        if let ChatMessage::Message { content } = message {
-            let Some(content) = normalize_message(content) else {
-                tracing::warn!("ignored invalid message from {}", username);
-                continue;
-            };
-            match state
-                .store_message(room_id, user.id, &username, &content)
-                .await
-            {
-                Ok(_) => {}
-                Err(error) => {
-                    tracing::error!("persist chat message failed: {}", error);
-                    state
-                        .broadcast(
-                            room_id,
-                            ChatMessage::System {
-                                content: format!(
-                                    "message from {} was not saved or broadcast",
-                                    username
-                                ),
-                            },
-                        )
-                        .await;
-                }
-            }
-        }
+        handle_client_message(&state, room_id, &user, message).await;
     }
 
     forwarder.abort();
-    state
-        .broadcast(
-            room_id,
-            ChatMessage::System {
-                content: format!("{} left the room", username),
-            },
-        )
-        .await;
+    let (members, last_connection) = state.member_disconnected(room_id, user.id).await;
+    if last_connection {
+        state
+            .broadcast(
+                room_id,
+                ChatMessage::Typing {
+                    content: String::new(),
+                    user_id: Some(user.id),
+                    username: Some(username.clone()),
+                },
+            )
+            .await;
+        let participants = state.room_participants(room_id).await.unwrap_or_default();
+        state
+            .broadcast(
+                room_id,
+                ChatMessage::Presence {
+                    members,
+                    participants,
+                },
+            )
+            .await;
+    }
 }
 
 fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
@@ -270,59 +454,14 @@ fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         message_id: message.id,
         sender_id: message.sender_id,
         sender: message.sender,
+        sender_avatar: message.sender_avatar,
         content: message.content,
         attachment: message.attachment,
+        reply_to: message.reply_to,
+        recalled_at: message.recalled_at,
+        edited_at: message.edited_at,
         timestamp: message.created_at,
     }
-}
-
-async fn authenticate(
-    state: &SharedState,
-    room: &Room,
-    message: ChatMessage,
-) -> Result<User, String> {
-    let token = if room.has_password {
-        match message {
-            ChatMessage::Auth { token, password } => {
-                if password.chars().count() > MAX_PASSWORD_CHARS {
-                    return Err("password too long".into());
-                }
-                let mut hasher = Sha256::new();
-                hasher.update(password.as_bytes());
-                if hex::encode(hasher.finalize()) == room.password_hash {
-                    token
-                } else {
-                    return Err("wrong password".into());
-                }
-            }
-            ChatMessage::Join { .. } => {
-                return Err("this room requires a password - send auth, not join".into());
-            }
-            _ => return Err("first message must be auth (room requires password)".into()),
-        }
-    } else {
-        match message {
-            ChatMessage::Join { token } | ChatMessage::Auth { token, .. } => token,
-            _ => return Err("first message must be join or auth".into()),
-        }
-    };
-
-    state
-        .session_user(token)
-        .await
-        .map_err(|error| {
-            tracing::error!("validate WebSocket session failed: {}", error);
-            "authentication unavailable".to_string()
-        })?
-        .ok_or_else(|| "login required".to_string())
-}
-
-fn normalize_message(content: String) -> Option<String> {
-    let content = content.trim().to_string();
-    if content.is_empty() || content.chars().count() > MAX_MESSAGE_CHARS {
-        return None;
-    }
-    Some(content)
 }
 
 async fn send_json(
@@ -331,16 +470,4 @@ async fn send_json(
 ) -> Result<(), axum::Error> {
     let json = serde_json::to_string(message).unwrap();
     sink.send(Message::Text(json)).await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalizes_and_limits_messages() {
-        assert_eq!(normalize_message(" hello \n".into()).unwrap(), "hello");
-        assert!(normalize_message(" \n".into()).is_none());
-        assert!(normalize_message("x".repeat(MAX_MESSAGE_CHARS + 1)).is_none());
-    }
 }

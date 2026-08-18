@@ -8,12 +8,11 @@ export interface ComposerKeyEvent {
 export function shouldSubmitMessage(
   event: ComposerKeyEvent,
   composing: boolean,
-  compositionJustEnded = false,
+  shortcut: 'enter' | 'shift-enter' = 'enter',
 ): boolean {
   return event.key === 'Enter'
-    && !event.shiftKey
+    && (shortcut === 'shift-enter' ? event.shiftKey : !event.shiftKey)
     && !event.isComposing
     && !composing
-    && !compositionJustEnded
     && event.keyCode !== 229
 }

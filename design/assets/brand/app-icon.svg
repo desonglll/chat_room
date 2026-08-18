@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">ChatRoom app icon</title>
+  <desc id="desc">The Echo Gate brand mark on a dark ink rounded square.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#172321"/>
+  <path fill="#39B395" d="M208 786V438c0-180 146-326 326-326s326 146 326 326v348c0 58-47 106-106 106H314c-59 0-106-48-106-106Z"/>
+  <path fill="#F7FAF9" d="M364 798V452c0-94 76-170 170-170s170 76 170 170v346H364Z"/>
+  <path fill="#FF6B57" d="m470 380 246-72v492l-104-82-142 47V380Z"/>
+  <circle cx="622" cy="548" r="42" fill="#F4B942"/>
+</svg>

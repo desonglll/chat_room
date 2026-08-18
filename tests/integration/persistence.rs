@@ -22,7 +22,7 @@ async fn ws_public_chat_works() {
         .await
         .unwrap();
 
-    let msg = read_json(&mut stream_b).await;
+    let msg = read_until_type(&mut stream_b, "broadcast").await;
     assert_eq!(msg["sender"], "alice");
     assert_eq!(msg["content"], "Hi from public room!");
 }
@@ -87,6 +87,7 @@ async fn messages_survive_restart_and_replay_in_order() {
     let state1 = Arc::new(AppState::open(&database).await.unwrap());
     let server1 = start_server_with_state(state1.clone()).await;
     let (room_id, _) = create_room(&server1, "message-session", None).await;
+    let alice_token = session_token(&server1, "alice").await;
 
     let (mut sink, mut stream) = ws_connect(&server1, &room_id, "alice", None).await;
     assert_eq!(read_json(&mut stream).await["type"], "system");
@@ -98,7 +99,7 @@ async fn messages_survive_restart_and_replay_in_order() {
         ))
         .await
         .unwrap();
-        let broadcast = read_json(&mut stream).await;
+        let broadcast = read_until_type(&mut stream, "broadcast").await;
         assert_eq!(broadcast["type"], "broadcast");
         assert_eq!(broadcast["content"], content);
         message_ids.push(
@@ -113,15 +114,18 @@ async fn messages_survive_restart_and_replay_in_order() {
     message_ids.dedup();
     assert_eq!(message_ids.len(), 3);
 
-    let history: Vec<serde_json::Value> = reqwest::get(format!(
-        "{}/api/rooms/{}/messages?limit=2",
-        server1, room_id
-    ))
-    .await
-    .unwrap()
-    .json()
-    .await
-    .unwrap();
+    let history: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!(
+            "{}/api/rooms/{}/messages?limit=2",
+            server1, room_id
+        ))
+        .bearer_auth(&alice_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert_eq!(history.len(), 2);
     assert_eq!(history[0]["content"], "second");
     assert_eq!(history[1]["content"], "third");
@@ -163,6 +167,7 @@ async fn messages_survive_restart_and_replay_in_order() {
 async fn private_message_history_requires_room_password() {
     let server = start_server().await;
     let (room_id, _) = create_room(&server, "private-history", Some("secret")).await;
+    let alice_token = session_token(&server, "alice").await;
     let (mut sink, mut stream) = ws_connect(&server, &room_id, "alice", Some("secret")).await;
     assert_eq!(read_json(&mut stream).await["type"], "system");
 
@@ -171,7 +176,10 @@ async fn private_message_history_requires_room_password() {
     ))
     .await
     .unwrap();
-    assert_eq!(read_json(&mut stream).await["content"], "private text");
+    assert_eq!(
+        read_until_type(&mut stream, "broadcast").await["content"],
+        "private text"
+    );
 
     let url = format!("{}/api/rooms/{}/messages", server, room_id);
     let client = reqwest::Client::new();
@@ -179,6 +187,7 @@ async fn private_message_history_requires_room_password() {
     assert_eq!(
         client
             .get(&url)
+            .bearer_auth(&alice_token)
             .header("x-room-password", "wrong")
             .send()
             .await
@@ -189,6 +198,7 @@ async fn private_message_history_requires_room_password() {
 
     let history: Vec<serde_json::Value> = client
         .get(&url)
+        .bearer_auth(&alice_token)
         .header("x-room-password", "secret")
         .send()
         .await
@@ -204,9 +214,11 @@ async fn private_message_history_requires_room_password() {
 async fn concurrent_duplicate_room_creation_returns_conflict() {
     let server = start_server().await;
     let url = format!("{}/api/rooms", server);
+    let token = session_token(&server, "concurrent-owner").await;
     let request = || {
         reqwest::Client::new()
             .post(&url)
+            .bearer_auth(&token)
             .json(&serde_json::json!({ "name": "same-name", "password": "" }))
             .send()
     };
@@ -278,7 +290,7 @@ async fn fresh_start_creates_database_and_runs_migrations() {
         .fetch_one(state.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 5);
+    assert_eq!(migration_count, 9);
 
     let legacy_table: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'app_metadata'",

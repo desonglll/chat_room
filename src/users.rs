@@ -17,14 +17,17 @@ impl AppState {
         let user = User {
             id: Uuid::new_v4(),
             username: username.to_string(),
+            avatar_emoji: String::new(),
             created_at: Utc::now(),
         };
         sqlx::query(
-            "INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO users (id, username, password_hash, avatar_emoji, created_at) \
+             VALUES (?, ?, ?, ?, ?)",
         )
         .bind(user.id)
         .bind(&user.username)
         .bind(password_hash)
+        .bind(&user.avatar_emoji)
         .bind(user.created_at)
         .execute(self.pool())
         .await?;
@@ -35,24 +38,27 @@ impl AppState {
         &self,
         username: &str,
     ) -> Result<Option<(User, String)>, sqlx::Error> {
-        let row: Option<(Uuid, String, DateTime<Utc>, String)> = sqlx::query_as(
-            "SELECT id, username, created_at, password_hash FROM users \
+        let row: Option<(Uuid, String, String, DateTime<Utc>, String)> = sqlx::query_as(
+            "SELECT id, username, avatar_emoji, created_at, password_hash FROM users \
              WHERE username = ? COLLATE NOCASE",
         )
         .bind(username)
         .fetch_optional(self.pool())
         .await?;
 
-        Ok(row.map(|(id, username, created_at, password_hash)| {
-            (
-                User {
-                    id,
-                    username,
-                    created_at,
-                },
-                password_hash,
-            )
-        }))
+        Ok(
+            row.map(|(id, username, avatar_emoji, created_at, password_hash)| {
+                (
+                    User {
+                        id,
+                        username,
+                        avatar_emoji,
+                        created_at,
+                    },
+                    password_hash,
+                )
+            }),
+        )
     }
 
     pub async fn create_session(&self, user: User) -> Result<AuthSession, sqlx::Error> {
@@ -78,12 +84,27 @@ impl AppState {
 
     pub async fn session_user(&self, token: Uuid) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as(
-            "SELECT users.id, users.username, users.created_at FROM sessions \
+            "SELECT users.id, users.username, users.avatar_emoji, users.created_at FROM sessions \
              JOIN users ON users.id = sessions.user_id \
              WHERE sessions.id = ? AND sessions.expires_at > ?",
         )
         .bind(token)
         .bind(Utc::now())
+        .fetch_optional(self.pool())
+        .await
+    }
+
+    pub async fn update_user_avatar(
+        &self,
+        user_id: Uuid,
+        avatar_emoji: &str,
+    ) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as(
+            "UPDATE users SET avatar_emoji = ? WHERE id = ? \
+             RETURNING id, username, avatar_emoji, created_at",
+        )
+        .bind(avatar_emoji)
+        .bind(user_id)
         .fetch_optional(self.pool())
         .await
     }

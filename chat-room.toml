@@ -1,0 +1,3 @@
+[uploads]
+# Maximum size of one uploaded file. Restart the server after changing this value.
+max_file_size_mib = 512

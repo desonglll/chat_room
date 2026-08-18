@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::models::{CreateRoomRequest, Room, StoredMessage, UpdateRoomRequest};
 use crate::state::SharedState;
+use crate::user_handlers::{bearer_token, optional_bearer_token};
 
 const MAX_ROOM_NAME_CHARS: usize = 80;
 const MAX_PASSWORD_CHARS: usize = 256;
@@ -26,7 +27,7 @@ fn valid_room_name(name: &str) -> bool {
     !name.is_empty() && name.chars().count() <= MAX_ROOM_NAME_CHARS
 }
 
-fn authorize_room(room: &Room, supplied: Option<&str>) -> bool {
+pub(crate) fn authorize_room(room: &Room, supplied: Option<&str>) -> bool {
     !room.has_password
         || supplied.is_some_and(|password| hash_password(password) == room.password_hash)
 }
@@ -45,8 +46,15 @@ fn authorize_room(room: &Room, supplied: Option<&str>) -> bool {
 )]
 pub async fn create_room(
     State(state): State<SharedState>,
+    headers: HeaderMap,
     Json(req): Json<CreateRoomRequest>,
 ) -> Result<(StatusCode, Json<Room>), StatusCode> {
+    let token = bearer_token(&headers)?;
+    let creator = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
     let name = req.name.trim().to_string();
     if !valid_room_name(&name) {
         return Err(StatusCode::BAD_REQUEST);
@@ -56,6 +64,10 @@ pub async fn create_room(
         .as_deref()
         .is_some_and(|password| password.chars().count() > MAX_PASSWORD_CHARS)
     {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let join_policy = req.join_policy.as_deref().unwrap_or("open");
+    if !matches!(join_policy, "open" | "approval") {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -70,10 +82,15 @@ pub async fn create_room(
         name,
         password_hash,
         has_password,
+        creator_user_id: Some(creator.id),
+        join_policy: join_policy.to_string(),
+        membership_status: Some("active".into()),
+        membership_role: Some("owner".into()),
+        unread_count: 0,
         created_at: Utc::now(),
     };
 
-    match state.insert_room(room.clone()).await {
+    match state.create_room_with_owner(room.clone(), creator.id).await {
         Ok(()) => Ok((StatusCode::CREATED, Json(room))),
         Err(sqlx::Error::Database(error)) if error.is_unique_violation() => {
             Err(StatusCode::CONFLICT)
@@ -105,8 +122,22 @@ pub struct ListQuery {
 pub async fn list_rooms(
     State(state): State<SharedState>,
     Query(query): Query<ListQuery>,
-) -> Json<Vec<Room>> {
-    Json(state.list_rooms(query.name.as_deref()).await)
+    headers: HeaderMap,
+) -> Result<Json<Vec<Room>>, StatusCode> {
+    let mut rooms = state.list_rooms(query.name.as_deref()).await;
+    if let Some(token) = optional_bearer_token(&headers) {
+        if let Some(user) = state
+            .session_user(token)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        {
+            state
+                .decorate_rooms_for_user(&mut rooms, user.id)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+    }
+    Ok(Json(rooms))
 }
 
 /// Fetch a single room by UUID.
@@ -124,8 +155,26 @@ pub async fn list_rooms(
 pub async fn get_room(
     State(state): State<SharedState>,
     Path(id): Path<Uuid>,
+    headers: HeaderMap,
 ) -> Result<Json<Room>, StatusCode> {
-    state.room(id).await.map(Json).ok_or(StatusCode::NOT_FOUND)
+    let mut room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
+    if let Some(token) = optional_bearer_token(&headers) {
+        if let Some(user) = state
+            .session_user(token)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        {
+            if let Some((status, role)) = state
+                .membership_identity(id, user.id)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            {
+                room.membership_status = Some(status);
+                room.membership_role = Some(role);
+            }
+        }
+    }
+    Ok(Json(room))
 }
 
 /// Rename a room or change its password. Private rooms require the current password.
@@ -145,16 +194,27 @@ pub async fn get_room(
 pub async fn update_room(
     State(state): State<SharedState>,
     Path(id): Path<Uuid>,
+    headers: HeaderMap,
     Json(req): Json<UpdateRoomRequest>,
 ) -> Result<Json<Room>, StatusCode> {
-    if req.name.is_none() && req.new_password.is_none() {
+    if req.name.is_none() && req.new_password.is_none() && req.join_policy.is_none() {
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let previous = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
-    if !authorize_room(&previous, req.current_password.as_deref()) {
-        return Err(StatusCode::UNAUTHORIZED);
+    let token = bearer_token(&headers)?;
+    let user = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if !state
+        .has_room_permission(id, user.id, "room.settings")
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::FORBIDDEN);
     }
+    let previous = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
 
     let name = req
         .name
@@ -168,6 +228,10 @@ pub async fn update_room(
             .as_deref()
             .is_some_and(|password| password.chars().count() > MAX_PASSWORD_CHARS)
     {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let join_policy = req.join_policy.as_deref().unwrap_or(&previous.join_policy);
+    if !matches!(join_policy, "open" | "approval") {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -191,6 +255,16 @@ pub async fn update_room(
             .new_password
             .as_ref()
             .map_or(previous.has_password, |password| !password.is_empty()),
+        creator_user_id: previous.creator_user_id,
+        join_policy: join_policy.to_string(),
+        membership_status: Some("active".into()),
+        membership_role: state
+            .membership_identity(id, user.id)
+            .await
+            .ok()
+            .flatten()
+            .map(|(_, role)| role),
+        unread_count: previous.unread_count,
         created_at: previous.created_at,
     };
 
@@ -206,6 +280,8 @@ pub async fn update_room(
                         id,
                         crate::models::ChatMessage::System {
                             content: format!("room renamed to {}", updated.name),
+                            members: None,
+                            participants: None,
                         },
                     )
                     .await;
@@ -245,11 +321,18 @@ pub async fn delete_room(
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
     let room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
-    let supplied = headers
-        .get("x-room-password")
-        .and_then(|value| value.to_str().ok());
-    if !authorize_room(&room, supplied) {
-        return Err(StatusCode::UNAUTHORIZED);
+    let token = bearer_token(&headers)?;
+    let user = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if !state
+        .has_room_permission(id, user.id, "room.delete")
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::FORBIDDEN);
     }
 
     match state.delete_room(id, &room.password_hash).await {
@@ -290,6 +373,19 @@ pub async fn list_messages(
     headers: HeaderMap,
 ) -> Result<Json<Vec<StoredMessage>>, StatusCode> {
     let room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
+    let token = bearer_token(&headers)?;
+    let user = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if !state
+        .has_room_permission(id, user.id, "message.send")
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
     if room.has_password {
         let supplied = headers
             .get("x-room-password")

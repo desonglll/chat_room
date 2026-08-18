@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { Eye, EyeOff, LogIn, UserPlus, X } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { LogIn, UserPlus } from 'lucide-vue-next'
+import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
+import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
+import Password from 'primevue/password'
+import SelectButton from 'primevue/selectbutton'
 import { loginUser, registerUser } from '../api'
 import type { AuthSession } from '../types'
 
@@ -13,14 +19,20 @@ const emit = defineEmits<{
 const mode = ref<'login' | 'register'>('login')
 const username = ref('')
 const password = ref('')
-const passwordVisible = ref(false)
 const error = ref('')
 const busy = ref(false)
+const modeOptions = [
+  { label: '登录', value: 'login' },
+  { label: '注册', value: 'register' },
+]
+const visible = computed({
+  get: () => props.open,
+  set: (value: boolean) => { if (!value) emit('close') },
+})
 
 watch(() => props.open, (open) => {
   if (!open) return
   password.value = ''
-  passwordVisible.value = false
   error.value = ''
 })
 
@@ -53,45 +65,39 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div v-if="open" class="modal-backdrop" @mousedown.self="emit('close')">
-      <section class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-        <header class="modal-header">
-          <h2 id="authTitle">用户账户</h2>
-          <button class="icon-button" type="button" aria-label="关闭" title="关闭" @click="emit('close')">
-            <X :size="18" />
-          </button>
-        </header>
-        <form @submit.prevent="submit">
-          <div class="modal-body form-stack">
-            <div class="auth-modes" role="tablist" aria-label="认证方式">
-              <button type="button" :class="{ active: mode === 'login' }" role="tab" :aria-selected="mode === 'login'" @click="mode = 'login'">登录</button>
-              <button type="button" :class="{ active: mode === 'register' }" role="tab" :aria-selected="mode === 'register'" @click="mode = 'register'">注册</button>
-            </div>
+  <Dialog v-model:visible="visible" modal header="用户账户" class="w-[min(92vw,440px)]" :draggable="false">
+    <form class="flex flex-col gap-5" @submit.prevent="submit">
+      <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" class="grid grid-cols-2" />
 
-            <label for="accountUsername">用户名</label>
-            <input id="accountUsername" v-model="username" type="text" maxlength="48" autocomplete="username" required autofocus>
+      <div class="flex flex-col gap-2">
+        <label for="accountUsername" class="text-sm font-medium">用户名</label>
+        <InputText id="accountUsername" v-model="username" maxlength="48" autocomplete="username" autofocus fluid />
+      </div>
 
-            <label for="accountPassword">密码</label>
-            <div class="password-input">
-              <input id="accountPassword" v-model="password" :type="passwordVisible ? 'text' : 'password'" minlength="8" maxlength="256" :autocomplete="mode === 'register' ? 'new-password' : 'current-password'" required>
-              <button type="button" :aria-label="passwordVisible ? '隐藏密码' : '显示密码'" :title="passwordVisible ? '隐藏密码' : '显示密码'" @click="passwordVisible = !passwordVisible">
-                <EyeOff v-if="passwordVisible" :size="18" />
-                <Eye v-else :size="18" />
-              </button>
-            </div>
-            <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-          </div>
-          <footer class="modal-footer">
-            <button class="secondary-button" type="button" @click="emit('close')">取消</button>
-            <button class="primary-button compact" type="submit" :disabled="busy">
-              <UserPlus v-if="mode === 'register'" :size="17" />
-              <LogIn v-else :size="17" />
-              {{ busy ? '请稍候' : (mode === 'register' ? '注册并登录' : '登录') }}
-            </button>
-          </footer>
-        </form>
-      </section>
-    </div>
-  </Teleport>
+      <div class="flex flex-col gap-2">
+        <label for="accountPassword" class="text-sm font-medium">密码</label>
+        <Password
+          id="accountPassword"
+          v-model="password"
+          :feedback="false"
+          toggle-mask
+          fluid
+          minlength="8"
+          maxlength="256"
+          :autocomplete="mode === 'register' ? 'new-password' : 'current-password'"
+        />
+      </div>
+
+      <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>
+
+      <div class="flex justify-end gap-2 border-t border-surface-200 pt-4">
+        <Button type="button" label="取消" severity="secondary" outlined @click="emit('close')" />
+        <Button type="submit" :loading="busy">
+          <UserPlus v-if="mode === 'register'" :size="17" />
+          <LogIn v-else :size="17" />
+          <span>{{ mode === 'register' ? '注册并登录' : '登录' }}</span>
+        </Button>
+      </div>
+    </form>
+  </Dialog>
 </template>

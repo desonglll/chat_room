@@ -20,9 +20,9 @@ use crate::message_store::NewAttachment;
 use crate::models::{Room, StoredMessage, User};
 use crate::state::SharedState;
 
-pub const MAX_UPLOAD_BYTES: usize = 50 * 1024 * 1024;
-pub const MULTIPART_BODY_LIMIT: usize = MAX_UPLOAD_BYTES + 1024 * 1024;
+pub const MULTIPART_OVERHEAD_BYTES: usize = 1024 * 1024;
 const MAX_FILE_NAME_CHARS: usize = 255;
+const MAX_MESSAGE_CHARS: usize = 4096;
 
 #[derive(Deserialize)]
 pub struct AttachmentAccess {
@@ -41,7 +41,7 @@ pub struct AttachmentAccess {
         (status = 201, description = "Attachment message created", body = StoredMessage),
         (status = 400, description = "Missing, empty, or invalid file"),
         (status = 401, description = "Invalid account or room credentials"),
-        (status = 413, description = "File exceeds 50 MiB")
+        (status = 413, description = "File exceeds the configured upload limit")
     )
 )]
 pub async fn upload_attachment(
@@ -52,37 +52,54 @@ pub async fn upload_attachment(
 ) -> Result<(StatusCode, Json<StoredMessage>), StatusCode> {
     let (room, user) = authorize_upload(&state, room_id, &headers).await?;
     let mut upload = None;
+    let mut content = String::new();
+    let mut reply_to = None;
 
     while let Some(field) = multipart.next_field().await.map_err(|error| {
         tracing::warn!("read attachment multipart field failed: {}", error);
-        StatusCode::BAD_REQUEST
+        error.status()
     })? {
-        if field.name() != Some("file") || upload.is_some() {
-            continue;
+        match field.name() {
+            Some("file") if upload.is_none() => {
+                let file_name = normalize_file_name(field.file_name().unwrap_or("file"))?;
+                let supplied_mime = field.content_type().map(str::to_string);
+                let data = field.bytes().await.map_err(|error| {
+                    tracing::warn!("read attachment bytes failed: {}", error);
+                    error.status()
+                })?;
+                if data.is_empty() {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                if data.len() > state.max_upload_bytes() {
+                    return Err(StatusCode::PAYLOAD_TOO_LARGE);
+                }
+                let mime_type = normalized_mime(supplied_mime.as_deref(), &file_name);
+                upload = Some(NewAttachment {
+                    file_name,
+                    mime_type,
+                    data: data.to_vec(),
+                });
+            }
+            Some("content") => {
+                content =
+                    normalize_caption(field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?)?;
+            }
+            Some("reply_to") => {
+                reply_to = field
+                    .text()
+                    .await
+                    .map_err(|_| StatusCode::BAD_REQUEST)?
+                    .parse()
+                    .map(Some)
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+            }
+            _ => {}
         }
-        let file_name = normalize_file_name(field.file_name().unwrap_or("file"))?;
-        let supplied_mime = field.content_type().map(str::to_string);
-        let data = field.bytes().await.map_err(|error| {
-            tracing::warn!("read attachment bytes failed: {}", error);
-            StatusCode::BAD_REQUEST
-        })?;
-        if data.is_empty() {
-            return Err(StatusCode::BAD_REQUEST);
-        }
-        if data.len() > MAX_UPLOAD_BYTES {
-            return Err(StatusCode::PAYLOAD_TOO_LARGE);
-        }
-        let mime_type = normalized_mime(supplied_mime.as_deref(), &file_name);
-        upload = Some(NewAttachment {
-            file_name,
-            mime_type,
-            data: data.to_vec(),
-        });
     }
 
     let upload = upload.ok_or(StatusCode::BAD_REQUEST)?;
     state
-        .store_attachment_message(room.id, user.id, &user.username, upload)
+        .store_attachment_message(room.id, &user, upload, &content, reply_to)
         .await
         .map(|message| (StatusCode::CREATED, Json(message)))
         .map_err(|error| {
@@ -216,6 +233,16 @@ async fn authorize_upload(
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    if !state
+        .has_room_permission(room_id, user.id, "message.send")
+        .await
+        .map_err(|error| {
+            tracing::error!("check attachment permission failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
     Ok((room, user))
 }
 
@@ -232,6 +259,14 @@ fn normalize_file_name(value: &str) -> Result<String, StatusCode> {
         return Err(StatusCode::BAD_REQUEST);
     }
     Ok(name)
+}
+
+fn normalize_caption(value: String) -> Result<String, StatusCode> {
+    let content = value.trim().to_string();
+    if content.chars().count() > MAX_MESSAGE_CHARS {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    Ok(content)
 }
 
 fn normalized_mime(supplied: Option<&str>, file_name: &str) -> String {
@@ -264,6 +299,12 @@ fn previewable_mime(mime_type: &str) -> bool {
             | "video/ogg"
             | "video/quicktime"
             | "video/webm"
+            | "audio/mpeg"
+            | "audio/ogg"
+            | "audio/wav"
+            | "audio/webm"
+            | "application/pdf"
+            | "text/plain"
     )
 }
 

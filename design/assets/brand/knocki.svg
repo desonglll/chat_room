@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Knocki, the ChatRoom mascot</title>
+  <desc id="desc">A friendly jade doorway character waving hello with a coral speaking door.</desc>
+  <g fill="none" stroke="#172321" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M125 288c-36 7-55 30-57 65" stroke-width="18"/>
+    <path d="M386 288c31 5 48 24 53 52" stroke-width="18"/>
+    <path d="M68 353c-9-18-6-34 9-47" stroke-width="16"/>
+    <path d="M68 353c-20-1-32-10-38-26" stroke-width="16"/>
+    <path d="M188 418c-5 25-3 42 6 53" stroke-width="20"/>
+    <path d="M326 418c5 25 3 42-6 53" stroke-width="20"/>
+  </g>
+  <path fill="#172321" d="M95 363V229C95 134 168 57 258 57s163 77 163 172v134c0 47-36 85-81 85H176c-45 0-81-38-81-85Z"/>
+  <path fill="#087F6B" d="M111 354V229c0-85 66-154 147-154s147 69 147 154v125c0 42-32 76-72 76H183c-40 0-72-34-72-76Z"/>
+  <path fill="#F7FAF9" d="M164 364V238c0-53 42-96 94-96s94 43 94 96v126H164Z"/>
+  <path fill="#FF6B57" stroke="#172321" stroke-linejoin="round" stroke-width="10" d="m236 199 123-39v210l-48-39-75 25V199Z"/>
+  <circle cx="309" cy="267" r="18" fill="#F4B942" stroke="#172321" stroke-width="9"/>
+  <g fill="#172321">
+    <ellipse cx="207" cy="247" rx="9" ry="13"/>
+    <ellipse cx="277" cy="234" rx="9" ry="13"/>
+  </g>
+  <path fill="none" stroke="#172321" stroke-linecap="round" stroke-width="10" d="M211 292c17 16 39 15 55-2"/>
+  <path fill="#F4B942" stroke="#172321" stroke-width="9" d="M238 78c-13-24-6-48 20-48s33 24 20 48"/>
+  <circle cx="258" cy="30" r="15" fill="#F4B942" stroke="#172321" stroke-width="9"/>
+</svg>

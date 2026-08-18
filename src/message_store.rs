@@ -4,15 +4,25 @@ use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::models::{Attachment, StoredMessage};
+use crate::models::{Attachment, ReplyPreview, StoredMessage, User};
 use crate::state::AppState;
 
-const MESSAGE_COLUMNS: &str = "messages.id, messages.room_id, messages.sender_id, \
-    messages.sender, messages.content, messages.created_at, attachments.id AS attachment_id, \
+const MESSAGE_SELECT: &str = "SELECT messages.id, messages.room_id, messages.sender_id, \
+    messages.sender, COALESCE(sender_user.avatar_emoji, '') AS sender_avatar, messages.content, \
+    messages.recalled_at, messages.edited_at, messages.created_at, attachments.id AS attachment_id, \
     attachments.access_key AS attachment_access_key, \
     attachments.file_name AS attachment_file_name, \
     attachments.mime_type AS attachment_mime_type, \
-    attachments.size_bytes AS attachment_size_bytes";
+    attachments.size_bytes AS attachment_size_bytes, reply.id AS reply_message_id, \
+    reply.sender AS reply_sender, reply.content AS reply_content, \
+    reply.recalled_at AS reply_recalled_at, \
+    reply_attachment.file_name AS reply_attachment_file_name FROM messages \
+    LEFT JOIN attachments ON attachments.id = messages.attachment_id \
+    LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
+    LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
+    LEFT JOIN attachments AS reply_attachment ON reply_attachment.id = reply.attachment_id";
+
+type ReplySourceRow = (Uuid, String, String, Option<String>, Option<DateTime<Utc>>);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct MessageCursor {
@@ -38,24 +48,57 @@ struct MessageRow {
     room_id: Uuid,
     sender_id: Option<Uuid>,
     sender: String,
+    sender_avatar: String,
     content: String,
+    recalled_at: Option<DateTime<Utc>>,
+    edited_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     attachment_id: Option<Uuid>,
     attachment_access_key: Option<Uuid>,
     attachment_file_name: Option<String>,
     attachment_mime_type: Option<String>,
     attachment_size_bytes: Option<i64>,
+    reply_message_id: Option<Uuid>,
+    reply_sender: Option<String>,
+    reply_content: Option<String>,
+    reply_recalled_at: Option<DateTime<Utc>>,
+    reply_attachment_file_name: Option<String>,
 }
 
 impl MessageRow {
     fn into_message(self) -> StoredMessage {
-        let attachment = self.attachment_id.and_then(|id| {
-            Some(Attachment {
-                id,
-                file_name: self.attachment_file_name?,
-                mime_type: self.attachment_mime_type?,
-                size_bytes: self.attachment_size_bytes?,
-                download_url: format!("/api/attachments/{id}?key={}", self.attachment_access_key?),
+        let recalled = self.recalled_at.is_some();
+        let attachment = (!recalled)
+            .then_some(self.attachment_id)
+            .flatten()
+            .and_then(|id| {
+                Some(Attachment {
+                    id,
+                    file_name: self.attachment_file_name?,
+                    mime_type: self.attachment_mime_type?,
+                    size_bytes: self.attachment_size_bytes?,
+                    download_url: format!(
+                        "/api/attachments/{id}?key={}",
+                        self.attachment_access_key?
+                    ),
+                })
+            });
+        let reply_to = self.reply_message_id.and_then(|message_id| {
+            let recalled = self.reply_recalled_at.is_some();
+            Some(ReplyPreview {
+                message_id,
+                sender: self.reply_sender?,
+                content: if recalled {
+                    String::new()
+                } else {
+                    self.reply_content?
+                },
+                attachment_file_name: if recalled {
+                    None
+                } else {
+                    self.reply_attachment_file_name
+                },
+                recalled,
             })
         });
         StoredMessage {
@@ -63,8 +106,16 @@ impl MessageRow {
             room_id: self.room_id,
             sender_id: self.sender_id,
             sender: self.sender,
-            content: self.content,
+            sender_avatar: self.sender_avatar,
+            content: if recalled {
+                String::new()
+            } else {
+                self.content
+            },
             attachment,
+            reply_to,
+            recalled_at: self.recalled_at,
+            edited_at: self.edited_at,
             created_at: self.created_at,
         }
     }
@@ -77,19 +128,24 @@ impl AppState {
         room_id: Uuid,
         sender_id: Uuid,
         sender: &str,
+        sender_avatar: &str,
         content: &str,
+        reply_to: Option<Uuid>,
     ) -> Result<StoredMessage, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
+        let reply_to = self.reply_preview(room_id, reply_to).await?;
         sqlx::query(
-            "INSERT INTO messages (id, room_id, sender_id, sender, content, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO messages \
+             (id, room_id, sender_id, sender, content, reply_to_id, created_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(id)
         .bind(room_id)
         .bind(sender_id)
         .bind(sender)
         .bind(content)
+        .bind(reply_to.as_ref().map(|reply| reply.message_id))
         .bind(created_at)
         .execute(self.pool())
         .await?;
@@ -99,8 +155,12 @@ impl AppState {
             room_id,
             sender_id: Some(sender_id),
             sender: sender.to_string(),
+            sender_avatar: sender_avatar.to_string(),
             content: content.to_string(),
             attachment: None,
+            reply_to,
+            recalled_at: None,
+            edited_at: None,
             created_at,
         })
     }
@@ -109,15 +169,17 @@ impl AppState {
     pub async fn store_attachment_message(
         &self,
         room_id: Uuid,
-        sender_id: Uuid,
-        sender: &str,
+        sender: &User,
         upload: NewAttachment,
+        content: &str,
+        reply_to: Option<Uuid>,
     ) -> Result<StoredMessage, sqlx::Error> {
         let attachment_id = Uuid::new_v4();
         let access_key = Uuid::new_v4();
         let message_id = Uuid::new_v4();
         let created_at = Utc::now();
         let size_bytes = upload.data.len() as i64;
+        let reply_to = self.reply_preview(room_id, reply_to).await?;
         let mut transaction = self.pool().begin().await?;
 
         sqlx::query(
@@ -128,7 +190,7 @@ impl AppState {
         .bind(attachment_id)
         .bind(access_key)
         .bind(room_id)
-        .bind(sender_id)
+        .bind(sender.id)
         .bind(&upload.file_name)
         .bind(&upload.mime_type)
         .bind(size_bytes)
@@ -139,14 +201,16 @@ impl AppState {
 
         sqlx::query(
             "INSERT INTO messages \
-             (id, room_id, sender_id, sender, content, attachment_id, created_at) \
-             VALUES (?, ?, ?, ?, '', ?, ?)",
+             (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, created_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(message_id)
         .bind(room_id)
-        .bind(sender_id)
-        .bind(sender)
+        .bind(sender.id)
+        .bind(&sender.username)
+        .bind(content)
         .bind(attachment_id)
+        .bind(reply_to.as_ref().map(|reply| reply.message_id))
         .bind(created_at)
         .execute(&mut *transaction)
         .await?;
@@ -155,9 +219,10 @@ impl AppState {
         Ok(StoredMessage {
             id: message_id,
             room_id,
-            sender_id: Some(sender_id),
-            sender: sender.to_string(),
-            content: String::new(),
+            sender_id: Some(sender.id),
+            sender: sender.username.clone(),
+            sender_avatar: sender.avatar_emoji.clone(),
+            content: content.to_string(),
             attachment: Some(Attachment {
                 id: attachment_id,
                 file_name: upload.file_name,
@@ -165,6 +230,9 @@ impl AppState {
                 size_bytes,
                 download_url: format!("/api/attachments/{attachment_id}?key={access_key}"),
             }),
+            reply_to,
+            recalled_at: None,
+            edited_at: None,
             created_at,
         })
     }
@@ -176,7 +244,10 @@ impl AppState {
     ) -> Result<Option<AttachmentMetadata>, sqlx::Error> {
         let row: Option<(String, String, i64)> = sqlx::query_as(
             "SELECT file_name, mime_type, size_bytes FROM attachments \
-             WHERE id = ? AND access_key = ?",
+             WHERE id = ? AND access_key = ? AND EXISTS (\
+               SELECT 1 FROM messages WHERE messages.attachment_id = attachments.id \
+               AND messages.recalled_at IS NULL\
+             )",
         )
         .bind(id)
         .bind(access_key)
@@ -199,7 +270,9 @@ impl AppState {
         length: i64,
     ) -> Result<Option<Vec<u8>>, sqlx::Error> {
         sqlx::query_scalar(
-            "SELECT substr(data, ? + 1, ?) FROM attachments WHERE id = ? AND access_key = ?",
+            "SELECT substr(data, ? + 1, ?) FROM attachments WHERE id = ? AND access_key = ? \
+             AND EXISTS (SELECT 1 FROM messages WHERE messages.attachment_id = attachments.id \
+             AND messages.recalled_at IS NULL)",
         )
         .bind(start)
         .bind(length)
@@ -232,14 +305,12 @@ impl AppState {
         let limit = limit.clamp(1, 500);
         let query = match cursor {
             Some(_) => format!(
-                "SELECT {MESSAGE_COLUMNS} FROM messages LEFT JOIN attachments \
-                 ON attachments.id = messages.attachment_id WHERE messages.room_id = ? AND \
+                "{MESSAGE_SELECT} WHERE messages.room_id = ? AND \
                  (messages.created_at > ? OR (messages.created_at = ? AND messages.id > ?)) \
                  ORDER BY messages.created_at ASC, messages.id ASC LIMIT ?"
             ),
             None => format!(
-                "SELECT {MESSAGE_COLUMNS} FROM messages LEFT JOIN attachments \
-                 ON attachments.id = messages.attachment_id WHERE messages.room_id = ? \
+                "{MESSAGE_SELECT} WHERE messages.room_id = ? \
                  ORDER BY messages.created_at ASC, messages.id ASC LIMIT ?"
             ),
         };
@@ -274,14 +345,12 @@ impl AppState {
         let limit = limit.clamp(1, 500);
         let query = match through {
             Some(_) => format!(
-                "SELECT {MESSAGE_COLUMNS} FROM messages LEFT JOIN attachments \
-                 ON attachments.id = messages.attachment_id WHERE messages.room_id = ? AND \
+                "{MESSAGE_SELECT} WHERE messages.room_id = ? AND \
                  (messages.created_at < ? OR (messages.created_at = ? AND messages.id <= ?)) \
                  ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?"
             ),
             None => format!(
-                "SELECT {MESSAGE_COLUMNS} FROM messages LEFT JOIN attachments \
-                 ON attachments.id = messages.attachment_id WHERE messages.room_id = ? \
+                "{MESSAGE_SELECT} WHERE messages.room_id = ? \
                  ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?"
             ),
         };
@@ -306,5 +375,42 @@ impl AppState {
         };
         rows.reverse();
         Ok(rows.into_iter().map(MessageRow::into_message).collect())
+    }
+
+    async fn reply_preview(
+        &self,
+        room_id: Uuid,
+        message_id: Option<Uuid>,
+    ) -> Result<Option<ReplyPreview>, sqlx::Error> {
+        let Some(message_id) = message_id else {
+            return Ok(None);
+        };
+        let row: Option<ReplySourceRow> = sqlx::query_as(
+            "SELECT messages.id, messages.sender, messages.content, attachments.file_name, \
+                    messages.recalled_at \
+             FROM messages LEFT JOIN attachments ON attachments.id = messages.attachment_id \
+             WHERE messages.id = ? AND messages.room_id = ?",
+        )
+        .bind(message_id)
+        .bind(room_id)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.map(
+            |(message_id, sender, content, attachment_file_name, recalled_at)| ReplyPreview {
+                message_id,
+                sender,
+                content: if recalled_at.is_some() {
+                    String::new()
+                } else {
+                    content
+                },
+                attachment_file_name: if recalled_at.is_some() {
+                    None
+                } else {
+                    attachment_file_name
+                },
+                recalled: recalled_at.is_some(),
+            },
+        ))
     }
 }

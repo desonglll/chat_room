@@ -89,12 +89,14 @@ fn remove_sqlite_files(path: &Path) {
 
 async fn create_room(base: &str, name: &str, password: Option<&str>) -> (String, bool) {
     let client = reqwest::Client::new();
+    let owner_token = session_token(base, &format!("owner-{name}")).await;
     let body = serde_json::json!({
         "name": name,
         "password": password.unwrap_or("")
     });
     let resp = client
         .post(format!("{}/api/rooms", base))
+        .bearer_auth(owner_token)
         .json(&body)
         .send()
         .await
@@ -144,6 +146,23 @@ async fn read_until_content(
     panic!("did not receive a message containing {expected:?}");
 }
 
+async fn read_until_type(
+    stream: &mut futures_util::stream::SplitStream<
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+    >,
+    expected: &str,
+) -> serde_json::Value {
+    for _ in 0..8 {
+        let message = read_json(stream).await;
+        if message["type"] == expected {
+            return message;
+        }
+    }
+    panic!("did not receive a message of type {expected:?}");
+}
+
 async fn ws_connect(
     base: &str,
     room_id: &str,
@@ -183,60 +202,6 @@ async fn ws_connect(
     assert_eq!(resp["type"], "auth_ok", "auth/join failed: {}", resp);
 
     (sink, stream)
-}
-
-// ── Web client routing tests ────────────────────────────────────────────────
-
-#[tokio::test]
-async fn web_client_is_only_served_when_enabled() {
-    let api_only = start_server().await;
-    assert_eq!(
-        reqwest::get(format!("{}/", api_only))
-            .await
-            .unwrap()
-            .status(),
-        404
-    );
-
-    let web = start_web_server().await;
-    let response = reqwest::get(format!("{}/", web)).await.unwrap();
-    assert_eq!(response.status(), 200);
-    assert_eq!(
-        response
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .unwrap(),
-        "text/html; charset=utf-8"
-    );
-    let html = response.text().await.unwrap();
-    assert!(html.contains("<div id=\"app\"></div>"));
-    assert!(html.contains("/assets/app.css"));
-    assert!(html.contains("/assets/app.js"));
-
-    let favicon = reqwest::get(format!("{}/favicon.svg", web)).await.unwrap();
-    assert_eq!(favicon.status(), 200);
-    assert_eq!(
-        favicon.headers()[reqwest::header::CONTENT_TYPE],
-        "image/svg+xml"
-    );
-
-    let script = reqwest::get(format!("{}/assets/app.js", web))
-        .await
-        .unwrap();
-    assert_eq!(script.status(), 200);
-    let script = script.text().await.unwrap();
-    assert!(script.contains("/api/rooms"));
-    assert!(script.contains("WebSocket"));
-
-    let css = reqwest::get(format!("{}/assets/app.css", web))
-        .await
-        .unwrap();
-    assert_eq!(css.status(), 200);
-    assert_eq!(
-        css.headers().get(reqwest::header::CONTENT_TYPE).unwrap(),
-        "text/css; charset=utf-8"
-    );
-    assert!(css.text().await.unwrap().contains(".app-shell"));
 }
 
 // ── REST API tests ──────────────────────────────────────────────────────────
@@ -297,13 +262,20 @@ async fn reject_invalid_room_inputs() {
     let server = start_server().await;
     let client = reqwest::Client::new();
     let url = format!("{}/api/rooms", server);
+    let token = session_token(&server, "invalid-room-owner").await;
 
     for body in [
         serde_json::json!({ "name": "   ", "password": "" }),
         serde_json::json!({ "name": "x".repeat(81), "password": "" }),
         serde_json::json!({ "name": "room", "password": "x".repeat(257) }),
     ] {
-        let response = client.post(&url).json(&body).send().await.unwrap();
+        let response = client
+            .post(&url)
+            .bearer_auth(&token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
         assert_eq!(response.status(), 400);
     }
 }
@@ -312,10 +284,12 @@ async fn reject_invalid_room_inputs() {
 async fn reject_duplicate_room_name() {
     let base = start_server().await;
     create_room(&base, "lobby", None).await;
+    let token = session_token(&base, "owner-lobby").await;
 
     let client = reqwest::Client::new();
     let resp = client
         .post(format!("{}/api/rooms", base))
+        .bearer_auth(token)
         .json(&serde_json::json!({ "name": "lobby", "password": "" }))
         .send()
         .await
@@ -393,10 +367,10 @@ async fn ws_private_join_and_chat() {
         .await
         .unwrap();
 
-    let msg = read_json(&mut stream_b).await;
+    let msg = read_until_type(&mut stream_b, "broadcast").await;
     assert_eq!(msg["sender"], "alice");
     assert_eq!(msg["content"], "Hello Bob!");
-    let msg = read_json(&mut stream_a).await;
+    let msg = read_until_type(&mut stream_a, "broadcast").await;
     assert_eq!(msg["sender"], "alice");
     assert_eq!(msg["content"], "Hello Bob!");
 }
@@ -417,9 +391,8 @@ async fn ws_leave_notifies_others() {
     drop(sink_b);
     drop(stream_b);
 
-    let msg = read_json(&mut stream_a).await;
-    assert_eq!(msg["type"], "system");
-    assert!(msg["content"].as_str().unwrap().contains("bob"));
+    let msg = read_until_type(&mut stream_a, "presence").await;
+    assert_eq!(msg["members"].as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -482,3 +455,6 @@ async fn ws_public_join_rejects_if_private() {
 
 #[path = "integration/persistence.rs"]
 mod persistence;
+
+#[path = "integration/web_client.rs"]
+mod web_client;

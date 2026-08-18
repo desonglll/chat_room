@@ -5,6 +5,7 @@ use axum::{http::header, response::IntoResponse};
 const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/web/index.html"));
 const APP_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/app.css"));
 const APP_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/app.js"));
+const JSZIP_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/jszip.min.js"));
 const FAVICON: &str = include_str!(concat!(env!("OUT_DIR"), "/web/favicon.svg"));
 
 pub async fn index() -> impl IntoResponse {
@@ -17,6 +18,10 @@ pub async fn stylesheet() -> impl IntoResponse {
 
 pub async fn app_script() -> impl IntoResponse {
     asset("text/javascript; charset=utf-8", "no-cache", APP_JS)
+}
+
+pub async fn jszip_script() -> impl IntoResponse {
+    asset("text/javascript; charset=utf-8", "no-cache", JSZIP_JS)
 }
 
 pub async fn favicon() -> impl IntoResponse {

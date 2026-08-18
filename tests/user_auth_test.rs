@@ -82,6 +82,19 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
     let login_token = login_session["token"].as_str().unwrap();
     assert_ne!(login_token, token);
 
+    let updated = client
+        .patch(format!("{base}/api/users/me"))
+        .bearer_auth(login_token)
+        .json(&serde_json::json!({ "avatar_emoji": "🚀" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(updated.status(), 200);
+    assert_eq!(
+        updated.json::<serde_json::Value>().await.unwrap()["avatar_emoji"],
+        "🚀"
+    );
+
     let me = client
         .get(format!("{base}/api/users/me"))
         .bearer_auth(login_token)
@@ -89,10 +102,13 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
         .await
         .unwrap();
     assert_eq!(me.status(), 200);
-    assert_eq!(me.json::<serde_json::Value>().await.unwrap()["id"], user_id);
+    let me = me.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(me["id"], user_id);
+    assert_eq!(me["avatar_emoji"], "🚀");
 
     let room: serde_json::Value = client
         .post(format!("{base}/api/rooms"))
+        .bearer_auth(login_token)
         .json(&serde_json::json!({ "name": "identity-test", "password": "" }))
         .send()
         .await
@@ -125,16 +141,17 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
         .await
         .unwrap();
     assert_eq!(next_json(&mut socket).await["type"], "auth_ok");
-    assert_eq!(next_json(&mut socket).await["type"], "system");
+    assert_eq!(next_json(&mut socket).await["type"], "presence");
     socket
         .send(Message::Text(
             serde_json::json!({ "type": "message", "content": "account-bound" }).to_string(),
         ))
         .await
         .unwrap();
-    let broadcast = next_json(&mut socket).await;
+    let broadcast = next_type(&mut socket, "broadcast").await;
     assert_eq!(broadcast["sender"], "Alice");
     assert_eq!(broadcast["sender_id"], user_id);
+    assert_eq!(broadcast["sender_avatar"], "🚀");
     assert!(Uuid::parse_str(broadcast["message_id"].as_str().unwrap()).is_ok());
 
     let logout = client
@@ -168,4 +185,18 @@ async fn next_json(
         panic!("expected text WebSocket frame");
     };
     serde_json::from_str(&text).unwrap()
+}
+
+async fn next_type(
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+    expected: &str,
+) -> serde_json::Value {
+    loop {
+        let message = next_json(socket).await;
+        if message["type"] == expected {
+            return message;
+        }
+    }
 }

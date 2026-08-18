@@ -11,7 +11,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::models::{AuthRequest, AuthSession, User};
+use crate::models::{AuthRequest, AuthSession, UpdateProfileRequest, User};
 use crate::state::SharedState;
 
 const MAX_USERNAME_CHARS: usize = 48;
@@ -55,13 +55,21 @@ async fn password_matches(password: String, encoded_hash: String) -> bool {
     .unwrap_or(false)
 }
 
-fn bearer_token(headers: &HeaderMap) -> Result<Uuid, StatusCode> {
+pub(crate) fn bearer_token(headers: &HeaderMap) -> Result<Uuid, StatusCode> {
     headers
         .get(AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.strip_prefix("Bearer "))
         .and_then(|value| value.parse().ok())
         .ok_or(StatusCode::UNAUTHORIZED)
+}
+
+pub(crate) fn optional_bearer_token(headers: &HeaderMap) -> Option<Uuid> {
+    headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .and_then(|value| value.parse().ok())
 }
 
 /// Register an account and immediately issue a login session.
@@ -156,6 +164,47 @@ pub async fn me(
         })?
         .map(Json)
         .ok_or(StatusCode::UNAUTHORIZED)
+}
+
+/// Update editable fields on the current account.
+#[utoipa::path(
+    patch,
+    path = "/api/users/me",
+    request_body = UpdateProfileRequest,
+    responses(
+        (status = 200, description = "Profile updated", body = User),
+        (status = 400, description = "Invalid profile value"),
+        (status = 401, description = "Missing or expired session")
+    )
+)]
+pub async fn update_me(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(request): Json<UpdateProfileRequest>,
+) -> Result<Json<User>, StatusCode> {
+    let token = bearer_token(&headers)?;
+    let current = state
+        .session_user(token)
+        .await
+        .map_err(|error| {
+            tracing::error!("load current session for profile update failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    let avatar_emoji = request.avatar_emoji.trim();
+    if avatar_emoji.chars().count() > 8 || avatar_emoji.chars().any(char::is_control) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let updated = state
+        .update_user_avatar(current.id, avatar_emoji)
+        .await
+        .map_err(|error| {
+            tracing::error!("update user avatar failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    state.publish_member_profile(&updated).await;
+    Ok(Json(updated))
 }
 
 /// Revoke the current bearer session.

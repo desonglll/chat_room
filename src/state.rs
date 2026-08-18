@@ -9,20 +9,28 @@ use sqlx::SqlitePool;
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::models::{ChatMessage, Room};
+use crate::config::AppConfig;
+use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::storage;
 
 const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
-     password_hash <> '' AS has_password, created_at FROM rooms";
+     password_hash <> '' AS has_password, creator_user_id, join_policy, \
+     NULL AS membership_status, NULL AS membership_role, 0 AS unread_count, created_at FROM rooms";
 
 #[derive(Clone)]
 pub(crate) enum RoomEvent {
-    Message(ChatMessage),
+    Message(Box<ChatMessage>),
     Disconnect { reason: String },
+    DisconnectUser { user_id: Uuid, reason: String },
 }
 
 struct RoomChannel {
     tx: broadcast::Sender<RoomEvent>,
+}
+
+struct ConnectedMember {
+    member: RoomMember,
+    connections: usize,
 }
 
 impl RoomChannel {
@@ -37,13 +45,20 @@ pub struct AppState {
     pool: SqlitePool,
     rooms: RwLock<HashMap<Uuid, Room>>,
     channels: RwLock<HashMap<Uuid, RoomChannel>>,
+    members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
+    max_upload_bytes: usize,
 }
 
 impl AppState {
     /// Open a database file, creating it and applying migrations automatically.
     pub async fn open(database_path: &Path) -> Result<Self> {
+        Self::open_with_config(database_path, &AppConfig::default()).await
+    }
+
+    /// Open a database with validated runtime settings.
+    pub async fn open_with_config(database_path: &Path, config: &AppConfig) -> Result<Self> {
         let pool = storage::open_database(database_path).await?;
-        Self::from_pool(pool).await
+        Self::from_pool(pool, config.max_upload_bytes()?).await
     }
 
     /// Open the configured database or the default chat_rooms.db file.
@@ -54,11 +69,16 @@ impl AppState {
 
     /// Create an isolated in-memory database for tests.
     pub async fn new() -> Result<Self> {
-        let pool = storage::open_memory_database().await?;
-        Self::from_pool(pool).await
+        Self::new_with_config(&AppConfig::default()).await
     }
 
-    async fn from_pool(pool: SqlitePool) -> Result<Self> {
+    /// Create an isolated in-memory database with explicit runtime settings.
+    pub async fn new_with_config(config: &AppConfig) -> Result<Self> {
+        let pool = storage::open_memory_database().await?;
+        Self::from_pool(pool, config.max_upload_bytes()?).await
+    }
+
+    async fn from_pool(pool: SqlitePool, max_upload_bytes: usize) -> Result<Self> {
         let loaded: Vec<Room> = sqlx::query_as(SELECT_ROOMS)
             .fetch_all(&pool)
             .await
@@ -75,26 +95,15 @@ impl AppState {
             pool,
             rooms: RwLock::new(rooms),
             channels: RwLock::new(channels),
+            members: RwLock::new(HashMap::new()),
+            max_upload_bytes,
         })
     }
 
-    /// Insert a room transactionally, then update the read cache and channel map.
-    pub async fn insert_room(&self, room: Room) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT INTO rooms (id, name, password_hash, created_at) \
-             VALUES (?, ?, ?, ?)",
-        )
-        .bind(room.id)
-        .bind(&room.name)
-        .bind(&room.password_hash)
-        .bind(room.created_at)
-        .execute(&self.pool)
-        .await?;
-
+    pub(crate) async fn cache_inserted_room(&self, room: Room) {
         let id = room.id;
         self.rooms.write().await.insert(id, room);
         self.channels.write().await.insert(id, RoomChannel::new());
-        Ok(())
     }
 
     /// Return rooms in stable creation order, optionally filtered by exact name.
@@ -120,14 +129,16 @@ impl AppState {
     /// Persist a room edit only if the caller's view is still current.
     pub async fn update_room(&self, previous: &Room, updated: Room) -> Result<bool, sqlx::Error> {
         let result = sqlx::query(
-            "UPDATE rooms SET name = ?, password_hash = ? \
-             WHERE id = ? AND name = ? AND password_hash = ?",
+            "UPDATE rooms SET name = ?, password_hash = ?, join_policy = ? \
+             WHERE id = ? AND name = ? AND password_hash = ? AND join_policy = ?",
         )
         .bind(&updated.name)
         .bind(&updated.password_hash)
+        .bind(&updated.join_policy)
         .bind(previous.id)
         .bind(&previous.name)
         .bind(&previous.password_hash)
+        .bind(&previous.join_policy)
         .execute(&self.pool)
         .await?;
 
@@ -170,7 +181,121 @@ impl AppState {
 
     pub async fn broadcast(&self, id: Uuid, message: ChatMessage) {
         if let Some(room) = self.channels.read().await.get(&id) {
-            let _ = room.tx.send(RoomEvent::Message(message));
+            let _ = room.tx.send(RoomEvent::Message(Box::new(message)));
+        }
+    }
+
+    /// Track unique accounts while allowing the same account to use multiple tabs.
+    pub async fn member_connected(&self, room_id: Uuid, user: &User) -> (Vec<RoomMember>, bool) {
+        let mut rooms = self.members.write().await;
+        let room = rooms.entry(room_id).or_default();
+        let first_connection = !room.contains_key(&user.id);
+        let connected = room.entry(user.id).or_insert_with(|| ConnectedMember {
+            member: RoomMember {
+                user_id: user.id,
+                username: user.username.clone(),
+                avatar_emoji: user.avatar_emoji.clone(),
+            },
+            connections: 0,
+        });
+        connected.connections += 1;
+        (sorted_members(room), first_connection)
+    }
+
+    /// Remove one socket and report whether the account fully left the room.
+    pub async fn member_disconnected(
+        &self,
+        room_id: Uuid,
+        user_id: Uuid,
+    ) -> (Vec<RoomMember>, bool) {
+        let mut rooms = self.members.write().await;
+        let Some(room) = rooms.get_mut(&room_id) else {
+            return (Vec::new(), false);
+        };
+        let fully_disconnected = match room.get_mut(&user_id) {
+            Some(connected) if connected.connections > 1 => {
+                connected.connections -= 1;
+                false
+            }
+            Some(_) => {
+                room.remove(&user_id);
+                true
+            }
+            None => false,
+        };
+        let members = sorted_members(room);
+        if room.is_empty() {
+            rooms.remove(&room_id);
+        }
+        (members, fully_disconnected)
+    }
+
+    pub async fn remove_connected_member(&self, room_id: Uuid, user_id: Uuid) -> Vec<RoomMember> {
+        let mut rooms = self.members.write().await;
+        let Some(room) = rooms.get_mut(&room_id) else {
+            return Vec::new();
+        };
+        room.remove(&user_id);
+        let members = sorted_members(room);
+        if room.is_empty() {
+            rooms.remove(&room_id);
+        }
+        members
+    }
+
+    pub async fn connected_members(&self, room_id: Uuid) -> Vec<RoomMember> {
+        self.members
+            .read()
+            .await
+            .get(&room_id)
+            .map(sorted_members)
+            .unwrap_or_default()
+    }
+
+    pub async fn disconnect_room_member(&self, id: Uuid, user_id: Uuid, reason: &str) {
+        if let Some(room) = self.channels.read().await.get(&id) {
+            let _ = room.tx.send(RoomEvent::DisconnectUser {
+                user_id,
+                reason: reason.to_string(),
+            });
+        }
+    }
+
+    /// Refresh a connected account in every room and publish the new member snapshots.
+    pub async fn publish_member_profile(&self, user: &User) {
+        let snapshots = {
+            let mut rooms = self.members.write().await;
+            let mut snapshots = Vec::new();
+            for (room_id, members) in rooms.iter_mut() {
+                let Some(connected) = members.get_mut(&user.id) else {
+                    continue;
+                };
+                connected.member.username = user.username.clone();
+                connected.member.avatar_emoji = user.avatar_emoji.clone();
+                snapshots.push((*room_id, sorted_members(members)));
+            }
+            snapshots
+        };
+
+        for (room_id, members) in snapshots {
+            let participants = match self.room_participants(room_id).await {
+                Ok(participants) => participants,
+                Err(error) => {
+                    tracing::warn!(
+                        "load room participants for profile update failed: {}",
+                        error
+                    );
+                    Vec::new()
+                }
+            };
+            self.broadcast(
+                room_id,
+                ChatMessage::Presence {
+                    members,
+                    participants,
+                },
+            )
+            .await;
         }
     }
 
@@ -195,7 +320,25 @@ impl AppState {
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }
+
+    pub fn max_upload_bytes(&self) -> usize {
+        self.max_upload_bytes
+    }
 }
 
 /// Convenience alias used by axum handlers.
 pub type SharedState = Arc<AppState>;
+
+fn sorted_members(members: &HashMap<Uuid, ConnectedMember>) -> Vec<RoomMember> {
+    let mut result: Vec<_> = members
+        .values()
+        .map(|connected| connected.member.clone())
+        .collect();
+    result.sort_by(|left, right| {
+        left.username
+            .to_lowercase()
+            .cmp(&right.username.to_lowercase())
+            .then_with(|| left.user_id.cmp(&right.user_id))
+    });
+    result
+}

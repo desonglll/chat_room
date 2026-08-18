@@ -36,5 +36,6 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
 rustyline = "17"
 colored = "3"
 mime_guess = "2"
+toml = "1.1.4"
 
 [dev-dependencies]

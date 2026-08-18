@@ -1,11 +1,31 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
-import type { BroadcastMessage, ChatStatus, DisplayMessage, Room } from '../types'
+import { createBrowserNotifier } from '../browserNotifications'
+import type {
+  BroadcastMessage,
+  ChatStatus,
+  DisplayMessage,
+  ReadReceipt,
+  Room,
+  RoomMember,
+  TypingDraft,
+} from '../types'
 
 type ServerMessage =
-  | { type: 'auth_ok'; room_name: string }
+  | {
+      type: 'auth_ok'
+      room_name: string
+      members?: RoomMember[]
+      participants?: RoomMember[]
+      read_receipts?: ReadReceipt[]
+    }
   | { type: 'auth_fail'; reason: string }
   | BroadcastMessage
-  | { type: 'system'; content: string }
+  | { type: 'read_receipt'; user_id: string; username: string; message_id: string }
+  | { type: 'message_recalled'; message_id: string; recalled_at: string }
+  | { type: 'message_edited'; message_id: string; content: string; edited_at: string }
+  | { type: 'typing'; user_id?: string; username?: string; content: string }
+  | { type: 'presence'; members: RoomMember[]; participants: RoomMember[] }
+  | { type: 'system'; content: string; members?: RoomMember[]; participants?: RoomMember[] }
 
 interface ReconnectTarget {
   room: Room
@@ -21,6 +41,8 @@ const AUTH_ERRORS: Record<string, string> = {
   'login required': '请重新登录',
   'authentication unavailable': '暂时无法验证登录状态',
   'password too long': '房间密码过长',
+  'membership required': '请先申请加入聊天室',
+  'membership pending': '加入申请正在等待管理员审核',
   'invalid json': '认证请求无效',
 }
 
@@ -43,6 +65,10 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   const status = ref<ChatStatus>('idle')
   const error = ref('')
   const messages = ref<DisplayMessage[]>([])
+  const members = ref<RoomMember[]>([])
+  const participants = ref<RoomMember[]>([])
+  const readReceipts = ref<ReadReceipt[]>([])
+  const typingDrafts = ref<TypingDraft[]>([])
   const currentUserId = ref('')
   let socket: WebSocket | null = null
   let handshakeTimer: number | undefined
@@ -51,6 +77,13 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   let reconnectAttempt = 0
   let reconnectEnabled = false
   let systemMessageId = 0
+  let typingTimer: number | undefined
+  let pendingTyping = ''
+  const typingExpiry = new Map<string, number>()
+  const notifier = createBrowserNotifier(
+    () => reconnectTarget?.room.name || 'Chat Room',
+    () => currentUserId.value,
+  )
 
   const authenticated = computed(() => status.value === 'online')
   const statusLabel = computed(() => ({
@@ -85,6 +118,10 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     status.value = 'idle'
     error.value = ''
     if (!preserveMessages) messages.value = []
+    members.value = []
+    participants.value = []
+    readReceipts.value = []
+    clearTypingDrafts()
   }
 
   function appendSystem(content: string): void {
@@ -99,9 +136,13 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     if (message.type === 'auth_ok') {
       clearHandshakeTimer()
       messages.value = []
+      members.value = message.members || []
+      participants.value = message.participants || []
+      readReceipts.value = message.read_receipts || []
       status.value = 'online'
       error.value = ''
       reconnectAttempt = 0
+      notifier.arm()
       return
     }
     if (message.type === 'auth_fail') {
@@ -116,17 +157,110 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       appendBroadcast(message)
       return
     }
+    if (message.type === 'read_receipt') {
+      const receipt: ReadReceipt = {
+        user_id: message.user_id,
+        username: message.username,
+        message_id: message.message_id,
+      }
+      readReceipts.value = [
+        ...readReceipts.value.filter((item) => item.user_id !== receipt.user_id),
+        receipt,
+      ]
+      return
+    }
+    if (message.type === 'message_recalled') {
+      messages.value = messages.value.map((item) => {
+        if (item.type !== 'broadcast') return item
+        const recalledReply = item.reply_to?.message_id === message.message_id
+          ? { ...item.reply_to, content: '', attachment_file_name: null, recalled: true }
+          : item.reply_to
+        return item.message_id === message.message_id
+          ? {
+              ...item,
+              content: '',
+              attachment: null,
+              recalled_at: message.recalled_at,
+              reply_to: recalledReply,
+            }
+          : { ...item, reply_to: recalledReply }
+      })
+      return
+    }
+    if (message.type === 'message_edited') {
+      messages.value = messages.value.map((item) => {
+        if (item.type !== 'broadcast') return item
+        const replyTo = item.reply_to?.message_id === message.message_id
+          ? { ...item.reply_to, content: message.content }
+          : item.reply_to
+        return item.message_id === message.message_id
+          ? { ...item, content: message.content, edited_at: message.edited_at, reply_to: replyTo }
+          : { ...item, reply_to: replyTo }
+      })
+      return
+    }
+    if (message.type === 'typing') {
+      applyTyping(message)
+      return
+    }
+    if (message.type === 'presence') {
+      applyPresence(message.members, message.participants)
+      return
+    }
 
     const content = message.content || ''
+    if (message.members) members.value = message.members
+    if (message.participants) participants.value = message.participants
     appendSystem(content)
     onSystemEvent?.(content)
   }
 
-  function appendBroadcast(message: BroadcastMessage): void {
+  function appendBroadcast(message: BroadcastMessage, showBrowserNotification = true): void {
     const duplicate = messages.value.some(
       (item) => item.type === 'broadcast' && item.message_id === message.message_id,
     )
-    if (!duplicate) messages.value.push(message)
+    if (!duplicate) {
+      messages.value.push(message)
+      if (showBrowserNotification) notifier.notify(message)
+    }
+  }
+
+  function clearTypingDrafts(): void {
+    window.clearTimeout(typingTimer)
+    typingTimer = undefined
+    pendingTyping = ''
+    for (const timer of typingExpiry.values()) window.clearTimeout(timer)
+    typingExpiry.clear()
+    typingDrafts.value = []
+  }
+
+  function applyTyping(message: { user_id?: string; username?: string; content: string }): void {
+    const userId = message.user_id
+    if (!userId || !message.username || userId === currentUserId.value) return
+    window.clearTimeout(typingExpiry.get(userId))
+    typingDrafts.value = message.content
+      ? [
+          ...typingDrafts.value.filter((draft) => draft.user_id !== userId),
+          { user_id: userId, username: message.username, content: message.content },
+        ]
+      : typingDrafts.value.filter((draft) => draft.user_id !== userId)
+    if (!message.content) {
+      typingExpiry.delete(userId)
+      return
+    }
+    typingExpiry.set(userId, window.setTimeout(() => {
+      typingDrafts.value = typingDrafts.value.filter((draft) => draft.user_id !== userId)
+      typingExpiry.delete(userId)
+    }, 4000))
+  }
+
+  function applyPresence(nextMembers: RoomMember[], nextParticipants: RoomMember[]): void {
+    members.value = nextMembers
+    participants.value = nextParticipants
+    const avatars = new Map(nextParticipants.map((member) => [member.user_id, member.avatar_emoji]))
+    messages.value = messages.value.map((item) => item.type === 'broadcast' && item.sender_id
+      ? { ...item, sender_avatar: avatars.get(item.sender_id) ?? item.sender_avatar }
+      : item)
   }
 
   function scheduleReconnect(): void {
@@ -203,11 +337,51 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     openSocket(reconnectTarget)
   }
 
-  function send(content: string): boolean {
+  function send(content: string, replyTo = ''): boolean {
     const normalized = content.trim()
     if (!normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({ type: 'message', content: normalized }))
+    socket.send(JSON.stringify({
+      type: 'message',
+      content: normalized,
+      reply_to: replyTo || undefined,
+    }))
+    sendTyping('')
     return true
+  }
+
+  function edit(messageId: string, content: string): boolean {
+    const normalized = content.trim()
+    if (!messageId || !normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    socket.send(JSON.stringify({ type: 'edit', message_id: messageId, content: normalized }))
+    sendTyping('')
+    return true
+  }
+
+  function flushTyping(): void {
+    typingTimer = undefined
+    if (!authenticated.value || socket?.readyState !== WebSocket.OPEN) return
+    socket.send(JSON.stringify({ type: 'typing', content: pendingTyping }))
+  }
+
+  function sendTyping(content: string): void {
+    pendingTyping = content.slice(0, 512)
+    if (!typingTimer) typingTimer = window.setTimeout(flushTyping, 90)
+  }
+
+  function markRead(messageId: string): boolean {
+    if (!messageId || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    socket.send(JSON.stringify({ type: 'read', message_id: messageId }))
+    return true
+  }
+
+  function recall(messageId: string): boolean {
+    if (!messageId || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    socket.send(JSON.stringify({ type: 'recall', message_id: messageId }))
+    return true
+  }
+
+  function configureNotifications(enabled: boolean, showDetails: boolean): void {
+    notifier.configure(enabled, showDetails)
   }
 
   onBeforeUnmount(() => close())
@@ -216,12 +390,21 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     authenticated,
     currentUserId,
     error,
+    members,
     messages,
+    participants,
+    readReceipts,
     status,
     statusLabel,
+    typingDrafts,
     appendBroadcast,
     close,
+    configureNotifications,
     connect,
+    edit,
+    markRead,
+    recall,
     send,
+    sendTyping,
   }
 }

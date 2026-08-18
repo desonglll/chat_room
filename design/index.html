@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ChatRoom Echo Gate brand and interface design system">
+    <title>ChatRoom · Echo Gate Design System</title>
+    <link rel="icon" href="./assets/brand/echo-gate.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./tokens.css">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <svg class="svg-sprite" aria-hidden="true">
+      <symbol id="cr-icon-rooms" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 20V9a8 8 0 0 1 16 0v11"/><path d="M8 20V9a4 4 0 0 1 8 0v8l-3-2-5 2.5Z"/><circle cx="13" cy="11" r=".8" fill="currentColor" stroke="none"/></g></symbol>
+      <symbol id="cr-icon-room-add" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 20V9a8 8 0 0 1 16 0v3M8 20V9a4 4 0 0 1 8 0v3"/><path d="M16.5 17.5h5m-2.5-2.5v5"/></g></symbol>
+      <symbol id="cr-icon-members" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-2a5.5 5.5 0 0 1 11 0v2m1.5-8.5a3 3 0 0 1 4.5 2.6M17 16a4 4 0 0 1 4 4"/></g></symbol>
+      <symbol id="cr-icon-message" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 5.5h16v11H10l-5 3v-3H4Z"/><path d="M8 10h8m-8 3h5"/></g></symbol>
+      <symbol id="cr-icon-send" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 6h8a7 7 0 0 1 7 7v6"/><path d="m14.5 15 4.5 4 4-4.5M4 11h7m-7 5h5"/></g></symbol>
+      <symbol id="cr-icon-attach" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m9 12 5.2-5.2a3.4 3.4 0 0 1 4.8 4.8l-7.4 7.3a5 5 0 0 1-7-7L12 4.5m-5 10.8 7.1-7.1"/></symbol>
+      <symbol id="cr-icon-files" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M7 3h7l4 4v13H7Z"/><path d="M14 3v5h5M4 7v13h10m-4-7h5m-5 3h4"/></g></symbol>
+      <symbol id="cr-icon-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4.5 4.5"/></g></symbol>
+      <symbol id="cr-icon-reply" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m10 7-5 5 5 5"/><path d="M6 12h7a6 6 0 0 1 6 6v1"/></g></symbol>
+      <symbol id="cr-icon-bell" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M5 17h14l-1.5-2.5V10a5.5 5.5 0 0 0-11 0v4.5Zm5 3h4"/><circle cx="18.5" cy="5.5" r="2.5" fill="#FF6B57" stroke="none"/></g></symbol>
+      <symbol id="cr-icon-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.4 3h-4.8l-.3 3a8 8 0 0 0-1.8 1L5 6 3 9.4 5.1 11a7 7 0 0 0 0 2L3 14.6 5 18l2.5-1a8 8 0 0 0 1.8 1l.3 3h4.8l.3-3a8 8 0 0 0 1.8-1l2.5 1 2-3.4-2.1-1.6a7 7 0 0 0 .1-1Z"/></g></symbol>
+      <symbol id="cr-icon-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></g></symbol>
+      <symbol id="cr-icon-unread" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 5.5h16v11H10l-5 3v-3H4Z"/><circle cx="18.5" cy="5.5" r="3" fill="#FF6B57" stroke="#F7FAF9"/></g></symbol>
+      <symbol id="cr-icon-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m14.5 5-7 7 7 7"/></symbol>
+    </svg>
+    <aside class="doc-nav">
+      <a class="nav-brand" href="#brand" aria-label="ChatRoom 设计系统首页">
+        <img src="./assets/brand/echo-gate.svg" alt="">
+        <span><strong>ChatRoom</strong><small>Echo Gate · v1.0</small></span>
+      </a>
+      <nav aria-label="设计文档目录">
+        <a href="#brand">品牌核心</a>
+        <a href="#assets">标志与吉祥物</a>
+        <a href="#color">配色</a>
+        <a href="#type">排版与形状</a>
+        <a href="#icons">图标</a>
+        <a href="#components">组件</a>
+        <a href="#application">界面应用</a>
+      </nav>
+      <div class="nav-meta">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>设计资产可用</span>
+      </div>
+    </aside>
+
+    <main>
+      <section class="brand-intro" id="brand">
+        <div class="intro-copy">
+          <p class="eyebrow">ChatRoom brand system / 2026</p>
+          <h1>ChatRoom</h1>
+          <p class="intro-lede">进入房间，认真说话。</p>
+          <p class="intro-body">“回声门”把房间、加入关系和正在发生的对话压缩成一个符号。它不借用纸飞机或双气泡，而是从这个产品最核心的“房间”出发。</p>
+          <div class="tag-row" aria-label="品牌特征">
+            <span>清楚</span><span>可靠</span><span>有人情味</span><span>轻快</span>
+          </div>
+        </div>
+        <div class="brand-scene" aria-label="ChatRoom 品牌标志与敲敲吉祥物">
+          <img class="scene-mark" src="./assets/brand/app-icon.svg" alt="ChatRoom 应用图标">
+          <img class="scene-mascot" src="./assets/brand/knocki.svg" alt="ChatRoom 吉祥物敲敲">
+          <div class="scene-note"><span class="status-dot"></span> Knocki 正在守门</div>
+        </div>
+      </section>
+
+      <section class="doc-section" id="assets">
+        <div class="section-heading">
+          <div><p class="section-index">01 / BRAND ASSETS</p><h2>标志与吉祥物</h2></div>
+          <p>符号负责识别，吉祥物负责情绪；两者共用同一个拱门母形。</p>
+        </div>
+        <div class="asset-grid">
+          <article class="asset-cell asset-light">
+            <img src="./assets/brand/echo-gate.svg" alt="回声门标准标志">
+            <div><strong>Echo Gate</strong><small>标准品牌符号 · SVG</small></div>
+            <a href="./assets/brand/echo-gate.svg" download>下载</a>
+          </article>
+          <article class="asset-cell asset-dark">
+            <img src="./assets/brand/app-icon.svg" alt="ChatRoom 应用图标">
+            <div><strong>App icon</strong><small>1024 px 母版 · SVG</small></div>
+            <a href="./assets/brand/app-icon.svg" download>下载</a>
+          </article>
+          <article class="asset-cell asset-wide">
+            <img src="./assets/brand/chatroom-lockup.svg" alt="ChatRoom 横向品牌组合">
+            <div><strong>Horizontal lockup</strong><small>横向品牌组合 · SVG</small></div>
+            <a href="./assets/brand/chatroom-lockup.svg" download>下载</a>
+          </article>
+          <article class="asset-cell mascot-cell">
+            <img src="./assets/brand/knocki.svg" alt="敲敲标准姿势">
+            <div><strong>Knocki / 敲敲</strong><small>空状态与反馈角色 · SVG</small></div>
+            <a href="./assets/brand/knocki.svg" download>下载</a>
+          </article>
+        </div>
+        <div class="clearspace-rule">
+          <span class="mini-mark"><img src="./assets/brand/echo-gate.svg" alt=""></span>
+          <div><strong>最小尺寸 20 px</strong><p>四周安全留白等于黄色门铃点的直径。低于 32 px 时只使用符号，不附加文字。</p></div>
+        </div>
+      </section>
+
+      <section class="doc-section" id="color">
+        <div class="section-heading">
+          <div><p class="section-index">02 / COLOR</p><h2>配色系统</h2></div>
+          <p>低刺激中性色保证长时间阅读，三种品牌色只承担明确语义。</p>
+        </div>
+        <div class="color-grid">
+          <article class="swatch swatch-jade"><span>Signal Jade</span><strong>#087F6B</strong><small>品牌 / 主操作 / 当前房间</small></article>
+          <article class="swatch swatch-coral"><span>Knock Coral</span><strong>#FF6B57</strong><small>未读 / 回复 / 重点提醒</small></article>
+          <article class="swatch swatch-sun"><span>Doorbell Sun</span><strong>#F4B942</strong><small>在线 / 邀请 / 等待</small></article>
+          <article class="swatch swatch-ink"><span>Deep Ink</span><strong>#172321</strong><small>正文 / 深色品牌背景</small></article>
+          <article class="swatch swatch-paper"><span>Paper</span><strong>#F7FAF9</strong><small>画布 / 大面积背景</small></article>
+          <article class="swatch swatch-mist"><span>Mist</span><strong>#DCE6E2</strong><small>边框 / 分隔 / 控件底</small></article>
+        </div>
+        <div class="ratio-strip" aria-label="推荐用色比例">
+          <span class="ratio-neutral">72% 中性色</span><span class="ratio-jade">18% 绿</span><span class="ratio-coral">7%</span><span class="ratio-sun">3%</span>
+        </div>
+      </section>
+
+      <section class="doc-section" id="type">
+        <div class="section-heading">
+          <div><p class="section-index">03 / TYPE & SHAPE</p><h2>排版与形状</h2></div>
+          <p>紧凑、稳健、适合高频扫描；圆角只负责触感，不制造卡通感。</p>
+        </div>
+        <div class="type-layout">
+          <div class="type-sample">
+            <span class="type-display">进入房间</span>
+            <span class="type-title">项目讨论组 · 8 人在线</span>
+            <span class="type-body">下午的接口联调已经完成，附件里是最新测试记录。</span>
+            <span class="type-caption">今天 16:42 · 已读 6</span>
+          </div>
+          <div class="type-notes">
+            <dl><dt>Font</dt><dd>Inter / PingFang SC / System UI</dd><dt>Body</dt><dd>14–16 px · 400</dd><dt>Title</dt><dd>20–28 px · 650–700</dd><dt>Letter spacing</dt><dd>0</dd></dl>
+            <div class="radius-row" aria-label="圆角比例"><span>4</span><span>6</span><span>8</span><i>圆形</i></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-section" id="icons">
+        <div class="section-heading">
+          <div><p class="section-index">04 / ICONS</p><h2>专属图标</h2></div>
+          <p>24 px 网格、1.8 px 圆角描边。发送动作是“消息穿过门”，不使用纸飞机。</p>
+        </div>
+        <div class="icon-grid">
+          <article><svg><use href="#cr-icon-rooms"></use></svg><strong>rooms</strong></article>
+          <article><svg><use href="#cr-icon-room-add"></use></svg><strong>room-add</strong></article>
+          <article><svg><use href="#cr-icon-members"></use></svg><strong>members</strong></article>
+          <article><svg><use href="#cr-icon-message"></use></svg><strong>message</strong></article>
+          <article><svg><use href="#cr-icon-send"></use></svg><strong>send</strong></article>
+          <article><svg><use href="#cr-icon-attach"></use></svg><strong>attach</strong></article>
+          <article><svg><use href="#cr-icon-files"></use></svg><strong>files</strong></article>
+          <article><svg><use href="#cr-icon-search"></use></svg><strong>search</strong></article>
+          <article><svg><use href="#cr-icon-reply"></use></svg><strong>reply</strong></article>
+          <article><svg><use href="#cr-icon-bell"></use></svg><strong>bell</strong></article>
+          <article><svg><use href="#cr-icon-settings"></use></svg><strong>settings</strong></article>
+          <article><svg><use href="#cr-icon-lock"></use></svg><strong>lock</strong></article>
+          <article><svg><use href="#cr-icon-unread"></use></svg><strong>unread</strong></article>
+          <article><svg><use href="#cr-icon-back"></use></svg><strong>back</strong></article>
+        </div>
+      </section>
+
+      <section class="doc-section" id="components">
+        <div class="section-heading">
+          <div><p class="section-index">05 / COMPONENTS</p><h2>组件状态</h2></div>
+          <p>命令用按钮，状态用标签，二选一设置用分段控件。</p>
+        </div>
+        <div class="component-band">
+          <div class="button-row">
+            <button class="button button-primary" type="button"><svg><use href="#cr-icon-room-add"></use></svg>新建房间</button>
+            <button class="button button-secondary" type="button">申请加入</button>
+            <button class="button button-danger" type="button">删除房间</button>
+            <button class="icon-button" type="button" aria-label="搜索" title="搜索"><svg><use href="#cr-icon-search"></use></svg></button>
+          </div>
+          <div class="status-row"><span class="pill pill-online">在线</span><span class="pill pill-pending">待审核</span><span class="pill pill-unread">12 条未读</span><span class="pill pill-private"><svg><use href="#cr-icon-lock"></use></svg>私密</span></div>
+          <div class="segmented" aria-label="发送快捷键"><button class="active" type="button">Enter 发送</button><button type="button">⌘ Enter 发送</button></div>
+        </div>
+      </section>
+
+      <section class="doc-section" id="application">
+        <div class="section-heading">
+          <div><p class="section-index">06 / APPLICATION</p><h2>ChatRoom 应用示例</h2></div>
+          <p>示例直接覆盖现有项目的房间、成员、文件、回复、未读和发送场景。</p>
+        </div>
+        <div class="chat-frame">
+          <aside class="room-pane">
+            <header class="room-pane-head"><img src="./assets/brand/echo-gate.svg" alt=""><div><strong>ChatRoom</strong><small>4 个聊天室</small></div><button class="icon-button small" type="button" aria-label="新建房间" title="新建房间"><svg><use href="#cr-icon-room-add"></use></svg></button></header>
+            <div class="room-list">
+              <button class="room-row active" type="button"><span class="room-avatar jade"><svg><use href="#cr-icon-rooms"></use></svg></span><span><strong>产品讨论</strong><small>小林：接口联调完成了</small></span><time>16:42</time><b>3</b></button>
+              <button class="room-row" type="button"><span class="room-avatar sun"><svg><use href="#cr-icon-lock"></use></svg></span><span><strong>发布准备</strong><small>私密 · 6 名成员</small></span><time>15:18</time></button>
+              <button class="room-row" type="button"><span class="room-avatar coral">设</span><span><strong>设计评审</strong><small>阿澈：明早再看动效</small></span><time>周一</time></button>
+              <button class="room-row" type="button"><span class="room-avatar ink">周</span><span><strong>周末闲聊</strong><small>公开 · 12 名成员</small></span><time>08/16</time></button>
+            </div>
+            <footer class="user-row"><span class="user-avatar">林</span><span><small>当前用户</small><strong>林沐</strong></span><button class="icon-button small" type="button" aria-label="设置" title="设置"><svg><use href="#cr-icon-settings"></use></svg></button></footer>
+          </aside>
+          <section class="conversation-pane">
+            <header class="conversation-head"><div><strong>产品讨论</strong><span><i></i>8 人在线</span></div><div class="head-tools"><button class="icon-button small" type="button" aria-label="成员" title="成员"><svg><use href="#cr-icon-members"></use></svg></button><button class="icon-button small" type="button" aria-label="文件" title="文件"><svg><use href="#cr-icon-files"></use></svg></button><button class="icon-button small" type="button" aria-label="搜索" title="搜索"><svg><use href="#cr-icon-search"></use></svg></button></div></header>
+            <div class="messages">
+              <div class="date-rule"><span>今天</span></div>
+              <div class="message-row"><span class="user-avatar coral-bg">澈</span><div><div class="message-meta"><strong>阿澈</strong><time>16:38</time></div><div class="bubble incoming">移动端的房间切换我已经补了返回状态。</div></div></div>
+              <div class="message-row own"><div><div class="message-meta"><time>16:40</time><strong>你</strong></div><div class="bubble outgoing"><blockquote><strong>阿澈</strong>移动端的房间切换...</blockquote>收到，我会顺手检查一下 320 px 宽度。</div><small class="read-state">已读 6</small></div></div>
+              <div class="message-row"><span class="user-avatar jade-bg">林</span><div><div class="message-meta"><strong>小林</strong><time>16:42</time></div><div class="bubble incoming"><span class="file-line"><svg><use href="#cr-icon-files"></use></svg><span><strong>attachment-test-report.pdf</strong><small>2.4 MB · PDF</small></span></span>接口联调完成了，测试记录在这里。</div></div></div>
+              <p class="typing"><span></span><span></span><span></span> 阿澈正在输入</p>
+            </div>
+            <form class="composer" onsubmit="return false"><button class="icon-button small" type="button" aria-label="添加附件" title="添加附件"><svg><use href="#cr-icon-attach"></use></svg></button><label><span class="sr-only">消息内容</span><input type="text" value="今晚合并到测试分支。" aria-label="消息内容"></label><button class="send-button" type="submit" aria-label="发送消息" title="发送消息"><svg><use href="#cr-icon-send"></use></svg></button></form>
+          </section>
+        </div>
+      </section>
+
+      <section class="doc-section mascot-strip">
+        <div class="section-heading"><div><p class="section-index">07 / MASCOT STATES</p><h2>敲敲的状态</h2></div><p>打招呼、输入中、离线。角色只补充情绪，不替代状态文字。</p></div>
+        <img src="./assets/brand/knocki-stickers.svg" alt="敲敲的打招呼、输入中和离线状态">
+      </section>
+
+      <footer class="doc-footer"><img src="./assets/brand/echo-gate.svg" alt=""><p><strong>ChatRoom · Echo Gate v1.0</strong><br>原创品牌与界面资产，2026-08-18。</p><a href="./README.md">阅读完整规范</a></footer>
+    </main>
+  </body>
+</html>
