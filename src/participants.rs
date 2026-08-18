@@ -4,19 +4,19 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::models::RoomMember;
-use crate::state::AppState;
+use crate::state::{with_pool, AppState};
 
 impl AppState {
     pub async fn room_participants(&self, room_id: Uuid) -> Result<Vec<RoomMember>, sqlx::Error> {
-        let rows: Vec<ParticipantRow> = sqlx::query_as(
+        let rows: Vec<ParticipantRow> = with_pool!(self, |pool| { sqlx::query_as(
             "SELECT users.id AS user_id, users.username, users.avatar_emoji \
              FROM room_memberships JOIN users ON users.id = room_memberships.user_id \
-             WHERE room_memberships.room_id = ? AND room_memberships.status = 'active' \
-             ORDER BY users.username COLLATE NOCASE",
+             WHERE room_memberships.room_id = $1 AND room_memberships.status = 'active' \
+             ORDER BY LOWER(users.username)",
         )
         .bind(room_id)
-        .fetch_all(self.pool())
-        .await?;
+        .fetch_all(pool)
+        .await })?;
         Ok(rows.into_iter().map(ParticipantRow::into_member).collect())
     }
 
@@ -36,11 +36,11 @@ impl AppState {
         room_id: Uuid,
         user_id: Uuid,
     ) -> Result<bool, sqlx::Error> {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM room_memberships WHERE room_id = ? AND user_id = ? AND status = 'active')")
+        with_pool!(self, |pool| { sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM room_memberships WHERE room_id = $1 AND user_id = $2 AND status = 'active')")
             .bind(room_id)
             .bind(user_id)
-            .fetch_one(self.pool())
-            .await
+            .fetch_one(pool)
+            .await })
     }
 }
 

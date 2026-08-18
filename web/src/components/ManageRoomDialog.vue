@@ -120,17 +120,17 @@ async function confirmDelete(): Promise<void> {
     <template v-if="room && !confirmingDelete">
       <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" class="mb-5 grid grid-cols-2" />
       <RoomMembersPanel v-if="mode === 'members'" :room="room" :token="token" />
-      <form v-else class="flex flex-col gap-5" @submit.prevent="save">
+      <form v-else class="flex flex-col gap-5" autocomplete="off" @submit.prevent="save">
         <div class="flex flex-col gap-2">
           <label for="manageRoomName" class="text-sm font-medium">房间名称</label>
-          <InputText id="manageRoomName" v-model="name" maxlength="80" fluid />
+          <InputText id="manageRoomName" v-model="name" name="managed-room-name" maxlength="80" autocomplete="off" fluid />
         </div>
 
         <div class="flex flex-col gap-2">
           <label for="newRoomPassword" class="text-sm font-medium">
             新密码 <span class="font-normal text-muted-color">留空则不更改</span>
           </label>
-          <Password id="newRoomPassword" v-model="newPassword" :disabled="removePassword" :feedback="false" toggle-mask fluid maxlength="256" autocomplete="new-password" />
+          <Password id="newRoomPassword" v-model="newPassword" name="managed-room-password" :disabled="removePassword" :feedback="false" toggle-mask fluid maxlength="256" autocomplete="off" />
         </div>
 
         <div v-if="room.has_password" class="flex items-center gap-2">

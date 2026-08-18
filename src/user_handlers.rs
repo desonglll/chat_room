@@ -11,12 +11,18 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::models::{AuthRequest, AuthSession, UpdateProfileRequest, User};
+use crate::models::{
+    AuthRequest, AuthSession, ChangePasswordRequest, DeleteAccountRequest, UpdateProfileRequest,
+    User,
+};
 use crate::state::SharedState;
 
 const MAX_USERNAME_CHARS: usize = 48;
 const MIN_PASSWORD_CHARS: usize = 8;
 const MAX_PASSWORD_CHARS: usize = 256;
+const MAX_DISPLAY_NAME_CHARS: usize = 48;
+const MAX_SIGNATURE_CHARS: usize = 160;
+const MAX_HOMEPAGE_CHARS: usize = 240;
 
 fn normalize_credentials(request: AuthRequest) -> Result<(String, String), StatusCode> {
     let username = request.username.trim().to_string();
@@ -191,12 +197,31 @@ pub async fn update_me(
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    let avatar_emoji = request.avatar_emoji.trim();
+    let avatar_emoji = request
+        .avatar_emoji
+        .as_deref()
+        .unwrap_or(&current.avatar_emoji)
+        .trim();
     if avatar_emoji.chars().count() > 8 || avatar_emoji.chars().any(char::is_control) {
         return Err(StatusCode::BAD_REQUEST);
     }
+    let display_name = request.display_name.as_deref().unwrap_or(&current.display_name).trim();
+    let signature = request.signature.as_deref().unwrap_or(&current.signature).trim();
+    let homepage = request.homepage.as_deref().unwrap_or(&current.homepage).trim();
+    let valid_homepage = homepage.is_empty()
+        || homepage.starts_with("https://")
+        || homepage.starts_with("http://");
+    if display_name.chars().count() > MAX_DISPLAY_NAME_CHARS
+        || signature.chars().count() > MAX_SIGNATURE_CHARS
+        || signature.chars().any(char::is_control)
+        || homepage.chars().count() > MAX_HOMEPAGE_CHARS
+        || homepage.chars().any(char::is_control)
+        || !valid_homepage
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
     let updated = state
-        .update_user_avatar(current.id, avatar_emoji)
+        .update_user_profile(current.id, avatar_emoji, display_name, signature, homepage)
         .await
         .map_err(|error| {
             tracing::error!("update user avatar failed: {}", error);
@@ -205,6 +230,79 @@ pub async fn update_me(
         .ok_or(StatusCode::UNAUTHORIZED)?;
     state.publish_member_profile(&updated).await;
     Ok(Json(updated))
+}
+
+pub async fn change_password(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(request): Json<ChangePasswordRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let token = bearer_token(&headers)?;
+    let current = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    let new_length = request.new_password.chars().count();
+    if !(MIN_PASSWORD_CHARS..=MAX_PASSWORD_CHARS).contains(&new_length) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let Some((_, password_hash)) = state
+        .user_credentials(&current.username)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    else {
+        return Err(StatusCode::UNAUTHORIZED);
+    };
+    if !password_matches(request.current_password, password_hash).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let password_hash = hash_password(request.new_password).await?;
+    state
+        .update_user_password(current.id, &password_hash, token)
+        .await
+        .map_err(|error| {
+            tracing::error!("change account password failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn delete_account(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(request): Json<DeleteAccountRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let token = bearer_token(&headers)?;
+    let current = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    let Some((_, password_hash)) = state
+        .user_credentials(&current.username)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    else {
+        return Err(StatusCode::UNAUTHORIZED);
+    };
+    if !password_matches(request.current_password, password_hash).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    for room in state.list_rooms(None).await {
+        if room.creator_user_id == Some(current.id) {
+            state
+                .delete_room(room.id, &room.password_hash)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+    }
+    state.delete_user(current.id).await.map_err(|error| {
+        tracing::error!("delete account failed: {error}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Revoke the current bearer session.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ChevronRight,
+  DoorOpen,
   Hash,
   LockKeyhole,
   LogIn,
@@ -11,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Settings,
+  UserRound,
 } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Badge from 'primevue/badge'
@@ -31,9 +33,11 @@ const emit = defineEmits<{
   select: [room: Room]
   refresh: []
   create: []
+  join: []
   authenticate: []
   logout: []
   settings: []
+  profile: []
   toggleCollapse: []
 }>()
 
@@ -67,6 +71,9 @@ function formatDate(value: string): string {
         </Button>
         <Button :class="{ 'md:hidden': collapsed }" text rounded aria-label="新建聊天室" title="新建聊天室" data-testid="create-room-button" @click="emit('create')">
           <Plus :size="17" />
+        </Button>
+        <Button :class="{ 'md:hidden': collapsed }" text rounded severity="secondary" aria-label="通过 ID 加入聊天室" title="通过 ID 加入聊天室" @click="emit('join')">
+          <DoorOpen :size="17" />
         </Button>
         <Button class="hidden md:inline-flex" text rounded severity="secondary" :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'" :title="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="emit('toggleCollapse')">
           <PanelLeftOpen v-if="collapsed" :size="18" />
@@ -134,12 +141,14 @@ function formatDate(value: string): string {
 
     <footer class="flex min-h-[76px] shrink-0 items-center gap-2 border-t border-surface-200 bg-surface-50 px-4 py-3" :class="{ 'md:flex-col md:px-2': collapsed }">
       <template v-if="user">
-        <Avatar :label="user.avatar_emoji || user.username.slice(0, 1).toUpperCase()" shape="circle" class="shrink-0 bg-surface-200! text-surface-700!" />
-        <div class="min-w-0 flex-1" :class="{ 'md:hidden': collapsed }">
-          <small class="block text-[11px] text-muted-color">当前用户</small>
-          <strong class="mt-0.5 block truncate text-sm">{{ user.username }}</strong>
-        </div>
-        <Button text rounded severity="secondary" aria-label="偏好设置" title="偏好设置" @click="emit('settings')">
+        <button type="button" class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left transition hover:text-primary" :class="{ 'md:justify-center': collapsed }" title="我的" @click="emit('profile')">
+          <Avatar :label="user.avatar_emoji || user.username.slice(0, 1).toUpperCase()" shape="circle" class="shrink-0 bg-surface-200! text-surface-700!" />
+          <span class="min-w-0 flex-1" :class="{ 'md:hidden': collapsed }">
+            <small class="block text-[11px] text-muted-color">当前用户</small>
+            <strong class="mt-0.5 block truncate text-sm">{{ user.display_name || user.username }}</strong>
+          </span>
+        </button>
+        <Button text rounded severity="secondary" aria-label="设置" title="设置" @click="emit('settings')">
           <Settings :size="17" />
         </Button>
         <Button text rounded severity="secondary" aria-label="退出登录" title="退出登录" @click="emit('logout')">
@@ -151,8 +160,8 @@ function formatDate(value: string): string {
           <LogIn :size="17" />
           <span :class="{ 'md:hidden': collapsed }">登录或注册</span>
         </Button>
-        <Button text rounded severity="secondary" aria-label="偏好设置" title="偏好设置" @click="emit('settings')">
-          <Settings :size="17" />
+        <Button text rounded severity="secondary" aria-label="应用偏好" title="应用偏好" @click="emit('settings')">
+          <UserRound :size="17" />
         </Button>
       </template>
     </footer>

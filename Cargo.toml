@@ -33,7 +33,7 @@ clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", features = ["json", "multipart"] }
 anyhow = "1"
 argon2 = "0.5"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "uuid", "chrono", "migrate", "macros"] }
 rustyline = "17"
 colored = "3"
 mime_guess = "2"

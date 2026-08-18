@@ -66,12 +66,12 @@ async function submit(): Promise<void> {
 
 <template>
   <Dialog v-model:visible="visible" modal header="用户账户" class="w-[min(92vw,440px)]" :draggable="false">
-    <form class="flex flex-col gap-5" @submit.prevent="submit">
+    <form class="flex flex-col gap-5" :autocomplete="mode === 'login' ? 'on' : 'off'" @submit.prevent="submit">
       <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" class="grid grid-cols-2" />
 
       <div class="flex flex-col gap-2">
         <label for="accountUsername" class="text-sm font-medium">用户名</label>
-        <InputText id="accountUsername" v-model="username" maxlength="48" autocomplete="username" autofocus fluid />
+        <InputText id="accountUsername" v-model="username" name="username" maxlength="48" autocomplete="username" autofocus fluid />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -79,6 +79,7 @@ async function submit(): Promise<void> {
         <Password
           id="accountPassword"
           v-model="password"
+          :name="mode === 'register' ? 'new-password' : 'password'"
           :feedback="false"
           toggle-mask
           fluid

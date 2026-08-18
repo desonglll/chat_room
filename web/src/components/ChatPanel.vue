@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ArrowLeft,
+  Check,
+  Copy,
   DoorOpen,
   Download,
   EllipsisVertical,
@@ -49,6 +51,7 @@ const props = defineProps<{
   status: ChatStatus
   statusLabel: string
   authenticated: boolean
+  historyReady: boolean
   error: string
   messages: DisplayMessage[]
   members: RoomMember[]
@@ -92,6 +95,7 @@ const previewImageId = ref('')
 const memberPopover = ref()
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
 const dragActive = ref(false)
+const roomIdCopied = ref(false)
 let dragDepth = 0
 const passwordModel = computed({
   get: () => props.password,
@@ -211,6 +215,17 @@ function handleDrop(event: DragEvent): void {
   if (files.length) composerRef.value?.addFiles(files)
 }
 
+async function copyRoomId(): Promise<void> {
+  if (!props.room) return
+  try {
+    await navigator.clipboard.writeText(props.room.id)
+    roomIdCopied.value = true
+    window.setTimeout(() => { roomIdCopied.value = false }, 1600)
+  } catch {
+    window.prompt('复制聊天室 ID', props.room.id)
+  }
+}
+
 onMounted(() => document.addEventListener('keydown', handleGlobalKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydown))
 </script>
@@ -226,12 +241,19 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydow
           <ArrowLeft :size="20" />
         </Button>
         <div class="min-w-0">
-          <h2 class="truncate text-[15px] font-semibold text-surface-900">{{ room?.name || '选择聊天室' }}</h2>
+          <div class="flex min-w-0 items-center gap-1.5">
+            <h2 class="truncate text-[15px] font-semibold text-surface-900">{{ room?.name || '选择聊天室' }}</h2>
+            <Button v-if="room" text rounded severity="secondary" size="small" :aria-label="roomIdCopied ? '聊天室 ID 已复制' : '复制聊天室 ID'" :title="roomIdCopied ? '已复制' : `复制 ID：${room.id}`" @click="copyRoomId">
+              <Check v-if="roomIdCopied" :size="14" class="text-emerald-600" />
+              <Copy v-else :size="14" />
+            </Button>
+          </div>
           <div class="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-color">
             <span class="size-2 shrink-0 rounded-full" :class="statusColor" />
             <span class="shrink-0">{{ statusLabel }}</span>
             <span v-if="authenticated" class="shrink-0">· {{ members.length }} 人在线</span>
             <span v-if="room" class="hidden shrink-0 sm:inline">· {{ room.has_password ? '私密房间' : '公开房间' }}</span>
+            <code v-if="room" class="hidden truncate font-mono text-[10px] lg:inline">· {{ room.id }}</code>
           </div>
         </div>
       </div>
@@ -280,7 +302,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydow
     </section>
 
     <section v-else-if="!authenticated" class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
-      <form class="w-full max-w-[420px]" data-testid="join-form" @submit.prevent="handleJoin">
+      <form class="w-full max-w-[420px]" autocomplete="off" data-testid="join-form" @submit.prevent="handleJoin">
         <span class="grid size-12 place-items-center rounded-lg bg-primary-50 text-primary-700">
           <DoorOpen :size="23" />
         </span>
@@ -300,7 +322,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydow
 
         <div v-if="room.has_password" class="mt-5 flex flex-col gap-2">
           <label for="joinPassword" class="text-sm font-medium">房间密码</label>
-          <Password id="joinPassword" v-model="passwordModel" :feedback="false" toggle-mask fluid autocomplete="current-password" />
+          <Password id="joinPassword" v-model="passwordModel" name="room-access-password" :feedback="false" toggle-mask fluid autocomplete="off" />
         </div>
 
         <Message v-if="room.membership_status === 'pending'" severity="info" size="small" :closable="false" class="mt-4">加入申请已提交</Message>
@@ -344,6 +366,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydow
         :participants="participants"
         :current-user-id="currentUserId"
         :visible="visible"
+        :history-ready="historyReady"
         :selecting="selecting"
         :selected-message-ids="selectedMessageIds"
         @read="emit('read', $event)"

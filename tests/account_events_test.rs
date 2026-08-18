@@ -12,15 +12,13 @@ type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 async fn next_json(socket: &mut Socket) -> serde_json::Value {
-    let frame = tokio::time::timeout(Duration::from_secs(3), socket.next())
-        .await
-        .unwrap()
-        .unwrap()
-        .unwrap();
-    let Message::Text(text) = frame else {
-        panic!("expected text frame")
-    };
-    serde_json::from_str(&text).unwrap()
+    loop {
+        let frame = tokio::time::timeout(Duration::from_secs(3), socket.next())
+            .await.unwrap().unwrap().unwrap();
+        let Message::Text(text) = frame else { continue };
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if value["type"] != "history_complete" { return value }
+    }
 }
 
 async fn next_type(socket: &mut Socket, kind: &str) -> serde_json::Value {

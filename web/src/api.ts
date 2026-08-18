@@ -1,4 +1,4 @@
-import type { AuthSession, BroadcastMessage, ChatFilePage, PublicConfig, Room, RoomMembership, StoredMessage, User } from './types'
+import type { AuthSession, BroadcastMessage, ChatFilePage, PublicConfig, Room, RoomMembership, StoredMessage, UpdateProfilePayload, User } from './types'
 
 export const DEFAULT_MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 
@@ -60,19 +60,40 @@ export async function getCurrentUser(token: string): Promise<User> {
   return response.json() as Promise<User>
 }
 
-export async function updateCurrentUser(token: string, avatarEmoji: string): Promise<User> {
+export async function updateCurrentUser(token: string, payload: UpdateProfilePayload): Promise<User> {
   const response = await request('/api/users/me', {
     method: 'PATCH',
     headers: {
       ...authHeaders(token),
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ avatar_emoji: avatarEmoji }),
+    body: JSON.stringify(payload),
   })
-  if (response.status === 400) throw new Error('头像格式无效')
+  if (response.status === 400) throw new Error('个人资料格式无效，请检查主页地址')
   if (response.status === 401) throw new Error('登录已过期')
   if (!response.ok) throw new Error(`保存头像失败：${response.status}`)
   return response.json() as Promise<User>
+}
+
+export async function changeAccountPassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+  const response = await request('/api/users/me/password', {
+    method: 'PUT',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+  if (response.status === 400) throw new Error('新密码至少需要 8 个字符')
+  if (response.status === 401) throw new Error('当前账户密码不正确')
+  if (!response.ok) throw new Error(`修改密码失败：${response.status}`)
+}
+
+export async function deleteAccount(token: string, currentPassword: string): Promise<void> {
+  const response = await request('/api/users/me', {
+    method: 'DELETE',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword }),
+  })
+  if (response.status === 401) throw new Error('当前账户密码不正确')
+  if (!response.ok) throw new Error(`注销账户失败：${response.status}`)
 }
 
 export async function logoutUser(token: string): Promise<void> {
@@ -87,6 +108,15 @@ export async function listRooms(token = ''): Promise<Room[]> {
   const response = await request('/api/rooms', { headers: token ? authHeaders(token) : {} })
   if (!response.ok) throw new Error(`房间列表返回 ${response.status}`)
   return response.json() as Promise<Room[]>
+}
+
+export async function getRoom(roomId: string, token = ''): Promise<Room> {
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}`, {
+    headers: token ? authHeaders(token) : {},
+  })
+  if (response.status === 404) throw new Error('没有找到这个聊天室，请检查 ID')
+  if (!response.ok) throw new Error(`查找聊天室失败：${response.status}`)
+  return response.json() as Promise<Room>
 }
 
 export async function createRoom(

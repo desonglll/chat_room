@@ -65,6 +65,8 @@ use crate::state::AppState;
         models::AuthRequest,
         models::AuthSession,
         models::UpdateProfileRequest,
+        models::ChangePasswordRequest,
+        models::DeleteAccountRequest,
         models::JoinRoomRequest,
         models::InviteMemberRequest,
         models::UpdateMembershipRequest,
@@ -143,7 +145,13 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         )
         .route(
             "/api/users/me",
-            get(user_handlers::me).patch(user_handlers::update_me),
+            get(user_handlers::me)
+                .patch(user_handlers::update_me)
+                .delete(user_handlers::delete_account),
+        )
+        .route(
+            "/api/users/me/password",
+            axum::routing::put(user_handlers::change_password),
         )
         .route(
             "/api/users/logout",

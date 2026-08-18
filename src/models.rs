@@ -107,6 +107,9 @@ pub struct User {
     pub id: Uuid,
     pub username: String,
     pub avatar_emoji: String,
+    pub display_name: String,
+    pub signature: String,
+    pub homepage: String,
     pub created_at: DateTime<Utc>,
 }
 
@@ -120,7 +123,21 @@ pub struct AuthRequest {
 /// Editable account profile fields.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateProfileRequest {
-    pub avatar_emoji: String,
+    pub avatar_emoji: Option<String>,
+    pub display_name: Option<String>,
+    pub signature: Option<String>,
+    pub homepage: Option<String>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct DeleteAccountRequest {
+    pub current_password: String,
 }
 
 /// A login session returned after successful registration or authentication.
@@ -207,6 +224,10 @@ pub enum ChatMessage {
         participants: Vec<RoomMember>,
         read_receipts: Vec<ReadReceipt>,
     },
+
+    /// Server -> Client: all persisted history for this connection was replayed.
+    #[serde(rename = "history_complete")]
+    HistoryComplete,
 
     /// Server → Client: authentication / join failed.
     #[serde(rename = "auth_fail")]

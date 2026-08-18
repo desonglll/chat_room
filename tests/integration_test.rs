@@ -120,9 +120,16 @@ async fn read_json(
         >,
     >,
 ) -> serde_json::Value {
-    match stream.next().await {
-        Some(Ok(Message::Text(t))) => serde_json::from_str::<serde_json::Value>(&t).unwrap(),
-        other => panic!("expected text frame, got {:?}", other),
+    loop {
+        match stream.next().await {
+            Some(Ok(Message::Text(t))) => {
+                let value = serde_json::from_str::<serde_json::Value>(&t).unwrap();
+                if value["type"] != "history_complete" {
+                    return value;
+                }
+            }
+            other => panic!("expected text frame, got {:?}", other),
+        }
     }
 }
 

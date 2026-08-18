@@ -125,17 +125,22 @@ pub async fn list_rooms(
     headers: HeaderMap,
 ) -> Result<Json<Vec<Room>>, StatusCode> {
     let mut rooms = state.list_rooms(query.name.as_deref()).await;
-    if let Some(token) = optional_bearer_token(&headers) {
-        if let Some(user) = state
+    let user = if let Some(token) = optional_bearer_token(&headers) {
+        state
             .session_user(token)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        {
-            state
-                .decorate_rooms_for_user(&mut rooms, user.id)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        }
+    } else {
+        None
+    };
+    if let Some(user) = user {
+        state
+            .decorate_rooms_for_user(&mut rooms, user.id)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        rooms.retain(|room| !room.has_password || room.membership_status.is_some());
+    } else {
+        rooms.retain(|room| !room.has_password);
     }
     Ok(Json(rooms))
 }

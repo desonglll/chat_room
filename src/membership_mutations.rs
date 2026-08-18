@@ -4,7 +4,7 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::models::RoomMembership;
-use crate::state::AppState;
+use crate::state::{with_pool, AppState};
 
 impl AppState {
     pub async fn invite_room_member(
@@ -13,20 +13,21 @@ impl AppState {
         invited_by: Uuid,
         username: &str,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let user_id: Option<Uuid> =
-            sqlx::query_scalar("SELECT id FROM users WHERE username = ? COLLATE NOCASE")
+        let user_id: Option<Uuid> = with_pool!(self, |pool| {
+            sqlx::query_scalar("SELECT id FROM users WHERE LOWER(username) = LOWER($1)")
                 .bind(username)
-                .fetch_optional(self.pool())
-                .await?;
+                .fetch_optional(pool)
+                .await
+        })?;
         let Some(user_id) = user_id else {
             return Ok(None);
         };
         let now = Utc::now();
-        sqlx::query(
+        with_pool!(self, |pool| { sqlx::query(
             "INSERT INTO room_memberships \
              (room_id, user_id, role_id, status, invited_by, requested_at) \
-             SELECT ?, ?, room_roles.id, 'invited', ?, ? FROM room_roles \
-             WHERE room_roles.room_id = ? AND room_roles.name = 'member' \
+             SELECT $1, $2, room_roles.id, 'invited', $3, $4 FROM room_roles \
+             WHERE room_roles.room_id = $5 AND room_roles.name = 'member' \
              ON CONFLICT(room_id, user_id) DO UPDATE SET \
                status = CASE WHEN room_memberships.status = 'active' \
                  THEN 'active' ELSE 'invited' END, \
@@ -40,8 +41,9 @@ impl AppState {
         .bind(invited_by)
         .bind(now)
         .bind(room_id)
-        .execute(self.pool())
-        .await?;
+        .execute(pool)
+        .await
+        .map(|_| ()) })?;
         self.room_membership(room_id, user_id).await
     }
 
@@ -50,16 +52,17 @@ impl AppState {
         room_id: Uuid,
         user_id: Uuid,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let result = sqlx::query(
-            "UPDATE room_memberships SET status = 'active', joined_at = COALESCE(joined_at, ?) \
-             WHERE room_id = ? AND user_id = ? AND status IN ('pending', 'invited')",
+        let changed = with_pool!(self, |pool| { sqlx::query(
+            "UPDATE room_memberships SET status = 'active', joined_at = COALESCE(joined_at, $1) \
+             WHERE room_id = $2 AND user_id = $3 AND status IN ('pending', 'invited')",
         )
         .bind(Utc::now())
         .bind(room_id)
         .bind(user_id)
-        .execute(self.pool())
-        .await?;
-        if result.rows_affected() == 0 {
+        .execute(pool)
+        .await
+        .map(|result| result.rows_affected()) })?;
+        if changed == 0 {
             return Ok(None);
         }
         self.room_membership(room_id, user_id).await
@@ -71,31 +74,32 @@ impl AppState {
         user_id: Uuid,
         role: &str,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let role_exists: bool = sqlx::query_scalar(
+        let role_exists: bool = with_pool!(self, |pool| { sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM room_roles \
-             WHERE room_id = ? AND name = ? AND name IN ('admin', 'member'))",
+             WHERE room_id = $1 AND name = $2 AND name IN ('admin', 'member'))",
         )
         .bind(room_id)
         .bind(role)
-        .fetch_one(self.pool())
-        .await?;
+        .fetch_one(pool)
+        .await })?;
         if !role_exists {
             return Ok(None);
         }
-        let result = sqlx::query(
+        let changed = with_pool!(self, |pool| { sqlx::query(
             "UPDATE room_memberships SET role_id = (\
-               SELECT id FROM room_roles WHERE room_id = ? AND name = ?\
-             ) WHERE room_id = ? AND user_id = ? AND status = 'active' \
-             AND role_id <> (SELECT id FROM room_roles WHERE room_id = ? AND name = 'owner')",
+               SELECT id FROM room_roles WHERE room_id = $1 AND name = $2\
+             ) WHERE room_id = $3 AND user_id = $4 AND status = 'active' \
+             AND role_id <> (SELECT id FROM room_roles WHERE room_id = $5 AND name = 'owner')",
         )
         .bind(room_id)
         .bind(role)
         .bind(room_id)
         .bind(user_id)
         .bind(room_id)
-        .execute(self.pool())
-        .await?;
-        if result.rows_affected() == 0 {
+        .execute(pool)
+        .await
+        .map(|result| result.rows_affected()) })?;
+        if changed == 0 {
             return Ok(None);
         }
         self.room_membership(room_id, user_id).await
@@ -114,18 +118,21 @@ impl AppState {
         if membership.role == "owner" && !allow_owner {
             return Ok(None);
         }
-        let mut transaction = self.pool().begin().await?;
-        sqlx::query("DELETE FROM room_reads WHERE room_id = ? AND user_id = ?")
-            .bind(room_id)
-            .bind(user_id)
-            .execute(&mut *transaction)
-            .await?;
-        sqlx::query("DELETE FROM room_memberships WHERE room_id = ? AND user_id = ?")
-            .bind(room_id)
-            .bind(user_id)
-            .execute(&mut *transaction)
-            .await?;
-        transaction.commit().await?;
+        with_pool!(self, |pool| {
+            let mut transaction = pool.begin().await?;
+            sqlx::query("DELETE FROM room_reads WHERE room_id = $1 AND user_id = $2")
+                .bind(room_id)
+                .bind(user_id)
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query("DELETE FROM room_memberships WHERE room_id = $1 AND user_id = $2")
+                .bind(room_id)
+                .bind(user_id)
+                .execute(&mut *transaction)
+                .await?;
+            transaction.commit().await?;
+            Ok::<_, sqlx::Error>(())
+        })?;
         Ok(Some(membership))
     }
 }

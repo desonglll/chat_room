@@ -239,6 +239,14 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     }
 
+    if send_json(&mut sink, &ChatMessage::HistoryComplete)
+        .await
+        .is_err()
+    {
+        state.member_disconnected(room_id, user.id).await;
+        return;
+    }
+
     if membership.is_some() {
         state
             .broadcast(

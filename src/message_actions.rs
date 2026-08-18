@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::state::{with_pool, AppState};
 
 #[derive(Clone, Debug)]
 pub(crate) struct RecallCursor {
@@ -28,18 +28,19 @@ impl AppState {
         content: &str,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let edited_at = Utc::now();
-        let result = sqlx::query(
-            "UPDATE messages SET content = ?, edited_at = ? \
-             WHERE id = ? AND room_id = ? AND sender_id = ? AND recalled_at IS NULL",
+        let changed = with_pool!(self, |pool| { sqlx::query(
+            "UPDATE messages SET content = $1, edited_at = $2 \
+             WHERE id = $3 AND room_id = $4 AND sender_id = $5 AND recalled_at IS NULL",
         )
         .bind(content)
         .bind(edited_at)
         .bind(message_id)
         .bind(room_id)
         .bind(sender_id)
-        .execute(self.pool())
-        .await?;
-        Ok((result.rows_affected() > 0).then_some(edited_at))
+        .execute(pool)
+        .await
+        .map(|result| result.rows_affected()) })?;
+        Ok((changed > 0).then_some(edited_at))
     }
 
     /// Mark a message as recalled while retaining its original database record.
@@ -50,17 +51,17 @@ impl AppState {
         message_id: Uuid,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let recalled_at = Utc::now();
-        let attachment_id: Option<Option<Uuid>> = sqlx::query_scalar(
-            "UPDATE messages SET recalled_at = ? \
-             WHERE id = ? AND room_id = ? AND sender_id = ? AND recalled_at IS NULL \
+        let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| { sqlx::query_scalar(
+            "UPDATE messages SET recalled_at = $1 \
+             WHERE id = $2 AND room_id = $3 AND sender_id = $4 AND recalled_at IS NULL \
              RETURNING attachment_id",
         )
         .bind(recalled_at)
         .bind(message_id)
         .bind(room_id)
         .bind(sender_id)
-        .fetch_optional(self.pool())
-        .await?;
+        .fetch_optional(pool)
+        .await })?;
         if let Some(Some(attachment_id)) = attachment_id {
             if let Err(error) = self.attachment_store().remove(attachment_id).await {
                 tracing::warn!("remove recalled attachment failed: {error:#}");
@@ -73,13 +74,13 @@ impl AppState {
         &self,
         room_id: Uuid,
     ) -> Result<Option<RecallCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid)> = sqlx::query_as(
-            "SELECT recalled_at, id FROM messages WHERE room_id = ? AND recalled_at IS NOT NULL \
+        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| { sqlx::query_as(
+            "SELECT recalled_at, id FROM messages WHERE room_id = $1 AND recalled_at IS NOT NULL \
              ORDER BY recalled_at DESC, id DESC LIMIT 1",
         )
         .bind(room_id)
-        .fetch_optional(self.pool())
-        .await?;
+        .fetch_optional(pool)
+        .await })?;
         Ok(row.map(|(recalled_at, id)| RecallCursor { recalled_at, id }))
     }
 
@@ -90,28 +91,31 @@ impl AppState {
         limit: i64,
     ) -> Result<Vec<RecallCursor>, sqlx::Error> {
         let limit = limit.clamp(1, 500);
-        let rows: Vec<(DateTime<Utc>, Uuid)> = match cursor {
+        let rows: Vec<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| {
+            let rows = match cursor {
             Some(cursor) => sqlx::query_as(
-                "SELECT recalled_at, id FROM messages WHERE room_id = ? AND recalled_at IS NOT NULL \
-                 AND (recalled_at > ? OR (recalled_at = ? AND id > ?)) \
-                 ORDER BY recalled_at ASC, id ASC LIMIT ?",
+                "SELECT recalled_at, id FROM messages WHERE room_id = $1 AND recalled_at IS NOT NULL \
+                 AND (recalled_at > $2 OR (recalled_at = $3 AND id > $4)) \
+                 ORDER BY recalled_at ASC, id ASC LIMIT $5",
             )
             .bind(room_id)
             .bind(cursor.recalled_at)
             .bind(cursor.recalled_at)
             .bind(cursor.id)
             .bind(limit)
-            .fetch_all(self.pool())
+            .fetch_all(pool)
             .await?,
             None => sqlx::query_as(
-                "SELECT recalled_at, id FROM messages WHERE room_id = ? AND recalled_at IS NOT NULL \
-                 ORDER BY recalled_at ASC, id ASC LIMIT ?",
+                "SELECT recalled_at, id FROM messages WHERE room_id = $1 AND recalled_at IS NOT NULL \
+                 ORDER BY recalled_at ASC, id ASC LIMIT $2",
             )
             .bind(room_id)
             .bind(limit)
-            .fetch_all(self.pool())
+            .fetch_all(pool)
             .await?,
-        };
+            };
+            Ok::<_, sqlx::Error>(rows)
+        })?;
         Ok(rows
             .into_iter()
             .map(|(recalled_at, id)| RecallCursor { recalled_at, id })
@@ -122,13 +126,13 @@ impl AppState {
         &self,
         room_id: Uuid,
     ) -> Result<Option<EditCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid, String)> = sqlx::query_as(
-            "SELECT edited_at, id, content FROM messages WHERE room_id = ? AND edited_at IS NOT NULL \
+        let row: Option<(DateTime<Utc>, Uuid, String)> = with_pool!(self, |pool| { sqlx::query_as(
+            "SELECT edited_at, id, content FROM messages WHERE room_id = $1 AND edited_at IS NOT NULL \
              ORDER BY edited_at DESC, id DESC LIMIT 1",
         )
         .bind(room_id)
-        .fetch_optional(self.pool())
-        .await?;
+        .fetch_optional(pool)
+        .await })?;
         Ok(row.map(|(edited_at, id, content)| EditCursor {
             edited_at,
             id,
@@ -143,28 +147,31 @@ impl AppState {
         limit: i64,
     ) -> Result<Vec<EditCursor>, sqlx::Error> {
         let limit = limit.clamp(1, 500);
-        let rows: Vec<(DateTime<Utc>, Uuid, String)> = match cursor {
+        let rows: Vec<(DateTime<Utc>, Uuid, String)> = with_pool!(self, |pool| {
+            let rows = match cursor {
             Some(cursor) => sqlx::query_as(
-                "SELECT edited_at, id, content FROM messages WHERE room_id = ? AND edited_at IS NOT NULL \
-                 AND (edited_at > ? OR (edited_at = ? AND id > ?)) \
-                 ORDER BY edited_at ASC, id ASC LIMIT ?",
+                "SELECT edited_at, id, content FROM messages WHERE room_id = $1 AND edited_at IS NOT NULL \
+                 AND (edited_at > $2 OR (edited_at = $3 AND id > $4)) \
+                 ORDER BY edited_at ASC, id ASC LIMIT $5",
             )
             .bind(room_id)
             .bind(cursor.edited_at)
             .bind(cursor.edited_at)
             .bind(cursor.id)
             .bind(limit)
-            .fetch_all(self.pool())
+            .fetch_all(pool)
             .await?,
             None => sqlx::query_as(
-                "SELECT edited_at, id, content FROM messages WHERE room_id = ? AND edited_at IS NOT NULL \
-                 ORDER BY edited_at ASC, id ASC LIMIT ?",
+                "SELECT edited_at, id, content FROM messages WHERE room_id = $1 AND edited_at IS NOT NULL \
+                 ORDER BY edited_at ASC, id ASC LIMIT $2",
             )
             .bind(room_id)
             .bind(limit)
-            .fetch_all(self.pool())
+            .fetch_all(pool)
             .await?,
-        };
+            };
+            Ok::<_, sqlx::Error>(rows)
+        })?;
         Ok(rows
             .into_iter()
             .map(|(edited_at, id, content)| EditCursor {

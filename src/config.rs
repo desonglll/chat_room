@@ -19,6 +19,27 @@ const BYTES_PER_MIB: u64 = 1024 * 1024;
 pub struct AppConfig {
     pub uploads: UploadConfig,
     pub attachments: AttachmentConfig,
+    pub database: DatabaseConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct DatabaseConfig {
+    pub kind: String,
+    pub sqlite_path: PathBuf,
+    pub postgres_url: String,
+    pub max_connections: u32,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            kind: "sqlite".into(),
+            sqlite_path: PathBuf::from("chat_rooms.db"),
+            postgres_url: String::new(),
+            max_connections: 10,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -67,6 +88,15 @@ impl AppConfig {
         }
         if self.attachments.directory.as_os_str().is_empty() {
             bail!("attachments.directory must not be empty");
+        }
+        if !matches!(self.database.kind.as_str(), "sqlite" | "postgres") {
+            bail!("database.kind must be 'sqlite' or 'postgres'");
+        }
+        if self.database.max_connections == 0 {
+            bail!("database.max_connections must be greater than zero");
+        }
+        if self.database.kind == "postgres" && self.database.postgres_url.trim().is_empty() {
+            bail!("database.postgres_url is required when database.kind is 'postgres'");
         }
         self.max_upload_bytes()?;
         Ok(self)

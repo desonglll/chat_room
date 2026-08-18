@@ -73,15 +73,16 @@ async fn next_json(
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >,
 ) -> serde_json::Value {
-    let frame = tokio::time::timeout(Duration::from_secs(2), socket.next())
-        .await
-        .expect("timed out waiting for WebSocket frame")
-        .expect("WebSocket ended")
-        .expect("WebSocket error");
-    let Message::Text(text) = frame else {
-        panic!("expected a text frame, got {frame:?}");
-    };
-    serde_json::from_str(&text).unwrap()
+    loop {
+        let frame = tokio::time::timeout(Duration::from_secs(2), socket.next())
+            .await
+            .expect("timed out waiting for WebSocket frame")
+            .expect("WebSocket ended")
+            .expect("WebSocket error");
+        let Message::Text(text) = frame else { continue };
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if value["type"] != "history_complete" { return value }
+    }
 }
 
 async fn next_content(

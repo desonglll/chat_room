@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CornerUpLeft, Pencil, Undo2 } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { ChevronDown, CornerUpLeft, Pencil, Undo2 } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Checkbox from 'primevue/checkbox'
 import MessageAttachment from './MessageAttachment.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
+import { useMessageViewport } from '../composables/useMessageViewport'
 import type { Attachment, BroadcastMessage, DisplayMessage, ReadReceipt, ReplyPreview, RoomMember } from '../types'
 
 const props = defineProps<{
@@ -14,6 +15,7 @@ const props = defineProps<{
   participants: RoomMember[]
   currentUserId: string
   visible: boolean
+  historyReady: boolean
   selecting: boolean
   selectedMessageIds: string[]
 }>()
@@ -29,9 +31,7 @@ const emit = defineEmits<{
 
 const messageList = ref<HTMLElement | null>(null)
 const highlightedId = ref('')
-let lastReadMessageId = ''
 let highlightTimer: number | undefined
-let readTimer: number | undefined
 
 const broadcasts = computed(() => props.messages.filter(
   (message): message is BroadcastMessage => message.type === 'broadcast',
@@ -62,18 +62,15 @@ const readDetails = computed(() => {
   return details
 })
 
-watch(() => props.roomId, () => {
-  lastReadMessageId = ''
-})
-
-watch(() => props.messages.length, async () => {
-  await nextTick()
-  if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight
-  scheduleMarkRead()
-})
-
-watch(() => props.visible, (visible) => {
-  if (visible) void nextTick(markLatestRead)
+const { handleScroll, scrollToFirstUnseen, unseenCount } = useMessageViewport({
+  list: messageList,
+  broadcasts,
+  roomId: () => props.roomId,
+  historyReady: () => props.historyReady,
+  currentUserId: () => props.currentUserId,
+  readReceipts: () => props.readReceipts,
+  visible: () => props.visible,
+  onRead: (messageId) => emit('read', messageId),
 })
 
 function formatTime(value: string): string {
@@ -95,19 +92,6 @@ function avatarLabel(message: BroadcastMessage): string {
   return message.sender_avatar || message.sender.slice(0, 1).toUpperCase()
 }
 
-function markLatestRead(): void {
-  if (!props.visible || document.visibilityState !== 'visible') return
-  const latest = broadcasts.value.at(-1)
-  if (!latest || latest.message_id === lastReadMessageId) return
-  lastReadMessageId = latest.message_id
-  emit('read', latest.message_id)
-}
-
-function scheduleMarkRead(): void {
-  window.clearTimeout(readTimer)
-  readTimer = window.setTimeout(markLatestRead, 80)
-}
-
 function scrollToMessage(messageId: string): void {
   const target = messageList.value?.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`)
   if (!target) return
@@ -117,25 +101,15 @@ function scrollToMessage(messageId: string): void {
   highlightTimer = window.setTimeout(() => { highlightedId.value = '' }, 1400)
 }
 
-function handleVisibilityChange(): void {
-  if (document.visibilityState === 'visible') markLatestRead()
-}
-
-onMounted(() => {
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-  markLatestRead()
-})
-
 onBeforeUnmount(() => {
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
   window.clearTimeout(highlightTimer)
-  window.clearTimeout(readTimer)
 })
 </script>
 
 <template>
-  <div ref="messageList" class="min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-7" data-testid="message-list" aria-live="polite">
-    <template v-for="message in messages" :key="message.type === 'broadcast' ? message.message_id : message.key">
+  <div class="relative min-h-0 flex-1">
+    <div ref="messageList" class="h-full overflow-y-auto px-3 py-5 sm:px-7" data-testid="message-list" aria-live="polite" @scroll.passive="handleScroll">
+      <template v-for="message in messages" :key="message.type === 'broadcast' ? message.message_id : message.key">
       <div v-if="message.type === 'system'" class="my-4 flex items-center justify-center gap-3 text-center text-xs text-muted-color">
         <span class="h-px w-8 bg-surface-200" />
         <p>{{ message.content }}</p>
@@ -228,6 +202,23 @@ onBeforeUnmount(() => {
           />
         </div>
       </div>
-    </template>
+      </template>
+    </div>
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="translate-y-2 opacity-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-to-class="translate-y-2 opacity-0"
+    >
+      <button
+        v-if="unseenCount"
+        type="button"
+        class="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+        @click="scrollToFirstUnseen"
+      >
+        <ChevronDown :size="15" />
+        下方 {{ unseenCount }} 条新消息
+      </button>
+    </Transition>
   </div>
 </template>

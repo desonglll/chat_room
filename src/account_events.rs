@@ -5,7 +5,7 @@ use serde::Serialize;
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::state::{with_pool, AppState};
 
 #[derive(Clone)]
 pub(crate) struct AccountMessageCursor {
@@ -67,16 +67,16 @@ impl AppState {
         &self,
         user_id: Uuid,
     ) -> Result<Option<AccountMessageCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid)> = sqlx::query_as(
+        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| { sqlx::query_as(
             "SELECT messages.created_at, messages.id FROM messages \
              JOIN room_memberships ON room_memberships.room_id = messages.room_id \
-             WHERE room_memberships.user_id = ? AND room_memberships.status = 'active' \
+             WHERE room_memberships.user_id = $1 AND room_memberships.status = 'active' \
              AND messages.created_at >= COALESCE(room_memberships.joined_at, room_memberships.requested_at) \
              ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1",
         )
         .bind(user_id)
-        .fetch_optional(self.pool())
-        .await?;
+        .fetch_optional(pool)
+        .await })?;
         Ok(row.map(|(created_at, id)| AccountMessageCursor { created_at, id }))
     }
 
@@ -86,7 +86,7 @@ impl AppState {
         cursor: Option<&AccountMessageCursor>,
     ) -> Result<Vec<(AccountMessageCursor, AccountMessageEvent)>, sqlx::Error> {
         let cursor_clause = if cursor.is_some() {
-            "AND (messages.created_at > ? OR (messages.created_at = ? AND messages.id > ?))"
+            "AND (messages.created_at > $2 OR (messages.created_at = $3 AND messages.id > $4))"
         } else {
             ""
         };
@@ -97,23 +97,23 @@ impl AppState {
              FROM messages JOIN rooms ON rooms.id = messages.room_id \
              JOIN room_memberships ON room_memberships.room_id = messages.room_id \
              LEFT JOIN attachments ON attachments.id = messages.attachment_id \
-             WHERE room_memberships.user_id = ? AND room_memberships.status = 'active' \
+             WHERE room_memberships.user_id = $1 AND room_memberships.status = 'active' \
              AND messages.created_at >= COALESCE(room_memberships.joined_at, room_memberships.requested_at) \
              AND messages.recalled_at IS NULL {cursor_clause} \
              ORDER BY messages.created_at ASC, messages.id ASC LIMIT 200"
         );
-        let query = sqlx::query_as::<_, AccountEventRow>(&sql).bind(user_id);
-        let rows = match cursor {
-            Some(cursor) => {
-                query
+        let rows = with_pool!(self, |pool| {
+            let query = sqlx::query_as::<_, AccountEventRow>(&sql).bind(user_id);
+            match cursor {
+                Some(cursor) => query
                     .bind(cursor.created_at)
                     .bind(cursor.created_at)
                     .bind(cursor.id)
-                    .fetch_all(self.pool())
-                    .await?
+                    .fetch_all(pool)
+                    .await,
+                None => query.fetch_all(pool).await,
             }
-            None => query.fetch_all(self.pool()).await?,
-        };
+        })?;
         Ok(rows
             .into_iter()
             .map(|row| (row.cursor(), row.into_event()))

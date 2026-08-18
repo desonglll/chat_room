@@ -88,8 +88,8 @@ onMounted(refresh)
 
 <template>
   <div class="space-y-5">
-    <form class="flex gap-2" @submit.prevent="invite">
-      <InputText v-model="inviteUsername" class="min-w-0 flex-1" maxlength="48" placeholder="输入用户名邀请" />
+    <form class="flex gap-2" autocomplete="off" @submit.prevent="invite">
+      <InputText v-model="inviteUsername" name="invite-username" autocomplete="off" class="min-w-0 flex-1" maxlength="48" placeholder="输入用户名邀请" />
       <Button type="submit" :loading="busy === 'invite'" :disabled="!inviteUsername.trim()">
         <UserPlus :size="17" />
         <span>邀请</span>

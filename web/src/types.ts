@@ -14,7 +14,17 @@ export interface User {
   id: string
   username: string
   avatar_emoji: string
+  display_name: string
+  signature: string
+  homepage: string
   created_at: string
+}
+
+export interface UpdateProfilePayload {
+  avatar_emoji?: string
+  display_name?: string
+  signature?: string
+  homepage?: string
 }
 
 export interface AuthSession {

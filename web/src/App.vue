@@ -8,33 +8,27 @@ import AuthDialog from './components/AuthDialog.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import CreateRoomDialog from './components/CreateRoomDialog.vue'
 import ManageRoomDialog from './components/ManageRoomDialog.vue'
+import JoinRoomDialog from './components/JoinRoomDialog.vue'
+import ProfilePage from './components/ProfilePage.vue'
 import PreferencesDialog from './components/PreferencesDialog.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
-import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, leaveRoom, listRooms, logoutUser, requestRoomJoin, updateCurrentUser, uploadAttachment } from './api'
+import SettingsPage from './components/SettingsPage.vue'
+import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, leaveRoom, listRooms, logoutUser, requestRoomJoin } from './api'
 import { createBrowserNotifier } from './browserNotifications'
 import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
 import { useChatSocket } from './composables/useChatSocket'
 import { useUnreadSocket } from './composables/useUnreadSocket'
-import { loadPreferences, storePreferences } from './preferences'
-import type { AuthSession, ChatPreferences, Room, RoomUpdateResult, User } from './types'
+import { useAppPages } from './composables/useAppPages'
+import { useAttachmentUpload } from './composables/useAttachmentUpload'
+import { usePreferencesController } from './composables/usePreferencesController'
+import { loadPreferences } from './preferences'
+import { storageGet, storageSet } from './browserStorage'
+import type { AuthSession, Room, RoomUpdateResult, User } from './types'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const ACTIVE_ROOM_KEY = 'chat-room.active-room'
 const SIDEBAR_COLLAPSED_KEY = 'chat-room.sidebar-collapsed'
 const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
-
-function storageGet(storage: Storage, key: string): string {
-  try { return storage.getItem(key) || '' } catch { return '' }
-}
-
-function storageSet(storage: Storage, key: string, value: string): void {
-  try {
-    if (value) storage.setItem(key, value)
-    else storage.removeItem(key)
-  } catch {
-    // The app remains usable when browser storage is disabled.
-  }
-}
 
 const rooms = ref<Room[]>([])
 const selectedRoom = ref<Room | null>(null)
@@ -46,10 +40,8 @@ const networkError = ref('')
 const createOpen = ref(false)
 const manageOpen = ref(false)
 const authOpen = ref(false)
-const preferencesOpen = ref(false)
-const savingPreferences = ref(false)
+const joinOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
-const uploading = ref(false)
 const maxUploadBytes = ref(DEFAULT_MAX_UPLOAD_BYTES)
 const sidebarCollapsed = ref(storageGet(window.localStorage, SIDEBAR_COLLAPSED_KEY) === 'true')
 const preferences = ref(loadPreferences())
@@ -89,6 +81,21 @@ const notifier = createBrowserNotifier((roomId) => {
   if (room) selectRoom(room)
 })
 notifier.configure(preferences.value.notificationsEnabled, preferences.value.notificationDetails)
+const preferenceController = usePreferencesController({
+  preferences,
+  user: currentUser,
+  token: sessionToken,
+  configureNotifications: notifier.configure,
+  showSuccess: showToast,
+  showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
+})
+const { activePage, openProfile, openSettings, requireAccount, returnToChat } = useAppPages(
+  currentUser,
+  selectedRoom,
+  mobileView,
+  () => { authOpen.value = true },
+  () => { preferenceController.open.value = true },
+)
 const selectedId = computed(() => selectedRoom.value?.id)
 const unreadSocket = useUnreadSocket((states) => {
   rooms.value = rooms.value.map((room) => {
@@ -128,31 +135,6 @@ function requestCreateRoom(): void {
   createOpen.value = true
 }
 
-async function handlePreferencesSave(next: ChatPreferences): Promise<void> {
-  savingPreferences.value = true
-  try {
-    if (next.notificationsEnabled) {
-      if (typeof Notification === 'undefined') throw new Error('当前浏览器不支持消息通知')
-      const permission = Notification.permission === 'default'
-        ? await Notification.requestPermission()
-        : Notification.permission
-      if (permission !== 'granted') throw new Error('浏览器没有授予通知权限')
-    }
-    if (currentUser.value && sessionToken.value && next.avatarEmoji !== currentUser.value.avatar_emoji) {
-      currentUser.value = await updateCurrentUser(sessionToken.value, next.avatarEmoji)
-    }
-    preferences.value = { ...next, avatarEmoji: currentUser.value?.avatar_emoji || '' }
-    storePreferences(preferences.value)
-    notifier.configure(next.notificationsEnabled, next.notificationDetails)
-    preferencesOpen.value = false
-    showToast('偏好设置已保存')
-  } catch (caught) {
-    toast.add({ severity: 'error', summary: caught instanceof Error ? caught.message : '保存失败', life: 3200 })
-  } finally {
-    savingPreferences.value = false
-  }
-}
-
 function clearSelection(): void {
   chat.close()
   selectedRoom.value = null
@@ -164,6 +146,7 @@ function clearSelection(): void {
 
 function selectRoom(room: Room, autoConnect = false): void {
   chat.close()
+  activePage.value = 'chat'
   selectedRoom.value = room
   roomPassword.value = storageGet(window.sessionStorage, passwordKey(room.id))
   mobileView.value = 'chat'
@@ -171,6 +154,39 @@ function selectRoom(room: Room, autoConnect = false): void {
   if (autoConnect && room.membership_status === 'active' && currentUser.value && sessionToken.value && (!room.has_password || roomPassword.value)) {
     joinSelectedRoom()
   }
+}
+
+function openJoinRoom(): void {
+  requireAccount(() => { joinOpen.value = true })
+}
+
+function handleJoinedById(room: Room, password: string): void {
+  joinOpen.value = false
+  const existing = rooms.value.some((item) => item.id === room.id)
+  rooms.value = existing
+    ? rooms.value.map((item) => item.id === room.id ? room : item)
+    : [...rooms.value, room]
+  selectRoom(room)
+  roomPassword.value = password
+  if (password) storageSet(window.sessionStorage, passwordKey(room.id), password)
+  if (room.membership_status === 'active') {
+    joinSelectedRoom()
+    showToast('已加入聊天室')
+  } else {
+    showToast('加入申请已提交')
+  }
+}
+
+async function handleAccountDeleted(): Promise<void> {
+  chat.close()
+  unreadSocket.close()
+  sessionToken.value = ''
+  currentUser.value = null
+  activePage.value = 'chat'
+  mobileView.value = 'rooms'
+  storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
+  await loadRoomList()
+  showToast('账户已注销')
 }
 
 async function loadRoomList(): Promise<void> {
@@ -322,33 +338,15 @@ async function handleDeleted(roomId: string): Promise<void> {
   showToast('聊天室已删除')
 }
 
-async function handleUpload(files: File[], content = '', replyTo = ''): Promise<void> {
-  const room = selectedRoom.value
-  if (!room || !sessionToken.value || !chat.authenticated.value || uploading.value) return
-  uploading.value = true
-  try {
-    for (const [index, file] of files.entries()) {
-      const message = await uploadAttachment(
-        room.id,
-        file,
-        sessionToken.value,
-        roomPassword.value,
-        index === 0 ? content : '',
-        index === 0 ? replyTo : '',
-        maxUploadBytes.value,
-      )
-      if (selectedRoom.value?.id === room.id) chat.appendBroadcast(message, false)
-    }
-  } catch (caught) {
-    toast.add({
-      severity: 'error',
-      summary: caught instanceof Error ? caught.message : '文件上传失败',
-      life: 3200,
-    })
-  } finally {
-    uploading.value = false
-  }
-}
+const attachmentUpload = useAttachmentUpload({
+  room: selectedRoom,
+  token: sessionToken,
+  password: roomPassword,
+  authenticated: () => chat.authenticated.value,
+  maxBytes: maxUploadBytes,
+  append: (message) => chat.appendBroadcast(message, false),
+  showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
+})
 
 async function handleLeaveRoom(): Promise<void> {
   const room = selectedRoom.value
@@ -364,10 +362,7 @@ async function handleLeaveRoom(): Promise<void> {
 }
 
 function handleRead(messageId: string): void {
-  if (!chat.markRead(messageId) || !selectedRoom.value) return
-  const roomId = selectedRoom.value.id
-  rooms.value = rooms.value.map((room) => room.id === roomId ? { ...room, unread_count: 0 } : room)
-  selectedRoom.value = { ...selectedRoom.value, unread_count: 0 }
+  chat.markRead(messageId)
 }
 
 onMounted(async () => {
@@ -402,12 +397,30 @@ onMounted(async () => {
       @select="selectRoom"
       @refresh="loadRoomList"
       @create="requestCreateRoom"
+      @join="openJoinRoom"
       @authenticate="authOpen = true"
       @logout="handleLogout"
-      @settings="preferencesOpen = true"
+      @profile="openProfile"
+      @settings="openSettings"
       @toggle-collapse="toggleSidebar"
     />
+    <ProfilePage
+      v-if="activePage === 'profile' && currentUser"
+      :user="currentUser"
+      :token="sessionToken"
+      @back="returnToChat"
+      @updated="preferenceController.profileUpdated"
+    />
+    <SettingsPage
+      v-else-if="activePage === 'settings' && currentUser"
+      :user="currentUser"
+      :token="sessionToken"
+      @back="returnToChat"
+      @preferences="preferenceController.open.value = true"
+      @deleted="handleAccountDeleted"
+    />
     <ChatPanel
+      v-else
       :room="selectedRoom"
       :user="currentUser"
       :password="roomPassword"
@@ -415,6 +428,7 @@ onMounted(async () => {
       :status="chat.status.value"
       :status-label="chat.statusLabel.value"
       :authenticated="chat.authenticated.value"
+      :history-ready="chat.historyReady.value"
       :error="chat.error.value"
       :messages="chat.messages.value"
       :members="chat.members.value"
@@ -422,7 +436,7 @@ onMounted(async () => {
       :read-receipts="chat.readReceipts.value"
       :current-user-id="chat.currentUserId.value"
       :visible="mobileView === 'chat'"
-      :uploading="uploading"
+      :uploading="attachmentUpload.uploading.value"
       :downloading="downloading"
       :download-progress="downloadProgress"
       :max-upload-bytes="maxUploadBytes"
@@ -437,7 +451,7 @@ onMounted(async () => {
       @authenticate="authOpen = true"
       @send="chat.send"
       @read="handleRead"
-      @upload="handleUpload"
+      @upload="attachmentUpload.upload"
       @recall="chat.recall"
       @edit="chat.edit"
       @typing="chat.sendTyping"
@@ -447,6 +461,7 @@ onMounted(async () => {
     />
 
     <AuthDialog :open="authOpen" @close="authOpen = false" @authenticated="handleAuthenticated" />
+    <JoinRoomDialog :open="joinOpen" :token="sessionToken" @close="joinOpen = false" @joined="handleJoinedById" />
     <CreateRoomDialog :open="createOpen" :token="sessionToken" @close="createOpen = false" @created="handleCreated" />
     <ManageRoomDialog
       :open="manageOpen"
@@ -458,12 +473,12 @@ onMounted(async () => {
       @deleted="handleDeleted"
     />
     <PreferencesDialog
-      :open="preferencesOpen"
+      :open="preferenceController.open.value"
       :user="currentUser"
       :preferences="preferences"
-      :saving="savingPreferences"
-      @close="preferencesOpen = false"
-      @save="handlePreferencesSave"
+      :saving="preferenceController.saving.value"
+      @close="preferenceController.open.value = false"
+      @save="preferenceController.save"
     />
 
     <Toast position="top-right" />

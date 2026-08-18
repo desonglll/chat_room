@@ -22,6 +22,8 @@ enum ServerMessage {
     AuthOk { room_name: String },
     #[serde(rename = "auth_fail")]
     AuthFail { reason: String },
+    #[serde(rename = "history_complete")]
+    HistoryComplete,
     #[serde(rename = "broadcast")]
     Broadcast {
         sender: String,
@@ -154,7 +156,7 @@ pub async fn join_room(
                 }
                 ServerMessage::System { content } => client_render::system(&content),
                 ServerMessage::AuthFail { reason } => client_render::error(&reason),
-                ServerMessage::AuthOk { .. } => continue,
+                ServerMessage::AuthOk { .. } | ServerMessage::HistoryComplete => continue,
             };
             print_message(rendered);
         }

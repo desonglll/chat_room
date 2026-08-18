@@ -4,11 +4,17 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use sqlx::postgres::PgPoolOptions;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
-use sqlx::SqlitePool;
+use sqlx::{PgPool, SqlitePool};
 use uuid::Uuid;
 
 use crate::attachment_storage::AttachmentStore;
+
+pub enum DatabasePool {
+    Sqlite(SqlitePool),
+    Postgres(PgPool),
+}
 
 /// Open or create a SQLite database and apply all embedded migrations.
 pub async fn open_database(
@@ -40,6 +46,19 @@ pub async fn open_database(
     export_legacy_attachments(&pool, attachment_store).await?;
     run_migrations(&pool).await?;
     Ok(pool)
+}
+
+pub async fn open_postgres_database(url: &str, max_connections: u32) -> Result<DatabasePool> {
+    let pool = PgPoolOptions::new()
+        .max_connections(max_connections)
+        .connect(url)
+        .await
+        .context("open PostgreSQL database")?;
+    sqlx::migrate!("./migrations-postgres")
+        .run(&pool)
+        .await
+        .context("run PostgreSQL migrations")?;
+    Ok(DatabasePool::Postgres(pool))
 }
 
 /// Create a one-connection in-memory database for focused tests.

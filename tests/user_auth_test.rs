@@ -180,11 +180,12 @@ async fn next_json(
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >,
 ) -> serde_json::Value {
-    let frame = socket.next().await.unwrap().unwrap();
-    let Message::Text(text) = frame else {
-        panic!("expected text WebSocket frame");
-    };
-    serde_json::from_str(&text).unwrap()
+    loop {
+        let frame = socket.next().await.unwrap().unwrap();
+        let Message::Text(text) = frame else { continue };
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if value["type"] != "history_complete" { return value }
+    }
 }
 
 async fn next_type(

@@ -5,3 +5,11 @@ max_file_size_mib = 1025
 [attachments]
 # Uploaded bytes live here; SQLite stores metadata only. Restart after changing it.
 directory = "chat_attachments"
+
+[database]
+# Use "sqlite" or "postgres". CLI --database-type overrides this value.
+kind = "sqlite"
+sqlite_path = "chat_rooms.db"
+# postgres_url = "postgres://chat:password@localhost/chat_room"
+postgres_url = ""
+max_connections = 10

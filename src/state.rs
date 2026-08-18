@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use sqlx::SqlitePool;
+use sqlx::{PgPool, SqlitePool};
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
@@ -16,7 +16,18 @@ use crate::storage;
 
 const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
      password_hash <> '' AS has_password, creator_user_id, join_policy, \
-     NULL AS membership_status, NULL AS membership_role, 0 AS unread_count, created_at FROM rooms";
+     CAST(NULL AS TEXT) AS membership_status, CAST(NULL AS TEXT) AS membership_role, \
+     CAST(0 AS BIGINT) AS unread_count, created_at FROM rooms";
+
+macro_rules! with_pool {
+    ($state:expr, |$pool:ident| $body:block) => {
+        match $state.database_pool() {
+            $crate::storage::DatabasePool::Sqlite($pool) => $body,
+            $crate::storage::DatabasePool::Postgres($pool) => $body,
+        }
+    };
+}
+pub(crate) use with_pool;
 
 #[derive(Clone)]
 pub(crate) enum RoomEvent {
@@ -43,7 +54,7 @@ impl RoomChannel {
 
 /// Application state. SQLite is durable storage; the room map is a read cache.
 pub struct AppState {
-    pool: SqlitePool,
+    pool: storage::DatabasePool,
     rooms: RwLock<HashMap<Uuid, Room>>,
     channels: RwLock<HashMap<Uuid, RoomChannel>>,
     members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
@@ -61,6 +72,12 @@ impl AppState {
     pub async fn open_with_config(database_path: &Path, config: &AppConfig) -> Result<Self> {
         let attachment_store = AttachmentStore::open(&config.attachments.directory).await?;
         let pool = storage::open_database(database_path, &attachment_store).await?;
+        Self::from_pool(storage::DatabasePool::Sqlite(pool), config.max_upload_bytes()?, attachment_store).await
+    }
+
+    pub async fn open_postgres(url: &str, config: &AppConfig) -> Result<Self> {
+        let attachment_store = AttachmentStore::open(&config.attachments.directory).await?;
+        let pool = storage::open_postgres_database(url, config.database.max_connections).await?;
         Self::from_pool(pool, config.max_upload_bytes()?, attachment_store).await
     }
 
@@ -79,18 +96,23 @@ impl AppState {
     pub async fn new_with_config(config: &AppConfig) -> Result<Self> {
         let attachment_store = AttachmentStore::open(attachment_storage::test_directory()).await?;
         let pool = storage::open_memory_database(&attachment_store).await?;
-        Self::from_pool(pool, config.max_upload_bytes()?, attachment_store).await
+        Self::from_pool(storage::DatabasePool::Sqlite(pool), config.max_upload_bytes()?, attachment_store).await
     }
 
     async fn from_pool(
-        pool: SqlitePool,
+        pool: storage::DatabasePool,
         max_upload_bytes: usize,
         attachment_store: AttachmentStore,
     ) -> Result<Self> {
-        let loaded: Vec<Room> = sqlx::query_as(SELECT_ROOMS)
-            .fetch_all(&pool)
-            .await
-            .context("load rooms from SQLite")?;
+        let loaded: Vec<Room> = match &pool {
+            storage::DatabasePool::Sqlite(database) => {
+                sqlx::query_as(SELECT_ROOMS).fetch_all(database).await
+            }
+            storage::DatabasePool::Postgres(database) => {
+                sqlx::query_as(SELECT_ROOMS).fetch_all(database).await
+            }
+        }
+        .context("load rooms from database")?;
 
         let mut rooms = HashMap::with_capacity(loaded.len());
         let mut channels = HashMap::with_capacity(loaded.len());
@@ -137,21 +159,24 @@ impl AppState {
 
     /// Persist a room edit only if the caller's view is still current.
     pub async fn update_room(&self, previous: &Room, updated: Room) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query(
-            "UPDATE rooms SET name = ?, password_hash = ?, join_policy = ? \
-             WHERE id = ? AND name = ? AND password_hash = ? AND join_policy = ?",
-        )
-        .bind(&updated.name)
-        .bind(&updated.password_hash)
-        .bind(&updated.join_policy)
-        .bind(previous.id)
-        .bind(&previous.name)
-        .bind(&previous.password_hash)
-        .bind(&previous.join_policy)
-        .execute(&self.pool)
-        .await?;
+        let changed = with_pool!(self, |pool| {
+            sqlx::query(
+                "UPDATE rooms SET name = $1, password_hash = $2, join_policy = $3 \
+                 WHERE id = $4 AND name = $5 AND password_hash = $6 AND join_policy = $7",
+            )
+            .bind(&updated.name)
+            .bind(&updated.password_hash)
+            .bind(&updated.join_policy)
+            .bind(previous.id)
+            .bind(&previous.name)
+            .bind(&previous.password_hash)
+            .bind(&previous.join_policy)
+            .execute(pool)
+            .await
+            .map(|result| result.rows_affected())
+        })?;
 
-        if result.rows_affected() == 0 {
+        if changed == 0 {
             return Ok(false);
         }
 
@@ -165,18 +190,21 @@ impl AppState {
         id: Uuid,
         expected_password_hash: &str,
     ) -> Result<bool, sqlx::Error> {
-        let attachment_ids: Vec<Uuid> =
-            sqlx::query_scalar("SELECT id FROM attachments WHERE room_id = ?")
+        let (attachment_ids, changed) = with_pool!(self, |pool| {
+            let attachment_ids: Vec<Uuid> =
+            sqlx::query_scalar("SELECT id FROM attachments WHERE room_id = $1")
                 .bind(id)
-                .fetch_all(&self.pool)
+                .fetch_all(pool)
                 .await?;
-        let result = sqlx::query("DELETE FROM rooms WHERE id = ? AND password_hash = ?")
-            .bind(id)
-            .bind(expected_password_hash)
-            .execute(&self.pool)
-            .await?;
+            let result = sqlx::query("DELETE FROM rooms WHERE id = $1 AND password_hash = $2")
+                .bind(id)
+                .bind(expected_password_hash)
+                .execute(pool)
+                .await?;
+            Ok::<_, sqlx::Error>((attachment_ids, result.rows_affected()))
+        })?;
 
-        if result.rows_affected() == 0 {
+        if changed == 0 {
             return Ok(false);
         }
 
@@ -337,6 +365,20 @@ impl AppState {
     }
 
     pub fn pool(&self) -> &SqlitePool {
+        match &self.pool {
+            storage::DatabasePool::Sqlite(pool) => pool,
+            storage::DatabasePool::Postgres(_) => panic!("SQLite pool requested for PostgreSQL state"),
+        }
+    }
+
+    pub fn postgres_pool(&self) -> Option<&PgPool> {
+        match &self.pool {
+            storage::DatabasePool::Postgres(pool) => Some(pool),
+            storage::DatabasePool::Sqlite(_) => None,
+        }
+    }
+
+    pub(crate) fn database_pool(&self) -> &storage::DatabasePool {
         &self.pool
     }
 

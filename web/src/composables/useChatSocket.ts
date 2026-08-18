@@ -18,6 +18,7 @@ type ServerMessage =
       read_receipts?: ReadReceipt[]
     }
   | { type: 'auth_fail'; reason: string }
+  | { type: 'history_complete' }
   | BroadcastMessage
   | { type: 'read_receipt'; user_id: string; username: string; message_id: string }
   | { type: 'message_recalled'; message_id: string; recalled_at: string }
@@ -64,6 +65,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   const status = ref<ChatStatus>('idle')
   const error = ref('')
   const messages = ref<DisplayMessage[]>([])
+  const historyReady = ref(false)
   const members = ref<RoomMember[]>([])
   const participants = ref<RoomMember[]>([])
   const readReceipts = ref<ReadReceipt[]>([])
@@ -112,6 +114,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     status.value = 'idle'
     error.value = ''
     if (!preserveMessages) messages.value = []
+    historyReady.value = false
     members.value = []
     participants.value = []
     readReceipts.value = []
@@ -130,12 +133,17 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     if (message.type === 'auth_ok') {
       clearHandshakeTimer()
       messages.value = []
+      historyReady.value = false
       members.value = message.members || []
       participants.value = message.participants || []
       readReceipts.value = message.read_receipts || []
       status.value = 'online'
       error.value = ''
       reconnectAttempt = 0
+      return
+    }
+    if (message.type === 'history_complete') {
+      historyReady.value = true
       return
     }
     if (message.type === 'auth_fail') {
@@ -378,6 +386,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     authenticated,
     currentUserId,
     error,
+    historyReady,
     members,
     messages,
     participants,

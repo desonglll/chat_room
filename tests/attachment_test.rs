@@ -122,7 +122,10 @@ async fn next_json(
     loop {
         let frame = socket.next().await.unwrap().unwrap();
         if let Message::Text(text) = frame {
-            return serde_json::from_str(&text).unwrap();
+            let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            if value["type"] != "history_complete" {
+                return value;
+            }
         }
     }
 }

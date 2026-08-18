@@ -85,15 +85,16 @@ async fn open_room(base: &str, room_id: &str, token: &str) -> Socket {
 }
 
 async fn next_json(socket: &mut Socket) -> serde_json::Value {
-    let frame = tokio::time::timeout(Duration::from_secs(4), socket.next())
-        .await
-        .expect("timed out waiting for WebSocket frame")
-        .expect("WebSocket ended")
-        .expect("WebSocket error");
-    let Message::Text(text) = frame else {
-        panic!("expected text frame, got {frame:?}");
-    };
-    serde_json::from_str(&text).unwrap()
+    loop {
+        let frame = tokio::time::timeout(Duration::from_secs(4), socket.next())
+            .await
+            .expect("timed out waiting for WebSocket frame")
+            .expect("WebSocket ended")
+            .expect("WebSocket error");
+        let Message::Text(text) = frame else { continue };
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if value["type"] != "history_complete" { return value }
+    }
 }
 
 async fn next_type(socket: &mut Socket, expected: &str) -> serde_json::Value {

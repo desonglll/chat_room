@@ -59,10 +59,10 @@ async function submit(): Promise<void> {
 
 <template>
   <Dialog v-model:visible="visible" modal header="新建聊天室" class="w-[min(92vw,440px)]" :draggable="false">
-    <form class="flex flex-col gap-5" @submit.prevent="submit">
+    <form class="flex flex-col gap-5" autocomplete="off" @submit.prevent="submit">
       <div class="flex flex-col gap-2">
         <label for="createRoomName" class="text-sm font-medium">房间名称</label>
-        <InputText id="createRoomName" v-model="name" maxlength="80" placeholder="例如：产品讨论" autofocus fluid />
+        <InputText id="createRoomName" v-model="name" name="new-room-name" maxlength="80" autocomplete="off" placeholder="例如：产品讨论" autofocus fluid />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -74,7 +74,7 @@ async function submit(): Promise<void> {
         <label for="createRoomPassword" class="text-sm font-medium">
           密码 <span class="font-normal text-muted-color">可选</span>
         </label>
-        <Password id="createRoomPassword" v-model="password" :feedback="false" toggle-mask fluid maxlength="256" autocomplete="new-password" />
+        <Password id="createRoomPassword" v-model="password" name="new-room-password" :feedback="false" toggle-mask fluid maxlength="256" autocomplete="off" />
       </div>
 
       <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>

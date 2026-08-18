@@ -12,7 +12,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::models::{Attachment, ChatFileItem, ChatFilePage};
-use crate::state::SharedState;
+use crate::state::{with_pool, SharedState};
 
 #[derive(Deserialize)]
 pub struct FilePageQuery {
@@ -86,13 +86,13 @@ pub async fn list_room_files(
     let limit = query.limit.unwrap_or(50).clamp(1, 100);
     let before = match query.before {
         Some(message_id) => {
-            let created_at = sqlx::query_scalar::<_, DateTime<Utc>>(
-                "SELECT created_at FROM messages WHERE id = ? AND room_id = ?",
+            let created_at = with_pool!(state, |pool| { sqlx::query_scalar::<_, DateTime<Utc>>(
+                "SELECT created_at FROM messages WHERE id = $1 AND room_id = $2",
             )
             .bind(message_id)
             .bind(room_id)
-            .fetch_optional(state.pool())
-            .await
+            .fetch_optional(pool)
+            .await })
             .map_err(database_error)?
             .ok_or(StatusCode::BAD_REQUEST)?;
             Some((created_at, message_id))
@@ -119,10 +119,10 @@ async fn fetch_page(
     before: Option<(DateTime<Utc>, Uuid)>,
     limit: i64,
 ) -> Result<Vec<FileRow>, StatusCode> {
-    let cursor_clause = if before.is_some() {
-        "AND (messages.created_at < ? OR (messages.created_at = ? AND messages.id < ?))"
+    let (cursor_clause, kind_parameters, limit_parameter) = if before.is_some() {
+        ("AND (messages.created_at < $2 OR (messages.created_at = $3 AND messages.id < $4))", ["$5", "$6", "$7", "$8"], "$9")
     } else {
-        ""
+        ("", ["$2", "$3", "$4", "$5"], "$6")
     };
     let sql = format!(
         "SELECT messages.id AS message_id, messages.sender_id, messages.sender, \
@@ -131,26 +131,29 @@ async fn fetch_page(
          attachments.mime_type, attachments.size_bytes FROM messages \
          JOIN attachments ON attachments.id = messages.attachment_id \
          LEFT JOIN users ON users.id = messages.sender_id \
-         WHERE messages.room_id = ? AND messages.recalled_at IS NULL {cursor_clause} \
-         AND (? = 'all' OR (? = 'image' AND attachments.mime_type LIKE 'image/%') \
-           OR (? = 'video' AND attachments.mime_type LIKE 'video/%') \
-           OR (? = 'file' AND attachments.mime_type NOT LIKE 'image/%' \
+         WHERE messages.room_id = $1 AND messages.recalled_at IS NULL {cursor_clause} \
+         AND ({0} = 'all' OR ({1} = 'image' AND attachments.mime_type LIKE 'image/%') \
+           OR ({2} = 'video' AND attachments.mime_type LIKE 'video/%') \
+           OR ({3} = 'file' AND attachments.mime_type NOT LIKE 'image/%' \
                          AND attachments.mime_type NOT LIKE 'video/%')) \
-         ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?"
+         ORDER BY messages.created_at DESC, messages.id DESC LIMIT {limit_parameter}",
+        kind_parameters[0], kind_parameters[1], kind_parameters[2], kind_parameters[3]
     );
-    let query = sqlx::query_as::<_, FileRow>(&sql).bind(room_id);
-    let query = match before {
-        Some((created_at, id)) => query.bind(created_at).bind(created_at).bind(id),
-        None => query,
-    };
-    query
-        .bind(kind)
-        .bind(kind)
-        .bind(kind)
-        .bind(kind)
-        .bind(limit)
-        .fetch_all(state.pool())
-        .await
+    with_pool!(state, |pool| {
+        let query = sqlx::query_as::<_, FileRow>(&sql).bind(room_id);
+        let query = match before {
+            Some((created_at, id)) => query.bind(created_at).bind(created_at).bind(id),
+            None => query,
+        };
+        query
+            .bind(kind)
+            .bind(kind)
+            .bind(kind)
+            .bind(kind)
+            .bind(limit)
+            .fetch_all(pool)
+            .await
+    })
         .map_err(database_error)
 }
 
