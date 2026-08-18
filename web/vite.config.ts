@@ -3,7 +3,16 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag === 'emoji-picker',
+        },
+      },
+    }),
+    tailwindcss(),
+  ],
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:3000',

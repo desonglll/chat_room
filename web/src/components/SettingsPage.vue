@@ -92,7 +92,7 @@ async function confirmDelete(): Promise<void> {
 
       <section class="pt-7">
         <div class="flex items-start justify-between gap-4">
-          <div class="flex gap-3"><Trash2 :size="19" class="mt-0.5 text-red-600" /><div><strong class="block text-sm text-red-700">注销账户</strong><small class="mt-1 block text-muted-color">你创建的聊天室也会被永久删除</small></div></div>
+          <div class="flex gap-3"><Trash2 :size="19" class="mt-0.5 text-danger" /><div><strong class="block text-sm text-danger">注销账户</strong><small class="mt-1 block text-muted-color">你创建的聊天室也会被永久删除</small></div></div>
           <Button severity="danger" outlined @click="deleteOpen = true">注销</Button>
         </div>
       </section>

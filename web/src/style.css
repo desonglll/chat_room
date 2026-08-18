@@ -1,11 +1,38 @@
 @import "tailwindcss";
 @import "tailwindcss-primeui";
+@import "./tokens.css";
+
+/* Redirect Tailwind's shadow/radius/ease scale onto the brand token system —
+   every `shadow-md`/`rounded-xl`/`ease-spring` utility in the app picks up
+   the layered, ink-tinted depth system for free, light and dark alike. */
+@theme {
+  --shadow-xs: var(--cr-shadow-xs);
+  --shadow-sm: var(--cr-shadow-sm);
+  --shadow-md: var(--cr-shadow-md);
+  --shadow-lg: var(--cr-shadow-lg);
+  --shadow-xl: var(--cr-shadow-xl);
+  --radius-lg: var(--cr-radius-lg);
+  --radius-xl: var(--cr-radius-xl);
+  --radius-2xl: var(--cr-radius-2xl);
+  --ease-spring: var(--cr-ease-spring);
+
+  /* Semantic status colors as real Tailwind utilities (text-danger, bg-success,
+     etc.) so components stop reaching for raw text-red-600/text-emerald-600 —
+     those bypass the token system and don't adapt to dark mode. Named "flash"
+     rather than "highlight" — tailwindcss-primeui already owns bg-highlight/
+     text-highlight for PrimeVue's own selection semantic, and it loads after
+     this block, so a same-named utility here would silently lose to it. */
+  --color-danger: var(--cr-danger);
+  --color-warning: var(--cr-warning);
+  --color-success: var(--cr-success);
+  --color-flash: var(--cr-flash);
+}
 
 @layer base {
   :root {
-    color: #18181b;
-    background: #f4f4f5;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--cr-text);
+    background: var(--cr-canvas);
+    font-family: var(--cr-font-sans);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
   }
@@ -32,5 +59,67 @@
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
+  }
+}
+
+@layer utilities {
+  /* Frosted-glass chrome for floating surfaces — dialog masks, popovers, the
+     composer's AI suggestion strip. Falls back to a plain translucent panel
+     when the browser can't do backdrop-filter. */
+  .cr-glass {
+    background: var(--cr-glass-bg);
+    border: 1px solid var(--cr-glass-border);
+    backdrop-filter: blur(var(--cr-glass-blur));
+    -webkit-backdrop-filter: blur(var(--cr-glass-blur));
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .cr-glass {
+      background: var(--cr-surface);
+    }
+  }
+
+  /* A whisper of brand-colored ambient light on the app canvas instead of a
+     flat fill — depth without calling attention to itself. */
+  .cr-canvas-ambient {
+    background:
+      radial-gradient(1200px 640px at 6% -12%, color-mix(in srgb, var(--cr-primary) 7%, transparent), transparent 60%),
+      radial-gradient(900px 520px at 100% 108%, color-mix(in srgb, var(--cr-accent) 5%, transparent), transparent 55%),
+      var(--cr-canvas);
+  }
+}
+
+/* Deliberately outside any @layer: PrimeVue's own styles live in the
+   "primevue" cssLayer (see main.ts), and unlayered rules always win over
+   layered ones — this reliably overrides the dialog/overlay mask regardless
+   of PrimeVue's internal layer ordering. Ink-tinted + blurred instead of a
+   flat black scrim. */
+.p-dialog-mask,
+.p-overlay-mask {
+  background: var(--cr-mask-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Unified spring-based press feedback for every PrimeVue button/toggle in the
+   app — one rule instead of hand-tuning each component's hover/active state. */
+.p-button,
+.p-togglebutton {
+  transition:
+    transform var(--cr-motion-fast) var(--cr-ease-spring),
+    background var(--cr-motion-normal) var(--cr-ease-out),
+    box-shadow var(--cr-motion-normal) var(--cr-ease-out),
+    border-color var(--cr-motion-normal) var(--cr-ease-out);
+}
+
+.p-button:active:not(:disabled):not([data-p-disabled="true"]),
+.p-togglebutton:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-button:active:not(:disabled):not([data-p-disabled="true"]),
+  .p-togglebutton:active:not(:disabled) {
+    transform: none;
   }
 }

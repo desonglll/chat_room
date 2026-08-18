@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Plus } from 'lucide-vue-next'
+import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
+import Popover from 'primevue/popover'
 import SelectButton from 'primevue/selectbutton'
+import Textarea from 'primevue/textarea'
+import EmojiPicker from './EmojiPicker.vue'
+import IconSprite from './IconSprite.vue'
 import { createRoom } from '../api'
 import type { Room } from '../types'
 
@@ -18,9 +23,12 @@ const emit = defineEmits<{
 
 const name = ref('')
 const password = ref('')
-const joinPolicy = ref<'approval' | 'open'>('approval')
+const joinPolicy = ref<'approval' | 'open'>('open')
+const avatarEmoji = ref('')
+const description = ref('')
 const error = ref('')
 const busy = ref(false)
+const avatarPopover = ref()
 const visible = computed({
   get: () => props.open,
   set: (value: boolean) => { if (!value) emit('close') },
@@ -34,9 +42,16 @@ watch(() => props.open, (open) => {
   if (!open) return
   name.value = ''
   password.value = ''
-  joinPolicy.value = 'approval'
+  joinPolicy.value = 'open'
+  avatarEmoji.value = ''
+  description.value = ''
   error.value = ''
 })
+
+function selectAvatar(emoji: string): void {
+  avatarEmoji.value = emoji
+  avatarPopover.value?.hide()
+}
 
 async function submit(): Promise<void> {
   const normalizedName = name.value.trim()
@@ -47,7 +62,7 @@ async function submit(): Promise<void> {
   busy.value = true
   error.value = ''
   try {
-    const room = await createRoom(normalizedName, password.value, props.token, joinPolicy.value)
+    const room = await createRoom(normalizedName, password.value, props.token, joinPolicy.value, avatarEmoji.value, description.value)
     emit('created', room, password.value)
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '创建房间失败'
@@ -60,9 +75,26 @@ async function submit(): Promise<void> {
 <template>
   <Dialog v-model:visible="visible" modal header="新建聊天室" class="w-[min(92vw,440px)]" :draggable="false">
     <form class="flex flex-col gap-5" autocomplete="off" @submit.prevent="submit">
+      <div class="flex items-center gap-3">
+        <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" class="bg-primary-50! text-xl!" />
+        <Avatar v-else shape="circle" class="bg-surface-200! text-surface-700!"><IconSprite name="rooms" :size="18" /></Avatar>
+        <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择头像</Button>
+        <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''">清除</Button>
+      </div>
+      <Popover ref="avatarPopover">
+        <EmojiPicker @select="selectAvatar" />
+      </Popover>
+
       <div class="flex flex-col gap-2">
         <label for="createRoomName" class="text-sm font-medium">房间名称</label>
         <InputText id="createRoomName" v-model="name" name="new-room-name" maxlength="80" autocomplete="off" placeholder="例如：产品讨论" autofocus fluid />
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="createRoomDescription" class="text-sm font-medium">
+          简介 <span class="font-normal text-muted-color">可选</span>
+        </label>
+        <Textarea id="createRoomDescription" v-model="description" maxlength="300" rows="2" auto-resize fluid />
       </div>
 
       <div class="flex flex-col gap-2">

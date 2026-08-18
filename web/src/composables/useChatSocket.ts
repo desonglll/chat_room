@@ -71,6 +71,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   const readReceipts = ref<ReadReceipt[]>([])
   const typingDrafts = ref<TypingDraft[]>([])
   const currentUserId = ref('')
+  const pokedAt = ref(0)
   let socket: WebSocket | null = null
   let handshakeTimer: number | undefined
   let reconnectTimer: number | undefined
@@ -176,15 +177,17 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
         const recalledReply = item.reply_to?.message_id === message.message_id
           ? { ...item.reply_to, content: '', attachment_file_name: null, recalled: true }
           : item.reply_to
-        return item.message_id === message.message_id
-          ? {
-              ...item,
-              content: '',
-              attachment: null,
-              recalled_at: message.recalled_at,
-              reply_to: recalledReply,
-            }
-          : { ...item, reply_to: recalledReply }
+        if (item.message_id !== message.message_id) return { ...item, reply_to: recalledReply }
+        // The sender keeps seeing their own text/attachment locally so they can re-edit
+        // the recalled draft; everyone else's copy is blanked like before.
+        const isOwn = item.sender_id === currentUserId.value
+        return {
+          ...item,
+          content: isOwn ? item.content : '',
+          attachment: isOwn ? item.attachment : null,
+          recalled_at: message.recalled_at,
+          reply_to: recalledReply,
+        }
       })
       return
     }
@@ -192,10 +195,10 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       messages.value = messages.value.map((item) => {
         if (item.type !== 'broadcast') return item
         const replyTo = item.reply_to?.message_id === message.message_id
-          ? { ...item.reply_to, content: message.content }
+          ? { ...item.reply_to, content: message.content, recalled: false }
           : item.reply_to
         return item.message_id === message.message_id
-          ? { ...item, content: message.content, edited_at: message.edited_at, reply_to: replyTo }
+          ? { ...item, content: message.content, edited_at: message.edited_at, recalled_at: null, reply_to: replyTo }
           : { ...item, reply_to: replyTo }
       })
       return
@@ -212,8 +215,22 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     const content = message.content || ''
     if (message.members) members.value = message.members
     if (message.participants) participants.value = message.participants
+    const poke = content.match(/^poke:([^:]+):([^:]+)$/)
+    if (poke) {
+      applyPoke(poke[1], poke[2])
+      return
+    }
     appendSystem(content)
     onSystemEvent?.(content)
+  }
+
+  function resolveName(userId: string): string {
+    return participants.value.find((member) => member.user_id === userId)?.username || '某人'
+  }
+
+  function applyPoke(fromUserId: string, targetUserId: string): void {
+    appendSystem(`${resolveName(fromUserId)} 拍了拍 ${targetUserId === currentUserId.value ? '你' : resolveName(targetUserId)}`)
+    if (targetUserId === currentUserId.value) pokedAt.value = Date.now()
   }
 
   function appendBroadcast(message: BroadcastMessage, _showBrowserNotification = true): void {
@@ -223,6 +240,14 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     if (!duplicate) {
       messages.value.push(message)
     }
+  }
+
+  function prependHistory(older: BroadcastMessage[]): void {
+    const existing = new Set(
+      messages.value.filter((item) => item.type === 'broadcast').map((item) => item.message_id),
+    )
+    const fresh = older.filter((item) => !existing.has(item.message_id))
+    if (fresh.length) messages.value = [...fresh, ...messages.value]
   }
 
   function clearTypingDrafts(): void {
@@ -380,6 +405,12 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     return true
   }
 
+  function poke(targetUserId: string): boolean {
+    if (!targetUserId || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    socket.send(JSON.stringify({ type: 'poke', target_user_id: targetUserId }))
+    return true
+  }
+
   onBeforeUnmount(() => close())
 
   return {
@@ -394,12 +425,15 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     status,
     statusLabel,
     typingDrafts,
+    pokedAt,
     appendBroadcast,
+    prependHistory,
     close,
     connect,
     edit,
     markRead,
     recall,
+    poke,
     send,
     sendTyping,
   }

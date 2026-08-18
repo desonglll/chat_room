@@ -20,6 +20,8 @@ pub(crate) struct EditCursor {
 
 impl AppState {
     /// Replace a sender-owned message while retaining its identity and edit timestamp.
+    /// Also un-recalls the message: a sender can always re-edit their own recalled
+    /// draft (only they could see it), and doing so republishes it to everyone.
     pub async fn edit_message(
         &self,
         room_id: Uuid,
@@ -29,8 +31,8 @@ impl AppState {
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let edited_at = Utc::now();
         let changed = with_pool!(self, |pool| { sqlx::query(
-            "UPDATE messages SET content = $1, edited_at = $2 \
-             WHERE id = $3 AND room_id = $4 AND sender_id = $5 AND recalled_at IS NULL",
+            "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
+             WHERE id = $3 AND room_id = $4 AND sender_id = $5",
         )
         .bind(content)
         .bind(edited_at)

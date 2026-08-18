@@ -4,6 +4,8 @@ export interface Room {
   has_password: boolean
   creator_user_id: string | null
   join_policy: 'open' | 'approval'
+  avatar_emoji: string
+  description: string
   membership_status?: 'pending' | 'invited' | 'active'
   membership_role?: 'owner' | 'admin' | 'member'
   unread_count: number
@@ -35,6 +37,12 @@ export interface AuthSession {
 
 export interface PublicConfig {
   max_upload_bytes: number
+  ai_enabled: boolean
+}
+
+export interface AiSuggestions {
+  summary: string
+  suggestions: string[]
 }
 
 export interface Attachment {
@@ -43,6 +51,21 @@ export interface Attachment {
   mime_type: string
   size_bytes: number
   download_url: string
+  is_sensitive: boolean
+}
+
+export interface AttachmentUploadSession {
+  id: string
+  room_id: string
+  uploader_id: string
+  file_name: string
+  mime_type: string
+  declared_size_bytes: number
+  received_bytes: number
+  fingerprint: string
+  status: 'in_progress' | 'completed' | 'aborted'
+  created_at: string
+  updated_at: string
 }
 
 export interface ChatFileItem {
@@ -69,6 +92,7 @@ export interface AccountMessageEvent {
   content: string
   attachment_file_name: string | null
   timestamp: string
+  is_mention: boolean
 }
 
 export interface ReplyPreview {
@@ -91,6 +115,18 @@ export interface ReadReceipt {
   message_id: string
 }
 
+export interface ForwardedFrom {
+  sender: string
+  room_name: string
+}
+
+export interface ForwardResult {
+  message_id: string
+  target_room_id: string
+  forwarded_message_id: string | null
+  skipped_reason: string | null
+}
+
 export interface BroadcastMessage {
   type: 'broadcast'
   message_id: string
@@ -103,6 +139,7 @@ export interface BroadcastMessage {
   recalled_at: string | null
   edited_at: string | null
   timestamp: string
+  forwarded_from: ForwardedFrom | null
 }
 
 export interface StoredMessage {
@@ -117,6 +154,7 @@ export interface StoredMessage {
   recalled_at: string | null
   edited_at: string | null
   created_at: string
+  forwarded_from: ForwardedFrom | null
 }
 
 export interface SystemMessage {
@@ -129,6 +167,7 @@ export type DisplayMessage = BroadcastMessage | SystemMessage
 export type ChatStatus = 'idle' | 'connecting' | 'online' | 'offline' | 'failed'
 export type SendShortcut = 'enter' | 'shift-enter'
 export type FocusShortcut = 'space' | 'slash' | 'none'
+export type ThemePreference = 'light' | 'dark' | 'system'
 
 export interface ChatPreferences {
   sendShortcut: SendShortcut
@@ -136,6 +175,7 @@ export interface ChatPreferences {
   notificationsEnabled: boolean
   notificationDetails: boolean
   avatarEmoji: string
+  theme: ThemePreference
 }
 
 export interface TypingDraft {
@@ -148,6 +188,7 @@ export interface RoomMembership {
   user_id: string
   username: string
   avatar_emoji: string
+  nickname: string
   role: 'owner' | 'admin' | 'member'
   status: 'pending' | 'invited' | 'active'
   requested_at: string

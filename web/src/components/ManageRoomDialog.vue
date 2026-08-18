@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Save, Trash2 } from 'lucide-vue-next'
+import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
+import Popover from 'primevue/popover'
 import SelectButton from 'primevue/selectbutton'
+import Textarea from 'primevue/textarea'
+import EmojiPicker from './EmojiPicker.vue'
+import IconSprite from './IconSprite.vue'
 import { deleteRoom, updateRoom } from '../api'
 import RoomMembersPanel from './RoomMembersPanel.vue'
 import type { Room, RoomUpdateResult } from '../types'
@@ -28,10 +33,13 @@ const name = ref('')
 const newPassword = ref('')
 const joinPolicy = ref<'open' | 'approval'>('approval')
 const removePassword = ref(false)
+const avatarEmoji = ref('')
+const description = ref('')
 const mode = ref<'settings' | 'members'>('settings')
 const confirmingDelete = ref(false)
 const error = ref('')
 const busy = ref(false)
+const avatarPopover = ref()
 const visible = computed({
   get: () => props.open && Boolean(props.room),
   set: (value: boolean) => { if (!value) emit('close') },
@@ -51,10 +59,17 @@ watch(() => props.open, (open) => {
   newPassword.value = ''
   joinPolicy.value = props.room.join_policy
   removePassword.value = false
+  avatarEmoji.value = props.room.avatar_emoji
+  description.value = props.room.description
   mode.value = 'settings'
   confirmingDelete.value = false
   error.value = ''
 })
+
+function selectAvatar(emoji: string): void {
+  avatarEmoji.value = emoji
+  avatarPopover.value?.hide()
+}
 
 async function save(): Promise<void> {
   if (!props.room) return
@@ -64,9 +79,11 @@ async function save(): Promise<void> {
     return
   }
   const passwordChanged = removePassword.value || newPassword.value.length > 0
-  const payload: { name: string; new_password?: string; join_policy: 'open' | 'approval' } = {
+  const payload: { name: string; new_password?: string; join_policy: 'open' | 'approval'; avatar_emoji: string; description: string } = {
     name: normalizedName,
     join_policy: joinPolicy.value,
+    avatar_emoji: avatarEmoji.value,
+    description: description.value,
   }
   if (passwordChanged) payload.new_password = removePassword.value ? '' : newPassword.value
 
@@ -121,9 +138,26 @@ async function confirmDelete(): Promise<void> {
       <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" class="mb-5 grid grid-cols-2" />
       <RoomMembersPanel v-if="mode === 'members'" :room="room" :token="token" />
       <form v-else class="flex flex-col gap-5" autocomplete="off" @submit.prevent="save">
+        <div class="flex items-center gap-3">
+          <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" class="bg-primary-50! text-xl!" />
+          <Avatar v-else shape="circle" class="bg-surface-200! text-surface-700!"><IconSprite name="rooms" :size="18" /></Avatar>
+          <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择头像</Button>
+          <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''">清除</Button>
+        </div>
+        <Popover ref="avatarPopover">
+          <EmojiPicker @select="selectAvatar" />
+        </Popover>
+
         <div class="flex flex-col gap-2">
           <label for="manageRoomName" class="text-sm font-medium">房间名称</label>
           <InputText id="manageRoomName" v-model="name" name="managed-room-name" maxlength="80" autocomplete="off" fluid />
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label for="manageRoomDescription" class="text-sm font-medium">
+            简介 <span class="font-normal text-muted-color">可选</span>
+          </label>
+          <Textarea id="manageRoomDescription" v-model="description" maxlength="300" rows="2" auto-resize fluid />
         </div>
 
         <div class="flex flex-col gap-2">

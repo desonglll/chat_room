@@ -60,15 +60,29 @@ async fn rooms_survive_sqlite_restart() {
 
     let state2 = Arc::new(AppState::open(&database).await.unwrap());
     let server2 = start_server_with_state(state2.clone()).await;
+
+    // Anonymous listing only surfaces the public room; the private room's owner
+    // still sees both, proving the private room's row itself survived the restart.
     let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", server2))
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    assert_eq!(list.len(), 2);
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0]["id"], public_id);
 
-    let ids: Vec<&str> = list.iter().filter_map(|room| room["id"].as_str()).collect();
+    let owner_token = session_token(&server2, "owner-persistent-private").await;
+    let authed_list: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{}/api/rooms", server2))
+        .bearer_auth(owner_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let ids: Vec<&str> = authed_list.iter().filter_map(|room| room["id"].as_str()).collect();
     assert!(ids.contains(&private_id.as_str()));
     assert!(ids.contains(&public_id.as_str()));
 
@@ -242,15 +256,21 @@ async fn list_rooms_filter_by_name() {
     create_room(&base, "beta", Some("pw")).await;
     create_room(&base, "gamma", None).await;
 
+    // Anonymous listing excludes the private "beta" room entirely.
     let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", base))
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    assert_eq!(list.len(), 3);
+    assert_eq!(list.len(), 2);
 
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=beta", base))
+    // "beta"'s owner can still find it by name, anonymous callers cannot.
+    let beta_owner_token = session_token(&base, "owner-beta").await;
+    let list: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{}/api/rooms?name=beta", base))
+        .bearer_auth(beta_owner_token)
+        .send()
         .await
         .unwrap()
         .json()
@@ -258,6 +278,14 @@ async fn list_rooms_filter_by_name() {
         .unwrap();
     assert_eq!(list.len(), 1);
     assert_eq!(list[0]["name"], "beta");
+
+    let anonymous_beta: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=beta", base))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(anonymous_beta.is_empty());
 
     let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=nobody", base))
         .await
@@ -290,7 +318,13 @@ async fn fresh_start_creates_database_and_runs_migrations() {
         .fetch_one(state.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 11);
+    let expected_migrations = std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations"))
+        .unwrap()
+        .filter(|entry| {
+            entry.as_ref().unwrap().path().extension().is_some_and(|ext| ext == "sql")
+        })
+        .count() as i64;
+    assert_eq!(migration_count, expected_migrations);
 
     let legacy_table: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'app_metadata'",

@@ -10,12 +10,23 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+use crate::message_store::MessageCursor;
 use crate::models::{CreateRoomRequest, Room, StoredMessage, UpdateRoomRequest};
-use crate::state::SharedState;
+use crate::state::{with_pool, SharedState};
 use crate::user_handlers::{bearer_token, optional_bearer_token};
 
 const MAX_ROOM_NAME_CHARS: usize = 80;
 const MAX_PASSWORD_CHARS: usize = 256;
+const MAX_ROOM_AVATAR_CHARS: usize = 8;
+const MAX_ROOM_DESCRIPTION_CHARS: usize = 300;
+
+fn valid_room_avatar(value: &str) -> bool {
+    value.chars().count() <= MAX_ROOM_AVATAR_CHARS && !value.chars().any(char::is_control)
+}
+
+fn valid_room_description(value: &str) -> bool {
+    value.chars().count() <= MAX_ROOM_DESCRIPTION_CHARS && !value.chars().any(char::is_control)
+}
 
 fn hash_password(password: &str) -> String {
     let mut hasher = Sha256::new();
@@ -70,6 +81,11 @@ pub async fn create_room(
     if !matches!(join_policy, "open" | "approval") {
         return Err(StatusCode::BAD_REQUEST);
     }
+    let avatar_emoji = req.avatar_emoji.as_deref().unwrap_or("").trim().to_string();
+    let description = req.description.as_deref().unwrap_or("").trim().to_string();
+    if !valid_room_avatar(&avatar_emoji) || !valid_room_description(&description) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     let id = Uuid::new_v4();
     let (password_hash, has_password) = match req.password.as_deref() {
@@ -84,6 +100,8 @@ pub async fn create_room(
         has_password,
         creator_user_id: Some(creator.id),
         join_policy: join_policy.to_string(),
+        avatar_emoji,
+        description,
         membership_status: Some("active".into()),
         membership_role: Some("owner".into()),
         unread_count: 0,
@@ -239,6 +257,21 @@ pub async fn update_room(
     if !matches!(join_policy, "open" | "approval") {
         return Err(StatusCode::BAD_REQUEST);
     }
+    let avatar_emoji = req
+        .avatar_emoji
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or(&previous.avatar_emoji)
+        .to_string();
+    let description = req
+        .description
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or(&previous.description)
+        .to_string();
+    if !valid_room_avatar(&avatar_emoji) || !valid_room_description(&description) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     let password_hash = req
         .new_password
@@ -262,6 +295,8 @@ pub async fn update_room(
             .map_or(previous.has_password, |password| !password.is_empty()),
         creator_user_id: previous.creator_user_id,
         join_policy: join_policy.to_string(),
+        avatar_emoji,
+        description,
         membership_status: Some("active".into()),
         membership_role: state
             .membership_identity(id, user.id)
@@ -353,19 +388,24 @@ pub async fn delete_room(
 #[derive(Deserialize)]
 pub struct MessageHistoryQuery {
     pub limit: Option<i64>,
+    /// Exclusive cursor: return messages strictly older than this message id.
+    pub before: Option<Uuid>,
 }
 
-/// Return persisted room messages in chronological order.
+/// Return persisted room messages in reverse-chronological pages (newest first,
+/// or strictly older than `before`) for history backfill.
 #[utoipa::path(
     get,
     path = "/api/rooms/{id}/messages",
     params(
         ("id" = Uuid, description = "Room id"),
-        ("limit" = Option<i64>, Query, description = "Newest messages to return (1-500)"),
+        ("limit" = Option<i64>, Query, description = "Messages to return (1-500)"),
+        ("before" = Option<Uuid>, Query, description = "Exclusive message cursor for backfilling older history"),
         ("x-room-password" = Option<String>, Header, description = "Required for private rooms")
     ),
     responses(
         (status = 200, description = "Persisted room messages", body = Vec<StoredMessage>),
+        (status = 400, description = "Unknown `before` cursor"),
         (status = 401, description = "Missing or incorrect room password"),
         (status = 404, description = "Room not found"),
         (status = 500, description = "Database error")
@@ -403,8 +443,30 @@ pub async fn list_messages(
         }
     }
 
+    let before = match query.before {
+        Some(message_id) => {
+            let created_at = with_pool!(state, |pool| { sqlx::query_scalar::<_, chrono::DateTime<Utc>>(
+                "SELECT created_at FROM messages WHERE id = $1 AND room_id = $2",
+            )
+            .bind(message_id)
+            .bind(id)
+            .fetch_optional(pool)
+            .await })
+            .map_err(|error| {
+                tracing::error!("resolve message cursor failed: {}", error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .ok_or(StatusCode::BAD_REQUEST)?;
+            Some(MessageCursor {
+                created_at,
+                id: message_id,
+            })
+        }
+        None => None,
+    };
+
     match state
-        .message_history(id, query.limit.unwrap_or(100), None)
+        .message_history(id, query.limit.unwrap_or(100), before.as_ref(), Some(user.id))
         .await
     {
         Ok(messages) => Ok(Json(messages)),

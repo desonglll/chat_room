@@ -1,15 +1,64 @@
 [uploads]
 # Maximum size of one uploaded file. Restart the server after changing this value.
 max_file_size_mib = 1025
+# Per-request body cap for one chunk of a resumable upload — independent of
+# max_file_size_mib above, since chunks stay small regardless of file size.
+chunk_size_mib = 8
+# How long an abandoned in-progress upload's staged bytes are kept before
+# being garbage-collected on startup.
+abandoned_upload_gc_hours = 24
 
 [attachments]
-# Uploaded bytes live here; SQLite stores metadata only. Restart after changing it.
+# In-progress (chunked) uploads always stage here first regardless of the OSS
+# setting below. When OSS is off, the finished file also lives here.
 directory = "chat_attachments"
+
+[attachments.oss]
+# If enabled, finished uploads are stored in Aliyun OSS instead of the local
+# disk directory above (in-progress chunked uploads still stage locally).
+# Disabled by default — local disk keeps working exactly as before either way.
+enabled = false
+endpoint = ""
+bucket = ""
+access_key_id = ""
+access_key_secret = ""
+root = "/"
 
 [database]
 # Use "sqlite" or "postgres". CLI --database-type overrides this value.
-kind = "sqlite"
+kind = "postgres"
 sqlite_path = "chat_rooms.db"
 # postgres_url = "postgres://chat:password@localhost/chat_room"
-postgres_url = ""
+postgres_url = "postgresql://postgres:postgres@localhost:52735/chatroom"
 max_connections = 10
+
+[ai]
+# The magic-wand button: summarizes a room's recent messages and suggests
+# replies. Disabled by default. `api_key_env` should normally be the name of
+# an environment variable holding the key, e.g. export CHAT_ROOM_AI_API_KEY=sk-...
+# — but if no environment variable by that name is set, the value is used
+# as the literal API key instead (so it can be pasted directly here too).
+enabled = true
+# "openai" or "anthropic". The actual provider used for the request is
+# inferred from `model`'s name prefix (e.g. "gpt-*" vs "claude-*") by the
+# underlying client library; this field is only validated for sanity.
+provider = "openai"
+api_key_env = "CHAT_ROOM_AI_API_KEY"
+model = "deepseek-ai/DeepSeek-V4-Flash"
+base_url = "https://api.siliconflow.cn"
+max_context_messages = 30
+# Per-user cooldown between AI suggestion requests in the same room.
+suggest_cooldown_secs = 10
+
+[realtime]
+# WebSocket timing and per-tick history/poll limits. Restart after changing.
+poll_interval_ms = 250
+heartbeat_interval_secs = 15
+auth_timeout_secs = 10
+history_replay_limit = 100
+message_poll_limit = 200
+# Per-(room, from, target) cooldown between pokes ("拍一拍").
+poke_cooldown_secs = 5
+
+[auth]
+session_lifetime_days = 30

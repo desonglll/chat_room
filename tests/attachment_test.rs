@@ -46,6 +46,7 @@ async fn configured_upload_limit_is_public_and_enforced() {
     let server = start_server_with_config(AppConfig {
         uploads: UploadConfig {
             max_file_size_mib: 1,
+            ..UploadConfig::default()
         },
         ..AppConfig::default()
     })

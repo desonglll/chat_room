@@ -20,12 +20,6 @@ use crate::state::{RoomEvent, SharedState};
 use crate::ws_auth::authenticate;
 use crate::ws_inbound::handle_client_message;
 
-const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
-const HISTORY_REPLAY_LIMIT: i64 = 100;
-const MESSAGE_POLL_INTERVAL: Duration = Duration::from_millis(250);
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
-const MESSAGE_POLL_LIMIT: i64 = 200;
-
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     Path(room_id): Path<Uuid>,
@@ -51,7 +45,8 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     };
 
-    let first_raw = match timeout(AUTH_TIMEOUT, stream.next()).await {
+    let auth_timeout = Duration::from_secs(state.realtime_config().auth_timeout_secs);
+    let first_raw = match timeout(auth_timeout, stream.next()).await {
         Ok(Some(Ok(Message::Text(text)))) => text.to_string(),
         Err(_) => {
             let _ = send_json(
@@ -209,7 +204,12 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
     };
 
     let history = match state
-        .message_history(room_id, HISTORY_REPLAY_LIMIT, history_boundary.as_ref())
+        .message_history(
+            room_id,
+            state.realtime_config().history_replay_limit,
+            history_boundary.as_ref(),
+            Some(user.id),
+        )
         .await
     {
         Ok(history) => history,
@@ -272,12 +272,15 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
 
     let forwarding_state = state.clone();
     let forwarding_user_id = user.id;
+    let poll_interval = Duration::from_millis(state.realtime_config().poll_interval_ms);
+    let heartbeat_interval = Duration::from_secs(state.realtime_config().heartbeat_interval_secs);
+    let message_poll_limit = state.realtime_config().message_poll_limit;
     let forwarder = tokio::spawn(async move {
         let mut message_cursor = history_boundary;
         let mut recall_cursor = recall_boundary;
         let mut edit_cursor = edit_boundary;
-        let mut message_poll = interval(MESSAGE_POLL_INTERVAL);
-        let mut heartbeat = interval(HEARTBEAT_INTERVAL);
+        let mut message_poll = interval(poll_interval);
+        let mut heartbeat = interval(heartbeat_interval);
         message_poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
         heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
         heartbeat.tick().await;
@@ -341,7 +344,12 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                         Err(error) => tracing::warn!("check room membership failed: {}", error),
                     }
                     match forwarding_state
-                        .messages_after(room_id, message_cursor.as_ref(), MESSAGE_POLL_LIMIT)
+                        .messages_after(
+                            room_id,
+                            message_cursor.as_ref(),
+                            message_poll_limit,
+                            Some(forwarding_user_id),
+                        )
                         .await
                     {
                         Ok(messages) => {
@@ -360,7 +368,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                         }
                     }
                     match forwarding_state
-                        .recalls_after(room_id, recall_cursor.as_ref(), MESSAGE_POLL_LIMIT)
+                        .recalls_after(room_id, recall_cursor.as_ref(), message_poll_limit)
                         .await
                     {
                         Ok(recalls) => {
@@ -383,7 +391,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                         Err(error) => tracing::warn!("poll recalled messages failed: {}", error),
                     }
                     match forwarding_state
-                        .edits_after(room_id, edit_cursor.as_ref(), MESSAGE_POLL_LIMIT)
+                        .edits_after(room_id, edit_cursor.as_ref(), message_poll_limit)
                         .await
                     {
                         Ok(edits) => {
@@ -469,6 +477,7 @@ fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         recalled_at: message.recalled_at,
         edited_at: message.edited_at,
         timestamp: message.created_at,
+        forwarded_from: message.forwarded_from,
     }
 }
 

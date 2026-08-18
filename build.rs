@@ -8,6 +8,7 @@ fn main() {
         "web/tsconfig.json",
         "web/vite.config.ts",
         "web/src",
+        "web/public",
     ] {
         println!("cargo:rerun-if-changed={path}");
     }

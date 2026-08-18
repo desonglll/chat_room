@@ -5,11 +5,12 @@ import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
+import Popover from 'primevue/popover'
 import Textarea from 'primevue/textarea'
+import EmojiPicker from './EmojiPicker.vue'
 import { updateCurrentUser } from '../api'
 import type { User } from '../types'
 
-const AVATARS = ['', '😀', '😎', '🥳', '🤓', '🙂', '🫡', '🚀', '🌻', '🍀', '☕', '🎨', '💡', '🔥', '✨', '🌙', '⚡']
 const props = defineProps<{ user: User; token: string }>()
 const emit = defineEmits<{ back: []; updated: [user: User] }>()
 
@@ -20,6 +21,12 @@ const homepage = ref('')
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
+const avatarPopover = ref()
+
+function selectAvatar(emoji: string): void {
+  avatarEmoji.value = emoji
+  avatarPopover.value?.hide()
+}
 
 watch(() => props.user, (user) => {
   avatarEmoji.value = user.avatar_emoji
@@ -62,19 +69,15 @@ async function save(): Promise<void> {
     <form autocomplete="on" class="mx-auto w-full max-w-2xl px-5 py-8 sm:px-8" @submit.prevent="save">
       <section class="border-b border-surface-200 pb-7">
         <div class="mb-4 flex items-center gap-2 text-sm font-semibold"><UserRound :size="18" class="text-primary" />头像</div>
-        <div class="grid grid-cols-6 gap-2 sm:grid-cols-9">
-          <button
-            v-for="emoji in AVATARS"
-            :key="emoji || 'default'"
-            type="button"
-            class="grid aspect-square cursor-pointer place-items-center rounded-md border text-xl transition hover:-translate-y-0.5 hover:border-primary hover:bg-primary-50"
-            :class="emoji === avatarEmoji ? 'border-primary bg-primary-50 shadow-sm' : 'border-surface-200 bg-surface-0'"
-            @click="avatarEmoji = emoji"
-          >
-            <span v-if="emoji">{{ emoji }}</span>
-            <Avatar v-else :label="user.username.slice(0, 1).toUpperCase()" shape="circle" size="small" class="bg-surface-200! text-surface-700!" />
-          </button>
+        <div class="flex items-center gap-3">
+          <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" size="large" class="bg-primary-50! text-2xl!" />
+          <Avatar v-else :label="user.username.slice(0, 1).toUpperCase()" shape="circle" size="large" class="bg-surface-200! text-surface-700!" />
+          <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择表情</Button>
+          <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''">清除</Button>
         </div>
+        <Popover ref="avatarPopover">
+          <EmojiPicker @select="selectAvatar" />
+        </Popover>
       </section>
 
       <section class="space-y-5 pt-7">

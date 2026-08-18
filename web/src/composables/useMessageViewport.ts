@@ -10,10 +10,12 @@ interface MessageViewportOptions {
   readReceipts: () => ReadReceipt[]
   visible: () => boolean
   onRead: (messageId: string) => void
+  onLoadOlder?: () => void
 }
 
 const FOLLOW_DISTANCE = 72
 const VIEW_THRESHOLD = 0.35
+const LOAD_OLDER_DISTANCE = 160
 
 export function useMessageViewport(options: MessageViewportOptions) {
   const unseenIds = ref<string[]>([])
@@ -91,6 +93,9 @@ export function useMessageViewport(options: MessageViewportOptions) {
   function handleScroll(): void {
     if (performance.now() < suppressScrollUntil) return
     markVisibleMessages()
+    if (options.onLoadOlder && (options.list.value?.scrollTop ?? Infinity) <= LOAD_OLDER_DISTANCE) {
+      options.onLoadOlder()
+    }
   }
 
   async function scrollToFirstUnseen(): Promise<void> {
@@ -117,6 +122,22 @@ export function useMessageViewport(options: MessageViewportOptions) {
 
   watch(broadcastIds, async (nextIds, previousIds) => {
     if (!historyInitialized || !options.historyReady()) return
+
+    // Older history was prepended (load-older-on-scroll-up): the old list is now a
+    // trailing slice of the new one. Preserve scroll position instead of following.
+    const isPrepend = previousIds.length > 0
+      && nextIds.length > previousIds.length
+      && previousIds.every((id, index) => id === nextIds[index + (nextIds.length - previousIds.length)])
+    if (isPrepend) {
+      const list = options.list.value
+      const previousScrollHeight = list?.scrollHeight ?? 0
+      const previousScrollTop = list?.scrollTop ?? 0
+      await nextTick()
+      rebuildObserver()
+      if (list) list.scrollTop = previousScrollTop + (list.scrollHeight - previousScrollHeight)
+      return
+    }
+
     const previous = new Set(previousIds)
     const appended = options.broadcasts.value.filter((message) => !previous.has(message.message_id))
     if (!appended.length) {

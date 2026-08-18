@@ -33,6 +33,7 @@ struct FileRow {
     file_name: String,
     mime_type: String,
     size_bytes: i64,
+    is_sensitive: bool,
 }
 
 impl FileRow {
@@ -52,6 +53,7 @@ impl FileRow {
                     "/api/attachments/{}?key={}",
                     self.attachment_id, self.access_key
                 ),
+                is_sensitive: self.is_sensitive,
             },
         }
     }
@@ -128,7 +130,7 @@ async fn fetch_page(
         "SELECT messages.id AS message_id, messages.sender_id, messages.sender, \
          COALESCE(users.avatar_emoji, '') AS sender_avatar, messages.created_at, \
          attachments.id AS attachment_id, attachments.access_key, attachments.file_name, \
-         attachments.mime_type, attachments.size_bytes FROM messages \
+         attachments.mime_type, attachments.size_bytes, attachments.is_sensitive FROM messages \
          JOIN attachments ON attachments.id = messages.attachment_id \
          LEFT JOIN users ON users.id = messages.sender_id \
          WHERE messages.room_id = $1 AND messages.recalled_at IS NULL {cursor_clause} \

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::models::{Room, RoomMembership};
+use crate::models::{Room, RoomMembership, User};
 use crate::state::{with_pool, AppState};
 
 const MEMBER_PERMISSIONS: &[&str] = &["message.send", "message.edit_own", "message.recall_own"];
@@ -40,14 +40,16 @@ impl AppState {
         let mut transaction = pool.begin().await?;
         sqlx::query(
             "INSERT INTO rooms \
-             (id, name, password_hash, creator_user_id, join_policy, created_at) \
-             VALUES ($1, $2, $3, $4, $5, $6)",
+             (id, name, password_hash, creator_user_id, join_policy, avatar_emoji, description, created_at) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         )
         .bind(room.id)
         .bind(&room.name)
         .bind(&room.password_hash)
         .bind(owner_id)
         .bind(&room.join_policy)
+        .bind(&room.avatar_emoji)
+        .bind(&room.description)
         .bind(room.created_at)
         .execute(&mut *transaction)
         .await?;
@@ -136,10 +138,15 @@ impl AppState {
             .map(|(room_id, status, role)| (room_id, (status, role)))
             .collect();
         for room in rooms.iter_mut() {
-            if let Some((status, role)) = identities.get(&room.id) {
-                room.membership_status = Some(status.clone());
-                room.membership_role = Some(role.clone());
-            }
+            // Always overwrite, never only conditionally set: `rooms` may come
+            // from the shared in-memory cache, which stores a room's freshly
+            // created state including the *creator's own* membership fields
+            // (see handlers::create_room) — a viewer with no real membership
+            // must not inherit those stale values, or every room would look
+            // joined (and private rooms would leak into everyone's listing).
+            let identity = identities.get(&room.id);
+            room.membership_status = identity.map(|(status, _)| status.clone());
+            room.membership_role = identity.map(|(_, role)| role.clone());
         }
         let unread: HashMap<_, _> = self
             .room_unread_counts(user_id)
@@ -251,6 +258,7 @@ impl AppState {
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
         with_pool!(self, |pool| { sqlx::query_as(
             "SELECT users.id AS user_id, users.username, users.avatar_emoji, \
+             room_memberships.nickname, \
              room_roles.name AS role, room_memberships.status, \
              room_memberships.requested_at, room_memberships.joined_at \
              FROM room_memberships JOIN users ON users.id = room_memberships.user_id \
@@ -263,12 +271,63 @@ impl AppState {
         .await })
     }
 
+    /// Set the caller's own display nickname within one room (self-service, no
+    /// management permission required — matches how the account's own avatar/name
+    /// can already be changed without any special role).
+    pub async fn set_own_nickname(
+        &self,
+        room_id: Uuid,
+        user_id: Uuid,
+        nickname: &str,
+    ) -> Result<Option<RoomMembership>, sqlx::Error> {
+        let changed = with_pool!(self, |pool| {
+            sqlx::query(
+                "UPDATE room_memberships SET nickname = $1 \
+                 WHERE room_id = $2 AND user_id = $3 AND status = 'active'",
+            )
+            .bind(nickname)
+            .bind(room_id)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map(|result| result.rows_affected())
+        })?;
+        if changed == 0 {
+            return Ok(None);
+        }
+        self.room_membership(room_id, user_id).await
+    }
+
+    /// Resolve how a user's name should appear in one room: per-room nickname takes
+    /// priority, then the account's display name, then username. Callers resolve
+    /// this once at message-send time and freeze it into the stored message, matching
+    /// the existing convention where a later rename doesn't rewrite message history.
+    pub async fn resolve_display_name(&self, room_id: Uuid, user: &User) -> String {
+        let nickname: Option<String> = with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "SELECT nickname FROM room_memberships WHERE room_id = $1 AND user_id = $2",
+            )
+            .bind(room_id)
+            .bind(user.id)
+            .fetch_optional(pool)
+            .await
+        })
+        .ok()
+        .flatten();
+        match nickname {
+            Some(nickname) if !nickname.is_empty() => nickname,
+            _ if !user.display_name.is_empty() => user.display_name.clone(),
+            _ => user.username.clone(),
+        }
+    }
+
     pub async fn room_memberships(
         &self,
         room_id: Uuid,
     ) -> Result<Vec<RoomMembership>, sqlx::Error> {
         with_pool!(self, |pool| { sqlx::query_as(
             "SELECT users.id AS user_id, users.username, users.avatar_emoji, \
+             room_memberships.nickname, \
              room_roles.name AS role, room_memberships.status, \
              room_memberships.requested_at, room_memberships.joined_at \
              FROM room_memberships JOIN users ON users.id = room_memberships.user_id \

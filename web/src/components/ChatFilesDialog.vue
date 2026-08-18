@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Download, File, FileVideo } from 'lucide-vue-next'
+import { Download, File, FileVideo, ShieldAlert } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
@@ -104,6 +104,7 @@ function formatSize(bytes: number): string {
 }
 
 function preview(attachment: Attachment): void {
+  if (attachment.is_sensitive) return
   if (attachment.mime_type.startsWith('image/')) previewImageId.value = attachment.id
   else previewing.value = attachment
 }
@@ -122,10 +123,17 @@ function preview(attachment: Attachment): void {
       <div v-for="file in filtered" :key="file.message_id" class="flex min-h-16 items-center gap-3 border-b border-surface-100 px-1 py-2 transition hover:bg-surface-50">
         <Checkbox v-model="selected" :value="file.message_id" />
         <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="preview(file.attachment)">
-          <span class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-surface-100 text-muted-color">
-            <img v-if="file.attachment.mime_type.startsWith('image/')" :src="file.attachment.download_url" :alt="file.attachment.file_name" class="size-full object-cover">
+          <span class="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-surface-100 text-muted-color">
+            <img
+              v-if="file.attachment.mime_type.startsWith('image/')"
+              :src="file.attachment.download_url"
+              :alt="file.attachment.file_name"
+              class="size-full object-cover"
+              :class="{ 'blur-md': file.attachment.is_sensitive }"
+            >
             <FileVideo v-else-if="file.attachment.mime_type.startsWith('video/')" :size="20" />
             <File v-else :size="20" />
+            <ShieldAlert v-if="file.attachment.is_sensitive" :size="14" class="absolute inset-0 m-auto text-white drop-shadow" />
           </span>
           <span class="min-w-0 flex-1">
             <strong class="block truncate text-sm">{{ file.attachment.file_name }}</strong>

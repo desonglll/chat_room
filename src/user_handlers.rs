@@ -5,7 +5,7 @@ use argon2::{
     Argon2,
 };
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::{header::AUTHORIZATION, HeaderMap, StatusCode},
     Json,
 };
@@ -170,6 +170,33 @@ pub async fn me(
         })?
         .map(Json)
         .ok_or(StatusCode::UNAUTHORIZED)
+}
+
+/// Return another account's public profile (for the message/member "view profile" card).
+#[utoipa::path(
+    get,
+    path = "/api/users/{id}",
+    responses(
+        (status = 200, description = "Public profile", body = User),
+        (status = 401, description = "Missing or expired session"),
+        (status = 404, description = "User not found")
+    )
+)]
+pub async fn get_user(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(user_id): Path<uuid::Uuid>,
+) -> Result<Json<User>, StatusCode> {
+    bearer_token(&headers)?;
+    state
+        .user_by_id(user_id)
+        .await
+        .map_err(|error| {
+            tracing::error!("load user profile failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .map(Json)
+        .ok_or(StatusCode::NOT_FOUND)
 }
 
 /// Update editable fields on the current account.

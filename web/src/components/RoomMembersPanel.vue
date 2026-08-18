@@ -8,6 +8,7 @@ import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { inviteRoomMember, listRoomMembers, updateRoomMember } from '../api'
+import { avatarColor } from '../avatarColor'
 import type { Room, RoomMembership } from '../types'
 
 const props = defineProps<{
@@ -105,7 +106,7 @@ onMounted(refresh)
       </div>
       <div class="divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="member in pending" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="bg-surface-200! text-surface-700!" />
+          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="text-white!" :style="{ backgroundColor: avatarColor(member.user_id) }" />
           <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
           <Button text rounded severity="success" aria-label="批准加入" title="批准" :loading="busy === `approve:${member.user_id}`" @click="update(member, 'approve')"><Check :size="17" /></Button>
           <Button text rounded severity="danger" aria-label="拒绝加入" title="拒绝" :loading="busy === `reject:${member.user_id}`" @click="update(member, 'reject')"><X :size="17" /></Button>
@@ -120,7 +121,7 @@ onMounted(refresh)
       </div>
       <div class="divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="member in invited" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="bg-surface-200! text-surface-700!" />
+          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="text-white!" :style="{ backgroundColor: avatarColor(member.user_id) }" />
           <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
           <Button text rounded severity="danger" aria-label="取消邀请" title="取消邀请" :loading="busy === `reject:${member.user_id}`" @click="update(member, 'reject')"><X :size="17" /></Button>
         </div>
@@ -134,8 +135,11 @@ onMounted(refresh)
       </div>
       <div class="max-h-64 divide-y divide-surface-100 overflow-y-auto border-y border-surface-200">
         <div v-for="member in active" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="bg-surface-200! text-surface-700!" />
-          <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
+          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="text-white!" :style="{ backgroundColor: avatarColor(member.user_id) }" />
+          <span class="min-w-0 flex-1 truncate text-sm">
+            <strong>{{ member.nickname || member.username }}</strong>
+            <small v-if="member.nickname" class="ml-1 text-muted-color">@{{ member.username }}</small>
+          </span>
           <Tag v-if="member.role === 'owner'" value="创建者" severity="contrast" />
           <Select
             v-else-if="room.membership_role === 'owner'"

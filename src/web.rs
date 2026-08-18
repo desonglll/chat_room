@@ -7,6 +7,9 @@ const APP_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/app.css
 const APP_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/app.js"));
 const JSZIP_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/jszip.min.js"));
 const FAVICON: &str = include_str!(concat!(env!("OUT_DIR"), "/web/favicon.svg"));
+const ICON_SPRITE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/icons/icon-sprite.svg"));
+const ECHO_GATE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/brand/echo-gate.svg"));
+const EMOJI_DATA_ZH: &str = include_str!(concat!(env!("OUT_DIR"), "/web/emoji-data-zh.json"));
 
 pub async fn index() -> impl IntoResponse {
     asset("text/html; charset=utf-8", "no-cache", INDEX_HTML)
@@ -26,6 +29,18 @@ pub async fn jszip_script() -> impl IntoResponse {
 
 pub async fn favicon() -> impl IntoResponse {
     asset("image/svg+xml", "public, max-age=86400", FAVICON)
+}
+
+pub async fn icon_sprite() -> impl IntoResponse {
+    asset("image/svg+xml", "public, max-age=86400", ICON_SPRITE)
+}
+
+pub async fn echo_gate() -> impl IntoResponse {
+    asset("image/svg+xml", "public, max-age=86400", ECHO_GATE)
+}
+
+pub async fn emoji_data_zh() -> impl IntoResponse {
+    asset("application/json", "public, max-age=86400", EMOJI_DATA_ZH)
 }
 
 fn asset(

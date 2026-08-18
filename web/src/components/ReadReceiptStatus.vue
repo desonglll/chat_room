@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { CheckCheck } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Popover from 'primevue/popover'
+import { avatarColor } from '../avatarColor'
 import type { RoomMember } from '../types'
 
 const props = defineProps<{
@@ -26,7 +27,7 @@ function avatarLabel(member: RoomMember): string {
   <button
     type="button"
     class="mt-1 ml-auto flex min-h-6 items-center gap-1 rounded px-1.5 text-[11px] transition-colors hover:bg-surface-200"
-    :class="unread.length ? 'text-muted-color' : 'text-emerald-600'"
+    :class="unread.length ? 'text-muted-color' : 'text-success'"
     :aria-label="`${label}，查看详情`"
     @click="receiptPopover.toggle($event)"
   >
@@ -34,7 +35,7 @@ function avatarLabel(member: RoomMember): string {
     <span>{{ label }}</span>
   </button>
   <Popover ref="receiptPopover">
-    <div class="w-64">
+    <div class="max-h-[min(70vh,420px)] w-64 overflow-y-auto">
       <section>
         <div class="mb-2 flex items-center justify-between">
           <strong class="text-sm">已读</strong>
@@ -42,7 +43,13 @@ function avatarLabel(member: RoomMember): string {
         </div>
         <ul v-if="read.length" class="max-h-40 space-y-1 overflow-y-auto p-0">
           <li v-for="member in read" :key="member.user_id" class="flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-surface-50">
-            <Avatar :label="avatarLabel(member)" shape="circle" size="small" class="shrink-0 bg-surface-200! text-surface-700!" />
+            <Avatar
+              :label="avatarLabel(member)"
+              shape="circle"
+              size="small"
+              class="shrink-0 text-white!"
+              :style="{ backgroundColor: avatarColor(member.user_id) }"
+            />
             <span class="truncate">{{ member.username }}</span>
           </li>
         </ul>
@@ -55,7 +62,13 @@ function avatarLabel(member: RoomMember): string {
         </div>
         <ul v-if="unread.length" class="max-h-40 space-y-1 overflow-y-auto p-0">
           <li v-for="member in unread" :key="member.user_id" class="flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-surface-50">
-            <Avatar :label="avatarLabel(member)" shape="circle" size="small" class="shrink-0 bg-surface-200! text-surface-700!" />
+            <Avatar
+              :label="avatarLabel(member)"
+              shape="circle"
+              size="small"
+              class="shrink-0 text-white!"
+              :style="{ backgroundColor: avatarColor(member.user_id) }"
+            />
             <span class="truncate">{{ member.username }}</span>
           </li>
         </ul>

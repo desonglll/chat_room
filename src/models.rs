@@ -20,6 +20,12 @@ pub struct Room {
     pub has_password: bool,
     pub creator_user_id: Option<Uuid>,
     pub join_policy: String,
+    #[serde(default)]
+    #[sqlx(default)]
+    pub avatar_emoji: String,
+    #[serde(default)]
+    #[sqlx(default)]
+    pub description: String,
     #[serde(skip_deserializing, default, skip_serializing_if = "Option::is_none")]
     #[sqlx(default)]
     pub membership_status: Option<String>,
@@ -30,6 +36,14 @@ pub struct Room {
     #[sqlx(default)]
     pub unread_count: i64,
     pub created_at: DateTime<Utc>,
+}
+
+/// Point-in-time snapshot of a message's original sender/room, kept even if the
+/// source message or room is later recalled, edited, or soft-deleted.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ForwardedFrom {
+    pub sender: String,
+    pub room_name: String,
 }
 
 /// A chat message persisted as part of a room session.
@@ -46,6 +60,7 @@ pub struct StoredMessage {
     pub recalled_at: Option<DateTime<Utc>>,
     pub edited_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+    pub forwarded_from: Option<ForwardedFrom>,
 }
 
 /// Metadata needed to display or download a message attachment.
@@ -56,6 +71,7 @@ pub struct Attachment {
     pub mime_type: String,
     pub size_bytes: i64,
     pub download_url: String,
+    pub is_sensitive: bool,
 }
 
 /// One attachment-bearing message returned by the paginated room file browser.
@@ -157,6 +173,10 @@ pub struct CreateRoomRequest {
     pub password: Option<String>,
     #[serde(default)]
     pub join_policy: Option<String>,
+    #[serde(default)]
+    pub avatar_emoji: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 /// Payload for PATCH /api/rooms/{id}. Missing fields remain unchanged.
@@ -169,6 +189,16 @@ pub struct UpdateRoomRequest {
     /// Set to an empty string to make the room public.
     pub new_password: Option<String>,
     pub join_policy: Option<String>,
+    #[serde(default)]
+    pub avatar_emoji: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+/// Payload for PATCH /api/rooms/{id}/members/me (self-service nickname).
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateNicknameRequest {
+    pub nickname: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -189,11 +219,28 @@ pub struct UpdateMembershipRequest {
     pub role: Option<String>,
 }
 
+/// Payload for POST /api/messages/forward.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ForwardMessagesRequest {
+    pub message_ids: Vec<Uuid>,
+    pub target_room_ids: Vec<Uuid>,
+}
+
+/// One (source message, target room) forward outcome.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ForwardResult {
+    pub message_id: Uuid,
+    pub target_room_id: Uuid,
+    pub forwarded_message_id: Option<Uuid>,
+    pub skipped_reason: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, sqlx::FromRow)]
 pub struct RoomMembership {
     pub user_id: Uuid,
     pub username: String,
     pub avatar_emoji: String,
+    pub nickname: String,
     pub role: String,
     pub status: String,
     pub requested_at: DateTime<Utc>,
@@ -263,6 +310,10 @@ pub enum ChatMessage {
     #[serde(rename = "recall")]
     Recall { message_id: Uuid },
 
+    /// Client -> Server: nudge another connected member in this room.
+    #[serde(rename = "poke")]
+    Poke { target_user_id: Uuid },
+
     /// Server → Client: a chat message broadcast from another user.
     #[serde(rename = "broadcast")]
     Broadcast {
@@ -276,6 +327,7 @@ pub enum ChatMessage {
         recalled_at: Option<DateTime<Utc>>,
         edited_at: Option<DateTime<Utc>>,
         timestamp: DateTime<Utc>,
+        forwarded_from: Option<ForwardedFrom>,
     },
 
     /// Server -> Client: a sender replaced a message's content.

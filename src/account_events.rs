@@ -23,6 +23,7 @@ struct AccountEventRow {
     content: String,
     attachment_file_name: Option<String>,
     created_at: DateTime<Utc>,
+    is_mention: bool,
 }
 
 #[derive(Serialize)]
@@ -37,6 +38,7 @@ pub(crate) struct AccountMessageEvent {
     pub content: String,
     pub attachment_file_name: Option<String>,
     pub timestamp: DateTime<Utc>,
+    pub is_mention: bool,
 }
 
 impl AccountEventRow {
@@ -58,6 +60,7 @@ impl AccountEventRow {
             content: self.content,
             attachment_file_name: self.attachment_file_name,
             timestamp: self.created_at,
+            is_mention: self.is_mention,
         }
     }
 }
@@ -93,10 +96,13 @@ impl AppState {
         let sql = format!(
             "SELECT messages.id AS message_id, messages.room_id, rooms.name AS room_name, \
              messages.sender_id, messages.sender, messages.content, \
-             attachments.file_name AS attachment_file_name, messages.created_at \
+             attachments.file_name AS attachment_file_name, messages.created_at, \
+             (mention.message_id IS NOT NULL) AS is_mention \
              FROM messages JOIN rooms ON rooms.id = messages.room_id \
              JOIN room_memberships ON room_memberships.room_id = messages.room_id \
              LEFT JOIN attachments ON attachments.id = messages.attachment_id \
+             LEFT JOIN message_mentions AS mention ON mention.message_id = messages.id \
+               AND mention.mentioned_user_id = $1 \
              WHERE room_memberships.user_id = $1 AND room_memberships.status = 'active' \
              AND messages.created_at >= COALESCE(room_memberships.joined_at, room_memberships.requested_at) \
              AND messages.recalled_at IS NULL {cursor_clause} \

@@ -10,9 +10,12 @@ use uuid::Uuid;
 use crate::handlers::authorize_room;
 use crate::models::{
     ChatMessage, InviteMemberRequest, JoinRoomRequest, RoomMembership, UpdateMembershipRequest,
+    UpdateNicknameRequest,
 };
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
+
+const MAX_NICKNAME_CHARS: usize = 48;
 
 async fn session_user(
     state: &SharedState,
@@ -214,6 +217,30 @@ pub async fn update_member(
             .await;
     }
     Ok(Json(updated))
+}
+
+/// Set the caller's own nickname within one room. Any active member can do this —
+/// unlike role/approval actions, it needs no management permission.
+pub async fn update_own_nickname(
+    State(state): State<SharedState>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(request): Json<UpdateNicknameRequest>,
+) -> Result<Json<RoomMembership>, StatusCode> {
+    let user = session_user(&state, &headers).await?;
+    let nickname = request.nickname.trim();
+    if nickname.chars().count() > MAX_NICKNAME_CHARS || nickname.chars().any(char::is_control) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    state
+        .set_own_nickname(room_id, user.id, nickname)
+        .await
+        .map_err(|error| {
+            tracing::error!("update own nickname failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .map(Json)
+        .ok_or(StatusCode::NOT_FOUND)
 }
 
 /// Leave a room permanently until the account explicitly joins it again.

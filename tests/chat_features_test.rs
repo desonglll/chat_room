@@ -211,7 +211,22 @@ async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
     assert_eq!(stored.0, "retained original");
     assert!(stored.1.is_some());
 
-    let history: Vec<serde_json::Value> = reqwest::Client::new()
+    // A viewer who is not the sender still sees the recalled message redacted.
+    let bob_history: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .bearer_auth(&bob_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(bob_history.len(), 1);
+    assert_eq!(bob_history[0]["content"], "");
+    assert!(bob_history[0]["recalled_at"].is_string());
+
+    // The sender keeps seeing their own recalled draft so they can re-edit it.
+    let alice_history: Vec<serde_json::Value> = reqwest::Client::new()
         .get(format!("{}/api/rooms/{room_id}/messages", server.base))
         .bearer_auth(&alice_token)
         .send()
@@ -220,9 +235,38 @@ async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
         .json()
         .await
         .unwrap();
-    assert_eq!(history.len(), 1);
-    assert_eq!(history[0]["content"], "");
-    assert!(history[0]["recalled_at"].is_string());
+    assert_eq!(alice_history.len(), 1);
+    assert_eq!(alice_history[0]["content"], "retained original");
+    assert!(alice_history[0]["recalled_at"].is_string());
+
+    // The sender can re-edit a recalled message; this republishes it to everyone.
+    alice
+        .send(Message::Text(
+            serde_json::json!({
+                "type": "edit",
+                "message_id": message_id,
+                "content": "revived after recall",
+            })
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+    let alice_edited = next_json_type(&mut alice, "message_edited").await;
+    assert_eq!(alice_edited["content"], "revived after recall");
+    let bob_edited = next_json_type(&mut bob, "message_edited").await;
+    assert_eq!(bob_edited["content"], "revived after recall");
+
+    let bob_history_after_edit: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .bearer_auth(&bob_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(bob_history_after_edit[0]["content"], "revived after recall");
+    assert!(bob_history_after_edit[0]["recalled_at"].is_null());
 }
 
 #[tokio::test]

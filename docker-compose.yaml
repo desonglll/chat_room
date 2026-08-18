@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: "postgres:17"
+    environment:
+      - "POSTGRES_DB=chatroom"
+      - "POSTGRES_PASSWORD=postgres"
+      - "POSTGRES_USER=postgres"
+    ports:
+      - "52735:5432"

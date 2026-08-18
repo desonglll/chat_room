@@ -1,0 +1,1 @@
+ALTER TABLE attachments ADD COLUMN is_sensitive INTEGER NOT NULL DEFAULT 0;

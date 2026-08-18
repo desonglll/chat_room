@@ -6,8 +6,6 @@ use uuid::Uuid;
 use crate::models::{AuthSession, User};
 use crate::state::{with_pool, AppState};
 
-const SESSION_LIFETIME_DAYS: i64 = 30;
-
 impl AppState {
     pub async fn insert_user(
         &self,
@@ -76,7 +74,7 @@ impl AppState {
     pub async fn create_session(&self, user: User) -> Result<AuthSession, sqlx::Error> {
         let token = Uuid::new_v4();
         let created_at = Utc::now();
-        let expires_at = created_at + Duration::days(SESSION_LIFETIME_DAYS);
+        let expires_at = created_at + Duration::days(self.session_lifetime_days());
         with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)",
@@ -107,6 +105,18 @@ impl AppState {
             )
             .bind(token)
             .bind(Utc::now())
+            .fetch_optional(pool)
+            .await
+        })
+    }
+
+    pub async fn user_by_id(&self, user_id: Uuid) -> Result<Option<User>, sqlx::Error> {
+        with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT id, username, avatar_emoji, display_name, signature, homepage, \
+                 created_at FROM users WHERE id = $1",
+            )
+            .bind(user_id)
             .fetch_optional(pool)
             .await
         })

@@ -229,13 +229,61 @@ async fn create_and_list_rooms() {
     let id2 = create_room(&base, "random", None).await.0;
     assert_ne!(id1, id2);
 
+    // Anonymous listing hides private rooms entirely (not just their password) —
+    // only the public "random" room is visible without authentication.
     let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", base))
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    assert_eq!(list.len(), 2);
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0]["name"], "random");
+
+    // An authenticated member of the private room sees both.
+    let owner_token = session_token(&base, "owner-general").await;
+    let authed_list: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{}/api/rooms", base))
+        .bearer_auth(owner_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(authed_list.len(), 2);
+}
+
+/// Regression test: the room struct cached at creation time carries the
+/// creator's own membership_status/membership_role (see handlers::create_room),
+/// so an unrelated user's decorated view must never inherit those stale
+/// values — otherwise every room looks joined to everyone, and a private
+/// room's password-gate gets silently bypassed by the listing endpoint.
+#[tokio::test]
+async fn list_rooms_does_not_leak_creator_membership_to_other_users() {
+    let base = start_server().await;
+    let (public_id, _) = create_room(&base, "leak-check-public", None).await;
+    let (private_id, _) = create_room(&base, "leak-check-private", Some("pw")).await;
+
+    let other_token = session_token(&base, "bystander").await;
+    let list: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{}/api/rooms", base))
+        .bearer_auth(other_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let public_room = list.iter().find(|room| room["id"] == public_id).unwrap();
+    assert!(public_room["membership_status"].is_null());
+    assert!(public_room["membership_role"].is_null());
+
+    assert!(
+        list.iter().all(|room| room["id"] != private_id),
+        "a private room the caller never joined must not appear in the listing at all"
+    );
 }
 
 #[tokio::test]
@@ -465,3 +513,6 @@ mod persistence;
 
 #[path = "integration/web_client.rs"]
 mod web_client;
+
+#[path = "integration/postgres.rs"]
+mod postgres;

@@ -52,25 +52,24 @@ pub async fn upload_attachment(
     mut multipart: Multipart,
 ) -> Result<(StatusCode, Json<StoredMessage>), StatusCode> {
     let (room, user) = authorize_upload(&state, room_id, &headers).await?;
-    let mut upload = None;
+    let mut file_name = None;
+    let mut mime_type = None;
+    let mut staged = None;
     let mut content = String::new();
     let mut reply_to = None;
+    let mut is_sensitive = false;
 
     while let Some(field) = multipart.next_field().await.map_err(|error| {
         tracing::warn!("read attachment multipart field failed: {}", error);
         error.status()
     })? {
         match field.name() {
-            Some("file") if upload.is_none() => {
-                let file_name = normalize_file_name(field.file_name().unwrap_or("file"))?;
+            Some("file") if staged.is_none() => {
+                let name = normalize_file_name(field.file_name().unwrap_or("file"))?;
                 let supplied_mime = field.content_type().map(str::to_string);
-                let mime_type = normalized_mime(supplied_mime.as_deref(), &file_name);
-                let staged = stream_to_staging(&state, field).await?;
-                upload = Some(NewAttachment {
-                    file_name,
-                    mime_type,
-                    staged,
-                });
+                mime_type = Some(normalized_mime(supplied_mime.as_deref(), &name));
+                file_name = Some(name);
+                staged = Some(stream_to_staging(&state, field).await?);
             }
             Some("content") => {
                 content =
@@ -85,13 +84,22 @@ pub async fn upload_attachment(
                     .map(Some)
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
             }
+            Some("is_sensitive") => {
+                is_sensitive = field.text().await.map_err(|_| StatusCode::BAD_REQUEST)? == "true";
+            }
             _ => {}
         }
     }
 
-    let upload = upload.ok_or(StatusCode::BAD_REQUEST)?;
+    let upload = NewAttachment {
+        file_name: file_name.ok_or(StatusCode::BAD_REQUEST)?,
+        mime_type: mime_type.ok_or(StatusCode::BAD_REQUEST)?,
+        is_sensitive,
+        staged: staged.ok_or(StatusCode::BAD_REQUEST)?,
+    };
+    let display_name = state.resolve_display_name(room.id, &user).await;
     state
-        .store_attachment_message(room.id, &user, upload, &content, reply_to)
+        .store_attachment_message(room.id, &user, &display_name, upload, &content, reply_to)
         .await
         .map(|message| (StatusCode::CREATED, Json(message)))
         .map_err(|error| {

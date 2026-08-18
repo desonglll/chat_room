@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Bell, Keyboard, Save, UserRound } from 'lucide-vue-next'
+import { Bell, Keyboard, Moon, Save, UserRound } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import SelectButton from 'primevue/selectbutton'
 import ToggleSwitch from 'primevue/toggleswitch'
-import type { ChatPreferences, FocusShortcut, SendShortcut, User } from '../types'
+import type { ChatPreferences, FocusShortcut, SendShortcut, ThemePreference, User } from '../types'
 
 const AVATARS = ['', '😀', '😎', '🥳', '🤓', '🙂', '🫡', '🚀', '🌻', '🍀', '☕', '🎨', '💡', '🔥', '✨', '🌙', '⚡']
 const SHORTCUTS: { label: string; value: SendShortcut }[] = [
@@ -17,6 +17,11 @@ const FOCUS_SHORTCUTS: { label: string; value: FocusShortcut }[] = [
   { label: '空格', value: 'space' },
   { label: '/', value: 'slash' },
   { label: '关闭', value: 'none' },
+]
+const THEMES: { label: string; value: ThemePreference }[] = [
+  { label: '浅色', value: 'light' },
+  { label: '深色', value: 'dark' },
+  { label: '跟随系统', value: 'system' },
 ]
 
 const props = defineProps<{
@@ -32,6 +37,7 @@ const emit = defineEmits<{
 
 const sendShortcut = ref<SendShortcut>('enter')
 const focusShortcut = ref<FocusShortcut>('space')
+const theme = ref<ThemePreference>('system')
 const notificationsEnabled = ref(false)
 const notificationDetails = ref(true)
 const avatarEmoji = ref('')
@@ -44,6 +50,7 @@ watch(() => props.open, (open) => {
   if (!open) return
   sendShortcut.value = props.preferences.sendShortcut
   focusShortcut.value = props.preferences.focusShortcut
+  theme.value = props.preferences.theme
   notificationsEnabled.value = props.preferences.notificationsEnabled
   notificationDetails.value = props.preferences.notificationDetails
   avatarEmoji.value = props.user?.avatar_emoji || ''
@@ -53,6 +60,7 @@ function save(): void {
   emit('save', {
     sendShortcut: sendShortcut.value,
     focusShortcut: focusShortcut.value,
+    theme: theme.value,
     notificationsEnabled: notificationsEnabled.value,
     notificationDetails: notificationDetails.value,
     avatarEmoji: avatarEmoji.value,
@@ -64,6 +72,21 @@ function save(): void {
   <Dialog v-model:visible="visible" modal header="偏好设置" class="w-[min(94vw,500px)]" :draggable="false">
     <form class="space-y-6" @submit.prevent="save">
       <section class="grid gap-3 sm:grid-cols-[150px_1fr] sm:items-center">
+        <div class="flex items-center gap-2">
+          <Moon :size="18" class="text-primary" />
+          <span class="text-sm font-medium">外观</span>
+        </div>
+        <SelectButton
+          v-model="theme"
+          :options="THEMES"
+          option-label="label"
+          option-value="value"
+          :allow-empty="false"
+          class="grid grid-cols-3"
+        />
+      </section>
+
+      <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr] sm:items-center">
         <div class="flex items-center gap-2">
           <Keyboard :size="18" class="text-primary" />
           <span class="text-sm font-medium">发送快捷键</span>

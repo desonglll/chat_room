@@ -5,7 +5,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::attachment_storage::StagedUpload;
-use crate::models::{Attachment, ReplyPreview, StoredMessage, User};
+use crate::models::{Attachment, ForwardedFrom, ReplyPreview, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
 const MESSAGE_SELECT: &str = "SELECT messages.id, messages.room_id, messages.sender_id, \
@@ -14,10 +14,12 @@ const MESSAGE_SELECT: &str = "SELECT messages.id, messages.room_id, messages.sen
     attachments.access_key AS attachment_access_key, \
     attachments.file_name AS attachment_file_name, \
     attachments.mime_type AS attachment_mime_type, \
-    attachments.size_bytes AS attachment_size_bytes, reply.id AS reply_message_id, \
+    attachments.size_bytes AS attachment_size_bytes, \
+    attachments.is_sensitive AS attachment_is_sensitive, reply.id AS reply_message_id, \
     reply.sender AS reply_sender, reply.content AS reply_content, \
     reply.recalled_at AS reply_recalled_at, \
-    reply_attachment.file_name AS reply_attachment_file_name FROM messages \
+    reply_attachment.file_name AS reply_attachment_file_name, \
+    messages.forwarded_from_sender, messages.forwarded_from_room_name FROM messages \
     LEFT JOIN attachments ON attachments.id = messages.attachment_id \
     LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
     LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
@@ -34,6 +36,7 @@ pub(crate) struct MessageCursor {
 pub struct NewAttachment {
     pub file_name: String,
     pub mime_type: String,
+    pub is_sensitive: bool,
     pub staged: StagedUpload,
 }
 
@@ -59,17 +62,23 @@ struct MessageRow {
     attachment_file_name: Option<String>,
     attachment_mime_type: Option<String>,
     attachment_size_bytes: Option<i64>,
+    attachment_is_sensitive: Option<bool>,
     reply_message_id: Option<Uuid>,
     reply_sender: Option<String>,
     reply_content: Option<String>,
     reply_recalled_at: Option<DateTime<Utc>>,
     reply_attachment_file_name: Option<String>,
+    forwarded_from_sender: Option<String>,
+    forwarded_from_room_name: Option<String>,
 }
 
 impl MessageRow {
-    fn into_message(self) -> StoredMessage {
+    /// `viewer_id` decides recall redaction: the sender of a recalled message keeps
+    /// seeing their own draft (so they can re-edit it); every other viewer sees it blanked.
+    fn into_message(self, viewer_id: Option<Uuid>) -> StoredMessage {
         let recalled = self.recalled_at.is_some();
-        let attachment = (!recalled)
+        let redact = recalled && viewer_id != self.sender_id;
+        let attachment = (!redact)
             .then_some(self.attachment_id)
             .flatten()
             .and_then(|id| {
@@ -82,6 +91,7 @@ impl MessageRow {
                         "/api/attachments/{id}?key={}",
                         self.attachment_access_key?
                     ),
+                    is_sensitive: self.attachment_is_sensitive.unwrap_or(false),
                 })
             });
         let reply_to = self.reply_message_id.and_then(|message_id| {
@@ -102,22 +112,25 @@ impl MessageRow {
                 recalled,
             })
         });
+        let forwarded_from = self.forwarded_from_sender.and_then(|sender| {
+            Some(ForwardedFrom {
+                sender,
+                room_name: self.forwarded_from_room_name?,
+            })
+        });
         StoredMessage {
             id: self.id,
             room_id: self.room_id,
             sender_id: self.sender_id,
             sender: self.sender,
             sender_avatar: self.sender_avatar,
-            content: if recalled {
-                String::new()
-            } else {
-                self.content
-            },
+            content: if redact { String::new() } else { self.content },
             attachment,
             reply_to,
             recalled_at: self.recalled_at,
             edited_at: self.edited_at,
             created_at: self.created_at,
+            forwarded_from,
         }
     }
 }
@@ -164,6 +177,7 @@ impl AppState {
             recalled_at: None,
             edited_at: None,
             created_at,
+            forwarded_from: None,
         })
     }
 
@@ -172,30 +186,97 @@ impl AppState {
         &self,
         room_id: Uuid,
         sender: &User,
+        sender_display_name: &str,
         upload: NewAttachment,
         content: &str,
         reply_to: Option<Uuid>,
     ) -> anyhow::Result<StoredMessage> {
         let attachment_id = Uuid::new_v4();
-        let access_key = Uuid::new_v4();
-        let message_id = Uuid::new_v4();
-        let created_at = Utc::now();
-        let reply_to = self.reply_preview(room_id, reply_to).await?;
         let NewAttachment {
             file_name,
             mime_type,
+            is_sensitive,
             staged,
         } = upload;
         let size_bytes = self
             .attachment_store()
             .commit(staged, attachment_id)
             .await?;
+        self.finalize_attachment_message(
+            attachment_id,
+            room_id,
+            sender,
+            sender_display_name,
+            file_name,
+            mime_type,
+            size_bytes,
+            is_sensitive,
+            content,
+            reply_to,
+        )
+        .await
+    }
+
+    /// Same as `store_attachment_message`, but for a file that was uploaded in
+    /// chunks via `AttachmentStore::append_chunk` rather than the single-shot
+    /// `begin()`/`write()` path.
+    pub async fn store_chunked_attachment_message(
+        &self,
+        upload_id: Uuid,
+        room_id: Uuid,
+        sender: &User,
+        sender_display_name: &str,
+        file_name: String,
+        mime_type: String,
+        is_sensitive: bool,
+        content: &str,
+        reply_to: Option<Uuid>,
+    ) -> anyhow::Result<StoredMessage> {
+        let attachment_id = Uuid::new_v4();
+        let size_bytes = self
+            .attachment_store()
+            .commit_chunked(upload_id, attachment_id)
+            .await?;
+        self.finalize_attachment_message(
+            attachment_id,
+            room_id,
+            sender,
+            sender_display_name,
+            file_name,
+            mime_type,
+            size_bytes,
+            is_sensitive,
+            content,
+            reply_to,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn finalize_attachment_message(
+        &self,
+        attachment_id: Uuid,
+        room_id: Uuid,
+        sender: &User,
+        sender_display_name: &str,
+        file_name: String,
+        mime_type: String,
+        size_bytes: i64,
+        is_sensitive: bool,
+        content: &str,
+        reply_to: Option<Uuid>,
+    ) -> anyhow::Result<StoredMessage> {
+        let access_key = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let created_at = Utc::now();
+        let reply_to = self.reply_preview(room_id, reply_to).await?;
         let persisted: Result<(), sqlx::Error> = with_pool!(self, |pool| { async {
             let mut transaction = pool.begin().await?;
             sqlx::query(
                 "INSERT INTO attachments \
-             (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, created_at) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+             (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, \
+              is_sensitive, created_at) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             )
             .bind(attachment_id)
             .bind(access_key)
@@ -204,6 +285,7 @@ impl AppState {
             .bind(&file_name)
             .bind(&mime_type)
             .bind(size_bytes)
+            .bind(is_sensitive)
             .bind(created_at)
             .execute(&mut *transaction)
             .await?;
@@ -216,7 +298,7 @@ impl AppState {
             .bind(message_id)
             .bind(room_id)
             .bind(sender.id)
-            .bind(&sender.username)
+            .bind(sender_display_name)
             .bind(content)
             .bind(attachment_id)
             .bind(reply_to.as_ref().map(|reply| reply.message_id))
@@ -235,7 +317,7 @@ impl AppState {
             id: message_id,
             room_id,
             sender_id: Some(sender.id),
-            sender: sender.username.clone(),
+            sender: sender_display_name.to_string(),
             sender_avatar: sender.avatar_emoji.clone(),
             content: content.to_string(),
             attachment: Some(Attachment {
@@ -244,12 +326,108 @@ impl AppState {
                 mime_type,
                 size_bytes,
                 download_url: format!("/api/attachments/{attachment_id}?key={access_key}"),
+                is_sensitive,
             }),
             reply_to,
             recalled_at: None,
             edited_at: None,
             created_at,
+            forwarded_from: None,
         })
+    }
+
+    /// Copy a still-visible message (and its attachment, if any) into another room as
+    /// a new message sent by `forwarder`. Returns `None` if the source message doesn't
+    /// exist, isn't in `source_room_id`, or has been recalled.
+    pub async fn forward_message(
+        &self,
+        source_message_id: Uuid,
+        source_room_id: Uuid,
+        target_room_id: Uuid,
+        forwarder: &User,
+    ) -> Result<Option<StoredMessage>, sqlx::Error> {
+        let source: Option<(String, String, Option<Uuid>, String)> = with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT messages.sender, messages.content, messages.attachment_id, rooms.name \
+                 FROM messages JOIN rooms ON rooms.id = messages.room_id \
+                 WHERE messages.id = $1 AND messages.room_id = $2 AND messages.recalled_at IS NULL",
+            )
+            .bind(source_message_id)
+            .bind(source_room_id)
+            .fetch_optional(pool)
+            .await
+        })?;
+        let Some((source_sender, source_content, attachment_id, source_room_name)) = source
+        else {
+            return Ok(None);
+        };
+        let id = Uuid::new_v4();
+        let created_at = Utc::now();
+        let forwarder_display_name = self.resolve_display_name(target_room_id, forwarder).await;
+        with_pool!(self, |pool| {
+            sqlx::query(
+                "INSERT INTO messages \
+                 (id, room_id, sender_id, sender, content, attachment_id, \
+                  forwarded_from_sender, forwarded_from_room_name, created_at) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+            )
+            .bind(id)
+            .bind(target_room_id)
+            .bind(forwarder.id)
+            .bind(&forwarder_display_name)
+            .bind(&source_content)
+            .bind(attachment_id)
+            .bind(&source_sender)
+            .bind(&source_room_name)
+            .bind(created_at)
+            .execute(pool)
+            .await
+            .map(|_| ())
+        })?;
+        self.message_by_id(id, Some(forwarder.id)).await
+    }
+
+    pub async fn record_message_mentions(
+        &self,
+        message_id: Uuid,
+        mentioned_user_ids: &[Uuid],
+    ) -> Result<(), sqlx::Error> {
+        let created_at = Utc::now();
+        with_pool!(self, |pool| {
+            for user_id in mentioned_user_ids {
+                sqlx::query(
+                    "INSERT INTO message_mentions (message_id, mentioned_user_id, created_at) \
+                     VALUES ($1, $2, $3)",
+                )
+                .bind(message_id)
+                .bind(user_id)
+                .bind(created_at)
+                .execute(pool)
+                .await?;
+            }
+            Ok::<_, sqlx::Error>(())
+        })
+    }
+
+    pub async fn message_room_id(&self, id: Uuid) -> Result<Option<Uuid>, sqlx::Error> {
+        with_pool!(self, |pool| {
+            sqlx::query_scalar("SELECT room_id FROM messages WHERE id = $1")
+                .bind(id)
+                .fetch_optional(pool)
+                .await
+        })
+    }
+
+    pub(crate) async fn message_by_id(
+        &self,
+        id: Uuid,
+        viewer_id: Option<Uuid>,
+    ) -> Result<Option<StoredMessage>, sqlx::Error> {
+        let query = format!("{MESSAGE_SELECT} WHERE messages.id = $1");
+        let row: Option<MessageRow> = with_pool!(self, |pool| {
+            sqlx::query_as(&query).bind(id).fetch_optional(pool).await
+        })?;
+        Ok(row.map(|row| row.into_message(viewer_id)))
     }
 
     pub async fn attachment_metadata(
@@ -296,6 +474,7 @@ impl AppState {
         room_id: Uuid,
         cursor: Option<&MessageCursor>,
         limit: i64,
+        viewer_id: Option<Uuid>,
     ) -> Result<Vec<StoredMessage>, sqlx::Error> {
         let limit = limit.clamp(1, 500);
         let query = match cursor {
@@ -328,7 +507,10 @@ impl AppState {
                     .await
             }
         } })?;
-        Ok(rows.into_iter().map(MessageRow::into_message).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| row.into_message(viewer_id))
+            .collect())
     }
 
     pub(crate) async fn message_history(
@@ -336,6 +518,7 @@ impl AppState {
         room_id: Uuid,
         limit: i64,
         through: Option<&MessageCursor>,
+        viewer_id: Option<Uuid>,
     ) -> Result<Vec<StoredMessage>, sqlx::Error> {
         let limit = limit.clamp(1, 500);
         let query = match through {
@@ -369,7 +552,10 @@ impl AppState {
             }
         } })?;
         rows.reverse();
-        Ok(rows.into_iter().map(MessageRow::into_message).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| row.into_message(viewer_id))
+            .collect())
     }
 
     async fn reply_preview(

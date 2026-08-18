@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Toast from 'primevue/toast'
@@ -7,13 +8,15 @@ import { useToast } from 'primevue/usetoast'
 import AuthDialog from './components/AuthDialog.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import CreateRoomDialog from './components/CreateRoomDialog.vue'
+import DiscoverRooms from './components/DiscoverRooms.vue'
+import ForwardDialog from './components/ForwardDialog.vue'
 import ManageRoomDialog from './components/ManageRoomDialog.vue'
 import JoinRoomDialog from './components/JoinRoomDialog.vue'
 import ProfilePage from './components/ProfilePage.vue'
 import PreferencesDialog from './components/PreferencesDialog.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
 import SettingsPage from './components/SettingsPage.vue'
-import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, leaveRoom, listRooms, logoutUser, requestRoomJoin } from './api'
+import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, leaveRoom, listRoomMessages, listRooms, logoutUser, requestRoomJoin, storedMessageToBroadcast } from './api'
 import { createBrowserNotifier } from './browserNotifications'
 import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
 import { useChatSocket } from './composables/useChatSocket'
@@ -21,15 +24,18 @@ import { useUnreadSocket } from './composables/useUnreadSocket'
 import { useAppPages } from './composables/useAppPages'
 import { useAttachmentUpload } from './composables/useAttachmentUpload'
 import { usePreferencesController } from './composables/usePreferencesController'
+import { useTheme } from './composables/useTheme'
 import { loadPreferences } from './preferences'
 import { storageGet, storageSet } from './browserStorage'
 import type { AuthSession, Room, RoomUpdateResult, User } from './types'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
-const ACTIVE_ROOM_KEY = 'chat-room.active-room'
 const SIDEBAR_COLLAPSED_KEY = 'chat-room.sidebar-collapsed'
 const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
 
+const route = useRoute()
+const router = useRouter()
+const routeRoomId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const rooms = ref<Room[]>([])
 const selectedRoom = ref<Room | null>(null)
 const sessionToken = ref(storageGet(window.localStorage, SESSION_TOKEN_KEY))
@@ -39,12 +45,19 @@ const loading = ref(true)
 const networkError = ref('')
 const createOpen = ref(false)
 const manageOpen = ref(false)
+const forwardOpen = ref(false)
+const forwardMessageIds = ref<string[]>([])
 const authOpen = ref(false)
 const joinOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const maxUploadBytes = ref(DEFAULT_MAX_UPLOAD_BYTES)
+const aiEnabled = ref(false)
 const sidebarCollapsed = ref(storageGet(window.localStorage, SIDEBAR_COLLAPSED_KEY) === 'true')
 const preferences = ref(loadPreferences())
+useTheme(computed(() => preferences.value.theme))
+const sidebarWidth = ref(340)
+const loadingOlder = ref(false)
+const hasMoreHistory = ref(true)
 let restoreAttempted = false
 const toast = useToast()
 const {
@@ -89,13 +102,16 @@ const preferenceController = usePreferencesController({
   showSuccess: showToast,
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
-const { activePage, openProfile, openSettings, requireAccount, returnToChat } = useAppPages(
+const { activePage, openProfile, openSettings, openDiscover, requireAccount, returnToChat } = useAppPages(
   currentUser,
   selectedRoom,
   mobileView,
+  () => chat.authenticated.value,
   () => { authOpen.value = true },
   () => { preferenceController.open.value = true },
 )
+const discoverJoiningId = ref('')
+const discoverError = ref('')
 const selectedId = computed(() => selectedRoom.value?.id)
 const unreadSocket = useUnreadSocket((states) => {
   rooms.value = rooms.value.map((room) => {
@@ -116,6 +132,16 @@ watch(chat.authenticated, (online) => {
   if (online && selectedRoom.value?.has_password) {
     storageSet(window.sessionStorage, passwordKey(selectedRoom.value.id), roomPassword.value)
   }
+  // Keep the URL in sync with connection state: /rooms/:id only once actually
+  // online, /rooms/:id/join otherwise — connecting/disconnecting later (not
+  // just selecting the room) also needs to move between the two URLs.
+  if (!selectedRoom.value || (route.name !== 'room' && route.name !== 'room-join')) return
+  const target = online
+    ? { name: 'room' as const, params: { id: selectedRoom.value.id } }
+    : { name: 'room-join' as const, params: { id: selectedRoom.value.id } }
+  if (router.resolve(target).fullPath !== route.fullPath) {
+    void router.replace(target).catch(() => {})
+  }
 })
 
 function showToast(message: string): void {
@@ -135,26 +161,56 @@ function requestCreateRoom(): void {
   createOpen.value = true
 }
 
-function clearSelection(): void {
+function clearSelection(navigate = true): void {
   chat.close()
   selectedRoom.value = null
   roomPassword.value = ''
   manageOpen.value = false
   mobileView.value = 'rooms'
-  storageSet(window.sessionStorage, ACTIVE_ROOM_KEY, '')
+  if (navigate && route.name !== 'home') void router.push({ name: 'home' }).catch(() => {})
 }
 
 function selectRoom(room: Room, autoConnect = false): void {
   chat.close()
-  activePage.value = 'chat'
   selectedRoom.value = room
+  activePage.value = 'chat'
   roomPassword.value = storageGet(window.sessionStorage, passwordKey(room.id))
   mobileView.value = 'chat'
-  storageSet(window.sessionStorage, ACTIVE_ROOM_KEY, room.id)
   if (autoConnect && room.membership_status === 'active' && currentUser.value && sessionToken.value && (!room.has_password || roomPassword.value)) {
     joinSelectedRoom()
   }
 }
+
+watch(() => selectedRoom.value?.id, () => {
+  hasMoreHistory.value = true
+  loadingOlder.value = false
+})
+
+async function loadOlderMessages(): Promise<void> {
+  const room = selectedRoom.value
+  const oldest = chat.messages.value.find((message) => message.type === 'broadcast')
+  if (!room || !sessionToken.value || !oldest || loadingOlder.value || !hasMoreHistory.value) return
+  loadingOlder.value = true
+  try {
+    const page = await listRoomMessages(room.id, sessionToken.value, roomPassword.value, oldest.message_id, 50)
+    hasMoreHistory.value = page.length === 50
+    chat.prependHistory(page.map(storedMessageToBroadcast))
+  } catch {
+    // Leave hasMoreHistory as-is; scrolling up again will retry.
+  } finally {
+    loadingOlder.value = false
+  }
+}
+
+watch(routeRoomId, (id) => {
+  if (selectedRoom.value?.id === id) return
+  if (!id) {
+    if (selectedRoom.value) clearSelection(false)
+    return
+  }
+  const room = rooms.value.find((item) => item.id === id)
+  if (room) selectRoom(room, false)
+})
 
 function openJoinRoom(): void {
   requireAccount(() => { joinOpen.value = true })
@@ -202,10 +258,12 @@ async function loadRoomList(): Promise<void> {
     }
     if (!restoreAttempted) {
       restoreAttempted = true
-      const activeId = storageGet(window.sessionStorage, ACTIVE_ROOM_KEY)
+      const activeId = routeRoomId.value
       const restored = nextRooms.find((room) => room.id === activeId)
-      if (restored) selectRoom(restored, true)
-      else if (activeId) storageSet(window.sessionStorage, ACTIVE_ROOM_KEY, '')
+      // Restoring a room from the URL only re-selects it — it must not silently
+      // perform the "join" action the user hadn't actually taken before refreshing.
+      if (restored) selectRoom(restored, false)
+      else if (activeId) void router.replace({ name: 'home' }).catch(() => {})
     }
   } catch (caught) {
     networkError.value = caught instanceof Error ? caught.message : '无法读取房间列表'
@@ -220,8 +278,10 @@ async function loadRuntimeConfig(): Promise<void> {
     if (Number.isSafeInteger(config.max_upload_bytes) && config.max_upload_bytes > 0) {
       maxUploadBytes.value = config.max_upload_bytes
     }
+    aiEnabled.value = Boolean(config.ai_enabled)
   } catch {
     maxUploadBytes.value = DEFAULT_MAX_UPLOAD_BYTES
+    aiEnabled.value = false
   }
 }
 
@@ -240,6 +300,33 @@ function joinSelectedRoom(): void {
     return
   }
   chat.connect(selectedRoom.value, sessionToken.value, currentUser.value.id, roomPassword.value)
+}
+
+async function joinDiscoveredRoom(room: Room): Promise<void> {
+  if (!currentUser.value || !sessionToken.value) {
+    authOpen.value = true
+    return
+  }
+  discoverJoiningId.value = room.id
+  discoverError.value = ''
+  try {
+    const membership = await requestRoomJoin(room.id, sessionToken.value, '')
+    const updated = { ...room, membership_status: membership.status, membership_role: membership.role }
+    rooms.value = rooms.value.some((item) => item.id === room.id)
+      ? rooms.value.map((item) => item.id === room.id ? updated : item)
+      : [...rooms.value, updated]
+    if (membership.status === 'active') {
+      selectRoom(updated)
+      joinSelectedRoom()
+      showToast('已加入聊天室')
+    } else {
+      showToast('加入申请已提交')
+    }
+  } catch (caught) {
+    discoverError.value = caught instanceof Error ? caught.message : '加入失败'
+  } finally {
+    discoverJoiningId.value = ''
+  }
 }
 
 async function handleJoinRequest(): Promise<void> {
@@ -348,17 +435,32 @@ const attachmentUpload = useAttachmentUpload({
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
 
-async function handleLeaveRoom(): Promise<void> {
-  const room = selectedRoom.value
+async function handleLeaveRoom(room: Room | null = selectedRoom.value): Promise<void> {
   if (!room || !sessionToken.value) return
   try {
     await leaveRoom(room.id, sessionToken.value)
-    chat.close()
+    if (selectedRoom.value?.id === room.id) chat.close()
     await loadRoomList()
     showToast('已退出聊天室')
   } catch (caught) {
     toast.add({ severity: 'error', summary: caught instanceof Error ? caught.message : '退出失败', life: 3200 })
   }
+}
+
+function openRoomManage(room: Room): void {
+  selectRoom(room)
+  manageOpen.value = true
+}
+
+function openForward(messageIds: string[]): void {
+  if (!messageIds.length) return
+  forwardMessageIds.value = messageIds
+  forwardOpen.value = true
+}
+
+function handleForwarded(): void {
+  forwardOpen.value = false
+  showToast('已转发')
 }
 
 function handleRead(messageId: string): void {
@@ -374,8 +476,8 @@ onMounted(async () => {
 
 <template>
   <div
-    class="grid h-dvh w-full overflow-hidden bg-surface-100 transition-[grid-template-columns] duration-200 ease-out"
-    :class="sidebarCollapsed ? 'md:grid-cols-[76px_minmax(0,1fr)]' : 'md:grid-cols-[340px_minmax(0,1fr)]'"
+    class="cr-canvas-ambient grid h-dvh w-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out md:[grid-template-columns:var(--sidebar-cols)]"
+    :style="{ '--sidebar-cols': sidebarCollapsed ? '76px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)` }"
     data-testid="app-shell"
   >
     <div v-if="networkError" class="fixed inset-x-0 top-3 z-50 mx-auto w-[min(92vw,560px)]" role="alert">
@@ -398,11 +500,15 @@ onMounted(async () => {
       @refresh="loadRoomList"
       @create="requestCreateRoom"
       @join="openJoinRoom"
+      @discover="openDiscover"
       @authenticate="authOpen = true"
       @logout="handleLogout"
       @profile="openProfile"
       @settings="openSettings"
       @toggle-collapse="toggleSidebar"
+      @resize="sidebarWidth = $event"
+      @manage="openRoomManage"
+      @leave-room="handleLeaveRoom"
     />
     <ProfilePage
       v-if="activePage === 'profile' && currentUser"
@@ -418,6 +524,17 @@ onMounted(async () => {
       @back="returnToChat"
       @preferences="preferenceController.open.value = true"
       @deleted="handleAccountDeleted"
+    />
+    <DiscoverRooms
+      v-else-if="activePage === 'discover'"
+      :rooms="rooms"
+      :user="currentUser"
+      :loading="loading"
+      :joining-id="discoverJoiningId"
+      :error="discoverError"
+      @back="returnToChat"
+      @join="joinDiscoveredRoom"
+      @authenticate="authOpen = true"
     />
     <ChatPanel
       v-else
@@ -437,12 +554,18 @@ onMounted(async () => {
       :current-user-id="chat.currentUserId.value"
       :visible="mobileView === 'chat'"
       :uploading="attachmentUpload.uploading.value"
+      :upload-progress="attachmentUpload.progress.value"
       :downloading="downloading"
       :download-progress="downloadProgress"
       :max-upload-bytes="maxUploadBytes"
       :send-shortcut="preferences.sendShortcut"
       :focus-shortcut="preferences.focusShortcut"
       :typing-drafts="chat.typingDrafts.value"
+      :poked-at="chat.pokedAt.value"
+      :loading-older="loadingOlder"
+      :has-more-history="hasMoreHistory"
+      :ai-enabled="aiEnabled"
+      :loading="loading"
       @back="mobileView = 'rooms'"
       @manage="manageOpen = true"
       @leave="handleLeaveRoom"
@@ -458,9 +581,20 @@ onMounted(async () => {
       @download="handleDownload"
       @cancel-download="cancelDownload"
       @update:password="roomPassword = $event"
+      @forward="openForward"
+      @poke="chat.poke"
+      @load-older="loadOlderMessages"
     />
 
     <AuthDialog :open="authOpen" @close="authOpen = false" @authenticated="handleAuthenticated" />
+    <ForwardDialog
+      :open="forwardOpen"
+      :message-ids="forwardMessageIds"
+      :rooms="rooms"
+      :token="sessionToken"
+      @close="forwardOpen = false"
+      @forwarded="handleForwarded"
+    />
     <JoinRoomDialog :open="joinOpen" :token="sessionToken" @close="joinOpen = false" @joined="handleJoinedById" />
     <CreateRoomDialog :open="createOpen" :token="sessionToken" @close="createOpen = false" @created="handleCreated" />
     <ManageRoomDialog

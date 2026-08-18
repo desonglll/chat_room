@@ -1,4 +1,4 @@
-import type { AuthSession, BroadcastMessage, ChatFilePage, PublicConfig, Room, RoomMembership, StoredMessage, UpdateProfilePayload, User } from './types'
+import type { AiSuggestions, AuthSession, BroadcastMessage, ChatFilePage, ForwardResult, PublicConfig, Room, RoomMembership, StoredMessage, UpdateProfilePayload, User } from './types'
 
 export const DEFAULT_MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 
@@ -124,11 +124,19 @@ export async function createRoom(
   password: string,
   token: string,
   joinPolicy: 'open' | 'approval',
+  avatarEmoji = '',
+  description = '',
 ): Promise<Room> {
   const response = await request('/api/rooms', {
     method: 'POST',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, password: password || null, join_policy: joinPolicy }),
+    body: JSON.stringify({
+      name,
+      password: password || null,
+      join_policy: joinPolicy,
+      avatar_emoji: avatarEmoji,
+      description,
+    }),
   })
   if (response.status === 400) throw new Error('房间名称或密码不符合要求')
   if (response.status === 409) throw new Error('房间名称已存在')
@@ -138,7 +146,14 @@ export async function createRoom(
 
 export async function updateRoom(
   roomId: string,
-  payload: { name?: string; current_password?: string; new_password?: string; join_policy?: 'open' | 'approval' },
+  payload: {
+    name?: string
+    current_password?: string
+    new_password?: string
+    join_policy?: 'open' | 'approval'
+    avatar_emoji?: string
+    description?: string
+  },
   token: string,
 ): Promise<Room> {
   const response = await request(`/api/rooms/${encodeURIComponent(roomId)}`, {
@@ -174,11 +189,13 @@ export async function uploadAttachment(
   content = '',
   replyTo = '',
   maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES,
+  isSensitive = false,
 ): Promise<BroadcastMessage> {
   if (file.size > maxUploadBytes) throw new Error(`单个文件不能超过 ${formatUploadLimit(maxUploadBytes)}`)
   const body = new FormData()
   if (content) body.append('content', content)
   if (replyTo) body.append('reply_to', replyTo)
+  if (isSensitive) body.append('is_sensitive', 'true')
   body.append('file', file)
   const headers: Record<string, string> = authHeaders(token)
   if (password) headers['x-room-password'] = password
@@ -193,20 +210,93 @@ export async function uploadAttachment(
   if (response.status === 404) throw new Error('聊天室不存在')
   if (response.status === 413) throw new Error(`文件不能超过 ${formatUploadLimit(maxUploadBytes)}`)
   if (!response.ok) throw new Error(`上传失败：${response.status}`)
-  const message = await response.json() as StoredMessage
-  return {
-    type: 'broadcast',
-    message_id: message.id,
-    sender_id: message.sender_id,
-    sender: message.sender,
-    sender_avatar: message.sender_avatar,
-    content: message.content,
-    attachment: message.attachment,
-    reply_to: message.reply_to,
-    recalled_at: message.recalled_at,
-    edited_at: message.edited_at,
-    timestamp: message.created_at,
+  return storedMessageToBroadcast(await response.json() as StoredMessage)
+}
+
+export interface CreateUploadSessionResult {
+  upload_id: string
+  received_bytes: number
+  declared_size_bytes: number
+}
+
+export async function createUploadSession(
+  roomId: string,
+  token: string,
+  password: string,
+  file: File,
+  fingerprint: string,
+): Promise<CreateUploadSessionResult> {
+  const headers: Record<string, string> = { ...authHeaders(token), 'Content-Type': 'application/json' }
+  if (password) headers['x-room-password'] = password
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/attachments/uploads`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      file_name: file.name,
+      mime_type: file.type || 'application/octet-stream',
+      size_bytes: file.size,
+      fingerprint,
+    }),
+  })
+  if (response.status === 413) throw new Error('文件超出大小限制')
+  if (!response.ok) throw new Error(`创建上传会话失败：${response.status}`)
+  return response.json() as Promise<CreateUploadSessionResult>
+}
+
+export async function uploadChunk(
+  uploadId: string,
+  token: string,
+  offset: number,
+  chunk: Blob,
+): Promise<number> {
+  const response = await request(`/api/attachments/uploads/${encodeURIComponent(uploadId)}/chunks?offset=${offset}`, {
+    method: 'PUT',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/octet-stream' },
+    body: chunk,
+  })
+  if (response.status === 409) {
+    const body = await response.json() as { received_bytes: number }
+    const error = new Error('分片偏移量不匹配') as Error & { receivedBytes: number }
+    error.receivedBytes = body.received_bytes
+    throw error
   }
+  if (!response.ok) throw new Error(`上传分片失败：${response.status}`)
+  const body = await response.json() as { received_bytes: number }
+  return body.received_bytes
+}
+
+export async function completeUploadSession(
+  uploadId: string,
+  token: string,
+  content: string,
+  replyTo: string,
+  isSensitive: boolean,
+): Promise<BroadcastMessage> {
+  const response = await request(`/api/attachments/uploads/${encodeURIComponent(uploadId)}/complete`, {
+    method: 'POST',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, reply_to: replyTo || null, is_sensitive: isSensitive }),
+  })
+  if (!response.ok) throw new Error(`完成上传失败：${response.status}`)
+  return storedMessageToBroadcast(await response.json() as StoredMessage)
+}
+
+export async function listUploadSessions(
+  roomId: string,
+  token: string,
+): Promise<import('./types').AttachmentUploadSession[]> {
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/attachments/uploads`, {
+    headers: authHeaders(token),
+  })
+  if (!response.ok) throw new Error(`读取上传会话失败：${response.status}`)
+  return response.json()
+}
+
+export async function cancelUploadSession(uploadId: string, token: string): Promise<void> {
+  await request(`/api/attachments/uploads/${encodeURIComponent(uploadId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
 }
 
 export async function listRoomFiles(
@@ -275,6 +365,92 @@ export async function inviteRoomMember(
   if (response.status === 404) throw new Error('没有找到这个用户')
   if (response.status === 403) throw new Error('你没有邀请成员的权限')
   if (!response.ok) throw new Error(`邀请失败：${response.status}`)
+  return response.json() as Promise<RoomMembership>
+}
+
+export async function getUserProfile(userId: string, token: string): Promise<User> {
+  const response = await request(`/api/users/${encodeURIComponent(userId)}`, {
+    headers: authHeaders(token),
+  })
+  if (response.status === 404) throw new Error('用户不存在')
+  if (!response.ok) throw new Error(`读取用户资料失败：${response.status}`)
+  return response.json() as Promise<User>
+}
+
+export async function forwardMessages(
+  messageIds: string[],
+  targetRoomIds: string[],
+  token: string,
+): Promise<ForwardResult[]> {
+  const response = await request('/api/messages/forward', {
+    method: 'POST',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message_ids: messageIds, target_room_ids: targetRoomIds }),
+  })
+  if (!response.ok) throw new Error(`转发失败：${response.status}`)
+  return response.json() as Promise<ForwardResult[]>
+}
+
+export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessage {
+  return {
+    type: 'broadcast',
+    message_id: message.id,
+    sender_id: message.sender_id,
+    sender: message.sender,
+    sender_avatar: message.sender_avatar,
+    content: message.content,
+    attachment: message.attachment,
+    reply_to: message.reply_to,
+    recalled_at: message.recalled_at,
+    edited_at: message.edited_at,
+    timestamp: message.created_at,
+    forwarded_from: message.forwarded_from,
+  }
+}
+
+export async function listRoomMessages(
+  roomId: string,
+  token: string,
+  password: string,
+  before: string,
+  limit = 50,
+): Promise<StoredMessage[]> {
+  const query = new URLSearchParams({ limit: String(limit) })
+  if (before) query.set('before', before)
+  const headers: Record<string, string> = authHeaders(token)
+  if (password) headers['x-room-password'] = password
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/messages?${query}`, { headers })
+  if (response.status === 401) throw new Error('登录已过期或房间密码错误')
+  if (response.status === 403) throw new Error('你已不是该聊天室成员')
+  if (!response.ok) throw new Error(`读取历史消息失败：${response.status}`)
+  return response.json() as Promise<StoredMessage[]>
+}
+
+export async function getAiSuggestions(roomId: string, token: string): Promise<AiSuggestions> {
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/ai/suggest`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+  if (response.status === 403) throw new Error('你没有在此聊天室发言的权限')
+  if (response.status === 429) throw new Error('请求过于频繁，请稍后再试')
+  if (response.status === 503) throw new Error('AI 助手当前不可用')
+  if (!response.ok) throw new Error(`获取 AI 建议失败：${response.status}`)
+  return response.json() as Promise<AiSuggestions>
+}
+
+export async function setRoomNickname(
+  roomId: string,
+  token: string,
+  nickname: string,
+): Promise<RoomMembership> {
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/members/me`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname }),
+  })
+  if (response.status === 400) throw new Error('昵称不符合要求')
+  if (response.status === 404) throw new Error('你不是该聊天室的活跃成员')
+  if (!response.ok) throw new Error(`设置昵称失败：${response.status}`)
   return response.json() as Promise<RoomMembership>
 }
 

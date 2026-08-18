@@ -1,0 +1,139 @@
+:root {
+  --cr-jade-50: #f0fbf7;
+  --cr-jade-100: #ddf4ec;
+  --cr-jade-200: #b8e5d7;
+  --cr-jade-300: #7dcdb9;
+  --cr-jade-400: #39b395;
+  --cr-jade-500: #11947b;
+  --cr-jade-700: #087f6b;
+  --cr-jade-800: #066456;
+  --cr-jade-900: #064e44;
+  --cr-coral-100: #ffe5e0;
+  --cr-coral-500: #ff6b57;
+  --cr-coral-700: #b9362b;
+  --cr-sun-100: #fff2ce;
+  --cr-sun-500: #f4b942;
+  --cr-sun-800: #8a5b00;
+  --cr-ink: #172321;
+  --cr-paper: #f7faf9;
+  --cr-white: #fff;
+  --cr-mist-100: #eef4f1;
+  --cr-mist-200: #dce6e2;
+  --cr-mist-300: #c4d1cd;
+  --cr-muted: #52615d;
+
+  --cr-canvas: var(--cr-paper);
+  --cr-surface: var(--cr-white);
+  --cr-surface-subtle: var(--cr-mist-100);
+  --cr-surface-raised: var(--cr-white);
+  --cr-border: var(--cr-mist-200);
+  --cr-border-subtle: color-mix(in srgb, var(--cr-mist-200) 60%, transparent);
+  --cr-text: var(--cr-ink);
+  --cr-text-muted: var(--cr-muted);
+  --cr-primary: var(--cr-jade-700);
+  --cr-primary-hover: var(--cr-jade-800);
+  --cr-primary-soft: var(--cr-jade-100);
+  --cr-accent: var(--cr-coral-500);
+  --cr-warning: var(--cr-sun-800);
+  --cr-danger: var(--cr-coral-700);
+  --cr-success: var(--cr-jade-800);
+  --cr-flash: var(--cr-sun-100);
+
+  --cr-font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --cr-text-caption: 0.75rem;
+  --cr-text-sm: 0.875rem;
+  --cr-text-body: 1rem;
+  --cr-text-lg: 1.125rem;
+  --cr-text-title-sm: 1.25rem;
+  --cr-text-title: 1.75rem;
+  --cr-text-display: 2.5rem;
+  --cr-tracking-tight: -0.01em;
+
+  --cr-space-1: 0.25rem;
+  --cr-space-2: 0.5rem;
+  --cr-space-3: 0.75rem;
+  --cr-space-4: 1rem;
+  --cr-space-5: 1.25rem;
+  --cr-space-6: 1.5rem;
+  --cr-space-8: 2rem;
+  --cr-space-12: 3rem;
+  --cr-space-16: 4rem;
+
+  --cr-radius-xs: 0.25rem;
+  --cr-radius-sm: 0.375rem;
+  --cr-radius-md: 0.5rem;
+  --cr-radius-lg: 1rem;
+  --cr-radius-xl: 1.25rem;
+  --cr-radius-2xl: 1.75rem;
+  --cr-radius-round: 999px;
+  --cr-control: 2.5rem;
+  --cr-touch: 2.75rem;
+  --cr-sidebar: 21.25rem;
+
+  /* Motion: spring is the default for interactive feedback (hover/press/pop-in);
+     ease-out stays for larger, one-directional transitions (page/panel swaps). */
+  --cr-motion-fast: 120ms;
+  --cr-motion-normal: 200ms;
+  --cr-motion-slow: 320ms;
+  --cr-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cr-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Layered, brand-tinted shadows (ink-based, not pure black) — depth reads as
+     soft light falloff rather than a hard drop shadow. */
+  --cr-shadow-xs: 0 1px 2px rgba(23, 35, 33, 0.06);
+  --cr-shadow-sm: 0 1px 3px rgba(23, 35, 33, 0.07), 0 2px 6px rgba(23, 35, 33, 0.05);
+  --cr-shadow-md: 0 4px 12px rgba(23, 35, 33, 0.08), 0 12px 24px rgba(23, 35, 33, 0.05);
+  --cr-shadow-lg: 0 8px 24px rgba(23, 35, 33, 0.1), 0 24px 48px rgba(23, 35, 33, 0.08);
+  --cr-shadow-xl: 0 16px 40px rgba(23, 35, 33, 0.14), 0 32px 80px rgba(23, 35, 33, 0.1);
+
+  /* Glass surfaces for floating chrome: dialogs' mask, popovers, composer strips. */
+  --cr-glass-bg: rgba(255, 255, 255, 0.78);
+  --cr-glass-border: rgba(255, 255, 255, 0.5);
+  --cr-glass-blur: 20px;
+  --cr-mask-bg: rgba(23, 35, 33, 0.32);
+}
+
+[data-theme="dark"] {
+  --cr-canvas: #0e1513;
+  --cr-surface: #17211f;
+  --cr-surface-subtle: #1d2926;
+  --cr-surface-raised: #202e2b;
+  --cr-border: #30403c;
+  --cr-border-subtle: color-mix(in srgb, #30403c 65%, transparent);
+  --cr-text: #f4f8f6;
+  --cr-text-muted: #a8b8b3;
+  --cr-primary: #39bfa6;
+  --cr-primary-hover: #5bcab4;
+  --cr-primary-soft: #123e35;
+  --cr-accent: #ff806e;
+  /* Light-mode --cr-danger/--cr-warning fail WCAG AA against the dark
+     surfaces (~2.8:1) if left as a naive "same color, different bg" carry-
+     over — these are independently picked for ~7-9:1 contrast, same as
+     --cr-primary/--cr-accent already were. */
+  --cr-danger: #ff8a80;
+  --cr-warning: #f4b942;
+  --cr-success: #4cd4b0;
+  --cr-flash: color-mix(in srgb, var(--cr-sun-500) 30%, var(--cr-surface));
+
+  /* Dark surfaces need real black falloff, not brand-tinted ink, to still read
+     as depth against an already-dark canvas. */
+  --cr-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --cr-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.24);
+  --cr-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.36), 0 12px 24px rgba(0, 0, 0, 0.28);
+  --cr-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 24px 48px rgba(0, 0, 0, 0.32);
+  --cr-shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.46), 0 32px 80px rgba(0, 0, 0, 0.36);
+
+  --cr-glass-bg: rgba(23, 33, 31, 0.78);
+  --cr-glass-border: rgba(255, 255, 255, 0.08);
+  --cr-glass-blur: 20px;
+  --cr-mask-bg: rgba(4, 8, 7, 0.56);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cr-motion-fast: 0ms;
+    --cr-motion-normal: 0ms;
+    --cr-motion-slow: 0ms;
+    --cr-ease-spring: linear;
+  }
+}
