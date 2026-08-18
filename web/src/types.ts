@@ -35,6 +35,32 @@ export interface Attachment {
   download_url: string
 }
 
+export interface ChatFileItem {
+  message_id: string
+  sender_id: string | null
+  sender: string
+  sender_avatar: string
+  created_at: string
+  attachment: Attachment
+}
+
+export interface ChatFilePage {
+  items: ChatFileItem[]
+  next_before: string | null
+}
+
+export interface AccountMessageEvent {
+  type: 'new_message'
+  message_id: string
+  room_id: string
+  room_name: string
+  sender_id: string | null
+  sender: string
+  content: string
+  attachment_file_name: string | null
+  timestamp: string
+}
+
 export interface ReplyPreview {
   message_id: string
   sender: string
@@ -92,9 +118,11 @@ export interface SystemMessage {
 export type DisplayMessage = BroadcastMessage | SystemMessage
 export type ChatStatus = 'idle' | 'connecting' | 'online' | 'offline' | 'failed'
 export type SendShortcut = 'enter' | 'shift-enter'
+export type FocusShortcut = 'space' | 'slash' | 'none'
 
 export interface ChatPreferences {
   sendShortcut: SendShortcut
+  focusShortcut: FocusShortcut
   notificationsEnabled: boolean
   notificationDetails: boolean
   avatarEmoji: string

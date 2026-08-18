@@ -1,6 +1,9 @@
 //! TOML-backed runtime configuration and its public browser-safe projection.
 
-use std::{io::ErrorKind, path::Path};
+use std::{
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{bail, Context, Result};
 use axum::{extract::State, Json};
@@ -15,6 +18,7 @@ const BYTES_PER_MIB: u64 = 1024 * 1024;
 #[serde(default)]
 pub struct AppConfig {
     pub uploads: UploadConfig,
+    pub attachments: AttachmentConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -27,6 +31,20 @@ impl Default for UploadConfig {
     fn default() -> Self {
         Self {
             max_file_size_mib: DEFAULT_MAX_UPLOAD_MIB,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct AttachmentConfig {
+    pub directory: PathBuf,
+}
+
+impl Default for AttachmentConfig {
+    fn default() -> Self {
+        Self {
+            directory: PathBuf::from("chat_attachments"),
         }
     }
 }
@@ -46,6 +64,9 @@ impl AppConfig {
     pub fn validate(self) -> Result<Self> {
         if self.uploads.max_file_size_mib == 0 {
             bail!("uploads.max_file_size_mib must be greater than zero");
+        }
+        if self.attachments.directory.as_os_str().is_empty() {
+            bail!("attachments.directory must not be empty");
         }
         self.max_upload_bytes()?;
         Ok(self)
@@ -78,7 +99,11 @@ mod tests {
 
     #[test]
     fn parses_upload_limit_and_rejects_zero() {
-        let config: AppConfig = toml::from_str("[uploads]\nmax_file_size_mib = 128").unwrap();
+        let config: AppConfig = toml::from_str(
+            "[uploads]\nmax_file_size_mib = 128\n[attachments]\ndirectory = 'files'",
+        )
+        .unwrap();
+        assert_eq!(config.attachments.directory, PathBuf::from("files"));
         assert_eq!(
             config.validate().unwrap().max_upload_bytes().unwrap(),
             128 * 1024 * 1024

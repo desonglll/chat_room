@@ -6,12 +6,17 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import SelectButton from 'primevue/selectbutton'
 import ToggleSwitch from 'primevue/toggleswitch'
-import type { ChatPreferences, SendShortcut, User } from '../types'
+import type { ChatPreferences, FocusShortcut, SendShortcut, User } from '../types'
 
 const AVATARS = ['', '😀', '😎', '🥳', '🤓', '🙂', '🫡', '🚀', '🌻', '🍀', '☕', '🎨', '💡', '🔥', '✨', '🌙', '⚡']
 const SHORTCUTS: { label: string; value: SendShortcut }[] = [
   { label: 'Enter', value: 'enter' },
   { label: 'Shift + Enter', value: 'shift-enter' },
+]
+const FOCUS_SHORTCUTS: { label: string; value: FocusShortcut }[] = [
+  { label: '空格', value: 'space' },
+  { label: '/', value: 'slash' },
+  { label: '关闭', value: 'none' },
 ]
 
 const props = defineProps<{
@@ -26,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const sendShortcut = ref<SendShortcut>('enter')
+const focusShortcut = ref<FocusShortcut>('space')
 const notificationsEnabled = ref(false)
 const notificationDetails = ref(true)
 const avatarEmoji = ref('')
@@ -37,6 +43,7 @@ const visible = computed({
 watch(() => props.open, (open) => {
   if (!open) return
   sendShortcut.value = props.preferences.sendShortcut
+  focusShortcut.value = props.preferences.focusShortcut
   notificationsEnabled.value = props.preferences.notificationsEnabled
   notificationDetails.value = props.preferences.notificationDetails
   avatarEmoji.value = props.user?.avatar_emoji || ''
@@ -45,6 +52,7 @@ watch(() => props.open, (open) => {
 function save(): void {
   emit('save', {
     sendShortcut: sendShortcut.value,
+    focusShortcut: focusShortcut.value,
     notificationsEnabled: notificationsEnabled.value,
     notificationDetails: notificationDetails.value,
     avatarEmoji: avatarEmoji.value,
@@ -67,6 +75,21 @@ function save(): void {
           option-value="value"
           :allow-empty="false"
           class="grid grid-cols-2"
+        />
+      </section>
+
+      <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr] sm:items-center">
+        <div class="flex items-center gap-2">
+          <Keyboard :size="18" class="text-primary" />
+          <span class="text-sm font-medium">聚焦输入框</span>
+        </div>
+        <SelectButton
+          v-model="focusShortcut"
+          :options="FOCUS_SHORTCUTS"
+          option-label="label"
+          option-value="value"
+          :allow-empty="false"
+          class="grid grid-cols-3"
         />
       </section>
 

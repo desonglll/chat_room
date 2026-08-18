@@ -1,4 +1,4 @@
-import type { AuthSession, BroadcastMessage, PublicConfig, Room, RoomMembership, StoredMessage, User } from './types'
+import type { AuthSession, BroadcastMessage, ChatFilePage, PublicConfig, Room, RoomMembership, StoredMessage, User } from './types'
 
 export const DEFAULT_MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 
@@ -177,6 +177,26 @@ export async function uploadAttachment(
     edited_at: message.edited_at,
     timestamp: message.created_at,
   }
+}
+
+export async function listRoomFiles(
+  roomId: string,
+  token: string,
+  password: string,
+  kind: 'all' | 'image' | 'video' | 'file',
+  before = '',
+  limit = 50,
+): Promise<ChatFilePage> {
+  const query = new URLSearchParams({ kind, limit: String(limit) })
+  if (before) query.set('before', before)
+  const headers: Record<string, string> = authHeaders(token)
+  if (password) headers['x-room-password'] = password
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/files?${query}`, { headers })
+  if (response.status === 401) throw new Error('登录已过期或房间密码错误')
+  if (response.status === 403) throw new Error('你已不是该聊天室成员')
+  if (response.status === 404) throw new Error('聊天室不存在')
+  if (!response.ok) throw new Error(`读取聊天文件失败：${response.status}`)
+  return response.json() as Promise<ChatFilePage>
 }
 
 export async function requestRoomJoin(

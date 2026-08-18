@@ -1,4 +1,5 @@
 import { onBeforeUnmount } from 'vue'
+import type { AccountMessageEvent } from '../types'
 
 interface UnreadSnapshot {
   type: 'unread_counts'
@@ -12,6 +13,7 @@ interface UnreadSnapshot {
 
 export function useUnreadSocket(
   onSnapshot: (counts: Map<string, UnreadSnapshot['rooms'][number]>) => void,
+  onMessage: (message: AccountMessageEvent) => void,
 ) {
   let socket: WebSocket | null = null
   let reconnectTimer: number | undefined
@@ -45,10 +47,11 @@ export function useUnreadSocket(
     next.onmessage = (event: MessageEvent<string>) => {
       if (socket !== next) return
       try {
-        const message = JSON.parse(event.data) as UnreadSnapshot
+        const message = JSON.parse(event.data) as UnreadSnapshot | AccountMessageEvent
         if (message.type === 'unread_counts') {
           onSnapshot(new Map(message.rooms.map((room) => [room.room_id, room])))
         }
+        if (message.type === 'new_message') onMessage(message)
       } catch {
         // Ignore malformed account events and keep the room connection alive.
       }

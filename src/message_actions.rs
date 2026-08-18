@@ -50,17 +50,23 @@ impl AppState {
         message_id: Uuid,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let recalled_at = Utc::now();
-        let result = sqlx::query(
+        let attachment_id: Option<Option<Uuid>> = sqlx::query_scalar(
             "UPDATE messages SET recalled_at = ? \
-             WHERE id = ? AND room_id = ? AND sender_id = ? AND recalled_at IS NULL",
+             WHERE id = ? AND room_id = ? AND sender_id = ? AND recalled_at IS NULL \
+             RETURNING attachment_id",
         )
         .bind(recalled_at)
         .bind(message_id)
         .bind(room_id)
         .bind(sender_id)
-        .execute(self.pool())
+        .fetch_optional(self.pool())
         .await?;
-        Ok((result.rows_affected() > 0).then_some(recalled_at))
+        if let Some(Some(attachment_id)) = attachment_id {
+            if let Err(error) = self.attachment_store().remove(attachment_id).await {
+                tracing::warn!("remove recalled attachment failed: {error:#}");
+            }
+        }
+        Ok(attachment_id.map(|_| recalled_at))
     }
 
     pub(crate) async fn latest_recall_cursor(

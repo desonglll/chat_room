@@ -14,6 +14,7 @@ use axum::{
 };
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::message_store::NewAttachment;
@@ -63,21 +64,12 @@ pub async fn upload_attachment(
             Some("file") if upload.is_none() => {
                 let file_name = normalize_file_name(field.file_name().unwrap_or("file"))?;
                 let supplied_mime = field.content_type().map(str::to_string);
-                let data = field.bytes().await.map_err(|error| {
-                    tracing::warn!("read attachment bytes failed: {}", error);
-                    error.status()
-                })?;
-                if data.is_empty() {
-                    return Err(StatusCode::BAD_REQUEST);
-                }
-                if data.len() > state.max_upload_bytes() {
-                    return Err(StatusCode::PAYLOAD_TOO_LARGE);
-                }
                 let mime_type = normalized_mime(supplied_mime.as_deref(), &file_name);
+                let staged = stream_to_staging(&state, field).await?;
                 upload = Some(NewAttachment {
                     file_name,
                     mime_type,
-                    data: data.to_vec(),
+                    staged,
                 });
             }
             Some("content") => {
@@ -150,11 +142,14 @@ pub async fn download_attachment(
     };
     let (start, end) = range.unwrap_or((0, metadata.size_bytes - 1));
     let length = end - start + 1;
-    let data = match state.attachment_chunk(id, access.key, start, length).await {
-        Ok(Some(data)) => data,
-        Ok(None) => return empty_response(StatusCode::NOT_FOUND),
+    let reader = match state
+        .attachment_store()
+        .open_range(id, start as u64, length as u64)
+        .await
+    {
+        Ok(reader) => reader,
         Err(error) => {
-            tracing::error!("load attachment data failed: {}", error);
+            tracing::error!("open attachment data failed: {error:#}");
             return empty_response(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
@@ -164,7 +159,7 @@ pub async fn download_attachment(
     } else {
         StatusCode::OK
     };
-    let mut response = Response::new(Body::from(data));
+    let mut response = Response::new(Body::from_stream(ReaderStream::new(reader)));
     *response.status_mut() = status;
     let response_headers = response.headers_mut();
     response_headers.insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
@@ -200,6 +195,36 @@ pub async fn download_attachment(
         );
     }
     response
+}
+
+async fn stream_to_staging(
+    state: &SharedState,
+    mut field: axum::extract::multipart::Field<'_>,
+) -> Result<crate::attachment_storage::StagedUpload, StatusCode> {
+    let mut staged = state.attachment_store().begin().await.map_err(|error| {
+        tracing::error!("create staged upload failed: {error:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    while let Some(chunk) = field.chunk().await.map_err(|error| {
+        tracing::warn!("read attachment chunk failed: {error}");
+        error.status()
+    })? {
+        let next_size = usize::try_from(staged.size())
+            .ok()
+            .and_then(|size| size.checked_add(chunk.len()))
+            .ok_or(StatusCode::PAYLOAD_TOO_LARGE)?;
+        if next_size > state.max_upload_bytes() {
+            return Err(StatusCode::PAYLOAD_TOO_LARGE);
+        }
+        staged.write(&chunk).await.map_err(|error| {
+            tracing::error!("write staged upload failed: {error:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    }
+    if staged.size() == 0 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    Ok(staged)
 }
 
 async fn authorize_upload(

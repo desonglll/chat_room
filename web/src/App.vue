@@ -11,11 +11,12 @@ import ManageRoomDialog from './components/ManageRoomDialog.vue'
 import PreferencesDialog from './components/PreferencesDialog.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
 import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, leaveRoom, listRooms, logoutUser, requestRoomJoin, updateCurrentUser, uploadAttachment } from './api'
-import { downloadAttachmentArchive } from './attachmentDownloads'
+import { createBrowserNotifier } from './browserNotifications'
+import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
 import { useChatSocket } from './composables/useChatSocket'
 import { useUnreadSocket } from './composables/useUnreadSocket'
 import { loadPreferences, storePreferences } from './preferences'
-import type { Attachment, AuthSession, ChatPreferences, Room, RoomUpdateResult, User } from './types'
+import type { AuthSession, ChatPreferences, Room, RoomUpdateResult, User } from './types'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const ACTIVE_ROOM_KEY = 'chat-room.active-room'
@@ -49,12 +50,17 @@ const preferencesOpen = ref(false)
 const savingPreferences = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const uploading = ref(false)
-const downloading = ref(false)
 const maxUploadBytes = ref(DEFAULT_MAX_UPLOAD_BYTES)
 const sidebarCollapsed = ref(storageGet(window.localStorage, SIDEBAR_COLLAPSED_KEY) === 'true')
 const preferences = ref(loadPreferences())
 let restoreAttempted = false
 const toast = useToast()
+const {
+  cancel: cancelDownload,
+  download: handleDownload,
+  downloading,
+  downloadProgress,
+} = useAttachmentDownloads(() => selectedRoom.value?.name || 'chat-files')
 
 function handleSystemEvent(content: string): void {
   if (content.startsWith('room renamed to ')) void loadRoomList()
@@ -78,7 +84,11 @@ function handleSystemEvent(content: string): void {
 }
 
 const chat = useChatSocket(handleSystemEvent)
-chat.configureNotifications(preferences.value.notificationsEnabled, preferences.value.notificationDetails)
+const notifier = createBrowserNotifier((roomId) => {
+  const room = rooms.value.find((candidate) => candidate.id === roomId)
+  if (room) selectRoom(room)
+})
+notifier.configure(preferences.value.notificationsEnabled, preferences.value.notificationDetails)
 const selectedId = computed(() => selectedRoom.value?.id)
 const unreadSocket = useUnreadSocket((states) => {
   rooms.value = rooms.value.map((room) => {
@@ -93,7 +103,7 @@ const unreadSocket = useUnreadSocket((states) => {
   if (selectedRoom.value) {
     selectedRoom.value = rooms.value.find((room) => room.id === selectedRoom.value?.id) || selectedRoom.value
   }
-})
+}, notifier.notify)
 
 watch(chat.authenticated, (online) => {
   if (online && selectedRoom.value?.has_password) {
@@ -133,7 +143,7 @@ async function handlePreferencesSave(next: ChatPreferences): Promise<void> {
     }
     preferences.value = { ...next, avatarEmoji: currentUser.value?.avatar_emoji || '' }
     storePreferences(preferences.value)
-    chat.configureNotifications(next.notificationsEnabled, next.notificationDetails)
+    notifier.configure(next.notificationsEnabled, next.notificationDetails)
     preferencesOpen.value = false
     showToast('偏好设置已保存')
   } catch (caught) {
@@ -360,19 +370,6 @@ function handleRead(messageId: string): void {
   selectedRoom.value = { ...selectedRoom.value, unread_count: 0 }
 }
 
-async function handleDownload(attachments: Attachment[]): Promise<void> {
-  if (!attachments.length || downloading.value) return
-  downloading.value = true
-  try {
-    await downloadAttachmentArchive(attachments, selectedRoom.value?.name || 'chat-files')
-    showToast(`已保存 ${attachments.length} 个文件`)
-  } catch (caught) {
-    toast.add({ severity: 'error', summary: caught instanceof Error ? caught.message : '批量保存失败', life: 3200 })
-  } finally {
-    downloading.value = false
-  }
-}
-
 onMounted(async () => {
   await Promise.all([restoreSession(), loadRuntimeConfig()])
   if (sessionToken.value) unreadSocket.connect(sessionToken.value)
@@ -414,6 +411,7 @@ onMounted(async () => {
       :room="selectedRoom"
       :user="currentUser"
       :password="roomPassword"
+      :token="sessionToken"
       :status="chat.status.value"
       :status-label="chat.statusLabel.value"
       :authenticated="chat.authenticated.value"
@@ -426,8 +424,10 @@ onMounted(async () => {
       :visible="mobileView === 'chat'"
       :uploading="uploading"
       :downloading="downloading"
+      :download-progress="downloadProgress"
       :max-upload-bytes="maxUploadBytes"
       :send-shortcut="preferences.sendShortcut"
+      :focus-shortcut="preferences.focusShortcut"
       :typing-drafts="chat.typingDrafts.value"
       @back="mobileView = 'rooms'"
       @manage="manageOpen = true"
@@ -442,6 +442,7 @@ onMounted(async () => {
       @edit="chat.edit"
       @typing="chat.sendTyping"
       @download="handleDownload"
+      @cancel-download="cancelDownload"
       @update:password="roomPassword = $event"
     />
 

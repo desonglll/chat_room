@@ -285,6 +285,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tokio-tungstenite 0.23.1",
+ "tokio-util",
  "toml",
  "tower-http 0.5.2",
  "tracing",

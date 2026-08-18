@@ -1,3 +1,7 @@
 [uploads]
 # Maximum size of one uploaded file. Restart the server after changing this value.
-max_file_size_mib = 512
+max_file_size_mib = 1025
+
+[attachments]
+# Uploaded bytes live here; SQLite stores metadata only. Restart after changing it.
+directory = "chat_attachments"

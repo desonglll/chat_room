@@ -20,15 +20,18 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
 import Popover from 'primevue/popover'
+import ProgressBar from 'primevue/progressbar'
 import MessageComposer from './MessageComposer.vue'
 import MessageList from './MessageList.vue'
 import ChatFilesDialog from './ChatFilesDialog.vue'
 import ImageViewerGallery from './ImageViewerGallery.vue'
+import { shouldFocusComposer } from '../composer'
 import type {
   Attachment,
   BroadcastMessage,
   ChatStatus,
   DisplayMessage,
+  FocusShortcut,
   ReadReceipt,
   Room,
   RoomMember,
@@ -36,11 +39,13 @@ import type {
   TypingDraft,
   User,
 } from '../types'
+import type { DownloadProgress } from '../attachmentDownloads'
 
 const props = defineProps<{
   room: Room | null
   user: User | null
   password: string
+  token: string
   status: ChatStatus
   statusLabel: string
   authenticated: boolean
@@ -53,8 +58,10 @@ const props = defineProps<{
   visible: boolean
   uploading: boolean
   sendShortcut: SendShortcut
+  focusShortcut: FocusShortcut
   typingDrafts: TypingDraft[]
   downloading: boolean
+  downloadProgress: DownloadProgress | null
   maxUploadBytes: number
 }>()
 
@@ -72,6 +79,7 @@ const emit = defineEmits<{
   edit: [messageId: string, content: string]
   typing: [content: string]
   download: [attachments: Attachment[]]
+  cancelDownload: []
   'update:password': [password: string]
 }>()
 
@@ -175,9 +183,12 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 function handleGlobalKeydown(event: KeyboardEvent): void {
-  if (!props.visible || !props.authenticated || event.key !== ' ' || event.repeat
-    || event.metaKey || event.ctrlKey || event.altKey || isEditableTarget(event.target)
-    || document.querySelector('.p-dialog-mask')) return
+  if (!props.visible || !props.authenticated || !shouldFocusComposer(
+    event,
+    props.focusShortcut,
+    isEditableTarget(event.target),
+    Boolean(document.querySelector('.p-dialog-mask')),
+  )) return
   event.preventDefault()
   composerRef.value?.focus()
 }
@@ -358,7 +369,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydow
       </TransitionGroup>
       <div v-if="selecting" class="flex min-h-[68px] shrink-0 items-center justify-between gap-3 border-t border-surface-200 bg-surface-0 px-3 sm:px-7">
         <Button text rounded severity="secondary" aria-label="退出多选" title="退出多选" @click="closeSelection"><X :size="19" /></Button>
-        <span class="text-sm text-muted-color">已选择 {{ selectedAttachments.length }} 个附件</span>
+        <div class="min-w-0 flex-1">
+          <span class="text-sm text-muted-color">已选择 {{ selectedAttachments.length }} 个附件</span>
+          <div v-if="downloadProgress" class="mt-2 flex items-center gap-2">
+            <ProgressBar :value="downloadProgress.percent" :show-value="false" class="h-1.5 min-w-24 flex-1" />
+            <span class="shrink-0 text-xs text-muted-color">{{ downloadProgress.completedFiles }}/{{ downloadProgress.totalFiles }}</span>
+            <Button size="small" text severity="danger" @click="emit('cancelDownload')">取消</Button>
+          </div>
+        </div>
         <Button :disabled="!selectedAttachments.length" :loading="downloading" @click="downloadSelected">
           <Download :size="17" />
           <span>保存</span>
@@ -383,10 +401,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleGlobalKeydow
     </section>
     <ChatFilesDialog
       :open="filesOpen"
-      :messages="messages"
+      :room-id="room?.id || ''"
+      :token="token"
+      :password="password"
       :downloading="downloading"
+      :download-progress="downloadProgress"
       @close="filesOpen = false"
       @download="emit('download', $event)"
+      @cancel-download="emit('cancelDownload')"
     />
     <ImageViewerGallery :images="galleryImages" :active-id="previewImageId" @close="previewImageId = ''" />
   </main>

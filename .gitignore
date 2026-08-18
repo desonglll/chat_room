@@ -2,6 +2,7 @@
 /chat_rooms.db
 /chat_rooms.db-shm
 /chat_rooms.db-wal
+/chat_attachments/
 .DS_Store
 /private/
 /web/dist/

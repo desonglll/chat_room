@@ -47,6 +47,7 @@ async fn configured_upload_limit_is_public_and_enforced() {
         uploads: UploadConfig {
             max_file_size_mib: 1,
         },
+        ..AppConfig::default()
     })
     .await;
     let client = reqwest::Client::new();

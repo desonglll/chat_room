@@ -1,4 +1,4 @@
-//! Account-scoped live unread counters across all joined rooms.
+//! Account-scoped unread counters and cross-room message events.
 
 use std::time::Duration;
 
@@ -52,6 +52,13 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
         Ok(Some(user)) => user,
         _ => return,
     };
+    let mut message_cursor = match state.latest_account_message_cursor(user.id).await {
+        Ok(cursor) => cursor,
+        Err(error) => {
+            tracing::warn!("initialize account message cursor failed: {error}");
+            return;
+        }
+    };
 
     let mut previous = Vec::new();
     let mut refresh = interval(Duration::from_millis(750));
@@ -59,6 +66,23 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
     loop {
         tokio::select! {
             _ = refresh.tick() => {
+                let events = match state.account_messages_after(user.id, message_cursor.as_ref()).await {
+                    Ok(events) => events,
+                    Err(error) => {
+                        tracing::warn!("load account message events failed: {error}");
+                        continue;
+                    }
+                };
+                for (cursor, event) in events {
+                    message_cursor = Some(cursor);
+                    if event.sender_id == Some(user.id) {
+                        continue;
+                    }
+                    let Ok(json) = serde_json::to_string(&event) else { continue };
+                    if socket.send(Message::Text(json)).await.is_err() {
+                        return;
+                    }
+                }
                 let unread = match state.room_unread_counts(user.id).await {
                     Ok(rows) => rows.into_iter().collect::<std::collections::HashMap<_, _>>(),
                     Err(error) => {

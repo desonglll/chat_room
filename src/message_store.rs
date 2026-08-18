@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use crate::attachment_storage::StagedUpload;
 use crate::models::{Attachment, ReplyPreview, StoredMessage, User};
 use crate::state::AppState;
 
@@ -33,7 +34,7 @@ pub(crate) struct MessageCursor {
 pub struct NewAttachment {
     pub file_name: String,
     pub mime_type: String,
-    pub data: Vec<u8>,
+    pub staged: StagedUpload,
 }
 
 pub struct AttachmentMetadata {
@@ -173,48 +174,62 @@ impl AppState {
         upload: NewAttachment,
         content: &str,
         reply_to: Option<Uuid>,
-    ) -> Result<StoredMessage, sqlx::Error> {
+    ) -> anyhow::Result<StoredMessage> {
         let attachment_id = Uuid::new_v4();
         let access_key = Uuid::new_v4();
         let message_id = Uuid::new_v4();
         let created_at = Utc::now();
-        let size_bytes = upload.data.len() as i64;
         let reply_to = self.reply_preview(room_id, reply_to).await?;
+        let NewAttachment {
+            file_name,
+            mime_type,
+            staged,
+        } = upload;
+        let size_bytes = self
+            .attachment_store()
+            .commit(staged, attachment_id)
+            .await?;
         let mut transaction = self.pool().begin().await?;
 
-        sqlx::query(
-            "INSERT INTO attachments \
-             (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, data, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(attachment_id)
-        .bind(access_key)
-        .bind(room_id)
-        .bind(sender.id)
-        .bind(&upload.file_name)
-        .bind(&upload.mime_type)
-        .bind(size_bytes)
-        .bind(&upload.data)
-        .bind(created_at)
-        .execute(&mut *transaction)
-        .await?;
+        let persisted = async {
+            sqlx::query(
+                "INSERT INTO attachments \
+             (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, created_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(attachment_id)
+            .bind(access_key)
+            .bind(room_id)
+            .bind(sender.id)
+            .bind(&file_name)
+            .bind(&mime_type)
+            .bind(size_bytes)
+            .bind(created_at)
+            .execute(&mut *transaction)
+            .await?;
 
-        sqlx::query(
-            "INSERT INTO messages \
+            sqlx::query(
+                "INSERT INTO messages \
              (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, created_at) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(message_id)
-        .bind(room_id)
-        .bind(sender.id)
-        .bind(&sender.username)
-        .bind(content)
-        .bind(attachment_id)
-        .bind(reply_to.as_ref().map(|reply| reply.message_id))
-        .bind(created_at)
-        .execute(&mut *transaction)
-        .await?;
-        transaction.commit().await?;
+            )
+            .bind(message_id)
+            .bind(room_id)
+            .bind(sender.id)
+            .bind(&sender.username)
+            .bind(content)
+            .bind(attachment_id)
+            .bind(reply_to.as_ref().map(|reply| reply.message_id))
+            .bind(created_at)
+            .execute(&mut *transaction)
+            .await?;
+            transaction.commit().await
+        }
+        .await;
+        if let Err(error) = persisted {
+            let _ = self.attachment_store().remove(attachment_id).await;
+            return Err(error.into());
+        }
 
         Ok(StoredMessage {
             id: message_id,
@@ -225,8 +240,8 @@ impl AppState {
             content: content.to_string(),
             attachment: Some(Attachment {
                 id: attachment_id,
-                file_name: upload.file_name,
-                mime_type: upload.mime_type,
+                file_name,
+                mime_type,
                 size_bytes,
                 download_url: format!("/api/attachments/{attachment_id}?key={access_key}"),
             }),
@@ -260,26 +275,6 @@ impl AppState {
                 size_bytes,
             }),
         )
-    }
-
-    pub async fn attachment_chunk(
-        &self,
-        id: Uuid,
-        access_key: Uuid,
-        start: i64,
-        length: i64,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error> {
-        sqlx::query_scalar(
-            "SELECT substr(data, ? + 1, ?) FROM attachments WHERE id = ? AND access_key = ? \
-             AND EXISTS (SELECT 1 FROM messages WHERE messages.attachment_id = attachments.id \
-             AND messages.recalled_at IS NULL)",
-        )
-        .bind(start)
-        .bind(length)
-        .bind(id)
-        .bind(access_key)
-        .fetch_optional(self.pool())
-        .await
     }
 
     pub(crate) async fn latest_message_cursor(

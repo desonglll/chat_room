@@ -290,7 +290,7 @@ async fn fresh_start_creates_database_and_runs_migrations() {
         .fetch_one(state.pool())
         .await
         .unwrap();
-    assert_eq!(migration_count, 9);
+    assert_eq!(migration_count, 11);
 
     let legacy_table: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'app_metadata'",

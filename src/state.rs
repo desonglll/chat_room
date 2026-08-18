@@ -9,6 +9,7 @@ use sqlx::SqlitePool;
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
+use crate::attachment_storage::{self, AttachmentStore};
 use crate::config::AppConfig;
 use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::storage;
@@ -47,6 +48,7 @@ pub struct AppState {
     channels: RwLock<HashMap<Uuid, RoomChannel>>,
     members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
     max_upload_bytes: usize,
+    attachment_store: AttachmentStore,
 }
 
 impl AppState {
@@ -57,8 +59,9 @@ impl AppState {
 
     /// Open a database with validated runtime settings.
     pub async fn open_with_config(database_path: &Path, config: &AppConfig) -> Result<Self> {
-        let pool = storage::open_database(database_path).await?;
-        Self::from_pool(pool, config.max_upload_bytes()?).await
+        let attachment_store = AttachmentStore::open(&config.attachments.directory).await?;
+        let pool = storage::open_database(database_path, &attachment_store).await?;
+        Self::from_pool(pool, config.max_upload_bytes()?, attachment_store).await
     }
 
     /// Open the configured database or the default chat_rooms.db file.
@@ -74,11 +77,16 @@ impl AppState {
 
     /// Create an isolated in-memory database with explicit runtime settings.
     pub async fn new_with_config(config: &AppConfig) -> Result<Self> {
-        let pool = storage::open_memory_database().await?;
-        Self::from_pool(pool, config.max_upload_bytes()?).await
+        let attachment_store = AttachmentStore::open(attachment_storage::test_directory()).await?;
+        let pool = storage::open_memory_database(&attachment_store).await?;
+        Self::from_pool(pool, config.max_upload_bytes()?, attachment_store).await
     }
 
-    async fn from_pool(pool: SqlitePool, max_upload_bytes: usize) -> Result<Self> {
+    async fn from_pool(
+        pool: SqlitePool,
+        max_upload_bytes: usize,
+        attachment_store: AttachmentStore,
+    ) -> Result<Self> {
         let loaded: Vec<Room> = sqlx::query_as(SELECT_ROOMS)
             .fetch_all(&pool)
             .await
@@ -97,6 +105,7 @@ impl AppState {
             channels: RwLock::new(channels),
             members: RwLock::new(HashMap::new()),
             max_upload_bytes,
+            attachment_store,
         })
     }
 
@@ -156,6 +165,11 @@ impl AppState {
         id: Uuid,
         expected_password_hash: &str,
     ) -> Result<bool, sqlx::Error> {
+        let attachment_ids: Vec<Uuid> =
+            sqlx::query_scalar("SELECT id FROM attachments WHERE room_id = ?")
+                .bind(id)
+                .fetch_all(&self.pool)
+                .await?;
         let result = sqlx::query("DELETE FROM rooms WHERE id = ? AND password_hash = ?")
             .bind(id)
             .bind(expected_password_hash)
@@ -168,6 +182,11 @@ impl AppState {
 
         self.rooms.write().await.remove(&id);
         self.disconnect_room(id, "room deleted").await;
+        for attachment_id in attachment_ids {
+            if let Err(error) = self.attachment_store.remove(attachment_id).await {
+                tracing::warn!("remove deleted room attachment failed: {error:#}");
+            }
+        }
         Ok(true)
     }
 
@@ -323,6 +342,10 @@ impl AppState {
 
     pub fn max_upload_bytes(&self) -> usize {
         self.max_upload_bytes
+    }
+
+    pub fn attachment_store(&self) -> &AttachmentStore {
+        &self.attachment_store
     }
 }
 

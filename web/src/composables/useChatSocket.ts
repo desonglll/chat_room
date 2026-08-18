@@ -1,5 +1,4 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { createBrowserNotifier } from '../browserNotifications'
 import type {
   BroadcastMessage,
   ChatStatus,
@@ -80,11 +79,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   let typingTimer: number | undefined
   let pendingTyping = ''
   const typingExpiry = new Map<string, number>()
-  const notifier = createBrowserNotifier(
-    () => reconnectTarget?.room.name || 'Chat Room',
-    () => currentUserId.value,
-  )
-
   const authenticated = computed(() => status.value === 'online')
   const statusLabel = computed(() => ({
     idle: '未连接',
@@ -142,7 +136,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       status.value = 'online'
       error.value = ''
       reconnectAttempt = 0
-      notifier.arm()
       return
     }
     if (message.type === 'auth_fail') {
@@ -215,13 +208,12 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     onSystemEvent?.(content)
   }
 
-  function appendBroadcast(message: BroadcastMessage, showBrowserNotification = true): void {
+  function appendBroadcast(message: BroadcastMessage, _showBrowserNotification = true): void {
     const duplicate = messages.value.some(
       (item) => item.type === 'broadcast' && item.message_id === message.message_id,
     )
     if (!duplicate) {
       messages.value.push(message)
-      if (showBrowserNotification) notifier.notify(message)
     }
   }
 
@@ -380,10 +372,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     return true
   }
 
-  function configureNotifications(enabled: boolean, showDetails: boolean): void {
-    notifier.configure(enabled, showDetails)
-  }
-
   onBeforeUnmount(() => close())
 
   return {
@@ -399,7 +387,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     typingDrafts,
     appendBroadcast,
     close,
-    configureNotifications,
     connect,
     edit,
     markRead,

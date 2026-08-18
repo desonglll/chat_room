@@ -94,7 +94,7 @@ function beginDelete(): void {
 }
 
 async function confirmDelete(): Promise<void> {
-  if (!props.room) return
+  if (!props.room || props.room.membership_role !== 'owner') return
   const room = props.room
   busy.value = true
   error.value = ''
@@ -146,7 +146,7 @@ async function confirmDelete(): Promise<void> {
         <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>
 
         <div class="flex flex-col-reverse gap-2 border-t border-surface-200 pt-4 sm:flex-row sm:justify-between">
-          <Button type="button" severity="danger" outlined @click="beginDelete">
+          <Button v-if="room.membership_role === 'owner'" type="button" severity="danger" outlined @click="beginDelete">
             <Trash2 :size="17" />
             <span>删除聊天室</span>
           </Button>
@@ -161,7 +161,7 @@ async function confirmDelete(): Promise<void> {
       </form>
     </template>
 
-    <template v-else-if="room">
+    <template v-else-if="room && room.membership_role === 'owner'">
       <p class="text-sm leading-6 text-surface-600">
         确定删除“<strong class="text-surface-900">{{ room.name }}</strong>”吗？该房间的全部消息也会被删除。
       </p>

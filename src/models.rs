@@ -58,6 +58,23 @@ pub struct Attachment {
     pub download_url: String,
 }
 
+/// One attachment-bearing message returned by the paginated room file browser.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ChatFileItem {
+    pub message_id: Uuid,
+    pub sender_id: Option<Uuid>,
+    pub sender: String,
+    pub sender_avatar: String,
+    pub created_at: DateTime<Utc>,
+    pub attachment: Attachment,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ChatFilePage {
+    pub items: Vec<ChatFileItem>,
+    pub next_before: Option<Uuid>,
+}
+
 /// Stable excerpt of the message referenced by a reply.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ReplyPreview {

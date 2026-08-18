@@ -21,16 +21,12 @@ impl AppState {
         let Some(user_id) = user_id else {
             return Ok(None);
         };
-        let role_id: String =
-            sqlx::query_scalar("SELECT id FROM room_roles WHERE room_id = ? AND name = 'member'")
-                .bind(room_id)
-                .fetch_one(self.pool())
-                .await?;
         let now = Utc::now();
         sqlx::query(
             "INSERT INTO room_memberships \
              (room_id, user_id, role_id, status, invited_by, requested_at) \
-             VALUES (?, ?, ?, 'invited', ?, ?) \
+             SELECT ?, ?, room_roles.id, 'invited', ?, ? FROM room_roles \
+             WHERE room_roles.room_id = ? AND room_roles.name = 'member' \
              ON CONFLICT(room_id, user_id) DO UPDATE SET \
                status = CASE WHEN room_memberships.status = 'active' \
                  THEN 'active' ELSE 'invited' END, \
@@ -41,9 +37,9 @@ impl AppState {
         )
         .bind(room_id)
         .bind(user_id)
-        .bind(role_id)
         .bind(invited_by)
         .bind(now)
+        .bind(room_id)
         .execute(self.pool())
         .await?;
         self.room_membership(room_id, user_id).await
@@ -75,22 +71,25 @@ impl AppState {
         user_id: Uuid,
         role: &str,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let role_id: Option<String> = sqlx::query_scalar(
-            "SELECT id FROM room_roles WHERE room_id = ? AND name = ? AND name IN ('admin', 'member')",
+        let role_exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM room_roles \
+             WHERE room_id = ? AND name = ? AND name IN ('admin', 'member'))",
         )
         .bind(room_id)
         .bind(role)
-        .fetch_optional(self.pool())
+        .fetch_one(self.pool())
         .await?;
-        let Some(role_id) = role_id else {
+        if !role_exists {
             return Ok(None);
-        };
+        }
         let result = sqlx::query(
-            "UPDATE room_memberships SET role_id = ? \
-             WHERE room_id = ? AND user_id = ? AND status = 'active' \
+            "UPDATE room_memberships SET role_id = (\
+               SELECT id FROM room_roles WHERE room_id = ? AND name = ?\
+             ) WHERE room_id = ? AND user_id = ? AND status = 'active' \
              AND role_id <> (SELECT id FROM room_roles WHERE room_id = ? AND name = 'owner')",
         )
-        .bind(role_id)
+        .bind(room_id)
+        .bind(role)
         .bind(room_id)
         .bind(user_id)
         .bind(room_id)

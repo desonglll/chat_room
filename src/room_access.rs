@@ -58,7 +58,7 @@ impl AppState {
         ];
         let mut owner_role_id = String::new();
         for (name, permissions) in roles {
-            let role_id = Uuid::new_v4().to_string();
+            let role_id = format!("{}:{name}", room.id.simple());
             if name == "owner" {
                 owner_role_id.clone_from(&role_id);
             }
@@ -210,15 +210,11 @@ impl AppState {
         auto_activate: bool,
     ) -> Result<RoomMembership, sqlx::Error> {
         let now = Utc::now();
-        let role_id: String =
-            sqlx::query_scalar("SELECT id FROM room_roles WHERE room_id = ? AND name = 'member'")
-                .bind(room_id)
-                .fetch_one(self.pool())
-                .await?;
         sqlx::query(
             "INSERT INTO room_memberships \
              (room_id, user_id, role_id, status, requested_at, joined_at) \
-             VALUES (?, ?, ?, ?, ?, ?) \
+             SELECT ?, ?, room_roles.id, ?, ?, ? FROM room_roles \
+             WHERE room_roles.room_id = ? AND room_roles.name = 'member' \
              ON CONFLICT(room_id, user_id) DO UPDATE SET \
                status = CASE \
                  WHEN room_memberships.status IN ('active', 'invited') OR ? THEN 'active' \
@@ -231,10 +227,10 @@ impl AppState {
         )
         .bind(room_id)
         .bind(user_id)
-        .bind(role_id)
         .bind(if auto_activate { "active" } else { "pending" })
         .bind(now)
         .bind(auto_activate.then_some(now))
+        .bind(room_id)
         .bind(auto_activate)
         .bind(auto_activate)
         .execute(self.pool())
