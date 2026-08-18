@@ -1,6 +1,8 @@
 //! chat_room — Axum-based chat server with WebSocket and OpenAPI.
 
+pub mod attachment_handlers;
 pub mod handlers;
+pub mod message_store;
 pub mod models;
 pub mod state;
 pub mod storage;
@@ -28,6 +30,8 @@ use crate::state::AppState;
         handlers::update_room,
         handlers::delete_room,
         handlers::list_messages,
+        attachment_handlers::upload_attachment,
+        attachment_handlers::download_attachment,
         user_handlers::register,
         user_handlers::login,
         user_handlers::me,
@@ -38,6 +42,7 @@ use crate::state::AppState;
         models::CreateRoomRequest,
         models::UpdateRoomRequest,
         models::StoredMessage,
+        models::Attachment,
         models::User,
         models::AuthRequest,
         models::AuthSession,
@@ -71,6 +76,16 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
                 .delete(handlers::delete_room),
         )
         .route("/api/rooms/:id/messages", get(handlers::list_messages))
+        .route(
+            "/api/rooms/:id/attachments",
+            axum::routing::post(attachment_handlers::upload_attachment).layer(
+                axum::extract::DefaultBodyLimit::max(attachment_handlers::MULTIPART_BODY_LIMIT),
+            ),
+        )
+        .route(
+            "/api/attachments/:id",
+            get(attachment_handlers::download_attachment),
+        )
         .route(
             "/api/users/register",
             axum::routing::post(user_handlers::register),

@@ -15,8 +15,9 @@ use tokio::{
 };
 use uuid::Uuid;
 
+use crate::message_store::MessageCursor;
 use crate::models::{ChatMessage, Room, StoredMessage, User};
-use crate::state::{MessageCursor, RoomEvent, SharedState};
+use crate::state::{RoomEvent, SharedState};
 
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const HISTORY_REPLAY_LIMIT: i64 = 100;
@@ -270,6 +271,7 @@ fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         sender_id: message.sender_id,
         sender: message.sender,
         content: message.content,
+        attachment: message.attachment,
         timestamp: message.created_at,
     }
 }

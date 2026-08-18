@@ -9,10 +9,13 @@ import {
   LogIn,
   LogOut,
   MessageCircle,
+  LoaderCircle,
+  Paperclip,
   Send,
   UserRound,
 } from 'lucide-vue-next'
 import { shouldSubmitMessage } from '../composer'
+import MessageAttachment from './MessageAttachment.vue'
 import type { ChatStatus, DisplayMessage, Room, User } from '../types'
 
 const props = defineProps<{
@@ -26,6 +29,7 @@ const props = defineProps<{
   messages: DisplayMessage[]
   currentUserId: string
   visible: boolean
+  uploading: boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,11 +39,13 @@ const emit = defineEmits<{
   join: []
   authenticate: []
   send: [content: string]
+  upload: [files: File[]]
   'update:password': [password: string]
 }>()
 
 const messageInput = ref<HTMLTextAreaElement | null>(null)
 const messageList = ref<HTMLElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const draft = ref('')
 const passwordVisible = ref(false)
 let composing: boolean = false
@@ -100,6 +106,13 @@ function onCompositionEnd(): void {
 
 function onCompositionStart(): void {
   composing = true
+}
+
+function selectFiles(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  input.value = ''
+  if (files.length) emit('upload', files)
 }
 </script>
 
@@ -183,12 +196,25 @@ function onCompositionStart(): void {
                 <strong>{{ message.sender_id === currentUserId ? '你' : message.sender }}</strong>
                 <time>{{ formatTime(message.timestamp) }}</time>
               </div>
-              <p class="message-bubble">{{ message.content }}</p>
+              <MessageAttachment v-if="message.attachment" :attachment="message.attachment" />
+              <p v-if="message.content" class="message-bubble">{{ message.content }}</p>
             </div>
           </div>
         </template>
       </div>
       <form class="composer" data-testid="chat-form" @submit.prevent="submitMessage">
+        <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles">
+        <button
+          class="attach-button"
+          type="button"
+          :disabled="uploading"
+          aria-label="上传文件"
+          title="上传文件（最大 50 MiB）"
+          @click="fileInput?.click()"
+        >
+          <LoaderCircle v-if="uploading" class="spinning" :size="19" />
+          <Paperclip v-else :size="19" />
+        </button>
         <label class="sr-only" for="messageInput">消息</label>
         <textarea
           id="messageInput"
@@ -209,3 +235,23 @@ function onCompositionStart(): void {
     </section>
   </main>
 </template>
+
+<style scoped>
+.attach-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  background: #fff;
+  color: #52525b;
+}
+
+.attach-button:hover {
+  background: #f4f4f5;
+  color: #0f766e;
+}
+</style>

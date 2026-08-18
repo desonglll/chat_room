@@ -5,22 +5,15 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::models::{ChatMessage, Room, StoredMessage};
+use crate::models::{ChatMessage, Room};
 use crate::storage;
 
 const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
      password_hash <> '' AS has_password, created_at FROM rooms";
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct MessageCursor {
-    pub created_at: DateTime<Utc>,
-    pub id: Uuid,
-}
 
 #[derive(Clone)]
 pub(crate) enum RoomEvent {
@@ -165,131 +158,6 @@ impl AppState {
         self.rooms.write().await.remove(&id);
         self.disconnect_room(id, "room deleted").await;
         Ok(true)
-    }
-
-    /// Store a user message before it is broadcast to room participants.
-    pub async fn store_message(
-        &self,
-        room_id: Uuid,
-        sender_id: Uuid,
-        sender: &str,
-        content: &str,
-    ) -> Result<StoredMessage, sqlx::Error> {
-        let id = Uuid::new_v4();
-        let created_at = Utc::now();
-        sqlx::query(
-            "INSERT INTO messages (id, room_id, sender_id, sender, content, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(room_id)
-        .bind(sender_id)
-        .bind(sender)
-        .bind(content)
-        .bind(created_at)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(StoredMessage {
-            id,
-            room_id,
-            sender_id: Some(sender_id),
-            sender: sender.to_string(),
-            content: content.to_string(),
-            created_at,
-        })
-    }
-
-    pub(crate) async fn latest_message_cursor(
-        &self,
-        room_id: Uuid,
-    ) -> Result<Option<MessageCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid)> = sqlx::query_as(
-            "SELECT created_at, id FROM messages WHERE room_id = ? \
-             ORDER BY created_at DESC, id DESC LIMIT 1",
-        )
-        .bind(room_id)
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.map(|(created_at, id)| MessageCursor { created_at, id }))
-    }
-
-    /// Return messages created after a connection's database cursor.
-    pub(crate) async fn messages_after(
-        &self,
-        room_id: Uuid,
-        cursor: Option<&MessageCursor>,
-        limit: i64,
-    ) -> Result<Vec<StoredMessage>, sqlx::Error> {
-        let limit = limit.clamp(1, 500);
-        match cursor {
-            Some(cursor) => {
-                sqlx::query_as(
-                    "SELECT id, room_id, sender_id, sender, content, created_at \
-                     FROM messages WHERE room_id = ? AND \
-                     (created_at > ? OR (created_at = ? AND id > ?)) \
-                     ORDER BY created_at ASC, id ASC LIMIT ?",
-                )
-                .bind(room_id)
-                .bind(cursor.created_at)
-                .bind(cursor.created_at)
-                .bind(cursor.id)
-                .bind(limit)
-                .fetch_all(&self.pool)
-                .await
-            }
-            None => {
-                sqlx::query_as(
-                    "SELECT id, room_id, sender_id, sender, content, created_at \
-                     FROM messages WHERE room_id = ? \
-                     ORDER BY created_at ASC, id ASC LIMIT ?",
-                )
-                .bind(room_id)
-                .bind(limit)
-                .fetch_all(&self.pool)
-                .await
-            }
-        }
-    }
-
-    /// Return persisted messages oldest-first, limited to the newest entries.
-    pub(crate) async fn message_history(
-        &self,
-        room_id: Uuid,
-        limit: i64,
-        through: Option<&MessageCursor>,
-    ) -> Result<Vec<StoredMessage>, sqlx::Error> {
-        let limit = limit.clamp(1, 500);
-        let mut messages: Vec<StoredMessage> = match through {
-            Some(cursor) => {
-                sqlx::query_as(
-                    "SELECT id, room_id, sender_id, sender, content, created_at \
-                     FROM messages WHERE room_id = ? AND \
-                     (created_at < ? OR (created_at = ? AND id <= ?)) \
-                     ORDER BY created_at DESC, id DESC LIMIT ?",
-                )
-                .bind(room_id)
-                .bind(cursor.created_at)
-                .bind(cursor.created_at)
-                .bind(cursor.id)
-                .bind(limit)
-                .fetch_all(&self.pool)
-                .await?
-            }
-            None => {
-                sqlx::query_as(
-                    "SELECT id, room_id, sender_id, sender, content, created_at \
-                     FROM messages WHERE room_id = ? \
-                     ORDER BY created_at DESC, id DESC LIMIT ?",
-                )
-                .bind(room_id)
-                .bind(limit)
-                .fetch_all(&self.pool)
-                .await?
-            }
-        };
-        messages.reverse();
-        Ok(messages)
     }
 
     pub(crate) async fn subscribe(&self, id: Uuid) -> Option<broadcast::Receiver<RoomEvent>> {

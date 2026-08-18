@@ -22,14 +22,25 @@ pub struct Room {
 }
 
 /// A chat message persisted as part of a room session.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StoredMessage {
     pub id: Uuid,
     pub room_id: Uuid,
     pub sender_id: Option<Uuid>,
     pub sender: String,
     pub content: String,
+    pub attachment: Option<Attachment>,
     pub created_at: DateTime<Utc>,
+}
+
+/// Metadata needed to display or download a message attachment.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Attachment {
+    pub id: Uuid,
+    pub file_name: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
+    pub download_url: String,
 }
 
 /// Public account data. Password hashes and session records are never exposed.
@@ -108,6 +119,7 @@ pub enum ChatMessage {
         sender_id: Option<Uuid>,
         sender: String,
         content: String,
+        attachment: Option<Attachment>,
         timestamp: DateTime<Utc>,
     },
 

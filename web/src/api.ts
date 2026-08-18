@@ -1,4 +1,4 @@
-import type { AuthSession, Room, User } from './types'
+import type { AuthSession, BroadcastMessage, Room, StoredMessage, User } from './types'
 
 async function request(path: string, options: RequestInit = {}): Promise<Response> {
   return fetch(path, {
@@ -100,4 +100,36 @@ export async function deleteRoom(roomId: string, password: string): Promise<void
   if (response.status === 401) throw new Error('当前房间密码错误')
   if (response.status === 409) throw new Error('聊天室刚刚被修改，请重试')
   if (response.status !== 204) throw new Error(`删除失败：${response.status}`)
+}
+
+export async function uploadAttachment(
+  roomId: string,
+  file: File,
+  token: string,
+  password: string,
+): Promise<BroadcastMessage> {
+  const body = new FormData()
+  body.append('file', file)
+  const headers: Record<string, string> = authHeaders(token)
+  if (password) headers['x-room-password'] = password
+  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/attachments`, {
+    method: 'POST',
+    headers,
+    body,
+  })
+  if (response.status === 400) throw new Error('文件为空、名称无效或上传内容无法读取')
+  if (response.status === 401) throw new Error('登录已过期或房间密码错误')
+  if (response.status === 404) throw new Error('聊天室不存在')
+  if (response.status === 413) throw new Error('文件不能超过 50 MiB')
+  if (!response.ok) throw new Error(`上传失败：${response.status}`)
+  const message = await response.json() as StoredMessage
+  return {
+    type: 'broadcast',
+    message_id: message.id,
+    sender_id: message.sender_id,
+    sender: message.sender,
+    content: message.content,
+    attachment: message.attachment,
+    timestamp: message.created_at,
+  }
 }

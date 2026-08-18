@@ -5,7 +5,7 @@ import ChatPanel from './components/ChatPanel.vue'
 import CreateRoomDialog from './components/CreateRoomDialog.vue'
 import ManageRoomDialog from './components/ManageRoomDialog.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
-import { getCurrentUser, listRooms, logoutUser } from './api'
+import { getCurrentUser, listRooms, logoutUser, uploadAttachment } from './api'
 import { useChatSocket } from './composables/useChatSocket'
 import type { AuthSession, Room, RoomUpdateResult, User } from './types'
 
@@ -38,6 +38,7 @@ const manageOpen = ref(false)
 const authOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const toast = ref('')
+const uploading = ref(false)
 let restoreAttempted = false
 let toastTimer: number | undefined
 
@@ -197,6 +198,27 @@ async function handleDeleted(roomId: string): Promise<void> {
   showToast('聊天室已删除')
 }
 
+async function handleUpload(files: File[]): Promise<void> {
+  const room = selectedRoom.value
+  if (!room || !sessionToken.value || !chat.authenticated.value || uploading.value) return
+  uploading.value = true
+  try {
+    for (const file of files) {
+      const message = await uploadAttachment(
+        room.id,
+        file,
+        sessionToken.value,
+        roomPassword.value,
+      )
+      if (selectedRoom.value?.id === room.id) chat.appendBroadcast(message)
+    }
+  } catch (caught) {
+    showToast(caught instanceof Error ? caught.message : '文件上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
 onMounted(async () => {
   await restoreSession()
   await loadRoomList()
@@ -233,12 +255,14 @@ onMounted(async () => {
       :messages="chat.messages.value"
       :current-user-id="chat.currentUserId.value"
       :visible="mobileView === 'chat'"
+      :uploading="uploading"
       @back="mobileView = 'rooms'"
       @manage="manageOpen = true"
       @leave="selectedRoom && selectRoom(selectedRoom)"
       @join="joinSelectedRoom"
       @authenticate="authOpen = true"
       @send="chat.send"
+      @upload="handleUpload"
       @update:password="roomPassword = $event"
     />
 

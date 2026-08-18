@@ -17,13 +17,32 @@ export interface AuthSession {
   expires_at: string
 }
 
+export interface Attachment {
+  id: string
+  file_name: string
+  mime_type: string
+  size_bytes: number
+  download_url: string
+}
+
 export interface BroadcastMessage {
   type: 'broadcast'
   message_id: string
   sender_id: string | null
   sender: string
   content: string
+  attachment: Attachment | null
   timestamp: string
+}
+
+export interface StoredMessage {
+  id: string
+  room_id: string
+  sender_id: string | null
+  sender: string
+  content: string
+  attachment: Attachment | null
+  created_at: string
 }
 
 export interface SystemMessage {

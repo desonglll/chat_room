@@ -14,7 +14,7 @@ name = "client"
 path = "src/bin/client.rs"
 
 [dependencies]
-axum = { version = "0.7", features = ["ws"] }
+axum = { version = "0.7", features = ["multipart", "ws"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,11 +29,12 @@ futures-util = { version = "0.3", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 tokio-tungstenite = "0.23"
 clap = { version = "4", features = ["derive"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] }
 anyhow = "1"
 argon2 = "0.5"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
 rustyline = "17"
 colored = "3"
+mime_guess = "2"
 
 [dev-dependencies]

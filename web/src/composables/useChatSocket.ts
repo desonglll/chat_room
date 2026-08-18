@@ -113,16 +113,20 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       return
     }
     if (message.type === 'broadcast') {
-      const duplicate = messages.value.some(
-        (item) => item.type === 'broadcast' && item.message_id === message.message_id,
-      )
-      if (!duplicate) messages.value.push(message)
+      appendBroadcast(message)
       return
     }
 
     const content = message.content || ''
     appendSystem(content)
     onSystemEvent?.(content)
+  }
+
+  function appendBroadcast(message: BroadcastMessage): void {
+    const duplicate = messages.value.some(
+      (item) => item.type === 'broadcast' && item.message_id === message.message_id,
+    )
+    if (!duplicate) messages.value.push(message)
   }
 
   function scheduleReconnect(): void {
@@ -208,5 +212,16 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
 
   onBeforeUnmount(() => close())
 
-  return { authenticated, currentUserId, error, messages, status, statusLabel, close, connect, send }
+  return {
+    authenticated,
+    currentUserId,
+    error,
+    messages,
+    status,
+    statusLabel,
+    appendBroadcast,
+    close,
+    connect,
+    send,
+  }
 }
