@@ -108,8 +108,12 @@ impl AppState {
         content: &str,
         reply_to: Option<Uuid>,
         expected_hash: Option<&str>,
+        streamed_hash: Option<&str>,
     ) -> Result<StoredMessage> {
-        let content_hash = self.attachment_store().hash_chunked(upload_id).await?;
+        let content_hash = match streamed_hash {
+            Some(hash) => hash.to_owned(),
+            None => self.attachment_store().hash_chunked(upload_id).await?,
+        };
         if expected_hash.is_some_and(|expected| expected != content_hash) {
             anyhow::bail!("uploaded content does not match its declared SHA-256");
         }

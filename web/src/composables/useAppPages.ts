@@ -4,15 +4,14 @@ import type { User, Room } from '../types'
 
 type AppPage = 'chat' | 'profile' | 'settings' | 'discover'
 
-// The room itself only earns the plain /rooms/:id URL once actually
-// connected — otherwise it's the join-gate, at its own /join URL, so
-// refreshing there never looks like a silently-joined room.
-function resolveTarget(page: AppPage, selectedRoom: Room | null, authenticated: boolean) {
+// Membership survives refreshes and short WebSocket reconnects.  Route access
+// follows that durable state; the live socket only fills gaps in old snapshots.
+export function resolveTarget(page: AppPage, selectedRoom: Room | null, authenticated: boolean) {
   if (page === 'profile') return { name: 'profile' as const }
   if (page === 'settings') return { name: 'settings' as const }
   if (page === 'discover') return { name: 'discover' as const }
   if (!selectedRoom) return { name: 'home' as const }
-  return authenticated
+  return authenticated || selectedRoom.membership_status === 'active'
     ? { name: 'room' as const, params: { id: selectedRoom.id } }
     : { name: 'room-join' as const, params: { id: selectedRoom.id } }
 }

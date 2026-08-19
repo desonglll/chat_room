@@ -282,7 +282,10 @@ const attachmentUpload = useAttachmentUpload({
   password: roomPassword,
   authenticated: () => chat.authenticated.value,
   maxBytes: maxUploadBytes,
-  append: (message) => chat.appendBroadcast(message, false),
+  append: chat.appendUpload,
+  update: chat.updateUpload,
+  complete: chat.completeUpload,
+  remove: chat.removeUpload,
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
 
@@ -397,8 +400,6 @@ function handleForwarded(): void {
       :read-receipts="chat.readReceipts.value"
       :current-user-id="chat.currentUserId.value"
       :visible="mobileView === 'chat'"
-      :uploading="attachmentUpload.uploading.value"
-      :upload-progress="attachmentUpload.progress.value"
       :pending-uploads="attachmentUpload.pendingUploads.value"
       :downloading="downloading"
       :download-progress="downloadProgress"
@@ -423,6 +424,8 @@ function handleForwarded(): void {
       @upload="attachmentUpload.upload"
       @resume-upload="attachmentUpload.resume"
       @cancel-upload="attachmentUpload.cancel"
+      @cancel-upload-task="attachmentUpload.cancelTask"
+      @retry-upload-task="attachmentUpload.retry"
       @recall="chat.recall"
       @edit="chat.edit"
       @typing="chat.sendTyping"

@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use crate::message_store::NewAttachment;
 use crate::models::{Room, StoredMessage, User};
+use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 
 pub const MULTIPART_OVERHEAD_BYTES: usize = 1024 * 1024;
@@ -98,14 +99,17 @@ pub async fn upload_attachment(
         staged: staged.ok_or(StatusCode::BAD_REQUEST)?,
     };
     let display_name = state.resolve_display_name(room.id, &user).await;
-    state
+    let message = state
         .store_attachment_message(room.id, &user, &display_name, upload, &content, reply_to)
         .await
-        .map(|message| (StatusCode::CREATED, Json(message)))
         .map_err(|error| {
             tracing::error!("persist attachment message failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
-        })
+        })?;
+    state
+        .broadcast(room.id, stored_message_to_chat(message.clone()))
+        .await;
+    Ok((StatusCode::CREATED, Json(message)))
 }
 
 #[utoipa::path(

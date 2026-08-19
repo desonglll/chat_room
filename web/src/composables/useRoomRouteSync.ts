@@ -11,6 +11,10 @@ interface RoomRouteSyncOptions {
 
 const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
 
+export function shouldPromoteJoinRoute(online: boolean, routeName: unknown): boolean {
+  return online && routeName === 'room-join'
+}
+
 export function useRoomRouteSync(options: RoomRouteSyncOptions): void {
   const route = useRoute()
   const router = useRouter()
@@ -20,11 +24,11 @@ export function useRoomRouteSync(options: RoomRouteSyncOptions): void {
     if (online && room?.has_password) {
       storageSet(window.sessionStorage, passwordKey(room.id), options.password.value)
     }
-    if (!room || (route.name !== 'room' && route.name !== 'room-join')) return
+    // A refresh briefly makes the socket offline while it reconnects.  That
+    // transport state must never turn an existing room URL into a join URL.
+    if (!room || !shouldPromoteJoinRoute(online, route.name)) return
 
-    const target = online
-      ? { name: 'room' as const, params: { id: room.id } }
-      : { name: 'room-join' as const, params: { id: room.id } }
+    const target = { name: 'room' as const, params: { id: room.id } }
     if (router.resolve(target).fullPath !== route.fullPath) {
       void router.replace(target).catch(() => {})
     }

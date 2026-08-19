@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::attachment_upload_sessions::{AttachmentUploadSession, AttachmentUploadSpec};
 use crate::models::StoredMessage;
+use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
@@ -198,6 +199,10 @@ pub async fn upload_chunk(
         Ok(new_size) => {
             let new_size = new_size as i64;
             state
+                .upload_hashes()
+                .record(upload_id, query.offset as u64, &body)
+                .await;
+            state
                 .update_attachment_upload_progress(upload_id, new_size)
                 .await
                 .map_err(|_| chunk_error(StatusCode::INTERNAL_SERVER_ERROR, new_size))?;
@@ -264,6 +269,10 @@ pub async fn complete_upload(
     }
 
     let display_name = state.resolve_display_name(session.room_id, &user).await;
+    let streamed_hash = state
+        .upload_hashes()
+        .completed_digest(upload_id, session.declared_size_bytes as u64)
+        .await;
     let reusable_storage_key = match session.content_hash.as_deref() {
         Some(hash) => state
             .healthy_owned_storage_key(hash, user.id, session.declared_size_bytes)
@@ -307,12 +316,17 @@ pub async fn complete_upload(
                 content,
                 request.reply_to,
                 session.content_hash.as_deref(),
+                streamed_hash.as_deref(),
             )
             .await
     };
     match result {
         Ok(message) => {
+            state.upload_hashes().remove(upload_id).await;
             let _ = state.finish_attachment_upload(upload_id, "completed").await;
+            state
+                .broadcast(session.room_id, stored_message_to_chat(message.clone()))
+                .await;
             Ok((StatusCode::CREATED, Json(message)))
         }
         Err(error) => {
@@ -374,6 +388,7 @@ pub async fn cancel_upload(
         return Err(StatusCode::NOT_FOUND);
     }
     let _ = state.attachment_store().discard_chunked(upload_id).await;
+    state.upload_hashes().remove(upload_id).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

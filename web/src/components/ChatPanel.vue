@@ -26,7 +26,6 @@ import type {
   User,
 } from '../types'
 import type { DownloadProgress } from '../attachmentDownloads'
-import type { ChunkedUploadProgress } from '../composables/useChunkedUpload'
 
 const ChatFilesDialog = defineAsyncComponent(() => import('./ChatFilesDialog.vue'))
 const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
@@ -48,7 +47,6 @@ const props = defineProps<{
   readReceipts: ReadReceipt[]
   currentUserId: string
   visible: boolean
-  uploading: boolean
   sendShortcut: SendShortcut
   focusShortcut: FocusShortcut
   typingDrafts: TypingDraft[]
@@ -58,7 +56,6 @@ const props = defineProps<{
   pokedAt: number
   loadingOlder: boolean
   hasMoreHistory: boolean
-  uploadProgress: ChunkedUploadProgress | null
   pendingUploads: AttachmentUploadSession[]
   aiEnabled: boolean
   loading: boolean
@@ -77,6 +74,8 @@ const emit = defineEmits<{
   upload: [files: File[], content: string, replyTo: string, isSensitive: boolean]
   resumeUpload: [session: AttachmentUploadSession, file: File]
   cancelUpload: [session: AttachmentUploadSession]
+  cancelUploadTask: [key: string]
+  retryUploadTask: [key: string]
   recall: [messageId: string]
   edit: [messageId: string, content: string]
   forward: [messageIds: string[]]
@@ -346,6 +345,8 @@ onBeforeUnmount(() => {
         @view-profile="viewProfileUserId = $event"
         @poke="emit('poke', $event)"
         @retry="emit('retry', $event)"
+        @cancel-upload="emit('cancelUploadTask', $event)"
+        @retry-upload="emit('retryUploadTask', $event)"
       />
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
@@ -389,9 +390,7 @@ onBeforeUnmount(() => {
       </div>
       <template v-else>
         <UploadStatusPanel
-          :progress="uploadProgress"
           :pending="pendingUploads"
-          :disabled="uploading"
           @resume="(session, file) => emit('resumeUpload', session, file)"
           @cancel="emit('cancelUpload', $event)"
         />
@@ -400,7 +399,6 @@ onBeforeUnmount(() => {
           :key="room?.id || ''"
           :replying-to="replyingTo"
           :editing-to="editingTo"
-          :uploading="uploading"
           :send-shortcut="sendShortcut"
           :max-upload-bytes="maxUploadBytes"
           :participants="participants"

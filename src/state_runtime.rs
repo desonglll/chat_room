@@ -6,7 +6,8 @@ use sqlx::{PgPool, SqlitePool};
 
 use crate::{
     admin_metrics::RuntimeMetrics, ai::AiAssistant, attachment_content::ContentHashLocks,
-    attachment_storage::AttachmentStore, state::AppState, storage,
+    attachment_storage::AttachmentStore, attachments::upload_hashes::UploadHashTracker,
+    state::AppState, storage,
 };
 
 impl AppState {
@@ -72,6 +73,10 @@ impl AppState {
 
     pub(crate) fn content_hash_locks(&self) -> &ContentHashLocks {
         &self.content_hash_locks
+    }
+
+    pub(crate) fn upload_hashes(&self) -> &UploadHashTracker {
+        &self.upload_hashes
     }
 
     pub(crate) fn runtime_metrics(&self) -> &RuntimeMetrics {

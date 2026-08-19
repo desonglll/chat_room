@@ -167,7 +167,27 @@ export interface SystemMessage {
   motion?: MessageMotion
 }
 
-export type DisplayMessage = BroadcastMessage | SystemMessage
+export type UploadPhase = 'queued' | 'hashing' | 'uploading' | 'deduplicating' | 'finalizing'
+export type UploadTaskStatus = 'pending' | 'failed'
+
+export interface UploadMessage {
+  type: 'upload'
+  key: string
+  room_id: string
+  file_name: string
+  mime_type: string
+  size_bytes: number
+  preview_url: string
+  content: string
+  phase: UploadPhase
+  processed_bytes: number
+  total_bytes: number
+  status: UploadTaskStatus
+  error: string
+  timestamp: string
+}
+
+export type DisplayMessage = BroadcastMessage | SystemMessage | UploadMessage
 export type MessageMotion = 'none' | 'incoming' | 'outgoing' | 'system'
 export type DeliveryState = 'sending' | 'sent' | 'failed'
 export type ChatStatus = 'idle' | 'connecting' | 'online' | 'offline' | 'failed'

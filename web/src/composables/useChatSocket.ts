@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { createOptimisticMessage, reconcileOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
 import { AUTH_ERRORS, readableSystemMessage, type ServerMessage } from '../chatProtocol'
 import { classifyMessageMotion, classifySystemMotion } from '../messageMotion'
+import { useChatUploadMessages } from './useChatUploadMessages'
 import type { BroadcastMessage, ChatStatus, DisplayMessage, ReadReceipt, Room, RoomMember, TypingDraft } from '../types'
 
 interface ReconnectTarget {
@@ -34,6 +35,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   let pendingTyping = ''
   const typingExpiry = new Map<string, number>()
   const deliveryTimers = new Map<string, number>()
+  const uploadMessages = useChatUploadMessages(messages, (message) => appendBroadcast(message, false))
   const authenticated = computed(() => status.value === 'online')
   const statusLabel = computed(
     () =>
@@ -464,6 +466,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     typingDrafts,
     pokedAt,
     appendBroadcast,
+    ...uploadMessages,
     prependHistory,
     close,
     connect,

@@ -22,7 +22,6 @@ interface PendingFile {
 const props = defineProps<{
   replyingTo: BroadcastMessage | null
   editingTo: BroadcastMessage | null
-  uploading: boolean
   sendShortcut: SendShortcut
   maxUploadBytes: number
   participants: RoomMember[]
@@ -178,7 +177,7 @@ function clearFiles(): void {
 }
 
 function submitMessage(): void {
-  if (props.disabled || composing || props.uploading || !canSend.value) return
+  if (props.disabled || composing || !canSend.value) return
   mentionQuery.value = null
   clearAiSuggestions()
   const content = draft.value.trim()
@@ -368,13 +367,12 @@ defineExpose({ addFiles, focus })
         rounded
         severity="secondary"
         class="!size-10 shrink-0"
-        :disabled="disabled || uploading || pendingFiles.length >= 8"
+        :disabled="disabled || pendingFiles.length >= 8"
         aria-label="添加附件"
         title="添加附件"
         @click="fileInput?.click()"
       >
-        <LoaderCircle v-if="uploading" class="animate-spin" :size="19" />
-        <Paperclip v-else :size="19" />
+        <Paperclip :size="19" />
       </Button>
       <Button
         type="button"
@@ -469,7 +467,7 @@ defineExpose({ addFiles, focus })
         type="submit"
         rounded
         class="!size-10 shrink-0 transition-transform active:scale-90"
-        :disabled="disabled || !canSend || uploading"
+        :disabled="disabled || !canSend"
         aria-label="发送消息"
         title="发送消息"
       >

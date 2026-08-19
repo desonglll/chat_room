@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ChevronDown, CornerUpLeft, Forward } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Checkbox from 'primevue/checkbox'
@@ -7,6 +7,7 @@ import ContextMenu from 'primevue/contextmenu'
 import type { MenuItem } from 'primevue/menuitem'
 import MessageAttachment from './MessageAttachment.vue'
 import MessageDeliveryStatus from './MessageDeliveryStatus.vue'
+import PendingUploadMessage from './PendingUploadMessage.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
 import { avatarColor } from '../avatarColor'
 import { useMessageViewport } from '../composables/useMessageViewport'
@@ -39,6 +40,8 @@ const emit = defineEmits<{
   viewProfile: [userId: string]
   poke: [userId: string]
   retry: [messageId: string]
+  cancelUpload: [key: string]
+  retryUpload: [key: string]
   loadOlder: []
 }>()
 
@@ -102,6 +105,9 @@ function openAvatarContextMenu(event: MouseEvent, message: BroadcastMessage): vo
 const broadcasts = computed(() =>
   props.messages.filter((message): message is BroadcastMessage => message.type === 'broadcast'),
 )
+const uploadKeys = computed(() =>
+  props.messages.filter((message) => message.type === 'upload').map((message) => message.key),
+)
 
 const readDetails = computed(() => {
   const positions = new Map(broadcasts.value.map((message, index) => [message.message_id, index]))
@@ -139,6 +145,14 @@ const { awayFromBottom, handleScroll, scrollToBottom, unseenCount } = useMessage
   onLoadOlder: () => {
     if (!props.loadingOlder && props.hasMoreHistory) emit('loadOlder')
   },
+})
+
+watch(uploadKeys, async (nextKeys, previousKeys) => {
+  const appended = nextKeys.some((key) => !previousKeys.includes(key))
+  if (!appended || awayFromBottom.value) return
+  await nextTick()
+  const list = messageList.value
+  if (list) list.scrollTo({ top: list.scrollHeight, behavior: preferredScrollBehavior() })
 })
 
 function formatTime(value: string): string {
@@ -182,6 +196,10 @@ function isGroupStart(index: number): boolean {
 
 function isGroupEnd(index: number): boolean {
   return !sameGroup(props.messages[index], props.messages[index + 1])
+}
+
+function displayKey(message: DisplayMessage): string {
+  return message.type === 'broadcast' ? message.message_id : message.key
 }
 
 interface ContentSegment {
@@ -254,10 +272,7 @@ onBeforeUnmount(() => {
           class="size-4 animate-spin rounded-full border-2 border-surface-300 border-t-primary motion-reduce:animate-none"
         />
       </div>
-      <template
-        v-for="(message, index) in messages"
-        :key="message.type === 'broadcast' ? message.message_id : message.key"
-      >
+      <template v-for="(message, index) in messages" :key="displayKey(message)">
         <div
           v-if="message.type === 'system'"
           class="my-4 flex items-center justify-center gap-3 text-center text-xs text-muted-color"
@@ -267,6 +282,12 @@ onBeforeUnmount(() => {
           <p>{{ message.content }}</p>
           <span class="h-px w-8 bg-surface-200" />
         </div>
+        <PendingUploadMessage
+          v-else-if="message.type === 'upload'"
+          :message="message"
+          @cancel="emit('cancelUpload', $event)"
+          @retry="emit('retryUpload', $event)"
+        />
         <div
           v-else
           class="group flex items-start gap-2 rounded-lg transition-colors duration-200"

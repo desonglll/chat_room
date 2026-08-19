@@ -13,6 +13,7 @@ use crate::admin_metrics::RuntimeMetrics;
 use crate::ai::AiAssistant;
 use crate::attachment_content::ContentHashLocks;
 use crate::attachment_storage::{self, AttachmentStore};
+use crate::attachments::upload_hashes::UploadHashTracker;
 use crate::config::AppConfig;
 use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::storage;
@@ -65,6 +66,7 @@ pub struct AppState {
     pub(crate) max_upload_bytes: usize,
     pub(crate) attachment_store: AttachmentStore,
     pub(crate) content_hash_locks: ContentHashLocks,
+    pub(crate) upload_hashes: UploadHashTracker,
     pub(crate) runtime_metrics: RuntimeMetrics,
     /// Per-(room, from, target) cooldown timestamps for rate-limited, ephemeral
     /// actions (poke, AI suggestions) that don't need database persistence.
@@ -168,6 +170,7 @@ impl AppState {
             max_upload_bytes,
             attachment_store,
             content_hash_locks: ContentHashLocks::default(),
+            upload_hashes: UploadHashTracker::default(),
             runtime_metrics: RuntimeMetrics::default(),
             action_cooldowns: RwLock::new(HashMap::new()),
             ai_assistant,

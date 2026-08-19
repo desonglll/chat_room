@@ -1,5 +1,5 @@
 import { sha256 } from '@noble/hashes/sha2.js'
-import { completeUploadSession, createUploadSession, uploadChunk } from '../api'
+import { completeUploadSession, createUploadSession, uploadChunk } from '../attachmentUploadApi'
 import type { BroadcastMessage } from '../types'
 
 export const UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024
@@ -78,6 +78,7 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
     file,
     fingerprint,
     '',
+    signal,
   )
   await options.onSession?.(initialSession.upload_id)
   report('hashing', 0, initialSession.upload_id)
@@ -91,6 +92,7 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
     file,
     fingerprint,
     contentHash,
+    signal,
   )
   let offset = session.received_bytes
   report(session.deduplicated ? 'deduplicating' : 'uploading', offset, session.upload_id)
@@ -99,7 +101,7 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
     ensureActive(signal)
     const chunk = file.slice(offset, Math.min(offset + UPLOAD_CHUNK_SIZE, file.size))
     try {
-      offset = await uploadChunk(session.upload_id, options.token, offset, chunk)
+      offset = await uploadChunk(session.upload_id, options.token, offset, chunk, signal)
     } catch (caught) {
       const receivedBytes = (caught as { receivedBytes?: number }).receivedBytes
       if (typeof receivedBytes === 'number' && receivedBytes >= 0 && receivedBytes <= file.size) {
@@ -112,6 +114,7 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
     report('uploading', offset, session.upload_id)
   }
 
+  ensureActive(signal)
   report('finalizing', file.size, session.upload_id)
   const message = await completeUploadSession(
     session.upload_id,
@@ -119,6 +122,7 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
     options.content,
     options.replyTo,
     options.isSensitive,
+    signal,
   )
   return { message, uploadId: session.upload_id }
 }
