@@ -1,4 +1,5 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { preferredScrollBehavior } from '../motionPreference'
 import type { BroadcastMessage, ReadReceipt } from '../types'
 
 interface MessageViewportOptions {
@@ -127,7 +128,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
     unseenIds.value = []
     awayFromBottom.value = false
     suppressScrollUntil = performance.now() + 220
-    list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
+    list.scrollTo({ top: list.scrollHeight, behavior: preferredScrollBehavior() })
     window.setTimeout(() => markThrough(broadcastIds.value.at(-1) || ''), 240)
   }
 
@@ -191,7 +192,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
         const list = options.list.value
         if (list) {
           suppressScrollUntil = performance.now() + 120
-          list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
+          list.scrollTo({ top: list.scrollHeight, behavior: preferredScrollBehavior() })
           awayFromBottom.value = false
           window.setTimeout(() => markThrough(appended.at(-1)?.message_id || ''), 140)
         }

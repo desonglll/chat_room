@@ -1,56 +1,14 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
+import { createOptimisticMessage, reconcileOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
+import { AUTH_ERRORS, readableSystemMessage, type ServerMessage } from '../chatProtocol'
+import { classifyMessageMotion, classifySystemMotion } from '../messageMotion'
 import type { BroadcastMessage, ChatStatus, DisplayMessage, ReadReceipt, Room, RoomMember, TypingDraft } from '../types'
-
-type ServerMessage =
-  | {
-      type: 'auth_ok'
-      room_name: string
-      members?: RoomMember[]
-      participants?: RoomMember[]
-      read_receipts?: ReadReceipt[]
-    }
-  | { type: 'auth_fail'; reason: string }
-  | { type: 'history_complete' }
-  | BroadcastMessage
-  | { type: 'read_receipt'; user_id: string; username: string; message_id: string }
-  | { type: 'message_recalled'; message_id: string; recalled_at: string }
-  | { type: 'message_edited'; message_id: string; content: string; edited_at: string }
-  | { type: 'typing'; user_id?: string; username?: string; content: string }
-  | { type: 'presence'; members: RoomMember[]; participants: RoomMember[] }
-  | { type: 'system'; content: string; members?: RoomMember[]; participants?: RoomMember[] }
 
 interface ReconnectTarget {
   room: Room
   token: string
   userId: string
   password: string
-}
-
-const AUTH_ERRORS: Record<string, string> = {
-  'wrong password': '房间密码错误',
-  'room not found': '聊天室不存在',
-  'authentication timeout': '认证超时，请重试',
-  'login required': '请重新登录',
-  'authentication unavailable': '暂时无法验证登录状态',
-  'password too long': '房间密码过长',
-  'membership required': '请先申请加入聊天室',
-  'membership pending': '加入申请正在等待管理员审核',
-  'invalid json': '认证请求无效',
-}
-
-function readableSystemMessage(content: string): string {
-  const joined = content.match(/^(.*) joined the room$/)
-  if (joined) return `${joined[1]} 加入了聊天室`
-  const left = content.match(/^(.*) left the room$/)
-  if (left) return `${left[1]} 离开了聊天室`
-  const renamed = content.match(/^room renamed to (.*)$/)
-  if (renamed) return `聊天室已重命名为 ${renamed[1]}`
-  if (content === 'room deleted') return '聊天室已被删除'
-  if (content === 'room password changed') return '聊天室密码已更改，请重新加入'
-  if (content === 'message history is temporarily unavailable') return '暂时无法读取历史消息'
-  const failed = content.match(/^message from (.*) was not saved or broadcast$/)
-  if (failed) return `${failed[1]} 的消息保存失败`
-  return content
 }
 
 export function useChatSocket(onSystemEvent?: (content: string) => void) {
@@ -75,6 +33,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   let typingTimer: number | undefined
   let pendingTyping = ''
   const typingExpiry = new Map<string, number>()
+  const deliveryTimers = new Map<string, number>()
   const authenticated = computed(() => status.value === 'online')
   const statusLabel = computed(
     () =>
@@ -97,6 +56,24 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     reconnectTimer = undefined
   }
 
+  function clearDeliveryTimer(clientMessageId: string): void {
+    window.clearTimeout(deliveryTimers.get(clientMessageId))
+    deliveryTimers.delete(clientMessageId)
+  }
+
+  function failPendingMessages(): void {
+    for (const message of messages.value) {
+      if (message.type !== 'broadcast' || message.delivery_state !== 'sending' || !message.client_message_id) continue
+      clearDeliveryTimer(message.client_message_id)
+      messages.value = updateDeliveryState(messages.value, message.client_message_id, 'failed')
+    }
+  }
+
+  function clearDeliveryTimers(): void {
+    for (const timer of deliveryTimers.values()) window.clearTimeout(timer)
+    deliveryTimers.clear()
+  }
+
   function close({ preserveMessages = false } = {}): void {
     clearHandshakeTimer()
     clearReconnectTimer()
@@ -111,7 +88,11 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     status.value = 'idle'
     error.value = ''
     authFailureReason.value = ''
-    if (!preserveMessages) messages.value = []
+    if (preserveMessages) failPendingMessages()
+    else {
+      clearDeliveryTimers()
+      messages.value = []
+    }
     historyReady.value = false
     members.value = []
     participants.value = []
@@ -124,13 +105,14 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       type: 'system',
       key: `system-${++systemMessageId}`,
       content: readableSystemMessage(content),
+      motion: classifySystemMotion(historyReady.value),
     })
   }
 
   function handleMessage(message: ServerMessage): void {
     if (message.type === 'auth_ok') {
       clearHandshakeTimer()
-      messages.value = []
+      if (reconnectAttempt === 0) messages.value = []
       historyReady.value = false
       members.value = message.members || []
       participants.value = message.participants || []
@@ -240,15 +222,26 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   }
 
   function appendBroadcast(message: BroadcastMessage, _showBrowserNotification = true): void {
+    const reconciled = reconcileOptimisticMessage(messages.value, message)
+    if (reconciled.matched) {
+      if (message.client_message_id) clearDeliveryTimer(message.client_message_id)
+      messages.value = reconciled.messages
+      return
+    }
     const duplicate = messages.value.some((item) => item.type === 'broadcast' && item.message_id === message.message_id)
     if (!duplicate) {
-      messages.value.push(message)
+      messages.value.push({
+        ...message,
+        motion: classifyMessageMotion(historyReady.value, message.sender_id, currentUserId.value),
+      })
     }
   }
 
   function prependHistory(older: BroadcastMessage[]): void {
     const existing = new Set(messages.value.filter((item) => item.type === 'broadcast').map((item) => item.message_id))
-    const fresh = older.filter((item) => !existing.has(item.message_id))
+    const fresh = older
+      .filter((item) => !existing.has(item.message_id))
+      .map((item) => ({ ...item, motion: 'none' as const }))
     if (fresh.length) messages.value = [...fresh, ...messages.value]
   }
 
@@ -349,6 +342,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       if (socket !== nextSocket) return
       clearHandshakeTimer()
       socket = null
+      failPendingMessages()
       if (status.value === 'online') {
         appendSystem('连接已断开')
         status.value = 'offline'
@@ -370,15 +364,50 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   function send(content: string, replyTo = ''): boolean {
     const normalized = content.trim()
     if (!normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    const clientMessageId = window.crypto.randomUUID()
+    const optimistic = createOptimisticMessage({
+      clientMessageId,
+      content: normalized,
+      replyTo,
+      currentUserId: currentUserId.value,
+      participants: participants.value,
+      messages: messages.value,
+    })
+    messages.value.push(optimistic)
+    transmitOptimistic(optimistic)
+    sendTyping('')
+    return true
+  }
+
+  function transmitOptimistic(message: BroadcastMessage): boolean {
+    if (!message.client_message_id || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
     socket.send(
       JSON.stringify({
         type: 'message',
-        content: normalized,
-        reply_to: replyTo || undefined,
+        content: message.content,
+        reply_to: message.reply_to?.message_id || undefined,
+        client_message_id: message.client_message_id,
       }),
     )
-    sendTyping('')
+    clearDeliveryTimer(message.client_message_id)
+    deliveryTimers.set(
+      message.client_message_id,
+      window.setTimeout(() => {
+        messages.value = updateDeliveryState(messages.value, message.client_message_id as string, 'failed')
+        deliveryTimers.delete(message.client_message_id as string)
+      }, 10_000),
+    )
     return true
+  }
+
+  function retry(messageId: string): boolean {
+    const pending = messages.value.find(
+      (message): message is BroadcastMessage =>
+        message.type === 'broadcast' && message.message_id === messageId && message.delivery_state === 'failed',
+    )
+    if (!pending?.client_message_id || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    messages.value = updateDeliveryState(messages.value, pending.client_message_id, 'sending')
+    return transmitOptimistic(pending)
   }
 
   function edit(messageId: string, content: string): boolean {
@@ -441,6 +470,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     edit,
     markRead,
     recall,
+    retry,
     poke,
     send,
     sendTyping,

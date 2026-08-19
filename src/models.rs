@@ -50,6 +50,7 @@ pub struct ForwardedFrom {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StoredMessage {
     pub id: Uuid,
+    pub client_message_id: Option<Uuid>,
     pub room_id: Uuid,
     pub sender_id: Option<Uuid>,
     pub sender: String,
@@ -291,6 +292,8 @@ pub enum ChatMessage {
         content: String,
         #[serde(default)]
         reply_to: Option<Uuid>,
+        #[serde(default)]
+        client_message_id: Option<Uuid>,
     },
 
     /// Client -> Server: replace the content of a message sent by this account.
@@ -323,6 +326,8 @@ pub enum ChatMessage {
     #[serde(rename = "broadcast")]
     Broadcast {
         message_id: Uuid,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_message_id: Option<Uuid>,
         sender_id: Option<Uuid>,
         sender: String,
         sender_avatar: String,

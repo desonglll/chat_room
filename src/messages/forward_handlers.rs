@@ -93,6 +93,7 @@ pub async fn forward_messages(
                             target_room_id,
                             ChatMessage::Broadcast {
                                 message_id: forwarded.id,
+                                client_message_id: forwarded.client_message_id,
                                 sender_id: forwarded.sender_id,
                                 sender: forwarded.sender,
                                 sender_avatar: forwarded.sender_avatar,

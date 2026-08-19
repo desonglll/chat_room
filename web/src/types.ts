@@ -140,6 +140,9 @@ export interface BroadcastMessage {
   edited_at: string | null
   timestamp: string
   forwarded_from: ForwardedFrom | null
+  client_message_id?: string | null
+  delivery_state?: DeliveryState
+  motion?: MessageMotion
 }
 
 export interface StoredMessage {
@@ -161,9 +164,12 @@ export interface SystemMessage {
   type: 'system'
   key: string
   content: string
+  motion?: MessageMotion
 }
 
 export type DisplayMessage = BroadcastMessage | SystemMessage
+export type MessageMotion = 'none' | 'incoming' | 'outgoing' | 'system'
+export type DeliveryState = 'sending' | 'sent' | 'failed'
 export type ChatStatus = 'idle' | 'connecting' | 'online' | 'offline' | 'failed'
 export type SendShortcut = 'enter' | 'shift-enter'
 export type FocusShortcut = 'space' | 'slash' | 'none'

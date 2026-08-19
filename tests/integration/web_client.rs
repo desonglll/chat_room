@@ -55,6 +55,20 @@ async fn web_client_is_only_served_when_enabled() {
         .unwrap()
         .contains("/api/admin/overview"));
 
+    let lazy_dialog = reqwest::get(format!("{}/assets/AuthDialog.js", web))
+        .await
+        .unwrap();
+    assert_eq!(lazy_dialog.status(), 200);
+    assert_eq!(
+        lazy_dialog.headers()[reqwest::header::CONTENT_TYPE],
+        "text/javascript; charset=utf-8"
+    );
+
+    let missing_asset = reqwest::get(format!("{}/assets/not-built.js", web))
+        .await
+        .unwrap();
+    assert_eq!(missing_asset.status(), 404);
+
     let archive_chunk = reqwest::get(format!("{}/assets/jszip.min.js", web))
         .await
         .unwrap();

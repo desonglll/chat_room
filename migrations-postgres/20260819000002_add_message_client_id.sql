@@ -1,0 +1,5 @@
+ALTER TABLE messages ADD COLUMN client_message_id UUID;
+
+CREATE UNIQUE INDEX messages_client_id_idx
+ON messages (room_id, sender_id, client_message_id)
+WHERE client_message_id IS NOT NULL;

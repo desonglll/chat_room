@@ -53,6 +53,44 @@ async fn ws_private_join_and_chat() {
 }
 
 #[tokio::test]
+async fn ws_client_message_id_is_idempotent_and_acknowledged() {
+    let base = start_server().await;
+    let (id, _) = create_room(&base, "idempotent-chat", None).await;
+    let (mut sink, mut stream) = ws_connect(&base, &id, "idempotent-user", None).await;
+    let client_message_id = uuid::Uuid::new_v4();
+    let payload = serde_json::json!({
+        "type": "message",
+        "content": "send exactly once",
+        "client_message_id": client_message_id,
+    })
+    .to_string();
+
+    sink.send(Message::Text(payload.clone())).await.unwrap();
+    let first = read_until_type(&mut stream, "broadcast").await;
+    assert_eq!(first["client_message_id"], client_message_id.to_string());
+
+    sink.send(Message::Text(payload)).await.unwrap();
+    let retry = read_until_type(&mut stream, "broadcast").await;
+    assert_eq!(retry["message_id"], first["message_id"]);
+
+    let token = session_token(&base, "idempotent-user").await;
+    let history: Vec<serde_json::Value> = reqwest::Client::new()
+        .get(format!("{base}/api/rooms/{id}/messages"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(history.len(), 1);
+    assert_eq!(
+        history[0]["client_message_id"],
+        client_message_id.to_string()
+    );
+}
+
+#[tokio::test]
 async fn ws_leave_notifies_others() {
     let base = start_server().await;
     let (id, _) = create_room(&base, "room", Some("pw")).await;

@@ -1,37 +1,35 @@
 //! chat_room — Axum-based chat server with WebSocket and OpenAPI.
 
-mod account_events;
-pub mod account_ws;
-pub mod admin_metrics;
+pub mod accounts;
+pub mod admin;
 pub mod ai;
 pub mod ai_handlers;
-mod attachment_content;
-pub mod attachment_handlers;
-pub mod attachment_storage;
-pub mod attachment_upload_handlers;
-pub mod attachment_upload_sessions;
+pub mod attachments;
 pub mod config;
-pub mod file_handlers;
-pub mod forward_handlers;
-pub mod handlers;
-pub mod membership_handlers;
-pub mod membership_mutations;
-pub mod message_actions;
-pub mod message_store;
+pub mod messages;
 pub mod models;
-pub mod participants;
-pub mod read_store;
-pub mod room_access;
-mod room_lifecycle;
+pub mod realtime;
+pub mod rooms;
 pub mod state;
 mod state_runtime;
 pub mod storage;
-pub mod user_handlers;
-pub mod users;
 pub mod web;
-pub mod ws;
-mod ws_auth;
-mod ws_inbound;
+
+pub use accounts::{account_ws, user_handlers, users};
+pub use admin::metrics as admin_metrics;
+pub(crate) use attachments::content as attachment_content;
+pub use attachments::{
+    file_handlers, handlers as attachment_handlers, storage as attachment_storage,
+    upload_handlers as attachment_upload_handlers, upload_sessions as attachment_upload_sessions,
+};
+pub use messages::{
+    actions as message_actions, forward_handlers, read_store, store as message_store,
+};
+pub use realtime::ws;
+pub(crate) use realtime::{auth as ws_auth, inbound as ws_inbound};
+pub use rooms::{
+    access as room_access, handlers, membership_handlers, membership_mutations, participants,
+};
 
 use axum::{routing::get, Json, Router};
 use std::sync::Arc;
@@ -236,13 +234,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         app = app
             .route("/", get(web::index))
             .route("/favicon.svg", get(web::favicon))
-            .route("/assets/app.css", get(web::stylesheet))
-            .route("/assets/app.js", get(web::app_script))
-            .route(
-                "/assets/AdminDashboard.js",
-                get(web::admin_dashboard_script),
-            )
-            .route("/assets/jszip.min.js", get(web::jszip_script))
+            .route("/assets/*path", get(web::bundled_asset))
             .route("/icons/icon-sprite.svg", get(web::icon_sprite))
             .route("/brand/echo-gate.svg", get(web::echo_gate))
             .route("/emoji-data-zh.json", get(web::emoji_data_zh))

@@ -15,7 +15,8 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::message_store::MessageCursor;
-use crate::models::{ChatMessage, StoredMessage};
+use crate::models::ChatMessage;
+use crate::realtime::protocol::{advance_message_cursor, stored_message_to_chat};
 use crate::state::{RoomEvent, SharedState};
 use crate::ws_auth::authenticate;
 use crate::ws_inbound::handle_client_message;
@@ -289,6 +290,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             tokio::select! {
                 event = room_messages.recv() => match event {
                     Ok(RoomEvent::Message(message)) => {
+                        advance_message_cursor(&mut message_cursor, &message);
                         if send_json(&mut sink, &message).await.is_err() {
                             break;
                         }
@@ -462,22 +464,6 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                 },
             )
             .await;
-    }
-}
-
-fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
-    ChatMessage::Broadcast {
-        message_id: message.id,
-        sender_id: message.sender_id,
-        sender: message.sender,
-        sender_avatar: message.sender_avatar,
-        content: message.content,
-        attachment: message.attachment,
-        reply_to: message.reply_to,
-        recalled_at: message.recalled_at,
-        edited_at: message.edited_at,
-        timestamp: message.created_at,
-        forwarded_from: message.forwarded_from,
     }
 }
 

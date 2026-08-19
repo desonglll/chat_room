@@ -2,6 +2,69 @@
 @import 'tailwindcss-primeui';
 @import './tokens.css';
 
+@keyframes message-incoming {
+  from {
+    opacity: 0;
+    transform: translate(-6px, 4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes message-outgoing {
+  from {
+    opacity: 0;
+    transform: translate(7px, 6px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes message-system {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@keyframes message-highlight {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  35% {
+    background-color: color-mix(in srgb, var(--p-primary-color) 14%, transparent);
+  }
+}
+
+.motion-incoming {
+  animation: message-incoming 0.18s var(--cr-ease-out);
+}
+
+.motion-outgoing {
+  animation: message-outgoing 0.16s var(--cr-ease-out);
+}
+
+.motion-system {
+  animation: message-system 0.14s ease-out;
+}
+
+.message-highlight {
+  animation: message-highlight 0.9s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-incoming,
+  .motion-outgoing,
+  .motion-system,
+  .message-highlight {
+    animation: none;
+  }
+}
 /* Redirect Tailwind's shadow/radius/ease scale onto the brand token system —
    every `shadow-md`/`rounded-xl`/`ease-spring` utility in the app picks up
    the layered, ink-tinted depth system for free, light and dark alike. */

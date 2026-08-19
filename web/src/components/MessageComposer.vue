@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { LoaderCircle, Paperclip, Send, Smile, Sparkles } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import Textarea from 'primevue/textarea'
 import ComposerContext from './ComposerContext.vue'
-import EmojiPicker from './EmojiPicker.vue'
 import PendingAttachmentStrip from './PendingAttachmentStrip.vue'
 import { shouldSubmitMessage } from '../composer'
 import { formatUploadLimit, getAiSuggestions } from '../api'
 import type { BroadcastMessage, RoomMember, SendShortcut } from '../types'
+
+const EmojiPicker = defineAsyncComponent(() => import('./EmojiPicker.vue'))
 
 interface PendingFile {
   id: number
@@ -28,6 +29,7 @@ const props = defineProps<{
   roomId: string
   token: string
   aiEnabled: boolean
+  disabled: boolean
 }>()
 
 const emit = defineEmits<{
@@ -60,7 +62,7 @@ let mentionStart = 0
 let composing = false
 let pendingId = 0
 
-const canSend = computed(() => Boolean(draft.value.trim() || pendingFiles.value.length))
+const canSend = computed(() => !props.disabled && Boolean(draft.value.trim() || pendingFiles.value.length))
 const mentionMatches = computed(() => {
   if (mentionQuery.value === null) return []
   const query = mentionQuery.value.toLowerCase()
@@ -134,7 +136,7 @@ watch(
 )
 
 function addFiles(files: File[]): void {
-  if (props.editingTo) return
+  if (props.disabled || props.editingTo) return
   fileError.value = ''
   const remaining = Math.max(0, 8 - pendingFiles.value.length)
   const valid = files.filter((file) => {
@@ -176,7 +178,7 @@ function clearFiles(): void {
 }
 
 function submitMessage(): void {
-  if (composing || props.uploading || !canSend.value) return
+  if (props.disabled || composing || props.uploading || !canSend.value) return
   mentionQuery.value = null
   clearAiSuggestions()
   const content = draft.value.trim()
@@ -366,7 +368,7 @@ defineExpose({ addFiles, focus })
         rounded
         severity="secondary"
         class="!size-10 shrink-0"
-        :disabled="uploading || pendingFiles.length >= 8"
+        :disabled="disabled || uploading || pendingFiles.length >= 8"
         aria-label="添加附件"
         title="添加附件"
         @click="fileInput?.click()"
@@ -380,6 +382,7 @@ defineExpose({ addFiles, focus })
         rounded
         severity="secondary"
         class="!size-10 shrink-0"
+        :disabled="disabled"
         aria-label="插入表情"
         title="表情"
         @click="emojiPopover.toggle($event)"
@@ -396,6 +399,7 @@ defineExpose({ addFiles, focus })
         rounded
         severity="secondary"
         class="!size-10 shrink-0"
+        :disabled="disabled"
         :aria-label="aiLoading ? 'AI 正在思考' : 'AI 助手：总结对话并建议回复'"
         :title="aiLoading ? 'AI 正在思考…' : 'AI 助手'"
         @click="openAiAssistant"
@@ -412,6 +416,7 @@ defineExpose({ addFiles, focus })
           rows="1"
           maxlength="4096"
           auto-resize
+          :disabled="disabled"
           placeholder="输入消息"
           class="max-h-32 min-h-10 w-full overflow-y-auto! [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           @paste="onPaste"
@@ -464,7 +469,7 @@ defineExpose({ addFiles, focus })
         type="submit"
         rounded
         class="!size-10 shrink-0 transition-transform active:scale-90"
-        :disabled="!canSend || uploading"
+        :disabled="disabled || !canSend || uploading"
         aria-label="发送消息"
         title="发送消息"
       >

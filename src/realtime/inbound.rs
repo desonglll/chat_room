@@ -3,6 +3,7 @@
 use uuid::Uuid;
 
 use crate::models::{ChatMessage, RoomMember, User};
+use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::ws_auth::{normalize_message, normalize_typing};
 
@@ -33,7 +34,11 @@ pub async fn handle_client_message(
     message: ChatMessage,
 ) {
     match message {
-        ChatMessage::Message { content, reply_to } => {
+        ChatMessage::Message {
+            content,
+            reply_to,
+            client_message_id,
+        } => {
             let Some(content) = normalize_message(content) else {
                 tracing::warn!("ignored invalid message from {}", user.username);
                 return;
@@ -57,18 +62,25 @@ pub async fn handle_client_message(
                     &user.avatar_emoji,
                     &content,
                     reply_to,
+                    client_message_id,
                 )
                 .await
             {
-                Ok(stored) => {
+                Ok(result) => {
+                    let stored = result.message;
                     let participants = state.room_participants(room_id).await.unwrap_or_default();
                     let mentions = extract_mentions(&stored.content, &participants, user.id);
-                    if !mentions.is_empty() {
+                    if result.inserted && !mentions.is_empty() {
                         if let Err(error) =
                             state.record_message_mentions(stored.id, &mentions).await
                         {
                             tracing::warn!("record message mentions failed: {}", error);
                         }
+                    }
+                    if !result.inserted {
+                        state
+                            .broadcast(room_id, stored_message_to_chat(stored))
+                            .await;
                     }
                 }
                 Err(error) => {

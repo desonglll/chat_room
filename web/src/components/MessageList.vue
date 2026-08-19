@@ -6,9 +6,11 @@ import Checkbox from 'primevue/checkbox'
 import ContextMenu from 'primevue/contextmenu'
 import type { MenuItem } from 'primevue/menuitem'
 import MessageAttachment from './MessageAttachment.vue'
+import MessageDeliveryStatus from './MessageDeliveryStatus.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
 import { avatarColor } from '../avatarColor'
 import { useMessageViewport } from '../composables/useMessageViewport'
+import { preferredScrollBehavior } from '../motionPreference'
 import type { Attachment, BroadcastMessage, DisplayMessage, ReadReceipt, ReplyPreview, RoomMember } from '../types'
 
 const props = defineProps<{
@@ -36,6 +38,7 @@ const emit = defineEmits<{
   previewImage: [attachment: Attachment]
   viewProfile: [userId: string]
   poke: [userId: string]
+  retry: [messageId: string]
   loadOlder: []
 }>()
 
@@ -54,6 +57,15 @@ function copyText(content: string): void {
 function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
   const isOwn = message.sender_id === props.currentUserId
   const items: MenuItem[] = []
+  if (!isSettled(message)) {
+    if (message.delivery_state === 'failed') {
+      items.push({ label: '重新发送', command: () => emit('retry', message.message_id) })
+    }
+    if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
+    contextMenuItems.value = items
+    contextMenu.value?.show(event)
+    return
+  }
   if (!message.recalled_at) {
     items.push({ label: '回复', command: () => emit('reply', message) })
     if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
@@ -71,6 +83,10 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
   if (!items.length) return
   contextMenuItems.value = items
   contextMenu.value?.show(event)
+}
+
+function isSettled(message: BroadcastMessage): boolean {
+  return !message.delivery_state || message.delivery_state === 'sent'
 }
 
 function openAvatarContextMenu(event: MouseEvent, message: BroadcastMessage): void {
@@ -209,7 +225,7 @@ async function scrollToMessage(messageId: string): Promise<void> {
     target = findMessage(messageId)
   }
   if (!target) return
-  target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  target.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'center' })
   highlightedId.value = messageId
   window.clearTimeout(highlightTimer)
   highlightTimer = window.setTimeout(() => {
@@ -228,13 +244,15 @@ onBeforeUnmount(() => {
   <div class="relative min-h-0 flex-1">
     <div
       ref="messageList"
-      class="h-full overflow-y-auto px-3 py-5 sm:px-7"
+      class="h-full overscroll-contain overflow-y-auto px-3 py-5 [scrollbar-gutter:stable] sm:px-7"
       data-testid="message-list"
       aria-live="polite"
       @scroll.passive="handleScroll"
     >
       <div v-if="loadingOlder" class="mb-3 flex justify-center">
-        <span class="size-4 animate-spin rounded-full border-2 border-surface-300 border-t-primary" />
+        <span
+          class="size-4 animate-spin rounded-full border-2 border-surface-300 border-t-primary motion-reduce:animate-none"
+        />
       </div>
       <template
         v-for="(message, index) in messages"
@@ -243,6 +261,7 @@ onBeforeUnmount(() => {
         <div
           v-if="message.type === 'system'"
           class="my-4 flex items-center justify-center gap-3 text-center text-xs text-muted-color"
+          :class="{ 'motion-system': message.motion === 'system' }"
         >
           <span class="h-px w-8 bg-surface-200" />
           <p>{{ message.content }}</p>
@@ -250,17 +269,19 @@ onBeforeUnmount(() => {
         </div>
         <div
           v-else
-          class="group fade-in-up flex items-start gap-2 rounded-lg transition-colors duration-200"
+          class="group flex items-start gap-2 rounded-lg transition-colors duration-200"
           :class="[
             message.sender_id === currentUserId ? 'flex-row-reverse justify-start' : 'justify-start',
-            highlightedId === message.message_id ? 'bg-flash' : '',
+            highlightedId === message.message_id ? 'message-highlight' : '',
+            message.motion === 'incoming' ? 'motion-incoming' : '',
+            message.motion === 'outgoing' ? 'motion-outgoing' : '',
             isGroupEnd(index) ? 'mb-4' : 'mb-0.5',
           ]"
           :data-message-id="message.message_id"
           @contextmenu.prevent="openContextMenu($event, message)"
         >
           <Checkbox
-            v-if="selecting && !message.recalled_at"
+            v-if="selecting && !message.recalled_at && isSettled(message)"
             class="mt-7 shrink-0"
             binary
             :model-value="selectedMessageIds.includes(message.message_id)"
@@ -293,7 +314,7 @@ onBeforeUnmount(() => {
               }}</strong>
               <time>{{ formatTime(message.timestamp) }}</time>
               <button
-                v-if="!message.recalled_at && !selecting"
+                v-if="!message.recalled_at && !selecting && isSettled(message)"
                 type="button"
                 class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="回复消息"
@@ -303,7 +324,7 @@ onBeforeUnmount(() => {
                 <CornerUpLeft :size="14" />
               </button>
               <button
-                v-if="!message.recalled_at && !selecting"
+                v-if="!message.recalled_at && !selecting && isSettled(message)"
                 type="button"
                 class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="转发消息"
@@ -379,18 +400,28 @@ onBeforeUnmount(() => {
               >已编辑</small
             >
             <ReadReceiptStatus
-              v-if="message.sender_id === currentUserId && !message.recalled_at && readDetails.get(message.message_id)"
+              v-if="
+                message.sender_id === currentUserId &&
+                !message.recalled_at &&
+                isSettled(message) &&
+                readDetails.get(message.message_id)
+              "
               :read="readDetails.get(message.message_id)!.read"
               :unread="readDetails.get(message.message_id)!.unread"
+            />
+            <MessageDeliveryStatus
+              v-else-if="message.sender_id === currentUserId && message.delivery_state"
+              :state="message.delivery_state"
+              @retry="emit('retry', message.message_id)"
             />
           </div>
         </div>
       </template>
     </div>
     <Transition
-      enter-active-class="transition duration-200 ease-out"
+      enter-active-class="transition duration-200 ease-out motion-reduce:transition-none"
       enter-from-class="translate-y-2 opacity-0"
-      leave-active-class="transition duration-150 ease-in"
+      leave-active-class="transition duration-150 ease-in motion-reduce:transition-none"
       leave-to-class="translate-y-2 opacity-0"
     >
       <button
@@ -407,26 +438,3 @@ onBeforeUnmount(() => {
     <ContextMenu ref="avatarContextMenu" :model="avatarContextMenuItems" />
   </div>
 </template>
-
-<style scoped>
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fade-in-up {
-  animation: fade-in-up 0.18s ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fade-in-up {
-    animation: none;
-  }
-}
-</style>

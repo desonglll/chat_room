@@ -1,7 +1,9 @@
-import { computed, onMounted, ref, type Ref } from 'vue'
+import { computed, onMounted, ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, listRooms, logoutUser } from '../api'
 import { storageGet, storageSet } from '../browserStorage'
+import { clearBootstrapSnapshot, readBootstrapSnapshot, writeBootstrapSnapshot } from '../bootstrapSnapshot'
+import { useDelayedVisibility } from './useDelayedVisibility'
 import type { AuthSession, Room, User } from '../types'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
@@ -25,18 +27,31 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   const route = useRoute()
   const router = useRouter()
   const routeRoomId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
-  const rooms = ref<Room[]>([])
+  const initialToken = storageGet(window.localStorage, SESSION_TOKEN_KEY)
+  const snapshot = readBootstrapSnapshot(window.sessionStorage, Boolean(initialToken))
+  const rooms = ref<Room[]>(snapshot?.rooms || [])
   const selectedRoom = ref<Room | null>(null)
-  const sessionToken = ref(storageGet(window.localStorage, SESSION_TOKEN_KEY))
-  const currentUser = ref<User | null>(null)
-  const loading = ref(true)
+  const sessionToken = ref(initialToken)
+  const currentUser = ref<User | null>(snapshot?.user || null)
+  const booting = ref(true)
+  const refreshingRooms = ref(Boolean(snapshot))
+  const coldStartPending = computed(() => booting.value && rooms.value.length === 0)
+  const showColdSkeleton = useDelayedVisibility(coldStartPending)
   const networkError = ref('')
   const maxUploadBytes = ref(DEFAULT_MAX_UPLOAD_BYTES)
   const aiEnabled = ref(false)
   let restoreAttempted = false
 
+  function restoreCachedSelection(): void {
+    if (restoreAttempted || !routeRoomId.value) return
+    const restored = rooms.value.find((room) => room.id === routeRoomId.value)
+    if (!restored) return
+    restoreAttempted = true
+    options.selectRoom(restored, shouldReconnectRestoredRoom(route.name))
+  }
+
   async function loadRoomList(): Promise<void> {
-    loading.value = true
+    if (!booting.value) refreshingRooms.value = true
     try {
       const nextRooms = await listRooms(sessionToken.value)
       rooms.value = nextRooms
@@ -56,7 +71,8 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     } catch (caught) {
       networkError.value = caught instanceof Error ? caught.message : '无法读取房间列表'
     } finally {
-      loading.value = false
+      booting.value = false
+      refreshingRooms.value = false
     }
   }
 
@@ -80,11 +96,14 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     } catch {
       sessionToken.value = ''
       currentUser.value = null
+      rooms.value = []
+      clearBootstrapSnapshot(window.sessionStorage)
       storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
     }
   }
 
   async function handleAuthenticated(session: AuthSession): Promise<void> {
+    clearBootstrapSnapshot(window.sessionStorage)
     sessionToken.value = session.token
     currentUser.value = session.user
     storageSet(window.localStorage, SESSION_TOKEN_KEY, session.token)
@@ -100,6 +119,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     sessionToken.value = ''
     currentUser.value = null
     options.closeUnread()
+    clearBootstrapSnapshot(window.sessionStorage)
     storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
     if (token) {
       try {
@@ -117,6 +137,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     options.closeUnread()
     sessionToken.value = ''
     currentUser.value = null
+    clearBootstrapSnapshot(window.sessionStorage)
     storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
     options.afterAccountDeleted()
     await loadRoomList()
@@ -129,19 +150,26 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     await loadRoomList()
   })
 
+  watch([sessionToken, currentUser, rooms], () => {
+    if (booting.value || !sessionToken.value) return
+    writeBootstrapSnapshot(window.sessionStorage, currentUser.value, rooms.value)
+  })
+
   return {
     aiEnabled,
     currentUser,
     handleAccountDeleted,
     handleAuthenticated,
     handleLogout,
-    loading,
+    refreshingRooms,
     loadRoomList,
     maxUploadBytes,
     networkError,
     rooms,
     routeRoomId,
+    restoreCachedSelection,
     selectedRoom,
     sessionToken,
+    showColdSkeleton,
   }
 }

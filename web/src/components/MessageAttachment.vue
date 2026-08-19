@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { Download, Eye, File, FileImage, FileVideo, ShieldAlert } from 'lucide-vue-next'
 import type { Attachment } from '../types'
-import VideoPlayer from './VideoPlayer.vue'
+
+const VideoPlayer = defineAsyncComponent(() => import('./VideoPlayer.vue'))
 
 const props = defineProps<{ attachment: Attachment }>()
 const emit = defineEmits<{ previewImage: [attachment: Attachment] }>()

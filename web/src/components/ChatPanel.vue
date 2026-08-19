@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Download, Forward, UploadCloud, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import ProgressBar from 'primevue/progressbar'
@@ -7,11 +7,10 @@ import ChatAccessPanel from './ChatAccessPanel.vue'
 import ChatRoomHeader from './ChatRoomHeader.vue'
 import MessageComposer from './MessageComposer.vue'
 import MessageList from './MessageList.vue'
-import ChatFilesDialog from './ChatFilesDialog.vue'
-import ImageViewerGallery from './ImageViewerGallery.vue'
-import ProfileCardDialog from './ProfileCardDialog.vue'
+import RoomConnectingView from './RoomConnectingView.vue'
 import UploadStatusPanel from './UploadStatusPanel.vue'
 import { shouldFocusComposer } from '../composer'
+import { resolveRoomViewState } from '../roomViewState'
 import type {
   Attachment,
   AttachmentUploadSession,
@@ -28,6 +27,10 @@ import type {
 } from '../types'
 import type { DownloadProgress } from '../attachmentDownloads'
 import type { ChunkedUploadProgress } from '../composables/useChunkedUpload'
+
+const ChatFilesDialog = defineAsyncComponent(() => import('./ChatFilesDialog.vue'))
+const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
+const ProfileCardDialog = defineAsyncComponent(() => import('./ProfileCardDialog.vue'))
 
 const props = defineProps<{
   room: Room | null
@@ -81,6 +84,7 @@ const emit = defineEmits<{
   download: [attachments: Attachment[]]
   cancelDownload: []
   poke: [userId: string]
+  retry: [messageId: string]
   loadOlder: []
   'update:password': [password: string]
 }>()
@@ -96,6 +100,15 @@ const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
 const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
 const dragActive = ref(false)
 const shaking = ref(false)
+const viewState = computed(() =>
+  resolveRoomViewState({
+    room: props.room,
+    status: props.status,
+    authenticated: props.authenticated,
+    loading: props.loading,
+    messageCount: props.messages.length,
+  }),
+)
 let dragDepth = 0
 let shakeTimer: number | undefined
 
@@ -244,8 +257,13 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="min-h-0 min-w-0 flex-col bg-surface-50 md:flex"
-    :class="[visible ? 'flex' : 'hidden', { 'animate-poke-shake': shaking }]"
+    class="absolute inset-0 flex min-h-0 min-w-0 flex-col bg-surface-50 transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    :class="[
+      visible
+        ? 'visible translate-x-0 opacity-100'
+        : 'invisible pointer-events-none translate-x-4 opacity-0 md:pointer-events-auto',
+      { 'animate-poke-shake': shaking },
+    ]"
   >
     <ChatRoomHeader
       v-if="room"
@@ -264,7 +282,7 @@ onBeforeUnmount(() => {
     />
 
     <ChatAccessPanel
-      v-if="!room || !authenticated"
+      v-if="viewState === 'loading' || viewState === 'empty' || viewState === 'access'"
       :room="room"
       :user="user"
       :password="password"
@@ -277,6 +295,8 @@ onBeforeUnmount(() => {
       @update:password="emit('update:password', $event)"
     />
 
+    <RoomConnectingView v-else-if="viewState === 'connecting'" />
+
     <section
       v-else
       class="relative flex min-h-0 flex-1 flex-col"
@@ -286,9 +306,9 @@ onBeforeUnmount(() => {
       @drop.prevent="handleDrop"
     >
       <Transition
-        enter-active-class="transition duration-150 ease-out"
+        enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
         enter-from-class="opacity-0"
-        leave-active-class="transition duration-100 ease-in"
+        leave-active-class="transition duration-100 ease-in motion-reduce:transition-none"
         leave-to-class="opacity-0"
       >
         <div
@@ -303,7 +323,7 @@ onBeforeUnmount(() => {
       </Transition>
       <MessageList
         ref="messageListRef"
-        :room-id="room.id"
+        :room-id="room?.id || ''"
         :messages="messages"
         :read-receipts="readReceipts"
         :participants="participants"
@@ -325,14 +345,15 @@ onBeforeUnmount(() => {
         @preview-image="previewImageId = $event.id"
         @view-profile="viewProfileUserId = $event"
         @poke="emit('poke', $event)"
+        @retry="emit('retry', $event)"
       />
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
         tag="div"
         class="space-y-1 border-t border-surface-100 bg-surface-0 px-3 py-2 sm:px-7"
-        enter-active-class="transition duration-150"
+        enter-active-class="transition duration-150 motion-reduce:transition-none"
         enter-from-class="translate-y-1 opacity-0"
-        leave-active-class="transition duration-100"
+        leave-active-class="transition duration-100 motion-reduce:transition-none"
         leave-to-class="opacity-0"
       >
         <div v-for="draft in typingDrafts" :key="draft.user_id" class="flex min-w-0 items-center gap-2 text-xs">
@@ -376,16 +397,17 @@ onBeforeUnmount(() => {
         />
         <MessageComposer
           ref="composerRef"
-          :key="room.id"
+          :key="room?.id || ''"
           :replying-to="replyingTo"
           :editing-to="editingTo"
           :uploading="uploading"
           :send-shortcut="sendShortcut"
           :max-upload-bytes="maxUploadBytes"
           :participants="participants"
-          :room-id="room.id"
+          :room-id="room?.id || ''"
           :token="token"
           :ai-enabled="aiEnabled"
+          :disabled="!authenticated"
           @cancel-reply="replyingTo = null"
           @cancel-edit="editingTo = null"
           @send="sendMessage"

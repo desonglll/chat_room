@@ -1,4 +1,4 @@
-import { watch, type Ref } from 'vue'
+import { onBeforeUnmount, watch, type Ref } from 'vue'
 import type { ThemePreference } from '../types'
 
 // main.ts wires PrimeVue's darkModeSelector to `[data-theme="dark"]`, so this
@@ -11,8 +11,10 @@ export function useTheme(theme: Ref<ThemePreference>): void {
     const resolved = theme.value === 'system' ? (media.matches ? 'dark' : 'light') : theme.value
     if (resolved === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
     else document.documentElement.removeAttribute('data-theme')
+    document.documentElement.style.colorScheme = resolved
   }
 
   media.addEventListener('change', apply)
   watch(theme, apply, { immediate: true })
+  onBeforeUnmount(() => media.removeEventListener('change', apply))
 }

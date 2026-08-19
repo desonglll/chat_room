@@ -1,40 +1,28 @@
 //! Browser client assets built by Vite from build.rs and embedded in the binary.
 
-use axum::{http::header, response::IntoResponse};
+use axum::{
+    extract::Path,
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
+};
 
 const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/web/index.html"));
-const APP_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/app.css"));
-const APP_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/app.js"));
-const ADMIN_DASHBOARD_JS: &str =
-    include_str!(concat!(env!("OUT_DIR"), "/web/assets/AdminDashboard.js"));
-const JSZIP_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/web/assets/jszip.min.js"));
 const FAVICON: &str = include_str!(concat!(env!("OUT_DIR"), "/web/favicon.svg"));
 const ICON_SPRITE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/icons/icon-sprite.svg"));
 const ECHO_GATE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/brand/echo-gate.svg"));
 const EMOJI_DATA_ZH: &str = include_str!(concat!(env!("OUT_DIR"), "/web/emoji-data-zh.json"));
+include!(concat!(env!("OUT_DIR"), "/web_assets.rs"));
 
 pub async fn index() -> impl IntoResponse {
     asset("text/html; charset=utf-8", "no-cache", INDEX_HTML)
 }
 
-pub async fn stylesheet() -> impl IntoResponse {
-    asset("text/css; charset=utf-8", "no-cache", APP_CSS)
-}
-
-pub async fn app_script() -> impl IntoResponse {
-    asset("text/javascript; charset=utf-8", "no-cache", APP_JS)
-}
-
-pub async fn admin_dashboard_script() -> impl IntoResponse {
-    asset(
-        "text/javascript; charset=utf-8",
-        "no-cache",
-        ADMIN_DASHBOARD_JS,
-    )
-}
-
-pub async fn jszip_script() -> impl IntoResponse {
-    asset("text/javascript; charset=utf-8", "no-cache", JSZIP_JS)
+pub async fn bundled_asset(Path(path): Path<String>) -> Response {
+    GENERATED_ASSETS
+        .iter()
+        .find(|(name, _, _)| *name == path)
+        .map(|(_, content_type, source)| asset_bytes(content_type, source))
+        .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response())
 }
 
 pub async fn favicon() -> impl IntoResponse {
@@ -65,4 +53,15 @@ fn asset(
         ],
         source,
     )
+}
+
+fn asset_bytes(content_type: &'static str, source: &'static [u8]) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, content_type),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        source,
+    )
+        .into_response()
 }

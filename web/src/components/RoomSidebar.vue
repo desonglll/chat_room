@@ -33,6 +33,7 @@ const props = defineProps<{
   selectedId?: string
   user: User | null
   loading: boolean
+  refreshing: boolean
   visible: boolean
   collapsed: boolean
 }>()
@@ -103,9 +104,21 @@ function formatDate(value: string): string {
 
 <template>
   <aside
-    class="relative z-10 min-h-0 min-w-0 flex-col border-r border-surface-200 bg-surface-0 shadow-sm md:flex"
-    :class="[visible ? 'flex' : 'hidden', resizing ? '' : 'transition-[width] duration-200 ease-out']"
+    class="absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border-r border-surface-200 bg-surface-0 shadow-sm transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    :class="[
+      visible
+        ? 'visible translate-x-0 opacity-100'
+        : 'invisible pointer-events-none -translate-x-4 opacity-0 md:pointer-events-auto',
+      resizing ? '' : 'md:transition-[width] md:duration-200 md:ease-out',
+    ]"
   >
+    <div
+      v-if="refreshing && !loading"
+      class="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden bg-primary-100"
+      aria-hidden="true"
+    >
+      <span class="room-sync-progress block h-full w-1/3 bg-primary" />
+    </div>
     <header
       class="flex h-[72px] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-4"
       :class="{ 'md:justify-center md:px-2': collapsed }"
@@ -120,7 +133,7 @@ function formatDate(value: string): string {
         <div class="min-w-0" :class="{ 'md:hidden': collapsed }">
           <h1 class="truncate text-[15px] font-semibold text-surface-900">Chat Room</h1>
           <p class="mt-0.5 truncate text-xs text-muted-color" aria-live="polite">
-            {{ loading ? '正在读取房间' : `${joinedRooms.length} 个聊天室` }}
+            {{ loading ? '正在读取房间' : refreshing ? '正在同步' : `${joinedRooms.length} 个聊天室` }}
           </p>
         </div>
       </div>
@@ -329,3 +342,25 @@ function formatDate(value: string): string {
     <ContextMenu ref="roomContextMenu" :model="roomContextMenuItems" />
   </aside>
 </template>
+
+<style scoped>
+@keyframes room-sync {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+.room-sync-progress {
+  animation: room-sync 1s var(--cr-ease-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-sync-progress {
+    animation: none;
+    width: 100%;
+  }
+}
+</style>

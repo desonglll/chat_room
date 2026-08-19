@@ -301,6 +301,7 @@ impl AppState {
 
         Ok(StoredMessage {
             id: message_id,
+            client_message_id: None,
             room_id,
             sender_id: Some(sender.id),
             sender: sender_display_name.to_string(),

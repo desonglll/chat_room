@@ -8,7 +8,8 @@ use crate::attachment_storage::StagedUpload;
 use crate::models::{Attachment, ForwardedFrom, ReplyPreview, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
-const MESSAGE_SELECT: &str = "SELECT messages.id, messages.room_id, messages.sender_id, \
+pub(super) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_message_id, \
+    messages.room_id, messages.sender_id, \
     messages.sender, COALESCE(sender_user.avatar_emoji, '') AS sender_avatar, messages.content, \
     messages.recalled_at, messages.edited_at, messages.created_at, attachments.id AS attachment_id, \
     attachments.access_key AS attachment_access_key, \
@@ -48,8 +49,9 @@ pub struct AttachmentMetadata {
 }
 
 #[derive(FromRow)]
-struct MessageRow {
+pub(super) struct MessageRow {
     id: Uuid,
+    client_message_id: Option<Uuid>,
     room_id: Uuid,
     sender_id: Option<Uuid>,
     sender: String,
@@ -76,7 +78,7 @@ struct MessageRow {
 impl MessageRow {
     /// `viewer_id` decides recall redaction: the sender of a recalled message keeps
     /// seeing their own draft (so they can re-edit it); every other viewer sees it blanked.
-    fn into_message(self, viewer_id: Option<Uuid>) -> StoredMessage {
+    pub(super) fn into_message(self, viewer_id: Option<Uuid>) -> StoredMessage {
         let recalled = self.recalled_at.is_some();
         let redact = recalled && viewer_id != self.sender_id;
         let attachment = (!redact)
@@ -121,6 +123,7 @@ impl MessageRow {
         });
         StoredMessage {
             id: self.id,
+            client_message_id: self.client_message_id,
             room_id: self.room_id,
             sender_id: self.sender_id,
             sender: self.sender,
@@ -137,53 +140,6 @@ impl MessageRow {
 }
 
 impl AppState {
-    /// Store a text message before it is forwarded to room participants.
-    pub async fn store_message(
-        &self,
-        room_id: Uuid,
-        sender_id: Uuid,
-        sender: &str,
-        sender_avatar: &str,
-        content: &str,
-        reply_to: Option<Uuid>,
-    ) -> Result<StoredMessage, sqlx::Error> {
-        let id = Uuid::new_v4();
-        let created_at = Utc::now();
-        let reply_to = self.reply_preview(room_id, reply_to).await?;
-        with_pool!(self, |pool| {
-            sqlx::query(
-                "INSERT INTO messages \
-             (id, room_id, sender_id, sender, content, reply_to_id, created_at) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            )
-            .bind(id)
-            .bind(room_id)
-            .bind(sender_id)
-            .bind(sender)
-            .bind(content)
-            .bind(reply_to.as_ref().map(|reply| reply.message_id))
-            .bind(created_at)
-            .execute(pool)
-            .await
-            .map(|_| ())
-        })?;
-
-        Ok(StoredMessage {
-            id,
-            room_id,
-            sender_id: Some(sender_id),
-            sender: sender.to_string(),
-            sender_avatar: sender_avatar.to_string(),
-            content: content.to_string(),
-            attachment: None,
-            reply_to,
-            recalled_at: None,
-            edited_at: None,
-            created_at,
-            forwarded_from: None,
-        })
-    }
-
     /// Copy a still-visible message (and its attachment, if any) into another room as
     /// a new message sent by `forwarder`. Returns `None` if the source message doesn't
     /// exist, isn't in `source_room_id`, or has been recalled.

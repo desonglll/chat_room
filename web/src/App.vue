@@ -1,21 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
-import AuthDialog from './components/AuthDialog.vue'
 import ChatPanel from './components/ChatPanel.vue'
-import CreateRoomDialog from './components/CreateRoomDialog.vue'
-import DiscoverRooms from './components/DiscoverRooms.vue'
-import ForwardDialog from './components/ForwardDialog.vue'
-import ManageRoomDialog from './components/ManageRoomDialog.vue'
-import JoinRoomDialog from './components/JoinRoomDialog.vue'
 import NetworkErrorBanner from './components/NetworkErrorBanner.vue'
-import ProfilePage from './components/ProfilePage.vue'
-import PreferencesDialog from './components/PreferencesDialog.vue'
 import PrivacyLockScreen from './components/PrivacyLockScreen.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
-import SettingsPage from './components/SettingsPage.vue'
 import { leaveRoom } from './api'
 import { createBrowserNotifier } from './browserNotifications'
 import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
@@ -36,6 +27,15 @@ import type { Room, RoomUpdateResult } from './types'
 
 const SIDEBAR_COLLAPSED_KEY = 'chat-room.sidebar-collapsed'
 const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
+const AuthDialog = defineAsyncComponent(() => import('./components/AuthDialog.vue'))
+const CreateRoomDialog = defineAsyncComponent(() => import('./components/CreateRoomDialog.vue'))
+const DiscoverRooms = defineAsyncComponent(() => import('./components/DiscoverRooms.vue'))
+const ForwardDialog = defineAsyncComponent(() => import('./components/ForwardDialog.vue'))
+const JoinRoomDialog = defineAsyncComponent(() => import('./components/JoinRoomDialog.vue'))
+const ManageRoomDialog = defineAsyncComponent(() => import('./components/ManageRoomDialog.vue'))
+const PreferencesDialog = defineAsyncComponent(() => import('./components/PreferencesDialog.vue'))
+const ProfilePage = defineAsyncComponent(() => import('./components/ProfilePage.vue'))
+const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -58,14 +58,16 @@ const {
   handleAccountDeleted,
   handleAuthenticated,
   handleLogout,
-  loading,
+  refreshingRooms,
   loadRoomList,
   maxUploadBytes,
   networkError,
   rooms,
   routeRoomId,
+  restoreCachedSelection,
   selectedRoom,
   sessionToken,
+  showColdSkeleton,
 } = useAppBootstrap({
   closeChat: () => chat.close(),
   closeUnread: () => unreadSocket.close(),
@@ -173,6 +175,8 @@ const {
   },
   showToast,
 })
+
+restoreCachedSelection()
 
 watch(chat.authFailureReason, (reason) => {
   const room = selectedRoom.value
@@ -319,7 +323,7 @@ function handleForwarded(): void {
   <RouterView v-if="route.name === 'admin'" />
   <div
     v-else
-    class="cr-canvas-ambient grid h-dvh w-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out md:[grid-template-columns:var(--sidebar-cols)]"
+    class="cr-canvas-ambient relative grid h-dvh w-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none md:[grid-template-columns:var(--sidebar-cols)]"
     :style="{
       '--sidebar-cols': sidebarCollapsed ? '76px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
     }"
@@ -331,7 +335,8 @@ function handleForwarded(): void {
       :rooms="rooms"
       :selected-id="selectedId"
       :user="currentUser"
-      :loading="loading"
+      :loading="showColdSkeleton"
+      :refreshing="refreshingRooms"
       :visible="mobileView === 'rooms'"
       :collapsed="sidebarCollapsed"
       @select="selectRoom"
@@ -368,7 +373,7 @@ function handleForwarded(): void {
       v-else-if="activePage === 'discover'"
       :rooms="rooms"
       :user="currentUser"
-      :loading="loading"
+      :loading="showColdSkeleton"
       :joining-id="discoverJoiningId"
       :error="discoverError"
       @back="returnToChat"
@@ -405,7 +410,7 @@ function handleForwarded(): void {
       :loading-older="history.loading.value"
       :has-more-history="history.hasMore.value"
       :ai-enabled="aiEnabled"
-      :loading="loading"
+      :loading="showColdSkeleton"
       :ensure-message="history.ensureMessage"
       @back="mobileView = 'rooms'"
       @manage="manageOpen = true"
@@ -426,6 +431,7 @@ function handleForwarded(): void {
       @update:password="roomPassword = $event"
       @forward="openForward"
       @poke="chat.poke"
+      @retry="chat.retry"
       @load-older="history.loadOlder"
     />
 
