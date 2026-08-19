@@ -106,6 +106,23 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
     assert_eq!(me["id"], user_id);
     assert_eq!(me["avatar_emoji"], "🚀");
 
+    let wrong_unlock = client
+        .post(format!("{base}/api/users/me/verify-password"))
+        .bearer_auth(login_token)
+        .json(&serde_json::json!({ "current_password": "wrong-password" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(wrong_unlock.status(), 401);
+    let verified = client
+        .post(format!("{base}/api/users/me/verify-password"))
+        .bearer_auth(login_token)
+        .json(&serde_json::json!({ "current_password": "correct-horse" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(verified.status(), 204);
+
     let room: serde_json::Value = client
         .post(format!("{base}/api/rooms"))
         .bearer_auth(login_token)
@@ -171,6 +188,17 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
             .status(),
         401
     );
+    assert_eq!(
+        client
+            .post(format!("{base}/api/users/me/verify-password"))
+            .bearer_auth(login_token)
+            .json(&serde_json::json!({ "current_password": "correct-horse" }))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
 
     task.abort();
 }
@@ -184,7 +212,9 @@ async fn next_json(
         let frame = socket.next().await.unwrap().unwrap();
         let Message::Text(text) = frame else { continue };
         let value: serde_json::Value = serde_json::from_str(&text).unwrap();
-        if value["type"] != "history_complete" { return value }
+        if value["type"] != "history_complete" {
+            return value;
+        }
     }
 }
 

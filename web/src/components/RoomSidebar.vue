@@ -5,6 +5,7 @@ import {
   EllipsisVertical,
   LogIn,
   LogOut,
+  LockKeyhole,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -44,6 +45,7 @@ const emit = defineEmits<{
   discover: []
   authenticate: []
   logout: []
+  lock: []
   settings: []
   profile: []
   toggleCollapse: []
@@ -104,10 +106,16 @@ function formatDate(value: string): string {
     class="relative z-10 min-h-0 min-w-0 flex-col border-r border-surface-200 bg-surface-0 shadow-sm md:flex"
     :class="[visible ? 'flex' : 'hidden', resizing ? '' : 'transition-[width] duration-200 ease-out']"
   >
-    <header class="flex h-[72px] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-4" :class="{ 'md:justify-center md:px-2': collapsed }">
+    <header
+      class="flex h-[72px] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-4"
+      :class="{ 'md:justify-center md:px-2': collapsed }"
+    >
       <div class="flex min-w-0 items-center gap-3">
-        <span class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-100 shadow-sm" :class="{ 'md:hidden': collapsed }">
-          <img src="/brand/echo-gate.svg" alt="" class="size-7" aria-hidden="true">
+        <span
+          class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-100 shadow-sm"
+          :class="{ 'md:hidden': collapsed }"
+        >
+          <img src="/brand/echo-gate.svg" alt="" class="size-7" aria-hidden="true" />
         </span>
         <div class="min-w-0" :class="{ 'md:hidden': collapsed }">
           <h1 class="truncate text-[15px] font-semibold text-surface-900">Chat Room</h1>
@@ -117,14 +125,38 @@ function formatDate(value: string): string {
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-1">
-        <Button :class="{ 'md:hidden': collapsed }" text rounded aria-label="新建聊天室" title="新建聊天室" data-testid="create-room-button" @click="emit('create')">
+        <Button
+          :class="{ 'md:hidden': collapsed }"
+          text
+          rounded
+          aria-label="新建聊天室"
+          title="新建聊天室"
+          data-testid="create-room-button"
+          @click="emit('create')"
+        >
           <Plus :size="17" />
         </Button>
-        <Button :class="{ 'md:hidden': collapsed }" text rounded severity="secondary" aria-label="更多操作" title="更多操作" @click="sidebarMenu.toggle($event)">
+        <Button
+          :class="{ 'md:hidden': collapsed }"
+          text
+          rounded
+          severity="secondary"
+          aria-label="更多操作"
+          title="更多操作"
+          @click="sidebarMenu.toggle($event)"
+        >
           <EllipsisVertical :size="17" />
         </Button>
         <Menu ref="sidebarMenu" :model="sidebarMenuItems" :popup="true" />
-        <Button class="hidden md:inline-flex" text rounded severity="secondary" :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'" :title="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="emit('toggleCollapse')">
+        <Button
+          class="hidden md:inline-flex"
+          text
+          rounded
+          severity="secondary"
+          :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
+          :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
+          @click="emit('toggleCollapse')"
+        >
           <PanelLeftOpen v-if="collapsed" :size="18" />
           <PanelLeftClose v-else :size="18" />
         </Button>
@@ -149,13 +181,25 @@ function formatDate(value: string): string {
         </div>
       </div>
 
-      <div v-else-if="joinedRooms.length === 0 && searchQuery.trim()" class="flex h-full flex-col items-center justify-center text-center text-muted-color">
-        <span class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"><Search :size="20" /></span>
+      <div
+        v-else-if="joinedRooms.length === 0 && searchQuery.trim()"
+        class="flex h-full flex-col items-center justify-center text-center text-muted-color"
+      >
+        <span
+          class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"
+          ><Search :size="20"
+        /></span>
         <strong class="mt-3 text-sm text-color" :class="{ 'md:hidden': collapsed }">没有匹配的聊天室</strong>
       </div>
 
-      <div v-else-if="joinedRooms.length === 0" class="flex h-full flex-col items-center justify-center text-center text-muted-color">
-        <span class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"><IconSprite name="rooms" :size="23" /></span>
+      <div
+        v-else-if="joinedRooms.length === 0"
+        class="flex h-full flex-col items-center justify-center text-center text-muted-color"
+      >
+        <span
+          class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"
+          ><IconSprite name="rooms" :size="23"
+        /></span>
         <strong class="mt-3 text-sm text-color" :class="{ 'md:hidden': collapsed }">还没有聊天室</strong>
         <span class="mt-1 text-xs" :class="{ 'md:hidden': collapsed }">创建一个，或去发现公开聊天室</span>
         <Button class="mt-3" :class="{ 'md:hidden': collapsed }" size="small" outlined @click="emit('discover')">
@@ -196,7 +240,15 @@ function formatDate(value: string): string {
           </span>
           <span class="mt-0.5 flex items-center gap-2">
             <small class="min-w-0 flex-1 truncate text-xs text-muted-color">
-              {{ room.membership_status === 'pending' ? '待审核' : room.membership_status === 'invited' ? '已邀请' : (room.has_password ? '私密' : '公开') }}
+              {{
+                room.membership_status === 'pending'
+                  ? '待审核'
+                  : room.membership_status === 'invited'
+                    ? '已邀请'
+                    : room.has_password
+                      ? '私密'
+                      : '公开'
+              }}
             </small>
             <Badge
               v-if="room.unread_count > 0"
@@ -215,9 +267,18 @@ function formatDate(value: string): string {
       </button>
     </div>
 
-    <footer class="flex min-h-[76px] shrink-0 items-center gap-2 border-t border-surface-200 bg-surface-50 px-4 py-3" :class="{ 'md:flex-col md:px-2': collapsed }">
+    <footer
+      class="flex min-h-[76px] shrink-0 items-center gap-2 border-t border-surface-200 bg-surface-50 px-4 py-3"
+      :class="{ 'md:flex-col md:px-2': collapsed }"
+    >
       <template v-if="user">
-        <button type="button" class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left transition hover:text-primary" :class="{ 'md:justify-center': collapsed }" title="我的" @click="emit('profile')">
+        <button
+          type="button"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left transition hover:text-primary"
+          :class="{ 'md:justify-center': collapsed }"
+          title="我的"
+          @click="emit('profile')"
+        >
           <Avatar
             :label="user.avatar_emoji || user.username.slice(0, 1).toUpperCase()"
             shape="circle"
@@ -229,6 +290,9 @@ function formatDate(value: string): string {
             <strong class="mt-0.5 block truncate text-sm">{{ user.display_name || user.username }}</strong>
           </span>
         </button>
+        <Button text rounded severity="secondary" aria-label="锁定界面" title="锁定界面" @click="emit('lock')">
+          <LockKeyhole :size="17" />
+        </Button>
         <Button text rounded severity="secondary" aria-label="设置" title="设置" @click="emit('settings')">
           <Settings :size="17" />
         </Button>
@@ -237,7 +301,13 @@ function formatDate(value: string): string {
         </Button>
       </template>
       <template v-else>
-        <Button class="min-w-0 flex-1" :class="{ 'md:flex-none': collapsed }" :aria-label="collapsed ? '登录或注册' : undefined" title="登录或注册" @click="emit('authenticate')">
+        <Button
+          class="min-w-0 flex-1"
+          :class="{ 'md:flex-none': collapsed }"
+          :aria-label="collapsed ? '登录或注册' : undefined"
+          title="登录或注册"
+          @click="emit('authenticate')"
+        >
           <LogIn :size="17" />
           <span :class="{ 'md:hidden': collapsed }">登录或注册</span>
         </Button>

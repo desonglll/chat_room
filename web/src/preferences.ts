@@ -1,17 +1,27 @@
 import type { ChatPreferences } from './types'
+import { parsePrivacyLockShortcut } from './privacyLock'
 
 const SEND_SHORTCUT_KEY = 'chat-room.send-shortcut'
 const FOCUS_SHORTCUT_KEY = 'chat-room.focus-shortcut'
 const NOTIFICATIONS_KEY = 'chat-room.notifications'
 const NOTIFICATION_DETAILS_KEY = 'chat-room.notification-details'
 const THEME_KEY = 'chat-room.theme'
+const PRIVACY_LOCK_SHORTCUT_KEY = 'chat-room.privacy-lock-shortcut'
 
 function read(key: string): string {
-  try { return window.localStorage.getItem(key) || '' } catch { return '' }
+  try {
+    return window.localStorage.getItem(key) || ''
+  } catch {
+    return ''
+  }
 }
 
 function write(key: string, value: string): void {
-  try { window.localStorage.setItem(key, value) } catch { /* Browser storage may be disabled. */ }
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    /* Browser storage may be disabled. */
+  }
 }
 
 export function loadPreferences(avatarEmoji = ''): ChatPreferences {
@@ -20,6 +30,7 @@ export function loadPreferences(avatarEmoji = ''): ChatPreferences {
   return {
     sendShortcut: read(SEND_SHORTCUT_KEY) === 'shift-enter' ? 'shift-enter' : 'enter',
     focusShortcut: focusShortcut === 'slash' || focusShortcut === 'none' ? focusShortcut : 'space',
+    privacyLockShortcut: parsePrivacyLockShortcut(read(PRIVACY_LOCK_SHORTCUT_KEY)),
     notificationsEnabled: read(NOTIFICATIONS_KEY) === 'true',
     notificationDetails: read(NOTIFICATION_DETAILS_KEY) !== 'false',
     avatarEmoji,
@@ -30,6 +41,7 @@ export function loadPreferences(avatarEmoji = ''): ChatPreferences {
 export function storePreferences(preferences: ChatPreferences): void {
   write(SEND_SHORTCUT_KEY, preferences.sendShortcut)
   write(FOCUS_SHORTCUT_KEY, preferences.focusShortcut)
+  write(PRIVACY_LOCK_SHORTCUT_KEY, JSON.stringify(preferences.privacyLockShortcut))
   write(NOTIFICATIONS_KEY, String(preferences.notificationsEnabled))
   write(NOTIFICATION_DETAILS_KEY, String(preferences.notificationDetails))
   write(THEME_KEY, preferences.theme)

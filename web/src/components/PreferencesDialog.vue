@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Bell, Keyboard, Moon, Save, UserRound } from 'lucide-vue-next'
+import { Bell, Keyboard, LockKeyhole, Moon, Save, UserRound } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import SelectButton from 'primevue/selectbutton'
 import ToggleSwitch from 'primevue/toggleswitch'
-import type { ChatPreferences, FocusShortcut, SendShortcut, ThemePreference, User } from '../types'
+import ShortcutRecorder from './ShortcutRecorder.vue'
+import { DEFAULT_PRIVACY_LOCK_SHORTCUT } from '../privacyLock'
+import type { ChatPreferences, FocusShortcut, PrivacyLockShortcut, SendShortcut, ThemePreference, User } from '../types'
 
 const AVATARS = ['', '😀', '😎', '🥳', '🤓', '🙂', '🫡', '🚀', '🌻', '🍀', '☕', '🎨', '💡', '🔥', '✨', '🌙', '⚡']
 const SHORTCUTS: { label: string; value: SendShortcut }[] = [
@@ -37,29 +39,37 @@ const emit = defineEmits<{
 
 const sendShortcut = ref<SendShortcut>('enter')
 const focusShortcut = ref<FocusShortcut>('space')
+const privacyLockShortcut = ref<PrivacyLockShortcut>({ ...DEFAULT_PRIVACY_LOCK_SHORTCUT })
 const theme = ref<ThemePreference>('system')
 const notificationsEnabled = ref(false)
 const notificationDetails = ref(true)
 const avatarEmoji = ref('')
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  sendShortcut.value = props.preferences.sendShortcut
-  focusShortcut.value = props.preferences.focusShortcut
-  theme.value = props.preferences.theme
-  notificationsEnabled.value = props.preferences.notificationsEnabled
-  notificationDetails.value = props.preferences.notificationDetails
-  avatarEmoji.value = props.user?.avatar_emoji || ''
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return
+    sendShortcut.value = props.preferences.sendShortcut
+    focusShortcut.value = props.preferences.focusShortcut
+    privacyLockShortcut.value = { ...props.preferences.privacyLockShortcut }
+    theme.value = props.preferences.theme
+    notificationsEnabled.value = props.preferences.notificationsEnabled
+    notificationDetails.value = props.preferences.notificationDetails
+    avatarEmoji.value = props.user?.avatar_emoji || ''
+  },
+)
 
 function save(): void {
   emit('save', {
     sendShortcut: sendShortcut.value,
     focusShortcut: focusShortcut.value,
+    privacyLockShortcut: privacyLockShortcut.value,
     theme: theme.value,
     notificationsEnabled: notificationsEnabled.value,
     notificationDetails: notificationDetails.value,
@@ -116,6 +126,14 @@ function save(): void {
         />
       </section>
 
+      <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr] sm:items-center">
+        <div class="flex items-center gap-2">
+          <LockKeyhole :size="18" class="text-primary" />
+          <span class="text-sm font-medium">锁屏快捷键</span>
+        </div>
+        <ShortcutRecorder v-model="privacyLockShortcut" />
+      </section>
+
       <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr]">
         <div class="flex items-center gap-2 pt-1">
           <Bell :size="18" class="text-primary" />
@@ -126,7 +144,10 @@ function save(): void {
             <span>浏览器通知</span>
             <ToggleSwitch v-model="notificationsEnabled" />
           </label>
-          <label class="flex cursor-pointer items-center justify-between gap-4 text-sm" :class="{ 'opacity-50': !notificationsEnabled }">
+          <label
+            class="flex cursor-pointer items-center justify-between gap-4 text-sm"
+            :class="{ 'opacity-50': !notificationsEnabled }"
+          >
             <span>显示发送者和消息详情</span>
             <ToggleSwitch v-model="notificationDetails" :disabled="!notificationsEnabled" />
           </label>
@@ -144,12 +165,20 @@ function save(): void {
             :key="emoji || 'default'"
             type="button"
             class="grid aspect-square place-items-center rounded-md border text-xl transition hover:-translate-y-0.5 hover:border-primary hover:bg-primary-50"
-            :class="emoji === avatarEmoji ? 'border-primary bg-primary-50 shadow-sm' : 'border-surface-200 bg-surface-0'"
+            :class="
+              emoji === avatarEmoji ? 'border-primary bg-primary-50 shadow-sm' : 'border-surface-200 bg-surface-0'
+            "
             :aria-label="emoji ? `使用 ${emoji} 作为头像` : '使用默认头像'"
             @click="avatarEmoji = emoji"
           >
             <span v-if="emoji">{{ emoji }}</span>
-            <Avatar v-else :label="user.username.slice(0, 1).toUpperCase()" shape="circle" size="small" class="bg-surface-200! text-surface-700!" />
+            <Avatar
+              v-else
+              :label="user.username.slice(0, 1).toUpperCase()"
+              shape="circle"
+              size="small"
+              class="bg-surface-200! text-surface-700!"
+            />
           </button>
         </div>
         <p v-else class="text-sm text-muted-color">登录后可设置头像</p>

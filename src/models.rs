@@ -156,6 +156,11 @@ pub struct DeleteAccountRequest {
     pub current_password: String,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct VerifyPasswordRequest {
+    pub current_password: String,
+}
+
 /// A login session returned after successful registration or authentication.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthSession {

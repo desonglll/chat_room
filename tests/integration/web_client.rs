@@ -41,6 +41,20 @@ async fn web_client_is_only_served_when_enabled() {
     assert!(script.contains("/api/rooms"));
     assert!(script.contains("WebSocket"));
 
+    let admin_dashboard = reqwest::get(format!("{}/assets/AdminDashboard.js", web))
+        .await
+        .unwrap();
+    assert_eq!(admin_dashboard.status(), 200);
+    assert_eq!(
+        admin_dashboard.headers()[reqwest::header::CONTENT_TYPE],
+        "text/javascript; charset=utf-8"
+    );
+    assert!(admin_dashboard
+        .text()
+        .await
+        .unwrap()
+        .contains("/api/admin/overview"));
+
     let archive_chunk = reqwest::get(format!("{}/assets/jszip.min.js", web))
         .await
         .unwrap();

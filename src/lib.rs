@@ -1,12 +1,12 @@
 //! chat_room — Axum-based chat server with WebSocket and OpenAPI.
 
 mod account_events;
-pub mod admin_metrics;
 pub mod account_ws;
+pub mod admin_metrics;
 pub mod ai;
 pub mod ai_handlers;
-pub mod attachment_handlers;
 mod attachment_content;
+pub mod attachment_handlers;
 pub mod attachment_storage;
 pub mod attachment_upload_handlers;
 pub mod attachment_upload_sessions;
@@ -63,6 +63,7 @@ use crate::state::AppState;
         user_handlers::register,
         user_handlers::login,
         user_handlers::me,
+        user_handlers::verify_password,
         user_handlers::get_user,
         user_handlers::update_me,
         user_handlers::logout,
@@ -95,6 +96,7 @@ use crate::state::AppState;
         models::UpdateProfileRequest,
         models::ChangePasswordRequest,
         models::DeleteAccountRequest,
+        models::VerifyPasswordRequest,
         models::JoinRoomRequest,
         models::InviteMemberRequest,
         models::UpdateMembershipRequest,
@@ -208,6 +210,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/users/me/password",
             axum::routing::put(user_handlers::change_password),
         )
+        .route(
+            "/api/users/me/verify-password",
+            axum::routing::post(user_handlers::verify_password),
+        )
         .route("/api/users/:id", get(user_handlers::get_user))
         .route(
             "/api/messages/forward",
@@ -232,6 +238,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             .route("/favicon.svg", get(web::favicon))
             .route("/assets/app.css", get(web::stylesheet))
             .route("/assets/app.js", get(web::app_script))
+            .route(
+                "/assets/AdminDashboard.js",
+                get(web::admin_dashboard_script),
+            )
             .route("/assets/jszip.min.js", get(web::jszip_script))
             .route("/icons/icon-sprite.svg", get(web::icon_sprite))
             .route("/brand/echo-gate.svg", get(web::echo_gate))
@@ -245,7 +255,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         state.clone(),
         admin_metrics::track_request,
     ))
-        .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+    .layer(CorsLayer::permissive())
+    .layer(TraceLayer::new_for_http())
+    .with_state(state)
 }

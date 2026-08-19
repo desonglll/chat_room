@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { File, LoaderCircle, Paperclip, Pencil, Send, Smile, Sparkles, X } from 'lucide-vue-next'
+import { LoaderCircle, Paperclip, Send, Smile, Sparkles } from 'lucide-vue-next'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
 import Popover from 'primevue/popover'
 import Textarea from 'primevue/textarea'
+import ComposerContext from './ComposerContext.vue'
 import EmojiPicker from './EmojiPicker.vue'
+import PendingAttachmentStrip from './PendingAttachmentStrip.vue'
 import { shouldSubmitMessage } from '../composer'
 import { formatUploadLimit, getAiSuggestions } from '../api'
 import type { BroadcastMessage, RoomMember, SendShortcut } from '../types'
@@ -63,9 +64,7 @@ const canSend = computed(() => Boolean(draft.value.trim() || pendingFiles.value.
 const mentionMatches = computed(() => {
   if (mentionQuery.value === null) return []
   const query = mentionQuery.value.toLowerCase()
-  return props.participants
-    .filter((member) => member.username.toLowerCase().startsWith(query))
-    .slice(0, 6)
+  return props.participants.filter((member) => member.username.toLowerCase().startsWith(query)).slice(0, 6)
 })
 
 function updateMentionState(): void {
@@ -113,25 +112,26 @@ watch(draft, (content) => {
   }
 })
 
-watch(() => props.replyingTo?.message_id, (messageId) => {
-  if (messageId) void nextTick(() => messageInput.value?.$el.focus())
-})
+watch(
+  () => props.replyingTo?.message_id,
+  (messageId) => {
+    if (messageId) void nextTick(() => messageInput.value?.$el.focus())
+  },
+)
 
-watch(() => props.editingTo?.message_id, (messageId) => {
-  if (!messageId || !props.editingTo) return
-  clearFiles()
-  draft.value = props.editingTo.content
-  void nextTick(() => {
-    const input = messageInput.value?.$el
-    input?.focus()
-    input?.setSelectionRange(input.value.length, input.value.length)
-  })
-})
-
-function replySummary(message: BroadcastMessage): string {
-  if (message.recalled_at) return '消息已撤回'
-  return message.content || (message.attachment ? `[附件] ${message.attachment.file_name}` : '[消息]')
-}
+watch(
+  () => props.editingTo?.message_id,
+  (messageId) => {
+    if (!messageId || !props.editingTo) return
+    clearFiles()
+    draft.value = props.editingTo.content
+    void nextTick(() => {
+      const input = messageInput.value?.$el
+      input?.focus()
+      input?.setSelectionRange(input.value.length, input.value.length)
+    })
+  },
+)
 
 function addFiles(files: File[]): void {
   if (props.editingTo) return
@@ -151,12 +151,12 @@ function addFiles(files: File[]): void {
   const additions = valid.slice(0, remaining).map((file) => ({
     id: ++pendingId,
     file,
-    previewUrl: file.type.startsWith('image/') || file.type.startsWith('video/')
-      ? URL.createObjectURL(file)
-      : '',
+    previewUrl: file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : '',
     previewKind: file.type.startsWith('image/')
-      ? 'image' as const
-      : file.type.startsWith('video/') ? 'video' as const : 'file' as const,
+      ? ('image' as const)
+      : file.type.startsWith('video/')
+        ? ('video' as const)
+        : ('file' as const),
   }))
   pendingFiles.value.push(...additions)
 }
@@ -189,7 +189,13 @@ function submitMessage(): void {
   }
   const replyTo = props.replyingTo?.message_id || ''
   if (pendingFiles.value.length) {
-    emit('upload', pendingFiles.value.map((item) => item.file), content, replyTo, pendingFilesSensitive.value)
+    emit(
+      'upload',
+      pendingFiles.value.map((item) => item.file),
+      content,
+      replyTo,
+      pendingFilesSensitive.value,
+    )
   } else {
     emit('send', content, replyTo)
   }
@@ -338,54 +344,21 @@ defineExpose({ addFiles, focus })
 </script>
 
 <template>
-  <form class="shrink-0 border-t border-surface-200 bg-surface-0" data-testid="chat-form" @submit.prevent="submitMessage">
-    <div v-if="editingTo" class="flex items-center gap-3 px-3 pt-3 sm:px-7">
-      <Pencil :size="16" class="shrink-0 text-primary" />
-      <div class="min-w-0 flex-1">
-        <strong class="block truncate text-xs text-primary">编辑已发送消息</strong>
-        <span class="mt-0.5 block truncate text-xs text-muted-color">{{ editingTo.content }}</span>
-      </div>
-      <Button type="button" text rounded severity="secondary" aria-label="取消编辑" title="取消编辑" @click="cancelEditing">
-        <X :size="17" />
-      </Button>
-    </div>
-    <div v-if="replyingTo" class="flex items-center gap-3 px-3 pt-3 sm:px-7">
-      <div class="min-w-0 flex-1 border-l-[3px] border-primary pl-2.5">
-        <strong class="block truncate text-xs text-primary">回复 {{ replyingTo.sender }}</strong>
-        <span class="mt-0.5 block truncate text-xs text-muted-color">{{ replySummary(replyingTo) }}</span>
-      </div>
-      <Button type="button" text rounded severity="secondary" aria-label="取消回复" title="取消回复" @click="emit('cancelReply')">
-        <X :size="17" />
-      </Button>
-    </div>
-
-    <TransitionGroup
-      v-if="pendingFiles.length"
-      tag="div"
-      class="flex gap-2 overflow-x-auto px-3 pt-3 sm:px-7"
-      aria-label="待发送附件"
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="translate-y-1 opacity-0"
-      leave-active-class="transition duration-150 ease-in"
-      leave-to-class="scale-95 opacity-0"
-    >
-      <div v-for="item in pendingFiles" :key="item.id" class="relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-100 text-muted-color shadow-sm">
-        <img v-if="item.previewKind === 'image'" class="size-full object-cover" :src="item.previewUrl" :alt="item.file.name">
-        <video v-else-if="item.previewKind === 'video'" class="size-full object-cover" :src="item.previewUrl" muted playsinline preload="metadata" />
-        <File v-else :size="24" />
-        <span class="absolute inset-x-1 bottom-1 truncate rounded-sm bg-surface-900/75 px-1 py-0.5 text-[9px] text-white">{{ item.file.name }}</span>
-        <button type="button" class="absolute right-1 top-1 grid size-6 place-items-center rounded bg-surface-0/90 text-surface-600 shadow-sm hover:bg-surface-0 hover:text-surface-900" aria-label="移除附件" title="移除附件" @click="removeFile(item.id)">
-          <X :size="15" />
-        </button>
-      </div>
-    </TransitionGroup>
-    <label v-if="pendingFiles.length" class="flex items-center gap-2 px-3 pt-2 text-xs text-muted-color sm:px-7">
-      <Checkbox v-model="pendingFilesSensitive" binary input-id="sensitiveContent" />
-      <span for="sensitiveContent">包含敏感内容，接收方需点击确认才能查看</span>
-    </label>
+  <form
+    class="shrink-0 border-t border-surface-200 bg-surface-0"
+    data-testid="chat-form"
+    @submit.prevent="submitMessage"
+  >
+    <ComposerContext
+      :editing="editingTo"
+      :replying="replyingTo"
+      @cancel-edit="cancelEditing"
+      @cancel-reply="emit('cancelReply')"
+    />
+    <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
 
     <div class="flex items-center gap-1 px-3 py-3 sm:px-7">
-      <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles">
+      <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles" />
       <Button
         v-if="!editingTo"
         type="button"
@@ -401,7 +374,16 @@ defineExpose({ addFiles, focus })
         <LoaderCircle v-if="uploading" class="animate-spin" :size="19" />
         <Paperclip v-else :size="19" />
       </Button>
-      <Button type="button" text rounded severity="secondary" class="!size-10 shrink-0" aria-label="插入表情" title="表情" @click="emojiPopover.toggle($event)">
+      <Button
+        type="button"
+        text
+        rounded
+        severity="secondary"
+        class="!size-10 shrink-0"
+        aria-label="插入表情"
+        title="表情"
+        @click="emojiPopover.toggle($event)"
+      >
         <Smile :size="19" />
       </Button>
       <Popover ref="emojiPopover">
@@ -478,7 +460,14 @@ defineExpose({ addFiles, focus })
           </template>
         </div>
       </div>
-      <Button type="submit" rounded class="!size-10 shrink-0 transition-transform active:scale-90" :disabled="!canSend || uploading" aria-label="发送消息" title="发送消息">
+      <Button
+        type="submit"
+        rounded
+        class="!size-10 shrink-0 transition-transform active:scale-90"
+        :disabled="!canSend || uploading"
+        aria-label="发送消息"
+        title="发送消息"
+      >
         <Send :size="18" />
       </Button>
     </div>

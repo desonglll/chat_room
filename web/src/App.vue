@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Button from 'primevue/button'
-import Message from 'primevue/message'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import AuthDialog from './components/AuthDialog.vue'
@@ -12,11 +10,13 @@ import DiscoverRooms from './components/DiscoverRooms.vue'
 import ForwardDialog from './components/ForwardDialog.vue'
 import ManageRoomDialog from './components/ManageRoomDialog.vue'
 import JoinRoomDialog from './components/JoinRoomDialog.vue'
+import NetworkErrorBanner from './components/NetworkErrorBanner.vue'
 import ProfilePage from './components/ProfilePage.vue'
 import PreferencesDialog from './components/PreferencesDialog.vue'
+import PrivacyLockScreen from './components/PrivacyLockScreen.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
 import SettingsPage from './components/SettingsPage.vue'
-import { leaveRoom, listRoomMessages, storedMessageToBroadcast } from './api'
+import { leaveRoom } from './api'
 import { createBrowserNotifier } from './browserNotifications'
 import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
 import { useChatSocket } from './composables/useChatSocket'
@@ -26,6 +26,7 @@ import { useAppBootstrap } from './composables/useAppBootstrap'
 import { useAttachmentUpload } from './composables/useAttachmentUpload'
 import { usePreferencesController } from './composables/usePreferencesController'
 import { useRoomMembership } from './composables/useRoomMembership'
+import { useRoomHistory } from './composables/useRoomHistory'
 import { useTheme } from './composables/useTheme'
 import { loadPreferences } from './preferences'
 import { reconcileMembershipAuthFailure } from './roomMembershipState'
@@ -46,10 +47,9 @@ const authOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const sidebarCollapsed = ref(storageGet(window.localStorage, SIDEBAR_COLLAPSED_KEY) === 'true')
 const preferences = ref(loadPreferences())
+const privacyLockScreen = ref<{ lock: () => void } | null>(null)
 useTheme(computed(() => preferences.value.theme))
 const sidebarWidth = ref(340)
-const loadingOlder = ref(false)
-const hasMoreHistory = ref(true)
 const toast = useToast()
 const {
   aiEnabled,
@@ -125,19 +125,25 @@ const { activePage, openProfile, openSettings, openDiscover, requireAccount, ret
   selectedRoom,
   mobileView,
   () => chat.authenticated.value,
-  () => { authOpen.value = true },
-  () => { preferenceController.open.value = true },
+  () => {
+    authOpen.value = true
+  },
+  () => {
+    preferenceController.open.value = true
+  },
 )
 const selectedId = computed(() => selectedRoom.value?.id)
 const unreadSocket = useUnreadSocket((states) => {
   rooms.value = rooms.value.map((room) => {
     const state = states.get(room.id)
-    return state ? {
-      ...room,
-      unread_count: state.unread_count,
-      membership_status: state.membership_status,
-      membership_role: state.membership_role,
-    } : { ...room, membership_status: undefined, membership_role: undefined, unread_count: 0 }
+    return state
+      ? {
+          ...room,
+          unread_count: state.unread_count,
+          membership_status: state.membership_status,
+          membership_role: state.membership_role,
+        }
+      : { ...room, membership_status: undefined, membership_role: undefined, unread_count: 0 }
   })
   if (selectedRoom.value) {
     selectedRoom.value = rooms.value.find((room) => room.id === selectedRoom.value?.id) || selectedRoom.value
@@ -161,7 +167,9 @@ const {
   requireAccount,
   selectRoom,
   connect: chat.connect,
-  setError: (message) => { chat.error.value = message },
+  setError: (message) => {
+    chat.error.value = message
+  },
   showToast,
 })
 
@@ -171,7 +179,7 @@ watch(chat.authFailureReason, (reason) => {
   const updated = reconcileMembershipAuthFailure(room, reason)
   if (updated === room) return
   selectedRoom.value = updated
-  rooms.value = rooms.value.map((item) => item.id === updated.id ? updated : item)
+  rooms.value = rooms.value.map((item) => (item.id === updated.id ? updated : item))
 })
 
 watch(chat.authenticated, (online) => {
@@ -222,31 +230,24 @@ function selectRoom(room: Room, autoConnect = false): void {
   activePage.value = 'chat'
   roomPassword.value = storageGet(window.sessionStorage, passwordKey(room.id))
   mobileView.value = 'chat'
-  if (autoConnect && room.membership_status === 'active' && currentUser.value && sessionToken.value && (!room.has_password || roomPassword.value)) {
+  if (
+    autoConnect &&
+    room.membership_status === 'active' &&
+    currentUser.value &&
+    sessionToken.value &&
+    (!room.has_password || roomPassword.value)
+  ) {
     joinSelectedRoom()
   }
 }
 
-watch(() => selectedRoom.value?.id, () => {
-  hasMoreHistory.value = true
-  loadingOlder.value = false
+const history = useRoomHistory({
+  room: selectedRoom,
+  token: sessionToken,
+  password: roomPassword,
+  messages: chat.messages,
+  prepend: chat.prependHistory,
 })
-
-async function loadOlderMessages(): Promise<void> {
-  const room = selectedRoom.value
-  const oldest = chat.messages.value.find((message) => message.type === 'broadcast')
-  if (!room || !sessionToken.value || !oldest || loadingOlder.value || !hasMoreHistory.value) return
-  loadingOlder.value = true
-  try {
-    const page = await listRoomMessages(room.id, sessionToken.value, roomPassword.value, oldest.message_id, 50)
-    hasMoreHistory.value = page.length === 50
-    chat.prependHistory(page.map(storedMessageToBroadcast))
-  } catch {
-    // Leave hasMoreHistory as-is; scrolling up again will retry.
-  } finally {
-    loadingOlder.value = false
-  }
-}
 
 watch(routeRoomId, (id) => {
   if (selectedRoom.value?.id === id) return
@@ -270,7 +271,7 @@ function handleCreated(room: Room, password: string): void {
 function handleUpdated(result: RoomUpdateResult): void {
   const previousStatus = chat.status.value
   const hadSession = ['connecting', 'online', 'offline'].includes(previousStatus)
-  rooms.value = rooms.value.map((room) => room.id === result.room.id ? result.room : room)
+  rooms.value = rooms.value.map((room) => (room.id === result.room.id ? result.room : room))
   selectedRoom.value = result.room
   roomPassword.value = result.password
   storageSet(window.sessionStorage, passwordKey(result.room.id), result.password)
@@ -308,7 +309,11 @@ async function handleLeaveRoom(room: Room | null = selectedRoom.value): Promise<
     await loadRoomList()
     showToast('已退出聊天室')
   } catch (caught) {
-    toast.add({ severity: 'error', summary: caught instanceof Error ? caught.message : '退出失败', life: 3200 })
+    toast.add({
+      severity: 'error',
+      summary: caught instanceof Error ? caught.message : '退出失败',
+      life: 3200,
+    })
   }
 }
 
@@ -327,11 +332,6 @@ function handleForwarded(): void {
   forwardOpen.value = false
   showToast('已转发')
 }
-
-function handleRead(messageId: string): void {
-  chat.markRead(messageId)
-}
-
 </script>
 
 <template>
@@ -339,17 +339,12 @@ function handleRead(messageId: string): void {
   <div
     v-else
     class="cr-canvas-ambient grid h-dvh w-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out md:[grid-template-columns:var(--sidebar-cols)]"
-    :style="{ '--sidebar-cols': sidebarCollapsed ? '76px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)` }"
+    :style="{
+      '--sidebar-cols': sidebarCollapsed ? '76px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
+    }"
     data-testid="app-shell"
   >
-    <div v-if="networkError" class="fixed inset-x-0 top-3 z-50 mx-auto w-[min(92vw,560px)]" role="alert">
-      <Message severity="error" :closable="false">
-        <div class="flex items-center gap-3">
-          <span class="min-w-0 flex-1">{{ networkError }}</span>
-          <Button label="重试" size="small" severity="danger" outlined @click="loadRoomList" />
-        </div>
-      </Message>
-    </div>
+    <NetworkErrorBanner :message="networkError" @retry="loadRoomList" />
 
     <RoomSidebar
       :rooms="rooms"
@@ -365,6 +360,7 @@ function handleRead(messageId: string): void {
       @discover="openDiscover"
       @authenticate="authOpen = true"
       @logout="handleLogout"
+      @lock="privacyLockScreen?.lock()"
       @profile="openProfile"
       @settings="openSettings"
       @toggle-collapse="toggleSidebar"
@@ -425,8 +421,8 @@ function handleRead(messageId: string): void {
       :focus-shortcut="preferences.focusShortcut"
       :typing-drafts="chat.typingDrafts.value"
       :poked-at="chat.pokedAt.value"
-      :loading-older="loadingOlder"
-      :has-more-history="hasMoreHistory"
+      :loading-older="history.loading.value"
+      :has-more-history="history.hasMore.value"
       :ai-enabled="aiEnabled"
       :loading="loading"
       @back="mobileView = 'rooms'"
@@ -436,7 +432,7 @@ function handleRead(messageId: string): void {
       @request-join="handleJoinRequest"
       @authenticate="authOpen = true"
       @send="chat.send"
-      @read="handleRead"
+      @read="chat.markRead"
       @upload="attachmentUpload.upload"
       @resume-upload="attachmentUpload.resume"
       @cancel-upload="attachmentUpload.cancel"
@@ -448,10 +444,19 @@ function handleRead(messageId: string): void {
       @update:password="roomPassword = $event"
       @forward="openForward"
       @poke="chat.poke"
-      @load-older="loadOlderMessages"
+      @load-older="history.loadOlder"
     />
 
-    <AuthDialog :open="authOpen" @close="authOpen = false" @authenticated="(session) => { authOpen = false; handleAuthenticated(session) }" />
+    <AuthDialog
+      :open="authOpen"
+      @close="authOpen = false"
+      @authenticated="
+        (session) => {
+          authOpen = false
+          handleAuthenticated(session)
+        }
+      "
+    />
     <ForwardDialog
       :open="forwardOpen"
       :message-ids="forwardMessageIds"
@@ -482,4 +487,11 @@ function handleRead(messageId: string): void {
 
     <Toast position="top-right" />
   </div>
+  <PrivacyLockScreen
+    ref="privacyLockScreen"
+    :token="sessionToken"
+    :shortcut="preferences.privacyLockShortcut"
+    @change="notifier.configure(!$event && preferences.notificationsEnabled, preferences.notificationDetails)"
+    @logout="handleLogout"
+  />
 </template>

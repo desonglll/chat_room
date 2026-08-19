@@ -169,9 +169,17 @@ export type SendShortcut = 'enter' | 'shift-enter'
 export type FocusShortcut = 'space' | 'slash' | 'none'
 export type ThemePreference = 'light' | 'dark' | 'system'
 
+export interface PrivacyLockShortcut {
+  code: string
+  primary: boolean
+  alt: boolean
+  shift: boolean
+}
+
 export interface ChatPreferences {
   sendShortcut: SendShortcut
   focusShortcut: FocusShortcut
+  privacyLockShortcut: PrivacyLockShortcut
   notificationsEnabled: boolean
   notificationDetails: boolean
   avatarEmoji: string

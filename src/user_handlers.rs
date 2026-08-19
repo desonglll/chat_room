@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::models::{
     AuthRequest, AuthSession, ChangePasswordRequest, DeleteAccountRequest, UpdateProfileRequest,
-    User,
+    User, VerifyPasswordRequest,
 };
 use crate::state::SharedState;
 
@@ -232,12 +232,23 @@ pub async fn update_me(
     if avatar_emoji.chars().count() > 8 || avatar_emoji.chars().any(char::is_control) {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let display_name = request.display_name.as_deref().unwrap_or(&current.display_name).trim();
-    let signature = request.signature.as_deref().unwrap_or(&current.signature).trim();
-    let homepage = request.homepage.as_deref().unwrap_or(&current.homepage).trim();
-    let valid_homepage = homepage.is_empty()
-        || homepage.starts_with("https://")
-        || homepage.starts_with("http://");
+    let display_name = request
+        .display_name
+        .as_deref()
+        .unwrap_or(&current.display_name)
+        .trim();
+    let signature = request
+        .signature
+        .as_deref()
+        .unwrap_or(&current.signature)
+        .trim();
+    let homepage = request
+        .homepage
+        .as_deref()
+        .unwrap_or(&current.homepage)
+        .trim();
+    let valid_homepage =
+        homepage.is_empty() || homepage.starts_with("https://") || homepage.starts_with("http://");
     if display_name.chars().count() > MAX_DISPLAY_NAME_CHARS
         || signature.chars().count() > MAX_SIGNATURE_CHARS
         || signature.chars().any(char::is_control)
@@ -292,6 +303,44 @@ pub async fn change_password(
             tracing::error!("change account password failed: {error}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Verify the current account password without issuing another login session.
+#[utoipa::path(
+    post,
+    path = "/api/users/me/verify-password",
+    request_body = VerifyPasswordRequest,
+    responses(
+        (status = 204, description = "Password verified"),
+        (status = 400, description = "Invalid password format"),
+        (status = 401, description = "Incorrect password or expired session")
+    )
+)]
+pub async fn verify_password(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(request): Json<VerifyPasswordRequest>,
+) -> Result<StatusCode, StatusCode> {
+    if request.current_password.chars().count() > MAX_PASSWORD_CHARS {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let token = bearer_token(&headers)?;
+    let current = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    let Some((_, password_hash)) = state
+        .user_credentials(&current.username)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    else {
+        return Err(StatusCode::UNAUTHORIZED);
+    };
+    if !password_matches(request.current_password, password_hash).await {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 
