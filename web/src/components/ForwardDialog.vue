@@ -21,15 +21,20 @@ const busy = ref(false)
 const error = ref('')
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 const targetRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  selectedRoomIds.value = []
-  error.value = ''
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return
+    selectedRoomIds.value = []
+    error.value = ''
+  },
+)
 
 function toggleRoom(roomId: string): void {
   selectedRoomIds.value = selectedRoomIds.value.includes(roomId)
@@ -63,11 +68,7 @@ async function confirmForward(): Promise<void> {
     <ul class="max-h-72 space-y-1 overflow-y-auto p-0">
       <li v-for="room in targetRooms" :key="room.id">
         <label class="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm hover:bg-surface-100">
-          <Checkbox
-            binary
-            :model-value="selectedRoomIds.includes(room.id)"
-            @update:model-value="toggleRoom(room.id)"
-          />
+          <Checkbox binary :model-value="selectedRoomIds.includes(room.id)" @update:model-value="toggleRoom(room.id)" />
           <span class="min-w-0 flex-1 truncate">{{ room.name }}</span>
         </label>
       </li>

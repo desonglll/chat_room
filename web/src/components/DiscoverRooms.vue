@@ -41,8 +41,12 @@ function joinLabel(room: Room): string {
 
 <template>
   <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface-0">
-    <header class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7">
-      <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"><ArrowLeft :size="19" /></Button>
+    <header
+      class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7"
+    >
+      <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"
+        ><ArrowLeft :size="19"
+      /></Button>
       <div class="min-w-0 flex-1">
         <h2 class="text-base font-semibold">发现聊天室</h2>
         <p class="mt-0.5 text-xs text-muted-color">浏览并加入公开聊天室</p>
@@ -62,7 +66,10 @@ function joinLabel(room: Room): string {
       </div>
 
       <div v-else-if="discoverable.length === 0" class="mt-16 flex flex-col items-center text-center text-muted-color">
-        <span class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"><Compass :size="23" /></span>
+        <span
+          class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"
+          ><Compass :size="23"
+        /></span>
         <strong class="mt-3 text-sm text-color">{{ query ? '没有匹配的聊天室' : '暂无可发现的公开聊天室' }}</strong>
       </div>
 
@@ -81,7 +88,9 @@ function joinLabel(room: Room): string {
           </span>
           <div class="min-w-0 flex-1">
             <strong class="block truncate text-sm font-semibold">{{ room.name }}</strong>
-            <small v-if="room.description" class="mt-0.5 block truncate text-xs text-muted-color">{{ room.description }}</small>
+            <small v-if="room.description" class="mt-0.5 block truncate text-xs text-muted-color">{{
+              room.description
+            }}</small>
           </div>
           <Button
             v-if="user"

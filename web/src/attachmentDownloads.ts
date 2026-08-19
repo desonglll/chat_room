@@ -28,8 +28,7 @@ export function partitionAttachmentBatches(
   let batch: Attachment[] = []
   let bytes = 0
   for (const attachment of attachments) {
-    const overLimit = batch.length > 0
-      && (batch.length >= maxFiles || bytes + attachment.size_bytes > maxBytes)
+    const overLimit = batch.length > 0 && (batch.length >= maxFiles || bytes + attachment.size_bytes > maxBytes)
     if (overLimit) {
       batches.push(batch)
       batch = []
@@ -64,35 +63,46 @@ export async function downloadAttachmentArchives(
       if (!response.ok) throw new Error(`下载 ${attachment.file_name} 失败`)
       const blob = await readBlob(response, options.signal, (bytes) => {
         receivedBytes += bytes
-        options.onProgress(progress(
-          'downloading', completedFiles, attachments.length, receivedBytes, totalBytes,
-          batchOffset, batches.length, packedBatches, 0,
-        ))
+        options.onProgress(
+          progress(
+            'downloading',
+            completedFiles,
+            attachments.length,
+            receivedBytes,
+            totalBytes,
+            batchOffset,
+            batches.length,
+            packedBatches,
+            0,
+          ),
+        )
       })
       zip.file(uniqueName(attachment.file_name, fileOffset, used), blob)
       completedFiles += 1
     }
-    const blob = await zip.generateAsync(
-      { type: 'blob', compression: 'STORE' },
-      (metadata) => {
-        assertNotAborted(options.signal)
-        options.onProgress(progress(
-          'packing', completedFiles, attachments.length, receivedBytes, totalBytes,
-          batchOffset, batches.length, packedBatches, metadata.percent,
-        ))
-      },
-    )
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' }, (metadata) => {
+      assertNotAborted(options.signal)
+      options.onProgress(
+        progress(
+          'packing',
+          completedFiles,
+          attachments.length,
+          receivedBytes,
+          totalBytes,
+          batchOffset,
+          batches.length,
+          packedBatches,
+          metadata.percent,
+        ),
+      )
+    })
     assertNotAborted(options.signal)
     packedBatches += 1
     saveBlob(blob, archiveFileName(archiveName, batchOffset, batches.length))
   }
 }
 
-async function readBlob(
-  response: Response,
-  signal: AbortSignal,
-  onChunk: (bytes: number) => void,
-): Promise<Blob> {
+async function readBlob(response: Response, signal: AbortSignal, onChunk: (bytes: number) => void): Promise<Blob> {
   if (!response.body) {
     const blob = await response.blob()
     onChunk(blob.size)
@@ -125,9 +135,7 @@ function progress(
   packedBatches: number,
   packingPercent: number,
 ): DownloadProgress {
-  const downloadRatio = totalBytes > 0
-    ? Math.min(receivedBytes / totalBytes, 1)
-    : completedFiles / totalFiles
+  const downloadRatio = totalBytes > 0 ? Math.min(receivedBytes / totalBytes, 1) : completedFiles / totalFiles
   const packRatio = (packedBatches + (stage === 'packing' ? packingPercent / 100 : 0)) / batchCount
   return {
     stage,

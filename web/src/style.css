@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tailwindcss-primeui";
-@import "./tokens.css";
+@import 'tailwindcss';
+@import 'tailwindcss-primeui';
+@import './tokens.css';
 
 /* Redirect Tailwind's shadow/radius/ease scale onto the brand token system —
    every `shadow-md`/`rounded-xl`/`ease-spring` utility in the app picks up
@@ -57,7 +57,7 @@
   }
 
   button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
+  [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
 }
@@ -112,13 +112,13 @@
     border-color var(--cr-motion-normal) var(--cr-ease-out);
 }
 
-.p-button:active:not(:disabled):not([data-p-disabled="true"]),
+.p-button:active:not(:disabled):not([data-p-disabled='true']),
 .p-togglebutton:active:not(:disabled) {
   transform: scale(0.96);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .p-button:active:not(:disabled):not([data-p-disabled="true"]),
+  .p-button:active:not(:disabled):not([data-p-disabled='true']),
   .p-togglebutton:active:not(:disabled) {
     transform: none;
   }

@@ -21,13 +21,14 @@ export function usePreferencesController(options: PreferenceOptions) {
     try {
       if (next.notificationsEnabled) {
         if (typeof Notification === 'undefined') throw new Error('当前浏览器不支持消息通知')
-        const permission = Notification.permission === 'default'
-          ? await Notification.requestPermission()
-          : Notification.permission
+        const permission =
+          Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
         if (permission !== 'granted') throw new Error('浏览器没有授予通知权限')
       }
       if (options.user.value && options.token.value && next.avatarEmoji !== options.user.value.avatar_emoji) {
-        options.user.value = await updateCurrentUser(options.token.value, { avatar_emoji: next.avatarEmoji })
+        options.user.value = await updateCurrentUser(options.token.value, {
+          avatar_emoji: next.avatarEmoji,
+        })
       }
       options.preferences.value = { ...next, avatarEmoji: options.user.value?.avatar_emoji || '' }
       storePreferences(options.preferences.value)

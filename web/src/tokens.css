@@ -39,7 +39,7 @@
   --cr-success: var(--cr-jade-800);
   --cr-flash: var(--cr-sun-100);
 
-  --cr-font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --cr-font-sans: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --cr-text-caption: 0.75rem;
   --cr-text-sm: 0.875rem;
   --cr-text-body: 1rem;
@@ -93,7 +93,7 @@
   --cr-mask-bg: rgba(23, 35, 33, 0.32);
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   --cr-canvas: #0e1513;
   --cr-surface: #17211f;
   --cr-surface-subtle: #1d2926;

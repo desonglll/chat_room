@@ -82,7 +82,10 @@ async fn rooms_survive_sqlite_restart() {
         .json()
         .await
         .unwrap();
-    let ids: Vec<&str> = authed_list.iter().filter_map(|room| room["id"].as_str()).collect();
+    let ids: Vec<&str> = authed_list
+        .iter()
+        .filter_map(|room| room["id"].as_str())
+        .collect();
     assert!(ids.contains(&private_id.as_str()));
     assert!(ids.contains(&public_id.as_str()));
 
@@ -279,12 +282,13 @@ async fn list_rooms_filter_by_name() {
     assert_eq!(list.len(), 1);
     assert_eq!(list[0]["name"], "beta");
 
-    let anonymous_beta: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=beta", base))
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let anonymous_beta: Vec<serde_json::Value> =
+        reqwest::get(format!("{}/api/rooms?name=beta", base))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
     assert!(anonymous_beta.is_empty());
 
     let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=nobody", base))
@@ -321,7 +325,12 @@ async fn fresh_start_creates_database_and_runs_migrations() {
     let expected_migrations = std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations"))
         .unwrap()
         .filter(|entry| {
-            entry.as_ref().unwrap().path().extension().is_some_and(|ext| ext == "sql")
+            entry
+                .as_ref()
+                .unwrap()
+                .path()
+                .extension()
+                .is_some_and(|ext| ext == "sql")
         })
         .count() as i64;
     assert_eq!(migration_count, expected_migrations);

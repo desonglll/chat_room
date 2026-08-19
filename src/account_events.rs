@@ -70,7 +70,8 @@ impl AppState {
         &self,
         user_id: Uuid,
     ) -> Result<Option<AccountMessageCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| { sqlx::query_as(
+        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| {
+            sqlx::query_as(
             "SELECT messages.created_at, messages.id FROM messages \
              JOIN room_memberships ON room_memberships.room_id = messages.room_id \
              WHERE room_memberships.user_id = $1 AND room_memberships.status = 'active' \
@@ -79,7 +80,8 @@ impl AppState {
         )
         .bind(user_id)
         .fetch_optional(pool)
-        .await })?;
+        .await
+        })?;
         Ok(row.map(|(created_at, id)| AccountMessageCursor { created_at, id }))
     }
 
@@ -111,12 +113,14 @@ impl AppState {
         let rows = with_pool!(self, |pool| {
             let query = sqlx::query_as::<_, AccountEventRow>(&sql).bind(user_id);
             match cursor {
-                Some(cursor) => query
-                    .bind(cursor.created_at)
-                    .bind(cursor.created_at)
-                    .bind(cursor.id)
-                    .fetch_all(pool)
-                    .await,
+                Some(cursor) => {
+                    query
+                        .bind(cursor.created_at)
+                        .bind(cursor.created_at)
+                        .bind(cursor.id)
+                        .fetch_all(pool)
+                        .await
+                }
                 None => query.fetch_all(pool).await,
             }
         })?;

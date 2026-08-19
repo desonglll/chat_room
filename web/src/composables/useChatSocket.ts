@@ -1,13 +1,5 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
-import type {
-  BroadcastMessage,
-  ChatStatus,
-  DisplayMessage,
-  ReadReceipt,
-  Room,
-  RoomMember,
-  TypingDraft,
-} from '../types'
+import type { BroadcastMessage, ChatStatus, DisplayMessage, ReadReceipt, Room, RoomMember, TypingDraft } from '../types'
 
 type ServerMessage =
   | {
@@ -84,13 +76,16 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   let pendingTyping = ''
   const typingExpiry = new Map<string, number>()
   const authenticated = computed(() => status.value === 'online')
-  const statusLabel = computed(() => ({
-    idle: '未连接',
-    connecting: '连接中',
-    online: '已连接',
-    offline: '已断开',
-    failed: '认证失败',
-  })[status.value])
+  const statusLabel = computed(
+    () =>
+      ({
+        idle: '未连接',
+        connecting: '连接中',
+        online: '已连接',
+        offline: '已断开',
+        failed: '认证失败',
+      })[status.value],
+  )
 
   function clearHandshakeTimer(): void {
     window.clearTimeout(handshakeTimer)
@@ -169,18 +164,16 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
         username: message.username,
         message_id: message.message_id,
       }
-      readReceipts.value = [
-        ...readReceipts.value.filter((item) => item.user_id !== receipt.user_id),
-        receipt,
-      ]
+      readReceipts.value = [...readReceipts.value.filter((item) => item.user_id !== receipt.user_id), receipt]
       return
     }
     if (message.type === 'message_recalled') {
       messages.value = messages.value.map((item) => {
         if (item.type !== 'broadcast') return item
-        const recalledReply = item.reply_to?.message_id === message.message_id
-          ? { ...item.reply_to, content: '', attachment_file_name: null, recalled: true }
-          : item.reply_to
+        const recalledReply =
+          item.reply_to?.message_id === message.message_id
+            ? { ...item.reply_to, content: '', attachment_file_name: null, recalled: true }
+            : item.reply_to
         if (item.message_id !== message.message_id) return { ...item, reply_to: recalledReply }
         // The sender keeps seeing their own text/attachment locally so they can re-edit
         // the recalled draft; everyone else's copy is blanked like before.
@@ -198,11 +191,18 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     if (message.type === 'message_edited') {
       messages.value = messages.value.map((item) => {
         if (item.type !== 'broadcast') return item
-        const replyTo = item.reply_to?.message_id === message.message_id
-          ? { ...item.reply_to, content: message.content, recalled: false }
-          : item.reply_to
+        const replyTo =
+          item.reply_to?.message_id === message.message_id
+            ? { ...item.reply_to, content: message.content, recalled: false }
+            : item.reply_to
         return item.message_id === message.message_id
-          ? { ...item, content: message.content, edited_at: message.edited_at, recalled_at: null, reply_to: replyTo }
+          ? {
+              ...item,
+              content: message.content,
+              edited_at: message.edited_at,
+              recalled_at: null,
+              reply_to: replyTo,
+            }
           : { ...item, reply_to: replyTo }
       })
       return
@@ -233,23 +233,21 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   }
 
   function applyPoke(fromUserId: string, targetUserId: string): void {
-    appendSystem(`${resolveName(fromUserId)} 拍了拍 ${targetUserId === currentUserId.value ? '你' : resolveName(targetUserId)}`)
+    appendSystem(
+      `${resolveName(fromUserId)} 拍了拍 ${targetUserId === currentUserId.value ? '你' : resolveName(targetUserId)}`,
+    )
     if (targetUserId === currentUserId.value) pokedAt.value = Date.now()
   }
 
   function appendBroadcast(message: BroadcastMessage, _showBrowserNotification = true): void {
-    const duplicate = messages.value.some(
-      (item) => item.type === 'broadcast' && item.message_id === message.message_id,
-    )
+    const duplicate = messages.value.some((item) => item.type === 'broadcast' && item.message_id === message.message_id)
     if (!duplicate) {
       messages.value.push(message)
     }
   }
 
   function prependHistory(older: BroadcastMessage[]): void {
-    const existing = new Set(
-      messages.value.filter((item) => item.type === 'broadcast').map((item) => item.message_id),
-    )
+    const existing = new Set(messages.value.filter((item) => item.type === 'broadcast').map((item) => item.message_id))
     const fresh = older.filter((item) => !existing.has(item.message_id))
     if (fresh.length) messages.value = [...fresh, ...messages.value]
   }
@@ -277,24 +275,29 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       typingExpiry.delete(userId)
       return
     }
-    typingExpiry.set(userId, window.setTimeout(() => {
-      typingDrafts.value = typingDrafts.value.filter((draft) => draft.user_id !== userId)
-      typingExpiry.delete(userId)
-    }, 4000))
+    typingExpiry.set(
+      userId,
+      window.setTimeout(() => {
+        typingDrafts.value = typingDrafts.value.filter((draft) => draft.user_id !== userId)
+        typingExpiry.delete(userId)
+      }, 4000),
+    )
   }
 
   function applyPresence(nextMembers: RoomMember[], nextParticipants: RoomMember[]): void {
     members.value = nextMembers
     participants.value = nextParticipants
     const avatars = new Map(nextParticipants.map((member) => [member.user_id, member.avatar_emoji]))
-    messages.value = messages.value.map((item) => item.type === 'broadcast' && item.sender_id
-      ? { ...item, sender_avatar: avatars.get(item.sender_id) ?? item.sender_avatar }
-      : item)
+    messages.value = messages.value.map((item) =>
+      item.type === 'broadcast' && item.sender_id
+        ? { ...item, sender_avatar: avatars.get(item.sender_id) ?? item.sender_avatar }
+        : item,
+    )
   }
 
   function scheduleReconnect(): void {
     if (!reconnectEnabled || !reconnectTarget || reconnectTimer !== undefined) return
-    const delay = Math.min(500 * (2 ** reconnectAttempt), 5_000)
+    const delay = Math.min(500 * 2 ** reconnectAttempt, 5_000)
     reconnectAttempt += 1
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = undefined
@@ -319,9 +322,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
 
     nextSocket.onopen = () => {
       if (socket !== nextSocket) return
-      const greeting = room.has_password
-        ? { type: 'auth', token, password }
-        : { type: 'join', token }
+      const greeting = room.has_password ? { type: 'auth', token, password } : { type: 'join', token }
       nextSocket.send(JSON.stringify(greeting))
     }
 
@@ -369,11 +370,13 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   function send(content: string, replyTo = ''): boolean {
     const normalized = content.trim()
     if (!normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({
-      type: 'message',
-      content: normalized,
-      reply_to: replyTo || undefined,
-    }))
+    socket.send(
+      JSON.stringify({
+        type: 'message',
+        content: normalized,
+        reply_to: replyTo || undefined,
+      }),
+    )
     sendTyping('')
     return true
   }

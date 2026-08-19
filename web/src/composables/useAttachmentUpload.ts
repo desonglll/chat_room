@@ -47,7 +47,9 @@ export function useAttachmentUpload(options: UploadOptions) {
       file,
       ...draft,
       preferredFingerprint,
-      onProgress: (next) => { progress.value = next },
+      onProgress: (next) => {
+        progress.value = next
+      },
       onSession: async (uploadId) => {
         saveUploadDraft(window.localStorage, uploadId, draft)
         await refreshPending()
@@ -104,7 +106,13 @@ export function useAttachmentUpload(options: UploadOptions) {
     }
   }
 
-  watch([options.room, options.token], () => { void refreshPending() }, { immediate: true })
+  watch(
+    [options.room, options.token],
+    () => {
+      void refreshPending()
+    },
+    { immediate: true },
+  )
 
   return { upload, resume, cancel, refreshPending, uploading, progress, pendingUploads }
 }

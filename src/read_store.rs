@@ -15,8 +15,9 @@ impl AppState {
         user_id: Uuid,
         message_id: Uuid,
     ) -> Result<bool, sqlx::Error> {
-        let changed = with_pool!(self, |pool| { sqlx::query(
-            "INSERT INTO room_reads (room_id, user_id, message_id, read_at) \
+        let changed = with_pool!(self, |pool| {
+            sqlx::query(
+                "INSERT INTO room_reads (room_id, user_id, message_id, read_at) \
              SELECT $1, $2, $3, $4 WHERE EXISTS (\
                  SELECT 1 FROM messages WHERE id = $5 AND room_id = $6\
              ) ON CONFLICT(room_id, user_id) DO UPDATE SET \
@@ -28,28 +29,31 @@ impl AppState {
                    AND (next.created_at > current.created_at OR \
                         (next.created_at = current.created_at AND next.id > current.id))\
              )",
-        )
-        .bind(room_id)
-        .bind(user_id)
-        .bind(message_id)
-        .bind(Utc::now())
-        .bind(message_id)
-        .bind(room_id)
-        .execute(pool)
-        .await
-        .map(|result| result.rows_affected()) })?;
+            )
+            .bind(room_id)
+            .bind(user_id)
+            .bind(message_id)
+            .bind(Utc::now())
+            .bind(message_id)
+            .bind(room_id)
+            .execute(pool)
+            .await
+            .map(|result| result.rows_affected())
+        })?;
         Ok(changed > 0)
     }
 
     pub async fn room_read_receipts(&self, room_id: Uuid) -> Result<Vec<ReadReceipt>, sqlx::Error> {
-        let rows: Vec<ReadRow> = with_pool!(self, |pool| { sqlx::query_as(
-            "SELECT room_reads.user_id, users.username, room_reads.message_id \
+        let rows: Vec<ReadRow> = with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT room_reads.user_id, users.username, room_reads.message_id \
              FROM room_reads JOIN users ON users.id = room_reads.user_id \
              WHERE room_reads.room_id = $1 ORDER BY LOWER(users.username)",
-        )
-        .bind(room_id)
-        .fetch_all(pool)
-        .await })?;
+            )
+            .bind(room_id)
+            .fetch_all(pool)
+            .await
+        })?;
         Ok(rows.into_iter().map(ReadRow::into_receipt).collect())
     }
 }

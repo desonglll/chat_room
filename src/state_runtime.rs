@@ -5,12 +5,8 @@ use std::time::Duration;
 use sqlx::{PgPool, SqlitePool};
 
 use crate::{
-    admin_metrics::RuntimeMetrics,
-    ai::AiAssistant,
-    attachment_content::ContentHashLocks,
-    attachment_storage::AttachmentStore,
-    state::AppState,
-    storage,
+    admin_metrics::RuntimeMetrics, ai::AiAssistant, attachment_content::ContentHashLocks,
+    attachment_storage::AttachmentStore, state::AppState, storage,
 };
 
 impl AppState {

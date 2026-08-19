@@ -150,21 +150,23 @@ impl AppState {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
         let reply_to = self.reply_preview(room_id, reply_to).await?;
-        with_pool!(self, |pool| { sqlx::query(
-            "INSERT INTO messages \
+        with_pool!(self, |pool| {
+            sqlx::query(
+                "INSERT INTO messages \
              (id, room_id, sender_id, sender, content, reply_to_id, created_at) \
              VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        )
-        .bind(id)
-        .bind(room_id)
-        .bind(sender_id)
-        .bind(sender)
-        .bind(content)
-        .bind(reply_to.as_ref().map(|reply| reply.message_id))
-        .bind(created_at)
-        .execute(pool)
-        .await
-        .map(|_| ()) })?;
+            )
+            .bind(id)
+            .bind(room_id)
+            .bind(sender_id)
+            .bind(sender)
+            .bind(content)
+            .bind(reply_to.as_ref().map(|reply| reply.message_id))
+            .bind(created_at)
+            .execute(pool)
+            .await
+            .map(|_| ())
+        })?;
 
         Ok(StoredMessage {
             id,
@@ -203,8 +205,7 @@ impl AppState {
             .fetch_optional(pool)
             .await
         })?;
-        let Some((source_sender, source_content, attachment_id, source_room_name)) = source
-        else {
+        let Some((source_sender, source_content, attachment_id, source_room_name)) = source else {
             return Ok(None);
         };
         let id = Uuid::new_v4();
@@ -281,17 +282,19 @@ impl AppState {
         id: Uuid,
         access_key: Uuid,
     ) -> Result<Option<AttachmentMetadata>, sqlx::Error> {
-        let row: Option<(String, String, i64, Option<String>)> = with_pool!(self, |pool| { sqlx::query_as(
-            "SELECT file_name, mime_type, size_bytes, storage_key FROM attachments \
+        let row: Option<(String, String, i64, Option<String>)> = with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT file_name, mime_type, size_bytes, storage_key FROM attachments \
              WHERE id = $1 AND access_key = $2 AND EXISTS (\
                SELECT 1 FROM messages WHERE messages.attachment_id = attachments.id \
                AND messages.recalled_at IS NULL\
              )",
-        )
-        .bind(id)
-        .bind(access_key)
-        .fetch_optional(pool)
-        .await })?;
+            )
+            .bind(id)
+            .bind(access_key)
+            .fetch_optional(pool)
+            .await
+        })?;
         Ok(row.map(
             |(file_name, mime_type, size_bytes, storage_key)| AttachmentMetadata {
                 file_name,
@@ -306,13 +309,15 @@ impl AppState {
         &self,
         room_id: Uuid,
     ) -> Result<Option<MessageCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| { sqlx::query_as(
-            "SELECT created_at, id FROM messages WHERE room_id = $1 \
+        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT created_at, id FROM messages WHERE room_id = $1 \
              ORDER BY created_at DESC, id DESC LIMIT 1",
-        )
-        .bind(room_id)
-        .fetch_optional(pool)
-        .await })?;
+            )
+            .bind(room_id)
+            .fetch_optional(pool)
+            .await
+        })?;
         Ok(row.map(|(created_at, id)| MessageCursor { created_at, id }))
     }
 
@@ -335,25 +340,27 @@ impl AppState {
                  ORDER BY messages.created_at ASC, messages.id ASC LIMIT $2"
             ),
         };
-        let rows: Vec<MessageRow> = with_pool!(self, |pool| { match cursor {
-            Some(cursor) => {
-                sqlx::query_as(&query)
-                    .bind(room_id)
-                    .bind(cursor.created_at)
-                    .bind(cursor.created_at)
-                    .bind(cursor.id)
-                    .bind(limit)
-                    .fetch_all(pool)
-                    .await
+        let rows: Vec<MessageRow> = with_pool!(self, |pool| {
+            match cursor {
+                Some(cursor) => {
+                    sqlx::query_as(&query)
+                        .bind(room_id)
+                        .bind(cursor.created_at)
+                        .bind(cursor.created_at)
+                        .bind(cursor.id)
+                        .bind(limit)
+                        .fetch_all(pool)
+                        .await
+                }
+                None => {
+                    sqlx::query_as(&query)
+                        .bind(room_id)
+                        .bind(limit)
+                        .fetch_all(pool)
+                        .await
+                }
             }
-            None => {
-                sqlx::query_as(&query)
-                    .bind(room_id)
-                    .bind(limit)
-                    .fetch_all(pool)
-                    .await
-            }
-        } })?;
+        })?;
         Ok(rows
             .into_iter()
             .map(|row| row.into_message(viewer_id))
@@ -379,25 +386,27 @@ impl AppState {
                  ORDER BY messages.created_at DESC, messages.id DESC LIMIT $2"
             ),
         };
-        let mut rows: Vec<MessageRow> = with_pool!(self, |pool| { match through {
-            Some(cursor) => {
-                sqlx::query_as(&query)
-                    .bind(room_id)
-                    .bind(cursor.created_at)
-                    .bind(cursor.created_at)
-                    .bind(cursor.id)
-                    .bind(limit)
-                    .fetch_all(pool)
-                    .await
+        let mut rows: Vec<MessageRow> = with_pool!(self, |pool| {
+            match through {
+                Some(cursor) => {
+                    sqlx::query_as(&query)
+                        .bind(room_id)
+                        .bind(cursor.created_at)
+                        .bind(cursor.created_at)
+                        .bind(cursor.id)
+                        .bind(limit)
+                        .fetch_all(pool)
+                        .await
+                }
+                None => {
+                    sqlx::query_as(&query)
+                        .bind(room_id)
+                        .bind(limit)
+                        .fetch_all(pool)
+                        .await
+                }
             }
-            None => {
-                sqlx::query_as(&query)
-                    .bind(room_id)
-                    .bind(limit)
-                    .fetch_all(pool)
-                    .await
-            }
-        } })?;
+        })?;
         rows.reverse();
         Ok(rows
             .into_iter()
@@ -413,16 +422,18 @@ impl AppState {
         let Some(message_id) = message_id else {
             return Ok(None);
         };
-        let row: Option<ReplySourceRow> = with_pool!(self, |pool| { sqlx::query_as(
-            "SELECT messages.id, messages.sender, messages.content, attachments.file_name, \
+        let row: Option<ReplySourceRow> = with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT messages.id, messages.sender, messages.content, attachments.file_name, \
                     messages.recalled_at \
              FROM messages LEFT JOIN attachments ON attachments.id = messages.attachment_id \
              WHERE messages.id = $1 AND messages.room_id = $2",
-        )
-        .bind(message_id)
-        .bind(room_id)
-        .fetch_optional(pool)
-        .await })?;
+            )
+            .bind(message_id)
+            .bind(room_id)
+            .fetch_optional(pool)
+            .await
+        })?;
         Ok(row.map(
             |(message_id, sender, content, attachment_file_name, recalled_at)| ReplyPreview {
                 message_id,

@@ -42,7 +42,9 @@ const busy = ref(false)
 const avatarPopover = ref()
 const visible = computed({
   get: () => props.open && Boolean(props.room),
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 const modeOptions = [
   { label: '房间设置', value: 'settings' },
@@ -53,18 +55,21 @@ const policyOptions = [
   { label: '直接加入', value: 'open' },
 ]
 
-watch(() => props.open, (open) => {
-  if (!open || !props.room) return
-  name.value = props.room.name
-  newPassword.value = ''
-  joinPolicy.value = props.room.join_policy
-  removePassword.value = false
-  avatarEmoji.value = props.room.avatar_emoji
-  description.value = props.room.description
-  mode.value = 'settings'
-  confirmingDelete.value = false
-  error.value = ''
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open || !props.room) return
+    name.value = props.room.name
+    newPassword.value = ''
+    joinPolicy.value = props.room.join_policy
+    removePassword.value = false
+    avatarEmoji.value = props.room.avatar_emoji
+    description.value = props.room.description
+    mode.value = 'settings'
+    confirmingDelete.value = false
+    error.value = ''
+  },
+)
 
 function selectAvatar(emoji: string): void {
   avatarEmoji.value = emoji
@@ -79,7 +84,13 @@ async function save(): Promise<void> {
     return
   }
   const passwordChanged = removePassword.value || newPassword.value.length > 0
-  const payload: { name: string; new_password?: string; join_policy: 'open' | 'approval'; avatar_emoji: string; description: string } = {
+  const payload: {
+    name: string
+    new_password?: string
+    join_policy: 'open' | 'approval'
+    avatar_emoji: string
+    description: string
+  } = {
     name: normalizedName,
     join_policy: joinPolicy.value,
     avatar_emoji: avatarEmoji.value,
@@ -94,9 +105,7 @@ async function save(): Promise<void> {
     emit('updated', {
       room,
       passwordChanged,
-      password: room.has_password
-        ? (passwordChanged ? newPassword.value : props.credential)
-        : '',
+      password: room.has_password ? (passwordChanged ? newPassword.value : props.credential) : '',
     })
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '保存失败'
@@ -135,14 +144,25 @@ async function confirmDelete(): Promise<void> {
     :draggable="false"
   >
     <template v-if="room && !confirmingDelete">
-      <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" class="mb-5 grid grid-cols-2" />
+      <SelectButton
+        v-model="mode"
+        :options="modeOptions"
+        option-label="label"
+        option-value="value"
+        :allow-empty="false"
+        class="mb-5 grid grid-cols-2"
+      />
       <RoomMembersPanel v-if="mode === 'members'" :room="room" :token="token" />
       <form v-else class="flex flex-col gap-5" autocomplete="off" @submit.prevent="save">
         <div class="flex items-center gap-3">
           <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" class="bg-primary-50! text-xl!" />
-          <Avatar v-else shape="circle" class="bg-surface-200! text-surface-700!"><IconSprite name="rooms" :size="18" /></Avatar>
+          <Avatar v-else shape="circle" class="bg-surface-200! text-surface-700!"
+            ><IconSprite name="rooms" :size="18"
+          /></Avatar>
           <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择头像</Button>
-          <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''">清除</Button>
+          <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''"
+            >清除</Button
+          >
         </div>
         <Popover ref="avatarPopover">
           <EmojiPicker @select="selectAvatar" />
@@ -150,7 +170,14 @@ async function confirmDelete(): Promise<void> {
 
         <div class="flex flex-col gap-2">
           <label for="manageRoomName" class="text-sm font-medium">房间名称</label>
-          <InputText id="manageRoomName" v-model="name" name="managed-room-name" maxlength="80" autocomplete="off" fluid />
+          <InputText
+            id="manageRoomName"
+            v-model="name"
+            name="managed-room-name"
+            maxlength="80"
+            autocomplete="off"
+            fluid
+          />
         </div>
 
         <div class="flex flex-col gap-2">
@@ -164,7 +191,13 @@ async function confirmDelete(): Promise<void> {
           <label for="newRoomPassword" class="text-sm font-medium">
             新的聊天室访问密码 <span class="font-normal text-muted-color">留空则不更改</span>
           </label>
-          <ScopedPasswordField v-model="newPassword" input-id="newRoomPassword" name="managed-room-password" scope="room-new" :disabled="removePassword" />
+          <ScopedPasswordField
+            v-model="newPassword"
+            input-id="newRoomPassword"
+            name="managed-room-password"
+            scope="room-new"
+            :disabled="removePassword"
+          />
         </div>
 
         <div v-if="room.has_password" class="flex items-center gap-2">
@@ -174,7 +207,14 @@ async function confirmDelete(): Promise<void> {
 
         <div class="flex flex-col gap-2">
           <label class="text-sm font-medium">加入方式</label>
-          <SelectButton v-model="joinPolicy" :options="policyOptions" option-label="label" option-value="value" :allow-empty="false" class="grid grid-cols-2" />
+          <SelectButton
+            v-model="joinPolicy"
+            :options="policyOptions"
+            option-label="label"
+            option-value="value"
+            :allow-empty="false"
+            class="grid grid-cols-2"
+          />
         </div>
 
         <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>
@@ -185,7 +225,14 @@ async function confirmDelete(): Promise<void> {
             <span>删除聊天室</span>
           </Button>
           <div class="flex gap-2 sm:justify-end">
-            <Button type="button" label="取消" class="flex-1 sm:flex-none" severity="secondary" outlined @click="emit('close')" />
+            <Button
+              type="button"
+              label="取消"
+              class="flex-1 sm:flex-none"
+              severity="secondary"
+              outlined
+              @click="emit('close')"
+            />
             <Button type="submit" class="flex-1 sm:flex-none" :loading="busy">
               <Save :size="17" />
               <span>保存</span>
@@ -197,7 +244,8 @@ async function confirmDelete(): Promise<void> {
 
     <template v-else-if="room && room.membership_role === 'owner'">
       <p class="text-sm leading-6 text-surface-600">
-        确定删除“<strong class="text-surface-900">{{ room.name }}</strong>”吗？该房间的全部消息也会被删除。
+        确定删除“<strong class="text-surface-900">{{ room.name }}</strong
+        >”吗？该房间的全部消息也会被删除。
       </p>
       <Message v-if="error" severity="error" size="small" :closable="false" class="mt-4">{{ error }}</Message>
       <div class="mt-6 flex justify-end gap-2 border-t border-surface-200 pt-4">

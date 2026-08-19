@@ -88,13 +88,15 @@ pub async fn list_room_files(
     let limit = query.limit.unwrap_or(50).clamp(1, 100);
     let before = match query.before {
         Some(message_id) => {
-            let created_at = with_pool!(state, |pool| { sqlx::query_scalar::<_, DateTime<Utc>>(
-                "SELECT created_at FROM messages WHERE id = $1 AND room_id = $2",
-            )
-            .bind(message_id)
-            .bind(room_id)
-            .fetch_optional(pool)
-            .await })
+            let created_at = with_pool!(state, |pool| {
+                sqlx::query_scalar::<_, DateTime<Utc>>(
+                    "SELECT created_at FROM messages WHERE id = $1 AND room_id = $2",
+                )
+                .bind(message_id)
+                .bind(room_id)
+                .fetch_optional(pool)
+                .await
+            })
             .map_err(database_error)?
             .ok_or(StatusCode::BAD_REQUEST)?;
             Some((created_at, message_id))
@@ -122,7 +124,11 @@ async fn fetch_page(
     limit: i64,
 ) -> Result<Vec<FileRow>, StatusCode> {
     let (cursor_clause, kind_parameters, limit_parameter) = if before.is_some() {
-        ("AND (messages.created_at < $2 OR (messages.created_at = $3 AND messages.id < $4))", ["$5", "$6", "$7", "$8"], "$9")
+        (
+            "AND (messages.created_at < $2 OR (messages.created_at = $3 AND messages.id < $4))",
+            ["$5", "$6", "$7", "$8"],
+            "$9",
+        )
     } else {
         ("", ["$2", "$3", "$4", "$5"], "$6")
     };
@@ -156,7 +162,7 @@ async fn fetch_page(
             .fetch_all(pool)
             .await
     })
-        .map_err(database_error)
+    .map_err(database_error)
 }
 
 async fn authorize(

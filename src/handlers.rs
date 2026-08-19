@@ -449,13 +449,15 @@ pub async fn list_messages(
 
     let before = match query.before {
         Some(message_id) => {
-            let created_at = with_pool!(state, |pool| { sqlx::query_scalar::<_, chrono::DateTime<Utc>>(
-                "SELECT created_at FROM messages WHERE id = $1 AND room_id = $2",
-            )
-            .bind(message_id)
-            .bind(id)
-            .fetch_optional(pool)
-            .await })
+            let created_at = with_pool!(state, |pool| {
+                sqlx::query_scalar::<_, chrono::DateTime<Utc>>(
+                    "SELECT created_at FROM messages WHERE id = $1 AND room_id = $2",
+                )
+                .bind(message_id)
+                .bind(id)
+                .fetch_optional(pool)
+                .await
+            })
             .map_err(|error| {
                 tracing::error!("resolve message cursor failed: {}", error);
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -470,7 +472,12 @@ pub async fn list_messages(
     };
 
     match state
-        .message_history(id, query.limit.unwrap_or(100), before.as_ref(), Some(user.id))
+        .message_history(
+            id,
+            query.limit.unwrap_or(100),
+            before.as_ref(),
+            Some(user.id),
+        )
         .await
     {
         Ok(messages) => Ok(Json(messages)),

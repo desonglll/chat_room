@@ -10,14 +10,18 @@ export function createBrowserNotifier(onActivate: (roomId: string) => void) {
   }
 
   function notify(message: AccountMessageEvent): void {
-    if (!enabled
-      || document.visibilityState === 'visible'
-      || typeof Notification === 'undefined'
-      || Notification.permission !== 'granted') return
+    if (
+      !enabled ||
+      document.visibilityState === 'visible' ||
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    )
+      return
 
     const title = showDetails ? `${message.sender} · ${message.room_name}` : 'Chat Room'
     const body = showDetails
-      ? message.content || (message.attachment_file_name ? `发送了附件：${message.attachment_file_name}` : '发来一条消息')
+      ? message.content ||
+        (message.attachment_file_name ? `发送了附件：${message.attachment_file_name}` : '发来一条消息')
       : '你有一条新消息'
     const notification = new Notification(title, {
       body,

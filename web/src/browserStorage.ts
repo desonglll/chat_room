@@ -1,5 +1,9 @@
 export function storageGet(storage: Storage, key: string): string {
-  try { return storage.getItem(key) || '' } catch { return '' }
+  try {
+    return storage.getItem(key) || ''
+  } catch {
+    return ''
+  }
 }
 
 export function storageSet(storage: Storage, key: string, value: string): void {

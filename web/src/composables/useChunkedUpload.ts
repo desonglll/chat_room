@@ -62,7 +62,13 @@ export async function hashFile(
 export async function uploadFileInChunks(options: UploadFileOptions): Promise<ChunkedUploadResult> {
   const { file, signal } = options
   const report = (phase: UploadPhase, processedBytes: number, uploadId = '') => {
-    options.onProgress({ uploadId, fileName: file.name, phase, processedBytes, totalBytes: file.size })
+    options.onProgress({
+      uploadId,
+      fileName: file.name,
+      phase,
+      processedBytes,
+      totalBytes: file.size,
+    })
   }
   const fingerprint = options.preferredFingerprint || `${file.name}:${file.size}:${file.lastModified}`
   const initialSession = await createUploadSession(
@@ -75,11 +81,7 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
   )
   await options.onSession?.(initialSession.upload_id)
   report('hashing', 0, initialSession.upload_id)
-  const contentHash = await hashFile(
-    file,
-    (bytes) => report('hashing', bytes, initialSession.upload_id),
-    signal,
-  )
+  const contentHash = await hashFile(file, (bytes) => report('hashing', bytes, initialSession.upload_id), signal)
   ensureActive(signal)
 
   const session = await createUploadSession(

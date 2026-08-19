@@ -49,7 +49,9 @@ impl AiAssistant {
         // self-hosted or proxied OpenAI-compatible API.
         let target_resolver = ServiceTargetResolver::from_resolver_fn(
             move |service_target: ServiceTarget| -> Result<ServiceTarget, genai::resolver::Error> {
-                let ServiceTarget { model, endpoint, .. } = service_target;
+                let ServiceTarget {
+                    model, endpoint, ..
+                } = service_target;
                 // `api_key_env` may be the *name* of an environment variable
                 // (recommended) or, if no such variable is set, the API key
                 // itself — so a key can be pasted directly into the TOML
@@ -61,7 +63,11 @@ impl AiAssistant {
                     Some(url) => Endpoint::from_owned(url.clone()),
                     None => endpoint,
                 };
-                Ok(ServiceTarget { endpoint, auth, model })
+                Ok(ServiceTarget {
+                    endpoint,
+                    auth,
+                    model,
+                })
             },
         );
         let client = Client::builder()

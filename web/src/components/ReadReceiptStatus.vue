@@ -42,7 +42,11 @@ function avatarLabel(member: RoomMember): string {
           <span class="text-xs text-muted-color">{{ read.length }}</span>
         </div>
         <ul v-if="read.length" class="max-h-40 space-y-1 overflow-y-auto p-0">
-          <li v-for="member in read" :key="member.user_id" class="flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-surface-50">
+          <li
+            v-for="member in read"
+            :key="member.user_id"
+            class="flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-surface-50"
+          >
             <Avatar
               :label="avatarLabel(member)"
               shape="circle"
@@ -61,7 +65,11 @@ function avatarLabel(member: RoomMember): string {
           <span class="text-xs text-muted-color">{{ unread.length }}</span>
         </div>
         <ul v-if="unread.length" class="max-h-40 space-y-1 overflow-y-auto p-0">
-          <li v-for="member in unread" :key="member.user_id" class="flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-surface-50">
+          <li
+            v-for="member in unread"
+            :key="member.user_id"
+            class="flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-surface-50"
+          >
             <Avatar
               :label="avatarLabel(member)"
               shape="circle"

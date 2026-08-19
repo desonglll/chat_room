@@ -30,18 +30,20 @@ impl AppState {
         content: &str,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let edited_at = Utc::now();
-        let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| { sqlx::query_scalar(
-            "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
+        let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
              WHERE id = $3 AND room_id = $4 AND sender_id = $5 \
              RETURNING attachment_id",
-        )
-        .bind(content)
-        .bind(edited_at)
-        .bind(message_id)
-        .bind(room_id)
-        .bind(sender_id)
-        .fetch_optional(pool)
-        .await })?;
+            )
+            .bind(content)
+            .bind(edited_at)
+            .bind(message_id)
+            .bind(room_id)
+            .bind(sender_id)
+            .fetch_optional(pool)
+            .await
+        })?;
         // A re-edit un-recalls the message, which can resurrect a reference to
         // a physical file that was marked orphaned while it was recalled.
         if let Some(Some(attachment_id)) = attachment_id {
@@ -64,17 +66,19 @@ impl AppState {
         message_id: Uuid,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let recalled_at = Utc::now();
-        let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| { sqlx::query_scalar(
-            "UPDATE messages SET recalled_at = $1 \
+        let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "UPDATE messages SET recalled_at = $1 \
              WHERE id = $2 AND room_id = $3 AND sender_id = $4 AND recalled_at IS NULL \
              RETURNING attachment_id",
-        )
-        .bind(recalled_at)
-        .bind(message_id)
-        .bind(room_id)
-        .bind(sender_id)
-        .fetch_optional(pool)
-        .await })?;
+            )
+            .bind(recalled_at)
+            .bind(message_id)
+            .bind(room_id)
+            .bind(sender_id)
+            .fetch_optional(pool)
+            .await
+        })?;
         if let Some(Some(attachment_id)) = attachment_id {
             if let Err(error) = self.recompute_attachment_orphan_status(attachment_id).await {
                 tracing::warn!("recompute attachment orphan status failed: {error:#}");
@@ -87,13 +91,15 @@ impl AppState {
         &self,
         room_id: Uuid,
     ) -> Result<Option<RecallCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| { sqlx::query_as(
+        let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| {
+            sqlx::query_as(
             "SELECT recalled_at, id FROM messages WHERE room_id = $1 AND recalled_at IS NOT NULL \
              ORDER BY recalled_at DESC, id DESC LIMIT 1",
         )
         .bind(room_id)
         .fetch_optional(pool)
-        .await })?;
+        .await
+        })?;
         Ok(row.map(|(recalled_at, id)| RecallCursor { recalled_at, id }))
     }
 
@@ -139,13 +145,15 @@ impl AppState {
         &self,
         room_id: Uuid,
     ) -> Result<Option<EditCursor>, sqlx::Error> {
-        let row: Option<(DateTime<Utc>, Uuid, String)> = with_pool!(self, |pool| { sqlx::query_as(
+        let row: Option<(DateTime<Utc>, Uuid, String)> = with_pool!(self, |pool| {
+            sqlx::query_as(
             "SELECT edited_at, id, content FROM messages WHERE room_id = $1 AND edited_at IS NOT NULL \
              ORDER BY edited_at DESC, id DESC LIMIT 1",
         )
         .bind(room_id)
         .fetch_optional(pool)
-        .await })?;
+        .await
+        })?;
         Ok(row.map(|(edited_at, id, content)| EditCursor {
             edited_at,
             id,

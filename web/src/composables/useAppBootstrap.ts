@@ -1,12 +1,6 @@
 import { computed, onMounted, ref, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  DEFAULT_MAX_UPLOAD_BYTES,
-  getCurrentUser,
-  getPublicConfig,
-  listRooms,
-  logoutUser,
-} from '../api'
+import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, listRooms, logoutUser } from '../api'
 import { storageGet, storageSet } from '../browserStorage'
 import type { AuthSession, Room, User } from '../types'
 

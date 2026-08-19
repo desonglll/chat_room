@@ -24,13 +24,15 @@ export function useRoomMembership(options: RoomMembershipOptions) {
   const discoverError = ref('')
 
   function openJoinRoom(): void {
-    options.requireAccount(() => { joinOpen.value = true })
+    options.requireAccount(() => {
+      joinOpen.value = true
+    })
   }
 
   function handleJoinedById(room: Room, password: string): void {
     joinOpen.value = false
     options.rooms.value = options.rooms.value.some((item) => item.id === room.id)
-      ? options.rooms.value.map((item) => item.id === room.id ? room : item)
+      ? options.rooms.value.map((item) => (item.id === room.id ? room : item))
       : [...options.rooms.value, room]
     options.selectRoom(room)
     options.password.value = password
@@ -70,9 +72,13 @@ export function useRoomMembership(options: RoomMembershipOptions) {
     discoverError.value = ''
     try {
       const membership = await requestRoomJoin(room.id, options.token.value, '')
-      const updated = { ...room, membership_status: membership.status, membership_role: membership.role }
+      const updated = {
+        ...room,
+        membership_status: membership.status,
+        membership_role: membership.role,
+      }
       options.rooms.value = options.rooms.value.some((item) => item.id === room.id)
-        ? options.rooms.value.map((item) => item.id === room.id ? updated : item)
+        ? options.rooms.value.map((item) => (item.id === room.id ? updated : item))
         : [...options.rooms.value, updated]
       if (membership.status === 'active') {
         options.selectRoom(updated)
@@ -101,8 +107,12 @@ export function useRoomMembership(options: RoomMembershipOptions) {
     options.setError('')
     try {
       const membership = await requestRoomJoin(room.id, options.token.value, options.password.value)
-      const updated = { ...room, membership_status: membership.status, membership_role: membership.role }
-      options.rooms.value = options.rooms.value.map((item) => item.id === room.id ? updated : item)
+      const updated = {
+        ...room,
+        membership_status: membership.status,
+        membership_role: membership.role,
+      }
+      options.rooms.value = options.rooms.value.map((item) => (item.id === room.id ? updated : item))
       options.selectedRoom.value = updated
       if (membership.status === 'active') {
         joinSelectedRoom()

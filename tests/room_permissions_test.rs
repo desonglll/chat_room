@@ -93,7 +93,9 @@ async fn next_json(socket: &mut Socket) -> serde_json::Value {
             .expect("WebSocket error");
         let Message::Text(text) = frame else { continue };
         let value: serde_json::Value = serde_json::from_str(&text).unwrap();
-        if value["type"] != "history_complete" { return value }
+        if value["type"] != "history_complete" {
+            return value;
+        }
     }
 }
 

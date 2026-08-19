@@ -151,7 +151,10 @@ pub async fn handle_client_message(
                 return;
             }
             let members = state.connected_members(room_id).await;
-            if !members.iter().any(|member| member.user_id == target_user_id) {
+            if !members
+                .iter()
+                .any(|member| member.user_id == target_user_id)
+            {
                 return;
             }
             if !state

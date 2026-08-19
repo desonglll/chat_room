@@ -18,11 +18,13 @@ export function shouldSubmitMessage(
   composing: boolean,
   shortcut: 'enter' | 'shift-enter' = 'enter',
 ): boolean {
-  return event.key === 'Enter'
-    && (shortcut === 'shift-enter' ? event.shiftKey : !event.shiftKey)
-    && !event.isComposing
-    && !composing
-    && event.keyCode !== 229
+  return (
+    event.key === 'Enter' &&
+    (shortcut === 'shift-enter' ? event.shiftKey : !event.shiftKey) &&
+    !event.isComposing &&
+    !composing &&
+    event.keyCode !== 229
+  )
 }
 
 export function shouldFocusComposer(
@@ -31,14 +33,6 @@ export function shouldFocusComposer(
   editableTarget: boolean,
   dialogOpen: boolean,
 ): boolean {
-  const matches = shortcut === 'space'
-    ? event.key === ' '
-    : shortcut === 'slash' && event.key === '/'
-  return matches
-    && !event.repeat
-    && !event.metaKey
-    && !event.ctrlKey
-    && !event.altKey
-    && !editableTarget
-    && !dialogOpen
+  const matches = shortcut === 'space' ? event.key === ' ' : shortcut === 'slash' && event.key === '/'
+  return matches && !event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey && !editableTarget && !dialogOpen
 }

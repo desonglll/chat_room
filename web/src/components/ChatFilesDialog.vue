@@ -44,27 +44,34 @@ const previewing = ref<Attachment | null>(null)
 const previewImageId = ref('')
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 const filtered = computed(() => files.value)
-const selectedAttachments = computed(() => files.value
-  .filter((file) => selected.value.includes(file.message_id))
-  .map((file) => file.attachment))
+const selectedAttachments = computed(() =>
+  files.value.filter((file) => selected.value.includes(file.message_id)).map((file) => file.attachment),
+)
 let requestVersion = 0
 
-watch(() => props.open, (open) => {
-  previewing.value = null
-  previewImageId.value = ''
-  if (!open) {
-    requestVersion += 1
-    loading.value = false
-    return
-  }
-  selected.value = []
-  if (filter.value === 'all') void loadFiles(true)
-  else filter.value = 'all'
+watch(
+  () => props.open,
+  (open) => {
+    previewing.value = null
+    previewImageId.value = ''
+    if (!open) {
+      requestVersion += 1
+      loading.value = false
+      return
+    }
+    selected.value = []
+    if (filter.value === 'all') void loadFiles(true)
+    else filter.value = 'all'
+  },
+)
+watch(filter, () => {
+  if (props.open) void loadFiles(true)
 })
-watch(filter, () => { if (props.open) void loadFiles(true) })
 
 async function loadFiles(reset = false): Promise<void> {
   if ((loading.value && !reset) || !props.roomId || !props.token) return
@@ -113,37 +120,61 @@ function preview(attachment: Attachment): void {
 <template>
   <Dialog v-model:visible="visible" modal header="聊天文件" class="w-[min(96vw,720px)]" :draggable="false">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-200 pb-4">
-      <SelectButton v-model="filter" :options="FILTERS" option-label="label" option-value="value" :allow-empty="false" />
+      <SelectButton
+        v-model="filter"
+        :options="FILTERS"
+        option-label="label"
+        option-value="value"
+        :allow-empty="false"
+      />
       <Button size="small" severity="secondary" outlined :disabled="!filtered.length" @click="toggleAll">
         {{ filtered.length && filtered.every((file) => selected.includes(file.message_id)) ? '取消全选' : '全选当前' }}
       </Button>
     </div>
 
     <div v-if="filtered.length" class="max-h-[58vh] overflow-y-auto py-2">
-      <div v-for="file in filtered" :key="file.message_id" class="flex min-h-16 items-center gap-3 border-b border-surface-100 px-1 py-2 transition hover:bg-surface-50">
+      <div
+        v-for="file in filtered"
+        :key="file.message_id"
+        class="flex min-h-16 items-center gap-3 border-b border-surface-100 px-1 py-2 transition hover:bg-surface-50"
+      >
         <Checkbox v-model="selected" :value="file.message_id" />
-        <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="preview(file.attachment)">
-          <span class="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-surface-100 text-muted-color">
+        <button
+          type="button"
+          class="flex min-w-0 flex-1 items-center gap-3 text-left"
+          @click="preview(file.attachment)"
+        >
+          <span
+            class="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-surface-100 text-muted-color"
+          >
             <img
               v-if="file.attachment.mime_type.startsWith('image/')"
               :src="file.attachment.download_url"
               :alt="file.attachment.file_name"
               class="size-full object-cover"
               :class="{ 'blur-md': file.attachment.is_sensitive }"
-            >
+            />
             <FileVideo v-else-if="file.attachment.mime_type.startsWith('video/')" :size="20" />
             <File v-else :size="20" />
-            <ShieldAlert v-if="file.attachment.is_sensitive" :size="14" class="absolute inset-0 m-auto text-white drop-shadow" />
+            <ShieldAlert
+              v-if="file.attachment.is_sensitive"
+              :size="14"
+              class="absolute inset-0 m-auto text-white drop-shadow"
+            />
           </span>
           <span class="min-w-0 flex-1">
             <strong class="block truncate text-sm">{{ file.attachment.file_name }}</strong>
-            <small class="mt-1 block truncate text-xs text-muted-color">{{ file.sender }} · {{ formatSize(file.attachment.size_bytes) }}</small>
+            <small class="mt-1 block truncate text-xs text-muted-color"
+              >{{ file.sender }} · {{ formatSize(file.attachment.size_bytes) }}</small
+            >
           </span>
         </button>
       </div>
     </div>
     <Message v-if="error" severity="error" class="my-4">{{ error }}</Message>
-    <div v-else-if="!filtered.length && !loading" class="grid min-h-48 place-items-center text-sm text-muted-color">暂无聊天文件</div>
+    <div v-else-if="!filtered.length && !loading" class="grid min-h-48 place-items-center text-sm text-muted-color">
+      暂无聊天文件
+    </div>
     <div v-if="loading" class="grid min-h-20 place-items-center text-sm text-muted-color">正在加载...</div>
     <div v-if="nextBefore && !loading" class="flex justify-center py-3">
       <Button size="small" severity="secondary" outlined @click="loadFiles()">加载更多</Button>
@@ -153,8 +184,8 @@ function preview(attachment: Attachment): void {
       <div class="min-w-52 flex-1">
         <span class="text-xs text-muted-color">
           <template v-if="downloadProgress">
-            {{ downloadProgress.stage === 'packing' ? '正在打包' : '正在下载' }} ·
-            第 {{ downloadProgress.batchIndex }}/{{ downloadProgress.batchCount }} 批 ·
+            {{ downloadProgress.stage === 'packing' ? '正在打包' : '正在下载' }} · 第
+            {{ downloadProgress.batchIndex }}/{{ downloadProgress.batchCount }} 批 ·
             {{ downloadProgress.completedFiles }}/{{ downloadProgress.totalFiles }} 个
           </template>
           <template v-else>已选择 {{ selectedAttachments.length }} 个文件</template>
@@ -162,7 +193,11 @@ function preview(attachment: Attachment): void {
         <ProgressBar v-if="downloadProgress" :value="downloadProgress.percent" :show-value="false" class="mt-2 h-1.5" />
       </div>
       <Button v-if="downloading" severity="danger" outlined @click="emit('cancelDownload')">取消</Button>
-      <Button :disabled="!selectedAttachments.length" :loading="downloading" @click="emit('download', selectedAttachments)">
+      <Button
+        :disabled="!selectedAttachments.length"
+        :loading="downloading"
+        @click="emit('download', selectedAttachments)"
+      >
         <Download :size="17" />
         <span>批量保存</span>
       </Button>

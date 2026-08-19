@@ -60,15 +60,20 @@ async function showActive(): Promise<void> {
 }
 
 watch(() => props.activeId, showActive)
-watch(() => props.images.map((image) => image.id).join(','), () => {
+watch(
+  () => props.images.map((image) => image.id).join(','),
+  () => {
+    if (props.activeId) void showActive()
+  },
+)
+onMounted(() => {
   if (props.activeId) void showActive()
 })
-onMounted(() => { if (props.activeId) void showActive() })
 onBeforeUnmount(() => viewer?.destroy())
 </script>
 
 <template>
   <div ref="gallery" class="hidden" aria-hidden="true">
-    <img v-for="image in images" :key="image.id" :src="image.download_url" :alt="image.file_name">
+    <img v-for="image in images" :key="image.id" :src="image.download_url" :alt="image.file_name" />
   </div>
 </template>

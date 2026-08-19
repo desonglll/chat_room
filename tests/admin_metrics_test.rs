@@ -124,8 +124,7 @@ async fn purge_removes_only_data_older_than_configured_retention() {
         .json()
         .await
         .unwrap();
-    let attachment_id =
-        Uuid::parse_str(uploaded["attachment"]["id"].as_str().unwrap()).unwrap();
+    let attachment_id = Uuid::parse_str(uploaded["attachment"]["id"].as_str().unwrap()).unwrap();
     let storage_key: String =
         sqlx::query_scalar("SELECT storage_key FROM attachments WHERE id = ?")
             .bind(attachment_id)
@@ -156,15 +155,19 @@ async fn purge_removes_only_data_older_than_configured_retention() {
         .unwrap();
     assert_eq!(result["attachment_objects_deleted"], 1);
     assert_eq!(result["rooms_deleted"], 0);
-    let row_exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM attachments WHERE id = ?)",
-    )
-    .bind(attachment_id)
-    .fetch_one(server.state.pool())
-    .await
-    .unwrap();
+    let row_exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM attachments WHERE id = ?)")
+            .bind(attachment_id)
+            .fetch_one(server.state.pool())
+            .await
+            .unwrap();
     assert!(!row_exists);
-    assert!(!server.state.attachment_store().exists(&storage_key).await.unwrap());
+    assert!(!server
+        .state
+        .attachment_store()
+        .exists(&storage_key)
+        .await
+        .unwrap());
 
     client
         .delete(format!("{}/api/rooms/{room_id}", server.base))

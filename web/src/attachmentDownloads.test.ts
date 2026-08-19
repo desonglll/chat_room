@@ -16,8 +16,6 @@ describe('attachment download batches', () => {
   test('splits on file count and byte boundaries without dropping files', () => {
     const files = [attachment(1, 6), attachment(2, 6), attachment(3, 2), attachment(4, 20)]
     const batches = partitionAttachmentBatches(files, 2, 10)
-    expect(batches.map((batch) => batch.map((file) => file.id))).toEqual([
-      ['1'], ['2', '3'], ['4'],
-    ])
+    expect(batches.map((batch) => batch.map((file) => file.id))).toEqual([['1'], ['2', '3'], ['4']])
   })
 })

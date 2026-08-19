@@ -69,16 +69,19 @@ export function useMessageViewport(options: MessageViewportOptions) {
     visibleIds.clear()
     const list = options.list.value
     if (!list || !('IntersectionObserver' in window)) return
-    observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        const messageId = (entry.target as HTMLElement).dataset.messageId
-        if (!messageId) continue
-        if (entry.isIntersecting && entry.intersectionRatio >= VIEW_THRESHOLD) visibleIds.add(messageId)
-        else visibleIds.delete(messageId)
-      }
-      if (performance.now() >= suppressScrollUntil) markVisibleMessages()
-      else scheduleVisibleRead()
-    }, { root: list, threshold: [0, VIEW_THRESHOLD, 0.75] })
+    observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const messageId = (entry.target as HTMLElement).dataset.messageId
+          if (!messageId) continue
+          if (entry.isIntersecting && entry.intersectionRatio >= VIEW_THRESHOLD) visibleIds.add(messageId)
+          else visibleIds.delete(messageId)
+        }
+        if (performance.now() >= suppressScrollUntil) markVisibleMessages()
+        else scheduleVisibleRead()
+      },
+      { root: list, threshold: [0, VIEW_THRESHOLD, 0.75] },
+    )
     for (const element of list.querySelectorAll<HTMLElement>('[data-message-id]')) observer.observe(element)
   }
 
@@ -119,71 +122,85 @@ export function useMessageViewport(options: MessageViewportOptions) {
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
-  watch(() => options.roomId(), () => {
-    observer?.disconnect()
-    visibleIds.clear()
-    unseenIds.value = []
-    lastReadId = ''
-    historyInitialized = false
-    suppressScrollUntil = performance.now() + 180
-  })
+  watch(
+    () => options.roomId(),
+    () => {
+      observer?.disconnect()
+      visibleIds.clear()
+      unseenIds.value = []
+      lastReadId = ''
+      historyInitialized = false
+      suppressScrollUntil = performance.now() + 180
+    },
+  )
 
-  watch(() => options.historyReady(), (ready) => {
-    if (ready) void initializeHistory()
-  })
+  watch(
+    () => options.historyReady(),
+    (ready) => {
+      if (ready) void initializeHistory()
+    },
+  )
 
-  watch(broadcastIds, async (nextIds, previousIds) => {
-    if (!historyInitialized || !options.historyReady()) return
+  watch(
+    broadcastIds,
+    async (nextIds, previousIds) => {
+      if (!historyInitialized || !options.historyReady()) return
 
-    // Older history was prepended (load-older-on-scroll-up): the old list is now a
-    // trailing slice of the new one. Preserve scroll position instead of following.
-    const isPrepend = previousIds.length > 0
-      && nextIds.length > previousIds.length
-      && previousIds.every((id, index) => id === nextIds[index + (nextIds.length - previousIds.length)])
-    if (isPrepend) {
-      const list = options.list.value
-      const previousScrollHeight = list?.scrollHeight ?? 0
-      const previousScrollTop = list?.scrollTop ?? 0
-      await nextTick()
-      rebuildObserver()
-      if (list) list.scrollTop = previousScrollTop + (list.scrollHeight - previousScrollHeight)
-      return
-    }
-
-    const previous = new Set(previousIds)
-    const appended = options.broadcasts.value.filter((message) => !previous.has(message.message_id))
-    if (!appended.length) {
-      await nextTick()
-      rebuildObserver()
-      return
-    }
-
-    const follow = isNearBottom() && isPageVisible()
-    const incomingIds = appended
-      .filter((message) => message.sender_id !== options.currentUserId())
-      .map((message) => message.message_id)
-    await nextTick()
-    rebuildObserver()
-    if (follow) {
-      const list = options.list.value
-      if (list) {
-        suppressScrollUntil = performance.now() + 120
-        list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
-        window.setTimeout(() => markThrough(appended.at(-1)?.message_id || ''), 140)
-      }
-    } else if (incomingIds.length) {
-      unseenIds.value = [...new Set([...unseenIds.value, ...incomingIds])]
-    }
-  }, { flush: 'pre' })
-
-  watch(() => options.visible(), (visible) => {
-    if (visible) {
-      void nextTick(() => {
+      // Older history was prepended (load-older-on-scroll-up): the old list is now a
+      // trailing slice of the new one. Preserve scroll position instead of following.
+      const isPrepend =
+        previousIds.length > 0 &&
+        nextIds.length > previousIds.length &&
+        previousIds.every((id, index) => id === nextIds[index + (nextIds.length - previousIds.length)])
+      if (isPrepend) {
+        const list = options.list.value
+        const previousScrollHeight = list?.scrollHeight ?? 0
+        const previousScrollTop = list?.scrollTop ?? 0
+        await nextTick()
         rebuildObserver()
-        scheduleVisibleRead()
-      })
-    }
-  })
+        if (list) list.scrollTop = previousScrollTop + (list.scrollHeight - previousScrollHeight)
+        return
+      }
+
+      const previous = new Set(previousIds)
+      const appended = options.broadcasts.value.filter((message) => !previous.has(message.message_id))
+      if (!appended.length) {
+        await nextTick()
+        rebuildObserver()
+        return
+      }
+
+      const follow = isNearBottom() && isPageVisible()
+      const incomingIds = appended
+        .filter((message) => message.sender_id !== options.currentUserId())
+        .map((message) => message.message_id)
+      await nextTick()
+      rebuildObserver()
+      if (follow) {
+        const list = options.list.value
+        if (list) {
+          suppressScrollUntil = performance.now() + 120
+          list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
+          window.setTimeout(() => markThrough(appended.at(-1)?.message_id || ''), 140)
+        }
+      } else if (incomingIds.length) {
+        unseenIds.value = [...new Set([...unseenIds.value, ...incomingIds])]
+      }
+    },
+    { flush: 'pre' },
+  )
+
+  watch(
+    () => options.visible(),
+    (visible) => {
+      if (visible) {
+        void nextTick(() => {
+          rebuildObserver()
+          scheduleVisibleRead()
+        })
+      }
+    },
+  )
 
   function handleVisibilityChange(): void {
     if (document.visibilityState !== 'visible' || !options.visible()) return

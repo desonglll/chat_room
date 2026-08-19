@@ -28,12 +28,16 @@ function selectAvatar(emoji: string): void {
   avatarPopover.value?.hide()
 }
 
-watch(() => props.user, (user) => {
-  avatarEmoji.value = user.avatar_emoji
-  displayName.value = user.display_name
-  signature.value = user.signature
-  homepage.value = user.homepage
-}, { immediate: true })
+watch(
+  () => props.user,
+  (user) => {
+    avatarEmoji.value = user.avatar_emoji
+    displayName.value = user.display_name
+    signature.value = user.signature
+    homepage.value = user.homepage
+  },
+  { immediate: true },
+)
 
 async function save(): Promise<void> {
   saving.value = true
@@ -58,8 +62,12 @@ async function save(): Promise<void> {
 
 <template>
   <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface-0">
-    <header class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7">
-      <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"><ArrowLeft :size="19" /></Button>
+    <header
+      class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7"
+    >
+      <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"
+        ><ArrowLeft :size="19"
+      /></Button>
       <div>
         <h2 class="text-base font-semibold">我的</h2>
         <p class="mt-0.5 text-xs text-muted-color">@{{ user.username }}</p>
@@ -68,12 +76,28 @@ async function save(): Promise<void> {
 
     <form autocomplete="on" class="mx-auto w-full max-w-2xl px-5 py-8 sm:px-8" @submit.prevent="save">
       <section class="border-b border-surface-200 pb-7">
-        <div class="mb-4 flex items-center gap-2 text-sm font-semibold"><UserRound :size="18" class="text-primary" />头像</div>
+        <div class="mb-4 flex items-center gap-2 text-sm font-semibold">
+          <UserRound :size="18" class="text-primary" />头像
+        </div>
         <div class="flex items-center gap-3">
-          <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" size="large" class="bg-primary-50! text-2xl!" />
-          <Avatar v-else :label="user.username.slice(0, 1).toUpperCase()" shape="circle" size="large" class="bg-surface-200! text-surface-700!" />
+          <Avatar
+            v-if="avatarEmoji"
+            :label="avatarEmoji"
+            shape="circle"
+            size="large"
+            class="bg-primary-50! text-2xl!"
+          />
+          <Avatar
+            v-else
+            :label="user.username.slice(0, 1).toUpperCase()"
+            shape="circle"
+            size="large"
+            class="bg-surface-200! text-surface-700!"
+          />
           <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择表情</Button>
-          <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''">清除</Button>
+          <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''"
+            >清除</Button
+          >
         </div>
         <Popover ref="avatarPopover">
           <EmojiPicker @select="selectAvatar" />
@@ -83,17 +107,47 @@ async function save(): Promise<void> {
       <section class="space-y-5 pt-7">
         <div>
           <label for="profile-display-name" class="mb-2 block text-sm font-medium">显示名称</label>
-          <InputText id="profile-display-name" v-model="displayName" name="name" autocomplete="name" maxlength="48" fluid />
+          <InputText
+            id="profile-display-name"
+            v-model="displayName"
+            name="name"
+            autocomplete="name"
+            maxlength="48"
+            fluid
+          />
         </div>
         <div>
           <label for="profile-signature" class="mb-2 block text-sm font-medium">个性签名</label>
-          <Textarea id="profile-signature" v-model="signature" name="profile-signature" maxlength="160" rows="3" auto-resize fluid />
+          <Textarea
+            id="profile-signature"
+            v-model="signature"
+            name="profile-signature"
+            maxlength="160"
+            rows="3"
+            auto-resize
+            fluid
+          />
           <small class="mt-1 block text-right text-muted-color">{{ signature.length }}/160</small>
         </div>
         <div>
           <label for="profile-homepage" class="mb-2 block text-sm font-medium">个人主页</label>
-          <InputText id="profile-homepage" v-model="homepage" name="url" type="url" autocomplete="url" maxlength="240" placeholder="https://example.com" fluid />
-          <a v-if="user.homepage" :href="user.homepage" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+          <InputText
+            id="profile-homepage"
+            v-model="homepage"
+            name="url"
+            type="url"
+            autocomplete="url"
+            maxlength="240"
+            placeholder="https://example.com"
+            fluid
+          />
+          <a
+            v-if="user.homepage"
+            :href="user.homepage"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
             查看主页 <ExternalLink :size="13" />
           </a>
         </div>

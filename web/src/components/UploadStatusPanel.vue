@@ -21,9 +21,9 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const selectedSession = ref<AttachmentUploadSession | null>(null)
 const visiblePending = computed(() => props.pending.filter((item) => item.id !== props.progress?.uploadId))
 const visible = computed(() => Boolean(props.progress || visiblePending.value.length))
-const activePercent = computed(() => props.progress
-  ? Math.round((props.progress.processedBytes / props.progress.totalBytes) * 100)
-  : 0)
+const activePercent = computed(() =>
+  props.progress ? Math.round((props.progress.processedBytes / props.progress.totalBytes) * 100) : 0,
+)
 const activeLabel = computed(() => {
   if (!props.progress) return ''
   if (props.progress.phase === 'hashing') return `正在计算 SHA-256 · ${activePercent.value}%`
@@ -53,7 +53,7 @@ function sessionPercent(session: AttachmentUploadSession): number {
 
 <template>
   <div v-if="visible" class="shrink-0 border-t border-surface-200 bg-surface-0 px-3 py-2 sm:px-7">
-    <input ref="fileInput" class="hidden" type="file" @change="handleFile">
+    <input ref="fileInput" class="hidden" type="file" @change="handleFile" />
     <div v-if="progress" class="flex min-h-8 items-center gap-2 text-xs text-muted-color">
       <FileUp :size="16" class="shrink-0 text-primary" />
       <div class="min-w-0 flex-1">
@@ -78,13 +78,27 @@ function sessionPercent(session: AttachmentUploadSession): number {
         <ProgressBar :value="sessionPercent(session)" :show-value="false" class="mt-1 h-1" />
       </div>
       <Button
-        text rounded size="small" severity="secondary" :disabled="disabled"
-        aria-label="选择原文件继续上传" title="选择原文件继续上传" @click="chooseFile(session)"
-      ><RotateCcw :size="16" /></Button>
+        text
+        rounded
+        size="small"
+        severity="secondary"
+        :disabled="disabled"
+        aria-label="选择原文件继续上传"
+        title="选择原文件继续上传"
+        @click="chooseFile(session)"
+        ><RotateCcw :size="16"
+      /></Button>
       <Button
-        text rounded size="small" severity="danger" :disabled="disabled"
-        aria-label="取消上传" title="取消上传" @click="emit('cancel', session)"
-      ><Trash2 :size="16" /></Button>
+        text
+        rounded
+        size="small"
+        severity="danger"
+        :disabled="disabled"
+        aria-label="取消上传"
+        title="取消上传"
+        @click="emit('cancel', session)"
+        ><Trash2 :size="16"
+      /></Button>
     </div>
   </div>
 </template>

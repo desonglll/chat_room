@@ -23,16 +23,21 @@ const searching = ref(false)
 const joining = ref(false)
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  roomId.value = ''
-  password.value = ''
-  room.value = null
-  error.value = ''
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return
+    roomId.value = ''
+    password.value = ''
+    room.value = null
+    error.value = ''
+  },
+)
 
 async function search(): Promise<void> {
   const id = roomId.value.trim()
@@ -47,6 +52,12 @@ async function search(): Promise<void> {
   } finally {
     searching.value = false
   }
+}
+
+function resetSearch(): void {
+  room.value = null
+  password.value = ''
+  error.value = ''
 }
 
 async function join(): Promise<void> {
@@ -94,15 +105,19 @@ async function join(): Promise<void> {
           <Button v-if="!room" type="submit" :loading="searching" aria-label="查找聊天室" title="查找聊天室">
             <Search :size="17" />
           </Button>
-          <Button v-else type="button" severity="secondary" outlined @click="room = null; password = ''; error = ''">重输</Button>
+          <Button v-else type="button" severity="secondary" outlined @click="resetSearch">重输</Button>
         </div>
       </div>
 
       <div v-if="room" class="flex items-center gap-3 border-y border-surface-200 py-4">
-        <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary-50 text-primary"><DoorOpen :size="19" /></span>
+        <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary-50 text-primary"
+          ><DoorOpen :size="19"
+        /></span>
         <div class="min-w-0">
           <strong class="block truncate text-sm">{{ room.name }}</strong>
-          <small class="mt-1 block text-muted-color">{{ room.membership_status === 'pending' ? '申请待审核' : room.has_password ? '私密聊天室' : '公开聊天室' }}</small>
+          <small class="mt-1 block text-muted-color">{{
+            room.membership_status === 'pending' ? '申请待审核' : room.has_password ? '私密聊天室' : '公开聊天室'
+          }}</small>
         </div>
       </div>
 
@@ -121,7 +136,13 @@ async function join(): Promise<void> {
         <Button type="button" label="取消" severity="secondary" outlined @click="emit('close')" />
         <Button v-if="room" type="submit" :loading="joining" :disabled="room.membership_status === 'pending'">
           <DoorOpen :size="17" />
-          <span>{{ room.membership_status === 'active' ? '打开聊天室' : room.membership_status === 'pending' ? '等待管理员审核' : '申请加入' }}</span>
+          <span>{{
+            room.membership_status === 'active'
+              ? '打开聊天室'
+              : room.membership_status === 'pending'
+                ? '等待管理员审核'
+                : '申请加入'
+          }}</span>
         </Button>
       </div>
     </form>

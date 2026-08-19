@@ -1,10 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  shouldFocusComposer,
-  shouldSubmitMessage,
-  type ComposerKeyEvent,
-  type FocusKeyEvent,
-} from './composer'
+import { shouldFocusComposer, shouldSubmitMessage, type ComposerKeyEvent, type FocusKeyEvent } from './composer'
 
 function keyEvent(overrides: Partial<ComposerKeyEvent> = {}): ComposerKeyEvent {
   return {
@@ -44,7 +39,11 @@ describe('message composer Enter handling', () => {
 
 describe('composer focus shortcut', () => {
   const event: FocusKeyEvent = {
-    key: ' ', repeat: false, metaKey: false, ctrlKey: false, altKey: false,
+    key: ' ',
+    repeat: false,
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
   }
 
   test('supports space, slash, and disabled modes', () => {

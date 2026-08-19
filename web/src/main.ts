@@ -128,7 +128,12 @@ const ChatRoomPreset = definePreset(Aura, {
           item: { focusBackground: '#1d2926', activeBackground: '#1d2926' },
         },
         mask: { background: 'rgba(4, 8, 7, 0.56)' },
-        highlight: { background: '#123e35', focusBackground: '#123e35', color: '#39bfa6', focusColor: '#39bfa6' },
+        highlight: {
+          background: '#123e35',
+          focusBackground: '#123e35',
+          color: '#39bfa6',
+          focusColor: '#39bfa6',
+        },
       },
     },
   },

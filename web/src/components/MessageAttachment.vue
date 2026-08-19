@@ -38,7 +38,13 @@ function formatSize(bytes: number): string {
         :disabled="attachment.is_sensitive && !revealed"
         @click="emit('previewImage', attachment)"
       >
-        <img class="block max-h-[min(52vh,420px)] w-full object-contain" :src="attachment.download_url" :alt="attachment.file_name" loading="lazy" @error="previewFailed = true">
+        <img
+          class="block max-h-[min(52vh,420px)] w-full object-contain"
+          :src="attachment.download_url"
+          :alt="attachment.file_name"
+          loading="lazy"
+          @error="previewFailed = true"
+        />
       </button>
       <VideoPlayer
         v-else-if="kind === 'video' && !previewFailed"
@@ -62,7 +68,10 @@ function formatSize(bytes: number): string {
         <Download class="ml-auto shrink-0 text-muted-color" :size="18" />
       </a>
     </div>
-    <div v-if="attachment.is_sensitive && !revealed" class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-900/55 text-white">
+    <div
+      v-if="attachment.is_sensitive && !revealed"
+      class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-900/55 text-white"
+    >
       <ShieldAlert :size="26" />
       <strong class="text-sm">已标记为敏感内容</strong>
       <button

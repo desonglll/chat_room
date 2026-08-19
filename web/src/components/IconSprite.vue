@@ -1,6 +1,20 @@
 <script setup lang="ts">
 defineProps<{
-  name: 'rooms' | 'room-add' | 'members' | 'message' | 'send' | 'attach' | 'files' | 'search' | 'reply' | 'bell' | 'settings' | 'lock' | 'unread' | 'back'
+  name:
+    | 'rooms'
+    | 'room-add'
+    | 'members'
+    | 'message'
+    | 'send'
+    | 'attach'
+    | 'files'
+    | 'search'
+    | 'reply'
+    | 'bell'
+    | 'settings'
+    | 'lock'
+    | 'unread'
+    | 'back'
   size?: number
 }>()
 </script>

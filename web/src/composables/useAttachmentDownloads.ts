@@ -1,9 +1,6 @@
 import { ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import {
-  downloadAttachmentArchives,
-  type DownloadProgress,
-} from '../attachmentDownloads'
+import { downloadAttachmentArchives, type DownloadProgress } from '../attachmentDownloads'
 import type { Attachment } from '../types'
 
 export function useAttachmentDownloads(roomName: () => string) {
@@ -30,16 +27,16 @@ export function useAttachmentDownloads(roomName: () => string) {
     try {
       await downloadAttachmentArchives(attachments, roomName(), {
         signal: nextController.signal,
-        onProgress: (progress) => { downloadProgress.value = progress },
+        onProgress: (progress) => {
+          downloadProgress.value = progress
+        },
       })
       toast.add({ severity: 'success', summary: `已保存 ${attachments.length} 个文件`, life: 2600 })
     } catch (caught) {
       const cancelled = caught instanceof DOMException && caught.name === 'AbortError'
       toast.add({
         severity: cancelled ? 'secondary' : 'error',
-        summary: cancelled
-          ? '已取消批量保存'
-          : caught instanceof Error ? caught.message : '批量保存失败',
+        summary: cancelled ? '已取消批量保存' : caught instanceof Error ? caught.message : '批量保存失败',
         life: 3200,
       })
     } finally {

@@ -81,7 +81,12 @@ impl AttachmentStore {
         } else {
             None
         };
-        let store = Self { root, staging, abandoned_upload_age, oss };
+        let store = Self {
+            root,
+            staging,
+            abandoned_upload_age,
+            oss,
+        };
         store.clear_staging().await?;
         Ok(store)
     }
@@ -384,7 +389,10 @@ async fn upload_path_to_oss(operator: &Operator, key: &str, path: &Path) -> Resu
             .await
             .context("stream attachment to OSS")?;
     }
-    writer.close().await.context("finish OSS attachment upload")?;
+    writer
+        .close()
+        .await
+        .context("finish OSS attachment upload")?;
     i64::try_from(size).context("attachment is too large")
 }
 

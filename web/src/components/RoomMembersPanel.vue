@@ -90,7 +90,14 @@ onMounted(refresh)
 <template>
   <div class="space-y-5">
     <form class="flex gap-2" autocomplete="off" @submit.prevent="invite">
-      <InputText v-model="inviteUsername" name="invite-username" autocomplete="off" class="min-w-0 flex-1" maxlength="48" placeholder="输入用户名邀请" />
+      <InputText
+        v-model="inviteUsername"
+        name="invite-username"
+        autocomplete="off"
+        class="min-w-0 flex-1"
+        maxlength="48"
+        placeholder="输入用户名邀请"
+      />
       <Button type="submit" :loading="busy === 'invite'" :disabled="!inviteUsername.trim()">
         <UserPlus :size="17" />
         <span>邀请</span>
@@ -106,10 +113,33 @@ onMounted(refresh)
       </div>
       <div class="divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="member in pending" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="text-white!" :style="{ backgroundColor: avatarColor(member.user_id) }" />
+          <Avatar
+            :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
+            shape="circle"
+            class="text-white!"
+            :style="{ backgroundColor: avatarColor(member.user_id) }"
+          />
           <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
-          <Button text rounded severity="success" aria-label="批准加入" title="批准" :loading="busy === `approve:${member.user_id}`" @click="update(member, 'approve')"><Check :size="17" /></Button>
-          <Button text rounded severity="danger" aria-label="拒绝加入" title="拒绝" :loading="busy === `reject:${member.user_id}`" @click="update(member, 'reject')"><X :size="17" /></Button>
+          <Button
+            text
+            rounded
+            severity="success"
+            aria-label="批准加入"
+            title="批准"
+            :loading="busy === `approve:${member.user_id}`"
+            @click="update(member, 'approve')"
+            ><Check :size="17"
+          /></Button>
+          <Button
+            text
+            rounded
+            severity="danger"
+            aria-label="拒绝加入"
+            title="拒绝"
+            :loading="busy === `reject:${member.user_id}`"
+            @click="update(member, 'reject')"
+            ><X :size="17"
+          /></Button>
         </div>
       </div>
     </section>
@@ -121,9 +151,23 @@ onMounted(refresh)
       </div>
       <div class="divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="member in invited" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="text-white!" :style="{ backgroundColor: avatarColor(member.user_id) }" />
+          <Avatar
+            :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
+            shape="circle"
+            class="text-white!"
+            :style="{ backgroundColor: avatarColor(member.user_id) }"
+          />
           <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
-          <Button text rounded severity="danger" aria-label="取消邀请" title="取消邀请" :loading="busy === `reject:${member.user_id}`" @click="update(member, 'reject')"><X :size="17" /></Button>
+          <Button
+            text
+            rounded
+            severity="danger"
+            aria-label="取消邀请"
+            title="取消邀请"
+            :loading="busy === `reject:${member.user_id}`"
+            @click="update(member, 'reject')"
+            ><X :size="17"
+          /></Button>
         </div>
       </div>
     </section>
@@ -135,7 +179,12 @@ onMounted(refresh)
       </div>
       <div class="max-h-64 divide-y divide-surface-100 overflow-y-auto border-y border-surface-200">
         <div v-for="member in active" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()" shape="circle" class="text-white!" :style="{ backgroundColor: avatarColor(member.user_id) }" />
+          <Avatar
+            :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
+            shape="circle"
+            class="text-white!"
+            :style="{ backgroundColor: avatarColor(member.user_id) }"
+          />
           <span class="min-w-0 flex-1 truncate text-sm">
             <strong>{{ member.nickname || member.username }}</strong>
             <small v-if="member.nickname" class="ml-1 text-muted-color">@{{ member.username }}</small>
@@ -152,7 +201,17 @@ onMounted(refresh)
             @update:model-value="changeRole(member, $event)"
           />
           <Tag v-else :value="member.role === 'admin' ? '管理员' : '成员'" severity="secondary" />
-          <Button v-if="member.role !== 'owner'" text rounded severity="danger" aria-label="移除成员" title="移除成员" :loading="busy === `remove:${member.user_id}`" @click="update(member, 'remove')"><UserMinus :size="17" /></Button>
+          <Button
+            v-if="member.role !== 'owner'"
+            text
+            rounded
+            severity="danger"
+            aria-label="移除成员"
+            title="移除成员"
+            :loading="busy === `remove:${member.user_id}`"
+            @click="update(member, 'remove')"
+            ><UserMinus :size="17"
+          /></Button>
         </div>
       </div>
     </section>

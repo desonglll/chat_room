@@ -9,8 +9,8 @@ use anyhow::{Context, Result};
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::ai::AiAssistant;
 use crate::admin_metrics::RuntimeMetrics;
+use crate::ai::AiAssistant;
 use crate::attachment_content::ContentHashLocks;
 use crate::attachment_storage::{self, AttachmentStore};
 use crate::config::AppConfig;
@@ -401,7 +401,12 @@ fn ai_assistant_for(config: &AppConfig) -> Option<AiAssistant> {
 }
 
 fn gc_age(config: &AppConfig) -> Duration {
-    Duration::from_secs(config.uploads.abandoned_upload_gc_hours.saturating_mul(3600))
+    Duration::from_secs(
+        config
+            .uploads
+            .abandoned_upload_gc_hours
+            .saturating_mul(3600),
+    )
 }
 
 async fn open_attachment_store(config: &AppConfig) -> Result<AttachmentStore> {

@@ -69,19 +69,18 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
   contextMenu.value?.show(event)
 }
 
-const broadcasts = computed(() => props.messages.filter(
-  (message): message is BroadcastMessage => message.type === 'broadcast',
-))
+const broadcasts = computed(() =>
+  props.messages.filter((message): message is BroadcastMessage => message.type === 'broadcast'),
+)
 
 const readDetails = computed(() => {
   const positions = new Map(broadcasts.value.map((message, index) => [message.message_id, index]))
   const recipients = props.participants.filter((member) => member.user_id !== props.currentUserId)
   const details = new Map<string, { read: RoomMember[]; unread: RoomMember[] }>()
   if (!recipients.length) return details
-  const receiptPositions = new Map(props.readReceipts.map((receipt) => [
-    receipt.user_id,
-    positions.get(receipt.message_id),
-  ]))
+  const receiptPositions = new Map(
+    props.readReceipts.map((receipt) => [receipt.user_id, positions.get(receipt.message_id)]),
+  )
   for (const [index, message] of broadcasts.value.entries()) {
     if (message.sender_id !== props.currentUserId) continue
     const read: RoomMember[] = []
@@ -167,7 +166,10 @@ function contentSegments(content: string): ContentSegment[] {
     .filter(Boolean)
     .sort((left, right) => right.length - left.length)
   if (!usernames.length) return [{ text: content, mention: false }]
-  const pattern = new RegExp(`@(?:${usernames.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\w])`, 'g')
+  const pattern = new RegExp(
+    `@(?:${usernames.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\w])`,
+    'g',
+  )
   const segments: ContentSegment[] = []
   let lastIndex = 0
   for (const match of content.matchAll(pattern)) {
@@ -186,7 +188,9 @@ function scrollToMessage(messageId: string): void {
   target.scrollIntoView({ behavior: 'smooth', block: 'center' })
   highlightedId.value = messageId
   window.clearTimeout(highlightTimer)
-  highlightTimer = window.setTimeout(() => { highlightedId.value = '' }, 1400)
+  highlightTimer = window.setTimeout(() => {
+    highlightedId.value = ''
+  }, 1400)
 }
 
 onBeforeUnmount(() => {
@@ -196,125 +200,164 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="relative min-h-0 flex-1">
-    <div ref="messageList" class="h-full overflow-y-auto px-3 py-5 sm:px-7" data-testid="message-list" aria-live="polite" @scroll.passive="handleScroll">
+    <div
+      ref="messageList"
+      class="h-full overflow-y-auto px-3 py-5 sm:px-7"
+      data-testid="message-list"
+      aria-live="polite"
+      @scroll.passive="handleScroll"
+    >
       <div v-if="loadingOlder" class="mb-3 flex justify-center">
         <span class="size-4 animate-spin rounded-full border-2 border-surface-300 border-t-primary" />
       </div>
-      <template v-for="(message, index) in messages" :key="message.type === 'broadcast' ? message.message_id : message.key">
-      <div v-if="message.type === 'system'" class="my-4 flex items-center justify-center gap-3 text-center text-xs text-muted-color">
-        <span class="h-px w-8 bg-surface-200" />
-        <p>{{ message.content }}</p>
-        <span class="h-px w-8 bg-surface-200" />
-      </div>
-      <div
-        v-else
-        class="group fade-in-up flex items-start gap-2 rounded-lg transition-colors duration-200"
-        :class="[
-          message.sender_id === currentUserId ? 'flex-row-reverse justify-start' : 'justify-start',
-          highlightedId === message.message_id ? 'bg-flash' : '',
-          isGroupEnd(index) ? 'mb-4' : 'mb-0.5',
-        ]"
-        :data-message-id="message.message_id"
-        @contextmenu.prevent="openContextMenu($event, message)"
+      <template
+        v-for="(message, index) in messages"
+        :key="message.type === 'broadcast' ? message.message_id : message.key"
       >
-        <Checkbox
-          v-if="selecting && !message.recalled_at"
-          class="mt-7 shrink-0"
-          binary
-          :model-value="selectedMessageIds.includes(message.message_id)"
-          aria-label="选择消息"
-          @update:model-value="emit('toggleSelect', message.message_id)"
-        />
-        <button
-          type="button"
-          class="mt-5 shrink-0 cursor-pointer rounded-full"
-          :class="{ invisible: !isGroupStart(index) }"
-          aria-label="查看用户资料"
-          title="查看资料"
-          @click="message.sender_id && emit('viewProfile', message.sender_id)"
+        <div
+          v-if="message.type === 'system'"
+          class="my-4 flex items-center justify-center gap-3 text-center text-xs text-muted-color"
         >
-          <Avatar
-            :label="avatarLabel(message)"
-            shape="circle"
-            class="text-white!"
-            :style="{ backgroundColor: avatarColor(message.sender_id || message.sender) }"
-          />
-        </button>
-        <div class="max-w-[86%] sm:max-w-[72%] lg:max-w-[720px]">
-          <div class="mb-1 flex items-center gap-2 text-xs text-muted-color" :class="{ 'justify-end': message.sender_id === currentUserId }">
-            <strong v-if="isGroupStart(index)">{{ message.sender_id === currentUserId ? '你' : message.sender }}</strong>
-            <time>{{ formatTime(message.timestamp) }}</time>
-            <button
-              v-if="!message.recalled_at && !selecting"
-              type="button"
-              class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
-              aria-label="回复消息"
-              title="回复"
-              @click="emit('reply', message)"
-            >
-              <CornerUpLeft :size="14" />
-            </button>
-            <button
-              v-if="!message.recalled_at && !selecting"
-              type="button"
-              class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
-              aria-label="转发消息"
-              title="转发"
-              @click="emit('forward', message)"
-            >
-              <Forward :size="14" />
-            </button>
-          </div>
-          <button
-            v-if="message.reply_to"
-            type="button"
-            class="block w-full overflow-hidden rounded-md border-l-[3px] border-primary bg-surface-100 px-2.5 py-2 text-left text-surface-600 hover:bg-surface-200"
-            @click="scrollToMessage(message.reply_to.message_id)"
-          >
-            <strong class="block truncate text-[11px] text-primary">{{ message.reply_to.sender }}</strong>
-            <span class="mt-0.5 block truncate text-xs">{{ replySummary(message.reply_to) }}</span>
-          </button>
-          <div
-            v-if="!message.recalled_at && message.forwarded_from"
-            class="mt-1 text-[11px] text-muted-color"
-            :class="{ 'text-right': message.sender_id === currentUserId }"
-          >
-            转发自 {{ message.forwarded_from.sender }} · {{ message.forwarded_from.room_name }}
-          </div>
-          <div v-if="message.recalled_at" class="mt-1 flex items-center gap-2 rounded-md border border-dashed border-surface-300 px-3 py-2 text-sm italic text-muted-color">
-            <span class="flex-1">
-              {{ message.sender_id === currentUserId ? '你撤回了一条消息' : `${message.sender} 撤回了一条消息` }}
-            </span>
-            <button
-              v-if="message.sender_id === currentUserId && message.content"
-              type="button"
-              class="shrink-0 not-italic text-primary hover:underline"
-              @click="emit('edit', message)"
-            >
-              重新编辑
-            </button>
-          </div>
-          <MessageAttachment v-else-if="message.attachment" class="mt-1" :attachment="message.attachment" @preview-image="emit('previewImage', $event)" />
-          <p
-            v-if="message.content && !message.recalled_at"
-            class="mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6 shadow-sm"
-            :class="message.sender_id === currentUserId
-              ? ['bg-primary text-primary-contrast', isGroupEnd(index) ? 'rounded-2xl rounded-br-md' : 'rounded-2xl']
-              : ['bg-surface-0 text-surface-900', isGroupEnd(index) ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl']"
-          >
-            <template v-for="(segment, index) in contentSegments(message.content)" :key="index">
-              <strong v-if="segment.mention" class="font-semibold text-primary" :class="{ 'text-inherit! underline': message.sender_id === currentUserId }">{{ segment.text }}</strong>
-              <template v-else>{{ segment.text }}</template>
-            </template>
-          </p>
-          <small v-if="message.edited_at && !message.recalled_at" class="mt-0.5 block text-right text-[10px] text-muted-color">已编辑</small>
-          <ReadReceiptStatus
-            v-if="message.sender_id === currentUserId && !message.recalled_at && readDetails.get(message.message_id)"
-            :read="readDetails.get(message.message_id)!.read"
-            :unread="readDetails.get(message.message_id)!.unread"
-          />
+          <span class="h-px w-8 bg-surface-200" />
+          <p>{{ message.content }}</p>
+          <span class="h-px w-8 bg-surface-200" />
         </div>
-      </div>
+        <div
+          v-else
+          class="group fade-in-up flex items-start gap-2 rounded-lg transition-colors duration-200"
+          :class="[
+            message.sender_id === currentUserId ? 'flex-row-reverse justify-start' : 'justify-start',
+            highlightedId === message.message_id ? 'bg-flash' : '',
+            isGroupEnd(index) ? 'mb-4' : 'mb-0.5',
+          ]"
+          :data-message-id="message.message_id"
+          @contextmenu.prevent="openContextMenu($event, message)"
+        >
+          <Checkbox
+            v-if="selecting && !message.recalled_at"
+            class="mt-7 shrink-0"
+            binary
+            :model-value="selectedMessageIds.includes(message.message_id)"
+            aria-label="选择消息"
+            @update:model-value="emit('toggleSelect', message.message_id)"
+          />
+          <button
+            type="button"
+            class="mt-5 shrink-0 cursor-pointer rounded-full"
+            :class="{ invisible: !isGroupStart(index) }"
+            aria-label="查看用户资料"
+            title="查看资料"
+            @click="message.sender_id && emit('viewProfile', message.sender_id)"
+          >
+            <Avatar
+              :label="avatarLabel(message)"
+              shape="circle"
+              class="text-white!"
+              :style="{ backgroundColor: avatarColor(message.sender_id || message.sender) }"
+            />
+          </button>
+          <div class="max-w-[86%] sm:max-w-[72%] lg:max-w-[720px]">
+            <div
+              class="mb-1 flex items-center gap-2 text-xs text-muted-color"
+              :class="{ 'justify-end': message.sender_id === currentUserId }"
+            >
+              <strong v-if="isGroupStart(index)">{{
+                message.sender_id === currentUserId ? '你' : message.sender
+              }}</strong>
+              <time>{{ formatTime(message.timestamp) }}</time>
+              <button
+                v-if="!message.recalled_at && !selecting"
+                type="button"
+                class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+                aria-label="回复消息"
+                title="回复"
+                @click="emit('reply', message)"
+              >
+                <CornerUpLeft :size="14" />
+              </button>
+              <button
+                v-if="!message.recalled_at && !selecting"
+                type="button"
+                class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+                aria-label="转发消息"
+                title="转发"
+                @click="emit('forward', message)"
+              >
+                <Forward :size="14" />
+              </button>
+            </div>
+            <button
+              v-if="message.reply_to"
+              type="button"
+              class="block w-full overflow-hidden rounded-md border-l-[3px] border-primary bg-surface-100 px-2.5 py-2 text-left text-surface-600 hover:bg-surface-200"
+              @click="scrollToMessage(message.reply_to.message_id)"
+            >
+              <strong class="block truncate text-[11px] text-primary">{{ message.reply_to.sender }}</strong>
+              <span class="mt-0.5 block truncate text-xs">{{ replySummary(message.reply_to) }}</span>
+            </button>
+            <div
+              v-if="!message.recalled_at && message.forwarded_from"
+              class="mt-1 text-[11px] text-muted-color"
+              :class="{ 'text-right': message.sender_id === currentUserId }"
+            >
+              转发自 {{ message.forwarded_from.sender }} · {{ message.forwarded_from.room_name }}
+            </div>
+            <div
+              v-if="message.recalled_at"
+              class="mt-1 flex items-center gap-2 rounded-md border border-dashed border-surface-300 px-3 py-2 text-sm italic text-muted-color"
+            >
+              <span class="flex-1">
+                {{ message.sender_id === currentUserId ? '你撤回了一条消息' : `${message.sender} 撤回了一条消息` }}
+              </span>
+              <button
+                v-if="message.sender_id === currentUserId && message.content"
+                type="button"
+                class="shrink-0 not-italic text-primary hover:underline"
+                @click="emit('edit', message)"
+              >
+                重新编辑
+              </button>
+            </div>
+            <MessageAttachment
+              v-else-if="message.attachment"
+              class="mt-1"
+              :attachment="message.attachment"
+              @preview-image="emit('previewImage', $event)"
+            />
+            <p
+              v-if="message.content && !message.recalled_at"
+              class="mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6 shadow-sm"
+              :class="
+                message.sender_id === currentUserId
+                  ? [
+                      'bg-primary text-primary-contrast',
+                      isGroupEnd(index) ? 'rounded-2xl rounded-br-md' : 'rounded-2xl',
+                    ]
+                  : ['bg-surface-0 text-surface-900', isGroupEnd(index) ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl']
+              "
+            >
+              <template v-for="(segment, index) in contentSegments(message.content)" :key="index">
+                <strong
+                  v-if="segment.mention"
+                  class="font-semibold text-primary"
+                  :class="{ 'text-inherit! underline': message.sender_id === currentUserId }"
+                  >{{ segment.text }}</strong
+                >
+                <template v-else>{{ segment.text }}</template>
+              </template>
+            </p>
+            <small
+              v-if="message.edited_at && !message.recalled_at"
+              class="mt-0.5 block text-right text-[10px] text-muted-color"
+              >已编辑</small
+            >
+            <ReadReceiptStatus
+              v-if="message.sender_id === currentUserId && !message.recalled_at && readDetails.get(message.message_id)"
+              :read="readDetails.get(message.message_id)!.read"
+              :unread="readDetails.get(message.message_id)!.unread"
+            />
+          </div>
+        </div>
       </template>
     </div>
     <Transition

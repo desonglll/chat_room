@@ -60,7 +60,7 @@ export function useUnreadSocket(
       if (socket !== next) return
       socket = null
       if (!activeToken) return
-      const delay = Math.min(500 * (2 ** attempts++), 5000)
+      const delay = Math.min(500 * 2 ** attempts++, 5000)
       reconnectTimer = window.setTimeout(() => open(activeToken), delay)
     }
   }

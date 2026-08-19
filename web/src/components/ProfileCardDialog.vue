@@ -28,25 +28,31 @@ const savingNickname = ref(false)
 const nicknameSaved = ref(false)
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 const isSelf = computed(() => Boolean(props.roomId) && props.userId === props.currentUserId)
 
-watch(() => [props.open, props.userId], async ([open, userId]) => {
-  if (!open || !userId) return
-  profile.value = null
-  error.value = ''
-  nickname.value = ''
-  nicknameSaved.value = false
-  loading.value = true
-  try {
-    profile.value = await getUserProfile(userId as string, props.token)
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : '读取用户资料失败'
-  } finally {
-    loading.value = false
-  }
-}, { immediate: true })
+watch(
+  () => [props.open, props.userId],
+  async ([open, userId]) => {
+    if (!open || !userId) return
+    profile.value = null
+    error.value = ''
+    nickname.value = ''
+    nicknameSaved.value = false
+    loading.value = true
+    try {
+      profile.value = await getUserProfile(userId as string, props.token)
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '读取用户资料失败'
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true },
+)
 
 async function saveNickname(): Promise<void> {
   if (!props.roomId) return
@@ -97,7 +103,14 @@ async function saveNickname(): Promise<void> {
       <div v-if="isSelf" class="mt-2 w-full border-t border-surface-200 pt-4 text-left">
         <label for="roomNickname" class="mb-2 block text-sm font-medium">本房间昵称</label>
         <div class="flex gap-2">
-          <InputText id="roomNickname" v-model="nickname" maxlength="48" placeholder="留空则显示原名称" class="min-w-0 flex-1" fluid />
+          <InputText
+            id="roomNickname"
+            v-model="nickname"
+            maxlength="48"
+            placeholder="留空则显示原名称"
+            class="min-w-0 flex-1"
+            fluid
+          />
           <Button type="button" :loading="savingNickname" @click="saveNickname"><Save :size="16" /></Button>
         </div>
         <small v-if="nicknameSaved" class="mt-1 block text-success">已保存</small>

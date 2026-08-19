@@ -3,17 +3,20 @@ import { computed } from 'vue'
 import Password from 'primevue/password'
 import { credentialInputProps, type CredentialScope } from '../credentialAutocomplete'
 
-const props = withDefaults(defineProps<{
-  modelValue: string
-  inputId: string
-  name: string
-  scope: CredentialScope
-  required?: boolean
-  disabled?: boolean
-}>(), {
-  required: false,
-  disabled: false,
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: string
+    inputId: string
+    name: string
+    scope: CredentialScope
+    required?: boolean
+    disabled?: boolean
+  }>(),
+  {
+    required: false,
+    disabled: false,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]

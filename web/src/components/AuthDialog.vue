@@ -27,14 +27,19 @@ const modeOptions = [
 ]
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  password.value = ''
-  error.value = ''
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return
+    password.value = ''
+    error.value = ''
+  },
+)
 
 watch(mode, () => {
   password.value = ''
@@ -55,9 +60,10 @@ async function submit(): Promise<void> {
   busy.value = true
   error.value = ''
   try {
-    const session = mode.value === 'register'
-      ? await registerUser(normalizedUsername, password.value)
-      : await loginUser(normalizedUsername, password.value)
+    const session =
+      mode.value === 'register'
+        ? await registerUser(normalizedUsername, password.value)
+        : await loginUser(normalizedUsername, password.value)
     emit('authenticated', session)
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '认证失败'
@@ -70,15 +76,32 @@ async function submit(): Promise<void> {
 <template>
   <Dialog v-model:visible="visible" modal header="用户账户" class="w-[min(92vw,440px)]" :draggable="false">
     <form class="flex flex-col gap-5" :autocomplete="mode === 'login' ? 'on' : 'off'" @submit.prevent="submit">
-      <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" class="grid grid-cols-2" />
+      <SelectButton
+        v-model="mode"
+        :options="modeOptions"
+        option-label="label"
+        option-value="value"
+        :allow-empty="false"
+        class="grid grid-cols-2"
+      />
 
       <div class="flex flex-col gap-2">
         <label for="accountUsername" class="text-sm font-medium">账户用户名</label>
-        <InputText id="accountUsername" v-model="username" name="account-username" maxlength="48" autocomplete="section-user-account username" autofocus fluid />
+        <InputText
+          id="accountUsername"
+          v-model="username"
+          name="account-username"
+          maxlength="48"
+          autocomplete="section-user-account username"
+          autofocus
+          fluid
+        />
       </div>
 
       <div class="flex flex-col gap-2">
-        <label for="accountPassword" class="text-sm font-medium">{{ mode === 'register' ? '设置账户密码' : '账户密码' }}</label>
+        <label for="accountPassword" class="text-sm font-medium">{{
+          mode === 'register' ? '设置账户密码' : '账户密码'
+        }}</label>
         <ScopedPasswordField
           v-model="password"
           input-id="accountPassword"

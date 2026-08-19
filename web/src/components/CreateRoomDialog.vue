@@ -31,22 +31,27 @@ const busy = ref(false)
 const avatarPopover = ref()
 const visible = computed({
   get: () => props.open,
-  set: (value: boolean) => { if (!value) emit('close') },
+  set: (value: boolean) => {
+    if (!value) emit('close')
+  },
 })
 const policyOptions = [
   { label: '需要审核', value: 'approval' },
   { label: '直接加入', value: 'open' },
 ]
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  name.value = ''
-  password.value = ''
-  joinPolicy.value = 'open'
-  avatarEmoji.value = ''
-  description.value = ''
-  error.value = ''
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return
+    name.value = ''
+    password.value = ''
+    joinPolicy.value = 'open'
+    avatarEmoji.value = ''
+    description.value = ''
+    error.value = ''
+  },
+)
 
 function selectAvatar(emoji: string): void {
   avatarEmoji.value = emoji
@@ -62,7 +67,14 @@ async function submit(): Promise<void> {
   busy.value = true
   error.value = ''
   try {
-    const room = await createRoom(normalizedName, password.value, props.token, joinPolicy.value, avatarEmoji.value, description.value)
+    const room = await createRoom(
+      normalizedName,
+      password.value,
+      props.token,
+      joinPolicy.value,
+      avatarEmoji.value,
+      description.value,
+    )
     emit('created', room, password.value)
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '创建房间失败'
@@ -77,9 +89,13 @@ async function submit(): Promise<void> {
     <form class="flex flex-col gap-5" autocomplete="off" @submit.prevent="submit">
       <div class="flex items-center gap-3">
         <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" class="bg-primary-50! text-xl!" />
-        <Avatar v-else shape="circle" class="bg-surface-200! text-surface-700!"><IconSprite name="rooms" :size="18" /></Avatar>
+        <Avatar v-else shape="circle" class="bg-surface-200! text-surface-700!"
+          ><IconSprite name="rooms" :size="18"
+        /></Avatar>
         <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择头像</Button>
-        <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''">清除</Button>
+        <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''"
+          >清除</Button
+        >
       </div>
       <Popover ref="avatarPopover">
         <EmojiPicker @select="selectAvatar" />
@@ -87,7 +103,16 @@ async function submit(): Promise<void> {
 
       <div class="flex flex-col gap-2">
         <label for="createRoomName" class="text-sm font-medium">房间名称</label>
-        <InputText id="createRoomName" v-model="name" name="new-room-name" maxlength="80" autocomplete="off" placeholder="例如：产品讨论" autofocus fluid />
+        <InputText
+          id="createRoomName"
+          v-model="name"
+          name="new-room-name"
+          maxlength="80"
+          autocomplete="off"
+          placeholder="例如：产品讨论"
+          autofocus
+          fluid
+        />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -99,14 +124,26 @@ async function submit(): Promise<void> {
 
       <div class="flex flex-col gap-2">
         <label class="text-sm font-medium">加入方式</label>
-        <SelectButton v-model="joinPolicy" :options="policyOptions" option-label="label" option-value="value" :allow-empty="false" class="grid grid-cols-2" />
+        <SelectButton
+          v-model="joinPolicy"
+          :options="policyOptions"
+          option-label="label"
+          option-value="value"
+          :allow-empty="false"
+          class="grid grid-cols-2"
+        />
       </div>
 
       <div class="flex flex-col gap-2">
         <label for="createRoomPassword" class="text-sm font-medium">
           聊天室访问密码 <span class="font-normal text-muted-color">可选</span>
         </label>
-        <ScopedPasswordField v-model="password" input-id="createRoomPassword" name="new-room-password" scope="room-new" />
+        <ScopedPasswordField
+          v-model="password"
+          input-id="createRoomPassword"
+          name="new-room-password"
+          scope="room-new"
+        />
       </div>
 
       <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>

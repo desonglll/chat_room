@@ -32,19 +32,17 @@ onMounted(() => {
   themeObserver = new MutationObserver(() => {
     isDark.value = document.documentElement.getAttribute('data-theme') === 'dark'
   })
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  })
 })
 
 onBeforeUnmount(() => themeObserver?.disconnect())
 </script>
 
 <template>
-  <emoji-picker
-    ref="pickerEl"
-    :class="isDark ? 'dark' : 'light'"
-    locale="zh"
-    data-source="/emoji-data-zh.json"
-  />
+  <emoji-picker ref="pickerEl" :class="isDark ? 'dark' : 'light'" locale="zh" data-source="/emoji-data-zh.json" />
 </template>
 
 <style scoped>

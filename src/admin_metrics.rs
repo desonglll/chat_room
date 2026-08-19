@@ -199,13 +199,10 @@ pub async fn overview(
     headers: HeaderMap,
 ) -> Result<Json<AdminOverview>, StatusCode> {
     require_admin(&state, &headers).await?;
-    collect_overview(&state)
-        .await
-        .map(Json)
-        .map_err(|error| {
-            tracing::error!("load administrator overview failed: {error:#}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    collect_overview(&state).await.map(Json).map_err(|error| {
+        tracing::error!("load administrator overview failed: {error:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
 }
 
 async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
@@ -333,15 +330,17 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
             .storage_key
             .clone()
             .unwrap_or_else(|| candidate.id.to_string());
-        groups.entry(query_key.clone()).or_insert_with(|| OrphanGroup {
-            physical_key: candidate
-                .storage_key
-                .clone()
-                .unwrap_or_else(|| candidate.id.simple().to_string()),
-            query_key,
-            storage_key: candidate.storage_key,
-            size_bytes: candidate.size_bytes,
-        });
+        groups
+            .entry(query_key.clone())
+            .or_insert_with(|| OrphanGroup {
+                physical_key: candidate
+                    .storage_key
+                    .clone()
+                    .unwrap_or_else(|| candidate.id.simple().to_string()),
+                query_key,
+                storage_key: candidate.storage_key,
+                size_bytes: candidate.size_bytes,
+            });
     }
 
     let mut deleted_objects = 0;
@@ -363,22 +362,20 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
         state.attachment_store().remove(&group.physical_key).await?;
         with_pool!(state, |pool| {
             match &group.storage_key {
-                Some(storage_key) => {
-                    sqlx::query("DELETE FROM attachments WHERE storage_key = $1 AND orphaned_at <= $2")
-                        .bind(storage_key)
-                        .bind(orphan_cutoff)
-                        .execute(pool)
-                        .await
-                        .map(|_| ())
-                }
-                None => {
-                    sqlx::query("DELETE FROM attachments WHERE id = $1 AND orphaned_at <= $2")
-                        .bind(Uuid::parse_str(&group.query_key).expect("legacy attachment UUID"))
-                        .bind(orphan_cutoff)
-                        .execute(pool)
-                        .await
-                        .map(|_| ())
-                }
+                Some(storage_key) => sqlx::query(
+                    "DELETE FROM attachments WHERE storage_key = $1 AND orphaned_at <= $2",
+                )
+                .bind(storage_key)
+                .bind(orphan_cutoff)
+                .execute(pool)
+                .await
+                .map(|_| ()),
+                None => sqlx::query("DELETE FROM attachments WHERE id = $1 AND orphaned_at <= $2")
+                    .bind(Uuid::parse_str(&group.query_key).expect("legacy attachment UUID"))
+                    .bind(orphan_cutoff)
+                    .execute(pool)
+                    .await
+                    .map(|_| ()),
             }
         })?;
         deleted_objects += 1;
@@ -428,10 +425,12 @@ async fn purge_deleted_rooms(state: &AppState) -> anyhow::Result<u64> {
                 continue;
             }
             let still_used: bool = with_pool!(state, |pool| {
-                sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM attachments WHERE storage_key = $1)")
-                    .bind(&key)
-                    .fetch_one(pool)
-                    .await
+                sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM attachments WHERE storage_key = $1)",
+                )
+                .bind(&key)
+                .fetch_one(pool)
+                .await
             })?;
             if !still_used {
                 let _guard = state.content_hash_locks().lock(&key).await;

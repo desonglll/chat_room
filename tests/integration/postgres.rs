@@ -168,14 +168,13 @@ async fn sqlite_and_postgres_migrations_produce_matching_schemas() {
     );
 
     for table in &sqlite_tables {
-        let sqlite_columns: std::collections::BTreeSet<String> = sqlx::query_scalar(&format!(
-            "SELECT name FROM pragma_table_info('{table}')"
-        ))
-        .fetch_all(sqlite_state.pool())
-        .await
-        .unwrap()
-        .into_iter()
-        .collect();
+        let sqlite_columns: std::collections::BTreeSet<String> =
+            sqlx::query_scalar(&format!("SELECT name FROM pragma_table_info('{table}')"))
+                .fetch_all(sqlite_state.pool())
+                .await
+                .unwrap()
+                .into_iter()
+                .collect();
 
         let pg_columns: std::collections::BTreeSet<String> = sqlx::query_scalar(
             "SELECT column_name FROM information_schema.columns \

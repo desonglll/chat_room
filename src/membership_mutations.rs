@@ -23,8 +23,9 @@ impl AppState {
             return Ok(None);
         };
         let now = Utc::now();
-        with_pool!(self, |pool| { sqlx::query(
-            "INSERT INTO room_memberships \
+        with_pool!(self, |pool| {
+            sqlx::query(
+                "INSERT INTO room_memberships \
              (room_id, user_id, role_id, status, invited_by, requested_at) \
              SELECT $1, $2, room_roles.id, 'invited', $3, $4 FROM room_roles \
              WHERE room_roles.room_id = $5 AND room_roles.name = 'member' \
@@ -35,15 +36,16 @@ impl AppState {
                  THEN room_memberships.invited_by ELSE excluded.invited_by END, \
                requested_at = CASE WHEN room_memberships.status = 'active' \
                  THEN room_memberships.requested_at ELSE excluded.requested_at END",
-        )
-        .bind(room_id)
-        .bind(user_id)
-        .bind(invited_by)
-        .bind(now)
-        .bind(room_id)
-        .execute(pool)
-        .await
-        .map(|_| ()) })?;
+            )
+            .bind(room_id)
+            .bind(user_id)
+            .bind(invited_by)
+            .bind(now)
+            .bind(room_id)
+            .execute(pool)
+            .await
+            .map(|_| ())
+        })?;
         self.room_membership(room_id, user_id).await
     }
 
@@ -52,7 +54,8 @@ impl AppState {
         room_id: Uuid,
         user_id: Uuid,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let changed = with_pool!(self, |pool| { sqlx::query(
+        let changed = with_pool!(self, |pool| {
+            sqlx::query(
             "UPDATE room_memberships SET status = 'active', joined_at = COALESCE(joined_at, $1) \
              WHERE room_id = $2 AND user_id = $3 AND status IN ('pending', 'invited')",
         )
@@ -61,7 +64,8 @@ impl AppState {
         .bind(user_id)
         .execute(pool)
         .await
-        .map(|result| result.rows_affected()) })?;
+        .map(|result| result.rows_affected())
+        })?;
         if changed == 0 {
             return Ok(None);
         }
@@ -74,31 +78,35 @@ impl AppState {
         user_id: Uuid,
         role: &str,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let role_exists: bool = with_pool!(self, |pool| { sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM room_roles \
+        let role_exists: bool = with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM room_roles \
              WHERE room_id = $1 AND name = $2 AND name IN ('admin', 'member'))",
-        )
-        .bind(room_id)
-        .bind(role)
-        .fetch_one(pool)
-        .await })?;
+            )
+            .bind(room_id)
+            .bind(role)
+            .fetch_one(pool)
+            .await
+        })?;
         if !role_exists {
             return Ok(None);
         }
-        let changed = with_pool!(self, |pool| { sqlx::query(
-            "UPDATE room_memberships SET role_id = (\
+        let changed = with_pool!(self, |pool| {
+            sqlx::query(
+                "UPDATE room_memberships SET role_id = (\
                SELECT id FROM room_roles WHERE room_id = $1 AND name = $2\
              ) WHERE room_id = $3 AND user_id = $4 AND status = 'active' \
              AND role_id <> (SELECT id FROM room_roles WHERE room_id = $5 AND name = 'owner')",
-        )
-        .bind(room_id)
-        .bind(role)
-        .bind(room_id)
-        .bind(user_id)
-        .bind(room_id)
-        .execute(pool)
-        .await
-        .map(|result| result.rows_affected()) })?;
+            )
+            .bind(room_id)
+            .bind(role)
+            .bind(room_id)
+            .bind(user_id)
+            .bind(room_id)
+            .execute(pool)
+            .await
+            .map(|result| result.rows_affected())
+        })?;
         if changed == 0 {
             return Ok(None);
         }
