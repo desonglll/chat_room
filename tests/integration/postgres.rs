@@ -231,3 +231,171 @@ async fn sqlite_and_postgres_migrations_produce_matching_schemas() {
         .await
         .expect("drop scratch database");
 }
+
+#[tokio::test]
+async fn postgres_friendship_creates_one_private_direct_conversation() {
+    let admin_url = postgres_admin_url();
+    let admin_pool = match PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&admin_url)
+        .await
+    {
+        Ok(pool) => pool,
+        Err(error) => {
+            eprintln!("skipping postgres social integration: {error}");
+            return;
+        }
+    };
+    let (db_name, test_url) = create_scratch_database(&admin_pool, &admin_url).await;
+    let state = Arc::new(
+        AppState::open_postgres(&test_url, &AppConfig::default())
+            .await
+            .expect("open postgres social database"),
+    );
+    let server = start_server_with_state(state.clone()).await;
+    let client = reqwest::Client::new();
+    let alice_token = session_token(&server, "pg-social-alice").await;
+    let bob_token = session_token(&server, "pg-social-bob").await;
+
+    let search: Vec<serde_json::Value> = client
+        .get(format!("{server}/api/users/search?q=pg-social-bob"))
+        .bearer_auth(&alice_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let bob_id = search[0]["id"].as_str().unwrap();
+    assert_eq!(search[0]["relationship"], "none");
+    assert_eq!(
+        client
+            .post(format!("{server}/api/friend-requests"))
+            .bearer_auth(&alice_token)
+            .json(&serde_json::json!({ "user_id": bob_id }))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        201
+    );
+    let incoming: Vec<serde_json::Value> = client
+        .get(format!("{server}/api/friend-requests?direction=incoming"))
+        .bearer_auth(&bob_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let alice_id = incoming[0]["user"]["id"].as_str().unwrap();
+    assert_eq!(
+        client
+            .patch(format!("{server}/api/friend-requests/{alice_id}"))
+            .bearer_auth(&bob_token)
+            .json(&serde_json::json!({ "action": "accept" }))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    let alice_start = client
+        .post(format!("{server}/api/direct-chats"))
+        .bearer_auth(&alice_token)
+        .json(&serde_json::json!({ "user_id": bob_id }))
+        .send();
+    let bob_start = client
+        .post(format!("{server}/api/direct-chats"))
+        .bearer_auth(&bob_token)
+        .json(&serde_json::json!({ "user_id": alice_id }))
+        .send();
+    let (alice_response, bob_response) = tokio::join!(alice_start, bob_start);
+    let alice_response = alice_response.unwrap();
+    let bob_response = bob_response.unwrap();
+    assert_eq!(alice_response.status(), 200);
+    assert_eq!(bob_response.status(), 200);
+    let conversation: serde_json::Value = alice_response.json().await.unwrap();
+    let peer_conversation: serde_json::Value = bob_response.json().await.unwrap();
+    assert_eq!(conversation["kind"], "direct");
+    assert_eq!(conversation["title"], "pg-social-bob");
+    assert_eq!(conversation["room_id"], peer_conversation["room_id"]);
+    let room_id = conversation["room_id"].as_str().unwrap();
+
+    let (mut direct_sink, mut direct_stream) =
+        ws_connect(&server, room_id, "pg-social-alice", None).await;
+    direct_sink
+        .send(Message::Text(
+            serde_json::json!({ "type": "message", "content": "private postgres source" })
+                .to_string(),
+        ))
+        .await
+        .unwrap();
+    let source_message = read_until_type(&mut direct_stream, "broadcast").await;
+    let target_room: serde_json::Value = client
+        .post(format!("{server}/api/rooms"))
+        .bearer_auth(&alice_token)
+        .json(&serde_json::json!({ "name": "pg-forward-target" }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let forwarded: Vec<serde_json::Value> = client
+        .post(format!("{server}/api/messages/forward"))
+        .bearer_auth(&alice_token)
+        .json(&serde_json::json!({
+            "message_ids": [source_message["message_id"]],
+            "target_room_ids": [target_room["id"]]
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(forwarded[0]["forwarded_message_id"].is_string());
+    let target_messages: Vec<serde_json::Value> = client
+        .get(format!(
+            "{server}/api/rooms/{}/messages",
+            target_room["id"].as_str().unwrap()
+        ))
+        .bearer_auth(&alice_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        target_messages[0]["forwarded_from"]["room_name"],
+        "pg-social-bob"
+    );
+
+    let direct_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM direct_conversations")
+        .fetch_one(state.postgres_pool().unwrap())
+        .await
+        .unwrap();
+    let member_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM room_memberships WHERE room_id = $1")
+            .bind(room_id.parse::<uuid::Uuid>().unwrap())
+            .fetch_one(state.postgres_pool().unwrap())
+            .await
+            .unwrap();
+    assert_eq!(direct_count, 1);
+    assert_eq!(member_count, 2);
+
+    server.shutdown().await;
+    state.postgres_pool().unwrap().close().await;
+    drop(state);
+    sqlx::query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1")
+        .bind(&db_name)
+        .execute(&admin_pool)
+        .await
+        .ok();
+    sqlx::query(&format!(r#"DROP DATABASE IF EXISTS "{db_name}""#))
+        .execute(&admin_pool)
+        .await
+        .expect("drop social scratch database");
+}

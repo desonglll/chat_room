@@ -49,6 +49,17 @@ async fn require_permission(
         .ok_or(StatusCode::FORBIDDEN)
 }
 
+async fn reject_direct_room(state: &SharedState, room_id: Uuid) -> Result<(), StatusCode> {
+    if state
+        .is_direct_room(room_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(())
+}
+
 async fn publish_membership_joined(
     state: &SharedState,
     room_id: Uuid,
@@ -81,6 +92,7 @@ pub async fn request_join(
     Json(request): Json<JoinRoomRequest>,
 ) -> Result<(StatusCode, Json<RoomMembership>), StatusCode> {
     let user = session_user(&state, &headers).await?;
+    reject_direct_room(&state, room_id).await?;
     let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     if !authorize_room(&room, request.password.as_deref()) {
         return Err(StatusCode::UNAUTHORIZED);
@@ -116,6 +128,7 @@ pub async fn list_members(
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<RoomMembership>>, StatusCode> {
+    reject_direct_room(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.review").await?;
     state
@@ -134,6 +147,7 @@ pub async fn invite_member(
     headers: HeaderMap,
     Json(request): Json<InviteMemberRequest>,
 ) -> Result<Json<RoomMembership>, StatusCode> {
+    reject_direct_room(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.invite").await?;
     let username = request.username.trim();
@@ -157,6 +171,7 @@ pub async fn update_member(
     headers: HeaderMap,
     Json(request): Json<UpdateMembershipRequest>,
 ) -> Result<Json<RoomMembership>, StatusCode> {
+    reject_direct_room(&state, room_id).await?;
     let actor = session_user(&state, &headers).await?;
     let permission = match request.action.as_str() {
         "approve" | "reject" => "members.review",
@@ -227,6 +242,7 @@ pub async fn update_own_nickname(
     headers: HeaderMap,
     Json(request): Json<UpdateNicknameRequest>,
 ) -> Result<Json<RoomMembership>, StatusCode> {
+    reject_direct_room(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     let nickname = request.nickname.trim();
     if nickname.chars().count() > MAX_NICKNAME_CHARS || nickname.chars().any(char::is_control) {
@@ -249,6 +265,7 @@ pub async fn leave_room(
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
+    reject_direct_room(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     if state.room(room_id).await.is_none() {
         return Err(StatusCode::NOT_FOUND);

@@ -16,6 +16,7 @@ use crate::attachment_storage::{self, AttachmentStore};
 use crate::attachments::upload_hashes::UploadHashTracker;
 use crate::config::AppConfig;
 use crate::models::{ChatMessage, Room, RoomMember, User};
+use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
 
 const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
@@ -71,6 +72,7 @@ pub struct AppState {
     /// Per-(room, from, target) cooldown timestamps for rate-limited, ephemeral
     /// actions (poke, AI suggestions) that don't need database persistence.
     action_cooldowns: RwLock<HashMap<(Uuid, Uuid, Uuid), Instant>>,
+    pub(crate) social_rate_limits: SocialRateLimits,
     pub(crate) ai_assistant: Option<AiAssistant>,
     pub(crate) config: AppConfig,
 }
@@ -173,6 +175,7 @@ impl AppState {
             upload_hashes: UploadHashTracker::default(),
             runtime_metrics: RuntimeMetrics::default(),
             action_cooldowns: RwLock::new(HashMap::new()),
+            social_rate_limits: SocialRateLimits::default(),
             ai_assistant,
             config,
         };

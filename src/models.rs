@@ -130,6 +130,15 @@ pub struct User {
     pub created_at: DateTime<Utc>,
 }
 
+/// Compact public account data embedded in relationship and conversation views.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, sqlx::FromRow)]
+pub struct UserSummary {
+    pub id: Uuid,
+    pub username: String,
+    pub avatar_emoji: String,
+    pub display_name: String,
+}
+
 /// Credentials accepted by registration and login endpoints.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct AuthRequest {

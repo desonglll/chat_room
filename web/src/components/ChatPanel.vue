@@ -16,6 +16,7 @@ import type {
   AttachmentUploadSession,
   BroadcastMessage,
   ChatStatus,
+  ConversationSummary,
   DisplayMessage,
   FocusShortcut,
   ReadReceipt,
@@ -33,6 +34,7 @@ const ProfileCardDialog = defineAsyncComponent(() => import('./ProfileCardDialog
 
 const props = defineProps<{
   room: Room | null
+  conversation: ConversationSummary | null
   user: User | null
   password: string
   token: string
@@ -85,6 +87,8 @@ const emit = defineEmits<{
   poke: [userId: string]
   retry: [messageId: string]
   loadOlder: []
+  removeFriend: []
+  blockUser: []
   'update:password': [password: string]
 }>()
 
@@ -267,6 +271,8 @@ onBeforeUnmount(() => {
     <ChatRoomHeader
       v-if="room"
       :room="room"
+      :kind="conversation?.kind || 'group'"
+      :peer="conversation?.peer || null"
       :status="status"
       :status-label="statusLabel"
       :authenticated="authenticated"
@@ -278,6 +284,8 @@ onBeforeUnmount(() => {
       @files="filesOpen = true"
       @view-profile="viewProfileUserId = $event"
       @toggle-selection="selecting = !selecting"
+      @remove-friend="emit('removeFriend')"
+      @block-user="emit('blockUser')"
     />
 
     <ChatAccessPanel
@@ -323,6 +331,7 @@ onBeforeUnmount(() => {
       <MessageList
         ref="messageListRef"
         :room-id="room?.id || ''"
+        :direct="conversation?.kind === 'direct'"
         :unread-count="room?.unread_count || 0"
         :messages="messages"
         :read-receipts="readReceipts"
@@ -433,7 +442,7 @@ onBeforeUnmount(() => {
       :open="Boolean(viewProfileUserId)"
       :user-id="viewProfileUserId"
       :token="token"
-      :room-id="room?.id"
+      :room-id="conversation?.kind === 'direct' ? undefined : room?.id"
       :current-user-id="currentUserId"
       @close="viewProfileUserId = ''"
     />

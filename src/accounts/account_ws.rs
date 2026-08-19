@@ -33,6 +33,13 @@ struct UnreadSnapshot {
     rooms: Vec<RoomAccountState>,
 }
 
+#[derive(Serialize)]
+struct SocialChanged {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    incoming_request_count: usize,
+}
+
 pub async fn account_ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<SharedState>,
@@ -60,7 +67,8 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
         }
     };
 
-    let mut previous = Vec::new();
+    let mut previous = None;
+    let mut previous_social = None;
     let mut refresh = interval(Duration::from_millis(750));
     refresh.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
@@ -102,9 +110,27 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                         continue;
                     }
                 };
-                if counts != previous {
-                    previous = counts.clone();
+                if previous.as_ref() != Some(&counts) {
+                    previous = Some(counts.clone());
                     let payload = UnreadSnapshot { kind: "unread_counts", rooms: counts };
+                    let Ok(json) = serde_json::to_string(&payload) else { continue };
+                    if socket.send(Message::Text(json)).await.is_err() {
+                        break;
+                    }
+                }
+                let social = match state.social_account_state(user.id).await {
+                    Ok(social) => social,
+                    Err(error) => {
+                        tracing::warn!("load social account state failed: {error}");
+                        continue;
+                    }
+                };
+                if previous_social.as_ref() != Some(&social.fingerprint) {
+                    previous_social = Some(social.fingerprint);
+                    let payload = SocialChanged {
+                        kind: "social_changed",
+                        incoming_request_count: social.incoming_request_count,
+                    };
                     let Ok(json) = serde_json::to_string(&payload) else { continue };
                     if socket.send(Message::Text(json)).await.is_err() {
                         break;

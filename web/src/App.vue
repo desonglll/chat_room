@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
+import AppDialogs from './components/AppDialogs.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import NetworkErrorBanner from './components/NetworkErrorBanner.vue'
 import PrivacyLockScreen from './components/PrivacyLockScreen.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
-import { leaveRoom } from './api'
 import { createBrowserNotifier } from './browserNotifications'
+import { conversationToRoom } from './conversationState'
 import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
 import { useChatSocket } from './composables/useChatSocket'
+import { useContacts } from './composables/useContacts'
+import { useConversations } from './composables/useConversations'
 import { useUnreadSocket } from './composables/useUnreadSocket'
 import { useAppPages } from './composables/useAppPages'
 import { useAppBootstrap } from './composables/useAppBootstrap'
@@ -18,22 +20,19 @@ import { useAttachmentUpload } from './composables/useAttachmentUpload'
 import { usePreferencesController } from './composables/usePreferencesController'
 import { useRoomMembership } from './composables/useRoomMembership'
 import { useRoomHistory } from './composables/useRoomHistory'
+import { useRoomActions } from './composables/useRoomActions'
 import { useTheme } from './composables/useTheme'
 import { useRoomRouteSync } from './composables/useRoomRouteSync'
 import { loadPreferences } from './preferences'
-import { canAutoConnectRoom, reconcileMembershipAuthFailure } from './roomMembershipState'
+import { reconcileMembershipAuthFailure } from './roomMembershipState'
 import { storageGet, storageSet } from './browserStorage'
-import type { Room, RoomUpdateResult } from './types'
+import { startDirectChat } from './socialApi'
+import type { ConversationSummary, Room } from './types'
 
 const SIDEBAR_COLLAPSED_KEY = 'chat-room.sidebar-collapsed'
 const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
-const AuthDialog = defineAsyncComponent(() => import('./components/AuthDialog.vue'))
-const CreateRoomDialog = defineAsyncComponent(() => import('./components/CreateRoomDialog.vue'))
+const ContactsPage = defineAsyncComponent(() => import('./components/ContactsPage.vue'))
 const DiscoverRooms = defineAsyncComponent(() => import('./components/DiscoverRooms.vue'))
-const ForwardDialog = defineAsyncComponent(() => import('./components/ForwardDialog.vue'))
-const JoinRoomDialog = defineAsyncComponent(() => import('./components/JoinRoomDialog.vue'))
-const ManageRoomDialog = defineAsyncComponent(() => import('./components/ManageRoomDialog.vue'))
-const PreferencesDialog = defineAsyncComponent(() => import('./components/PreferencesDialog.vue'))
 const ProfilePage = defineAsyncComponent(() => import('./components/ProfilePage.vue'))
 const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
 
@@ -41,6 +40,7 @@ const route = useRoute()
 const router = useRouter()
 const roomPassword = ref('')
 const createOpen = ref(false)
+const newConversationOpen = ref(false)
 const manageOpen = ref(false)
 const forwardOpen = ref(false)
 const forwardMessageIds = ref<string[]>([])
@@ -81,6 +81,13 @@ const {
   },
   showToast,
 })
+const selectedId = computed(() => selectedRoom.value?.id)
+const conversationState = useConversations(sessionToken, selectedId)
+const contacts = useContacts(sessionToken)
+const selectedConversation = computed(
+  () => conversationState.conversations.value.find((item) => item.room_id === selectedId.value) || null,
+)
+const forwardRooms = computed(() => conversationState.conversations.value.map(conversationToRoom))
 const {
   cancel: cancelDownload,
   download: handleDownload,
@@ -89,7 +96,7 @@ const {
 } = useAttachmentDownloads(() => selectedRoom.value?.name || 'chat-files')
 
 function handleSystemEvent(content: string): void {
-  if (content.startsWith('room renamed to ')) void loadRoomList()
+  if (content.startsWith('room renamed to ')) void Promise.all([loadRoomList(), conversationState.refresh()])
   if (content === 'room password changed' && selectedRoom.value && !manageOpen.value) {
     storageSet(window.sessionStorage, passwordKey(selectedRoom.value.id), '')
     roomPassword.value = ''
@@ -100,19 +107,21 @@ function handleSystemEvent(content: string): void {
     window.setTimeout(() => {
       clearSelection()
       void loadRoomList()
+      void conversationState.refresh()
       showToast('聊天室已删除')
     }, 0)
   }
   if (content === 'membership removed' || content === 'membership left') {
     chat.close({ preserveMessages: true })
     void loadRoomList()
+    void conversationState.refresh()
   }
 }
 
 const chat = useChatSocket(handleSystemEvent)
 const notifier = createBrowserNotifier((roomId) => {
-  const room = rooms.value.find((candidate) => candidate.id === roomId)
-  if (room) selectRoom(room)
+  const conversation = conversationState.conversations.value.find((candidate) => candidate.room_id === roomId)
+  if (conversation) selectConversation(conversation)
 })
 notifier.configure(preferences.value.notificationsEnabled, preferences.value.notificationDetails)
 const preferenceController = usePreferencesController({
@@ -123,7 +132,7 @@ const preferenceController = usePreferencesController({
   showSuccess: showToast,
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
-const { activePage, openProfile, openSettings, openDiscover, requireAccount, returnToChat } = useAppPages(
+const { activePage, openProfile, openSettings, openDiscover, openContacts, requireAccount, returnToChat } = useAppPages(
   currentUser,
   selectedRoom,
   mobileView,
@@ -135,23 +144,31 @@ const { activePage, openProfile, openSettings, openDiscover, requireAccount, ret
     preferenceController.open.value = true
   },
 )
-const selectedId = computed(() => selectedRoom.value?.id)
-const unreadSocket = useUnreadSocket((states) => {
-  rooms.value = rooms.value.map((room) => {
-    const state = states.get(room.id)
-    return state
-      ? {
-          ...room,
-          unread_count: state.unread_count,
-          membership_status: state.membership_status,
-          membership_role: state.membership_role,
-        }
-      : { ...room, membership_status: undefined, membership_role: undefined, unread_count: 0 }
-  })
-  if (selectedRoom.value) {
-    selectedRoom.value = rooms.value.find((room) => room.id === selectedRoom.value?.id) || selectedRoom.value
-  }
-}, notifier.notify)
+const unreadSocket = useUnreadSocket(
+  (states) => {
+    rooms.value = rooms.value.map((room) => {
+      const state = states.get(room.id)
+      return state
+        ? {
+            ...room,
+            unread_count: state.unread_count,
+            membership_status: state.membership_status,
+            membership_role: state.membership_role,
+          }
+        : { ...room, membership_status: undefined, membership_role: undefined, unread_count: 0 }
+    })
+    if (selectedRoom.value) {
+      const group = rooms.value.find((room) => room.id === selectedRoom.value?.id)
+      if (group) selectedRoom.value = group
+    }
+    conversationState.applyUnread(states)
+  },
+  (message) => {
+    conversationState.handleMessage(message)
+    notifier.notify(message)
+  },
+  () => void contacts.refresh(),
+)
 const {
   discoverError,
   discoverJoiningId,
@@ -176,6 +193,44 @@ const {
   showToast,
 })
 
+const roomActions = useRoomActions({
+  rooms,
+  selectedRoom,
+  currentUser,
+  token: sessionToken,
+  password: roomPassword,
+  mobileView,
+  createOpen,
+  manageOpen,
+  newConversationOpen,
+  routeName: () => route.name,
+  routeRoomId,
+  chatStatus: () => chat.status.value,
+  closeChat: () => chat.close(),
+  joinSelectedRoom,
+  showChatPage: () => {
+    activePage.value = 'chat'
+  },
+  requestAuthentication: () => {
+    authOpen.value = true
+  },
+  navigateHome: () => void router.push({ name: 'home' }).catch(() => {}),
+  refreshRooms: loadRoomList,
+  refreshConversations: conversationState.refresh,
+  upsertConversation: conversationState.upsert,
+  showSuccess: showToast,
+  showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
+})
+const {
+  clearSelection,
+  handleCreated,
+  handleDeleted,
+  handleLeaveRoom,
+  handleUpdated,
+  openRoomManage,
+  requestCreateRoom,
+} = roomActions
+
 restoreCachedSelection()
 
 watch(chat.authFailureReason, (reason) => {
@@ -193,37 +248,36 @@ function showToast(message: string): void {
   toast.add({ severity: 'success', summary: message, life: 2600 })
 }
 
+async function refreshWorkspace(): Promise<void> {
+  await Promise.all([loadRoomList(), conversationState.refresh(), contacts.refresh()])
+}
+
 function toggleSidebar(): void {
   sidebarCollapsed.value = !sidebarCollapsed.value
   storageSet(window.localStorage, SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed.value))
 }
 
-function requestCreateRoom(): void {
-  if (!currentUser.value) {
-    authOpen.value = true
-    return
-  }
-  createOpen.value = true
-}
-
-function clearSelection(navigate = true): void {
-  chat.close()
-  selectedRoom.value = null
-  roomPassword.value = ''
-  manageOpen.value = false
-  mobileView.value = 'rooms'
-  if (navigate && route.name !== 'home') void router.push({ name: 'home' }).catch(() => {})
-}
-
 function selectRoom(room: Room, autoConnect = false): void {
-  chat.close()
-  selectedRoom.value = room
-  roomPassword.value = storageGet(window.sessionStorage, passwordKey(room.id))
-  const reconnect = autoConnect && canAutoConnectRoom(room, currentUser.value, sessionToken.value, roomPassword.value)
-  const preserveRoomRoute = reconnect && route.name === 'room' && routeRoomId.value === room.id
-  if (!preserveRoomRoute) activePage.value = 'chat'
-  mobileView.value = 'chat'
-  if (reconnect) joinSelectedRoom()
+  roomActions.selectRoom(room, autoConnect)
+}
+
+function selectConversation(conversation: ConversationSummary, autoConnect = true): void {
+  roomActions.selectConversation(conversation, autoConnect)
+}
+
+async function openDirectConversation(userId: string): Promise<void> {
+  selectConversation(await startDirectChat(userId, sessionToken.value))
+}
+
+async function changeDirectAccess(userId: string, action: (id: string) => Promise<void>): Promise<void> {
+  await action(userId)
+  if (selectedConversation.value?.peer?.id === userId) clearSelection()
+  await conversationState.refresh()
+}
+
+function changeSelectedDirectAccess(action: (id: string) => Promise<void>): void {
+  const userId = selectedConversation.value?.peer?.id
+  if (userId) void changeDirectAccess(userId, action)
 }
 
 const history = useRoomHistory({
@@ -234,7 +288,7 @@ const history = useRoomHistory({
   prepend: chat.prependHistory,
 })
 
-watch(routeRoomId, (id) => {
+watch([routeRoomId, conversationState.conversations], ([id]) => {
   if (selectedRoom.value?.id === id) return
   if (!id) {
     if (selectedRoom.value) clearSelection(false)
@@ -242,39 +296,11 @@ watch(routeRoomId, (id) => {
   }
   const room = rooms.value.find((item) => item.id === id)
   if (room) selectRoom(room, false)
-})
-
-function handleCreated(room: Room, password: string): void {
-  createOpen.value = false
-  rooms.value = [...rooms.value, room]
-  if (password) storageSet(window.sessionStorage, passwordKey(room.id), password)
-  selectRoom(room)
-  roomPassword.value = password
-  showToast('聊天室已创建')
-}
-
-function handleUpdated(result: RoomUpdateResult): void {
-  const previousStatus = chat.status.value
-  const hadSession = ['connecting', 'online', 'offline'].includes(previousStatus)
-  rooms.value = rooms.value.map((room) => (room.id === result.room.id ? result.room : room))
-  selectedRoom.value = result.room
-  roomPassword.value = result.password
-  storageSet(window.sessionStorage, passwordKey(result.room.id), result.password)
-  manageOpen.value = false
-  if (result.passwordChanged) {
-    selectRoom(result.room, hadSession)
-    roomPassword.value = result.password
+  else {
+    const conversation = conversationState.conversations.value.find((item) => item.room_id === id)
+    if (conversation) selectConversation(conversation)
   }
-  showToast('聊天室设置已保存')
-}
-
-async function handleDeleted(roomId: string): Promise<void> {
-  manageOpen.value = false
-  storageSet(window.sessionStorage, passwordKey(roomId), '')
-  clearSelection()
-  await loadRoomList()
-  showToast('聊天室已删除')
-}
+})
 
 const attachmentUpload = useAttachmentUpload({
   room: selectedRoom,
@@ -288,27 +314,6 @@ const attachmentUpload = useAttachmentUpload({
   remove: chat.removeUpload,
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
-
-async function handleLeaveRoom(room: Room | null = selectedRoom.value): Promise<void> {
-  if (!room || !sessionToken.value) return
-  try {
-    await leaveRoom(room.id, sessionToken.value)
-    if (selectedRoom.value?.id === room.id) clearSelection()
-    await loadRoomList()
-    showToast('已退出聊天室')
-  } catch (caught) {
-    toast.add({
-      severity: 'error',
-      summary: caught instanceof Error ? caught.message : '退出失败',
-      life: 3200,
-    })
-  }
-}
-
-function openRoomManage(room: Room): void {
-  selectRoom(room)
-  manageOpen.value = true
-}
 
 function openForward(messageIds: string[]): void {
   if (!messageIds.length) return
@@ -335,18 +340,21 @@ function handleForwarded(): void {
     <NetworkErrorBanner :message="networkError" @retry="loadRoomList" />
 
     <RoomSidebar
-      :rooms="rooms"
+      :conversations="conversationState.conversations.value"
       :selected-id="selectedId"
       :user="currentUser"
-      :loading="showColdSkeleton"
+      :loading="showColdSkeleton || conversationState.loading.value"
       :refreshing="refreshingRooms"
       :visible="mobileView === 'rooms'"
       :collapsed="sidebarCollapsed"
-      @select="selectRoom"
-      @refresh="loadRoomList"
+      :incoming-requests="contacts.incomingCount.value"
+      @select="selectConversation"
+      @refresh="refreshWorkspace"
+      @new-chat="newConversationOpen = true"
       @create="requestCreateRoom"
       @join="openJoinRoom"
       @discover="openDiscover"
+      @contacts="openContacts"
       @authenticate="authOpen = true"
       @logout="handleLogout"
       @lock="privacyLockScreen?.lock()"
@@ -372,6 +380,24 @@ function handleForwarded(): void {
       @preferences="preferenceController.open.value = true"
       @deleted="handleAccountDeleted"
     />
+    <ContactsPage
+      v-else-if="activePage === 'contacts' && currentUser"
+      :friends="contacts.friends.value"
+      :incoming="contacts.incoming.value"
+      :outgoing="contacts.outgoing.value"
+      :blocked="contacts.blocked.value"
+      :loading="contacts.loading.value"
+      :error="contacts.error.value"
+      :start-chat="openDirectConversation"
+      :respond="contacts.respond"
+      :cancel-request="contacts.cancelRequest"
+      :remove-friend="(id) => changeDirectAccess(id, contacts.remove)"
+      :block-user="(id) => changeDirectAccess(id, contacts.block)"
+      :unblock-user="contacts.unblock"
+      @back="returnToChat"
+      @new-chat="newConversationOpen = true"
+      @error="toast.add({ severity: 'error', summary: $event, life: 3200 })"
+    />
     <DiscoverRooms
       v-else-if="activePage === 'discover'"
       :rooms="rooms"
@@ -387,6 +413,7 @@ function handleForwarded(): void {
       <ChatPanel
         :key="selectedRoom?.id || 'empty-room'"
         :room="selectedRoom"
+        :conversation="selectedConversation"
         :user="currentUser"
         :password="roomPassword"
         :token="sessionToken"
@@ -437,48 +464,27 @@ function handleForwarded(): void {
         @poke="chat.poke"
         @retry="chat.retry"
         @load-older="history.loadOlder"
+        @remove-friend="changeSelectedDirectAccess(contacts.remove)"
+        @block-user="changeSelectedDirectAccess(contacts.block)"
       />
     </Transition>
 
-    <AuthDialog
-      :open="authOpen"
-      @close="authOpen = false"
-      @authenticated="
-        (session) => {
-          authOpen = false
-          handleAuthenticated(session)
-        }
-      "
+    <!-- prettier-ignore -->
+    <AppDialogs
+      :auth-open="authOpen" :create-open="createOpen" :forward-open="forwardOpen"
+      :forward-message-ids="forwardMessageIds" :forward-rooms="forwardRooms" :join-open="joinOpen"
+      :manage-open="manageOpen" :new-conversation-open="newConversationOpen"
+      :preferences-open="preferenceController.open.value" :preferences-saving="preferenceController.saving.value"
+      :preferences="preferences" :room="selectedRoom" :room-password="roomPassword" :token="sessionToken"
+      :friends="contacts.friends.value" :user="currentUser"
+      @auth-close="authOpen = false" @authenticated="authOpen = false; handleAuthenticated($event)"
+      @create-close="createOpen = false" @created="handleCreated" @forward-close="forwardOpen = false"
+      @forwarded="handleForwarded" @join-close="joinOpen = false" @joined="handleJoinedById"
+      @manage-close="manageOpen = false" @updated="handleUpdated" @deleted="handleDeleted"
+      @new-conversation-close="newConversationOpen = false" @conversation-opened="selectConversation"
+      @social-changed="contacts.refresh" @create-group="newConversationOpen = false; requestCreateRoom()"
+      @preferences-close="preferenceController.open.value = false" @save-preferences="preferenceController.save"
     />
-    <ForwardDialog
-      :open="forwardOpen"
-      :message-ids="forwardMessageIds"
-      :rooms="rooms"
-      :token="sessionToken"
-      @close="forwardOpen = false"
-      @forwarded="handleForwarded"
-    />
-    <JoinRoomDialog :open="joinOpen" :token="sessionToken" @close="joinOpen = false" @joined="handleJoinedById" />
-    <CreateRoomDialog :open="createOpen" :token="sessionToken" @close="createOpen = false" @created="handleCreated" />
-    <ManageRoomDialog
-      :open="manageOpen"
-      :room="selectedRoom"
-      :credential="roomPassword"
-      :token="sessionToken"
-      @close="manageOpen = false"
-      @updated="handleUpdated"
-      @deleted="handleDeleted"
-    />
-    <PreferencesDialog
-      :open="preferenceController.open.value"
-      :user="currentUser"
-      :preferences="preferences"
-      :saving="preferenceController.saving.value"
-      @close="preferenceController.open.value = false"
-      @save="preferenceController.save"
-    />
-
-    <Toast position="top-right" />
   </div>
   <PrivacyLockScreen
     ref="privacyLockScreen"

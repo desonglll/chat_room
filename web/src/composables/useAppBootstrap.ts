@@ -66,7 +66,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
         const activeId = routeRoomId.value
         const restored = nextRooms.find((room) => room.id === activeId)
         if (restored) options.selectRoom(restored, shouldReconnectRestoredRoom(route.name))
-        else if (activeId) void router.replace({ name: 'home' }).catch(() => {})
+        else if (activeId && !sessionToken.value) void router.replace({ name: 'home' }).catch(() => {})
       }
     } catch (caught) {
       networkError.value = caught instanceof Error ? caught.message : '无法读取房间列表'

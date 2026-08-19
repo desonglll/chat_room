@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::message_store::MessageCursor;
 use crate::models::{CreateRoomRequest, Room, StoredMessage, UpdateRoomRequest};
 use crate::state::{with_pool, SharedState};
-use crate::user_handlers::{bearer_token, optional_bearer_token};
+use crate::user_handlers::bearer_token;
 
 const MAX_ROOM_NAME_CHARS: usize = 80;
 const MAX_PASSWORD_CHARS: usize = 256;
@@ -120,90 +120,6 @@ pub async fn create_room(
     }
 }
 
-/// Query-string wrapper for name filtering.
-#[derive(Deserialize)]
-pub struct ListQuery {
-    pub name: Option<String>,
-}
-
-/// List rooms. Pass ?name=... to filter by exact room name.
-#[utoipa::path(
-    get,
-    path = "/api/rooms",
-    params(
-        ("name" = Option<String>, Query, description = "Filter by exact room name")
-    ),
-    responses(
-        (status = 200, description = "Matching rooms", body = Vec<Room>)
-    )
-)]
-pub async fn list_rooms(
-    State(state): State<SharedState>,
-    Query(query): Query<ListQuery>,
-    headers: HeaderMap,
-) -> Result<Json<Vec<Room>>, StatusCode> {
-    let mut rooms = state.list_rooms(query.name.as_deref()).await;
-    let user = if let Some(token) = optional_bearer_token(&headers) {
-        state
-            .session_user(token)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    } else {
-        None
-    };
-    if let Some(user) = user {
-        state
-            .decorate_rooms_for_user(&mut rooms, user.id)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        rooms.retain(|room| !room.has_password || room.membership_status.is_some());
-    } else {
-        rooms.retain(|room| !room.has_password);
-    }
-    Ok(Json(rooms))
-}
-
-/// Fetch a single room by UUID.
-#[utoipa::path(
-    get,
-    path = "/api/rooms/{id}",
-    params(
-        ("id" = Uuid, description = "Room id")
-    ),
-    responses(
-        (status = 200, description = "Room found", body = Room),
-        (status = 404, description = "Room not found")
-    )
-)]
-pub async fn get_room(
-    State(state): State<SharedState>,
-    Path(id): Path<Uuid>,
-    headers: HeaderMap,
-) -> Result<Json<Room>, StatusCode> {
-    let mut room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
-    // Cached rooms can carry the creator's membership from the create response.
-    // Always clear it before decorating this response for the current viewer.
-    room.membership_status = None;
-    room.membership_role = None;
-    if let Some(token) = optional_bearer_token(&headers) {
-        if let Some(user) = state
-            .session_user(token)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        {
-            if let Some((status, role)) = state
-                .membership_identity(id, user.id)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-            {
-                room.membership_status = Some(status);
-                room.membership_role = Some(role);
-            }
-        }
-    }
-    Ok(Json(room))
-}
-
 /// Rename a room or change its password. Private rooms require the current password.
 #[utoipa::path(
     patch,
@@ -224,6 +140,13 @@ pub async fn update_room(
     headers: HeaderMap,
     Json(req): Json<UpdateRoomRequest>,
 ) -> Result<Json<Room>, StatusCode> {
+    if state
+        .is_direct_room(id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::NOT_FOUND);
+    }
     if req.name.is_none() && req.new_password.is_none() && req.join_policy.is_none() {
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -364,6 +287,13 @@ pub async fn delete_room(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
+    if state
+        .is_direct_room(id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::NOT_FOUND);
+    }
     let room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
     let token = bearer_token(&headers)?;
     let user = state

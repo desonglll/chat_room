@@ -15,3 +15,9 @@ bun run dev
 ```
 
 Vite proxies `/api` and `/ws` to `127.0.0.1:3000`.
+
+Authenticated users see group rooms and private conversations in one recent-
+activity list. The contacts view at `/contacts` supports account search, friend
+requests, accepted friends, blocked users, and starting a private conversation.
+Private conversations reuse the server's room/message/WebSocket stack while
+remaining hidden from room discovery and group-management actions.

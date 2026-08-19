@@ -11,9 +11,15 @@ interface UnreadSnapshot {
   }[]
 }
 
+interface SocialChangedEvent {
+  type: 'social_changed'
+  incoming_request_count: number
+}
+
 export function useUnreadSocket(
   onSnapshot: (counts: Map<string, UnreadSnapshot['rooms'][number]>) => void,
   onMessage: (message: AccountMessageEvent) => void,
+  onSocialChanged: (event: SocialChangedEvent) => void = () => {},
 ) {
   let socket: WebSocket | null = null
   let reconnectTimer: number | undefined
@@ -47,11 +53,12 @@ export function useUnreadSocket(
     next.onmessage = (event: MessageEvent<string>) => {
       if (socket !== next) return
       try {
-        const message = JSON.parse(event.data) as UnreadSnapshot | AccountMessageEvent
+        const message = JSON.parse(event.data) as UnreadSnapshot | AccountMessageEvent | SocialChangedEvent
         if (message.type === 'unread_counts') {
           onSnapshot(new Map(message.rooms.map((room) => [room.room_id, room])))
         }
         if (message.type === 'new_message') onMessage(message)
+        if (message.type === 'social_changed') onSocialChanged(message)
       } catch {
         // Ignore malformed account events and keep the room connection alive.
       }

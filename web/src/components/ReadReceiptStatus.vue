@@ -9,11 +9,12 @@ import type { RoomMember } from '../types'
 const props = defineProps<{
   read: RoomMember[]
   unread: RoomMember[]
+  direct: boolean
 }>()
 
 const receiptPopover = ref()
 const label = computed(() => {
-  if (!props.unread.length) return '全部已读'
+  if (!props.unread.length) return props.direct ? '已读' : '全部已读'
   if (!props.read.length) return '未读'
   return `${props.read.length} 人已读`
 })
@@ -28,13 +29,13 @@ function avatarLabel(member: RoomMember): string {
     type="button"
     class="mt-1 ml-auto flex min-h-6 items-center gap-1 rounded px-1.5 text-[11px] transition-colors hover:bg-surface-200"
     :class="unread.length ? 'text-muted-color' : 'text-success'"
-    :aria-label="`${label}，查看详情`"
-    @click="receiptPopover.toggle($event)"
+    :aria-label="direct ? label : `${label}，查看详情`"
+    @click="!direct && receiptPopover.toggle($event)"
   >
     <CheckCheck :size="13" />
     <span>{{ label }}</span>
   </button>
-  <Popover ref="receiptPopover">
+  <Popover v-if="!direct" ref="receiptPopover">
     <div class="max-h-[min(70vh,420px)] w-64 overflow-y-auto">
       <section>
         <div class="mb-2 flex items-center justify-between">

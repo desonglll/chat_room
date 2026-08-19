@@ -3,15 +3,16 @@ import { computed, ref, watch } from 'vue'
 import {
   Compass,
   EllipsisVertical,
+  LockKeyhole,
   LogIn,
   LogOut,
-  LockKeyhole,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
   Search,
   Settings,
+  SquarePen,
   UserRound,
+  UsersRound,
 } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Badge from 'primevue/badge'
@@ -23,27 +24,29 @@ import InputText from 'primevue/inputtext'
 import Menu from 'primevue/menu'
 import Skeleton from 'primevue/skeleton'
 import type { MenuItem } from 'primevue/menuitem'
-import IconSprite from './IconSprite.vue'
 import { avatarColor } from '../avatarColor'
 import { useSidebarWidth } from '../composables/useSidebarWidth'
-import type { Room, User } from '../types'
+import type { ConversationSummary, Room, User } from '../types'
+import ConversationRow from './ConversationRow.vue'
 
 const props = defineProps<{
-  rooms: Room[]
+  conversations: ConversationSummary[]
   selectedId?: string
   user: User | null
   loading: boolean
   refreshing: boolean
   visible: boolean
   collapsed: boolean
+  incomingRequests: number
 }>()
-
 const emit = defineEmits<{
-  select: [room: Room]
+  select: [conversation: ConversationSummary]
   refresh: []
+  newChat: []
   create: []
   join: []
   discover: []
+  contacts: []
   authenticate: []
   logout: []
   lock: []
@@ -57,48 +60,33 @@ const emit = defineEmits<{
 
 const { width: sidebarWidth, resizing, startResize } = useSidebarWidth()
 watch(sidebarWidth, (width) => emit('resize', width), { immediate: true })
-
-// The sidebar is "my rooms" only — public rooms the user hasn't joined live
-// on the Discover page instead, reachable via the compass button below.
-const searchQuery = ref('')
-const joinedRooms = computed(() => {
-  const needle = searchQuery.value.trim().toLowerCase()
-  return props.rooms
-    .filter((room) => room.membership_status)
-    .filter((room) => !needle || room.name.toLowerCase().includes(needle))
+const query = ref('')
+const visibleConversations = computed(() => {
+  const needle = query.value.trim().toLowerCase()
+  return props.conversations.filter((item) => !needle || item.title.toLowerCase().includes(needle))
 })
-
-const roomContextMenu = ref()
-const roomContextMenuItems = ref<MenuItem[]>([])
-
-const sidebarMenu = ref()
-const sidebarMenuItems = computed<MenuItem[]>(() => [
-  { label: '刷新房间', command: () => emit('refresh') },
-  { label: '发现聊天室', command: () => emit('discover') },
+const contextMenu = ref()
+const contextItems = ref<MenuItem[]>([])
+const menu = ref()
+const menuItems = computed<MenuItem[]>(() => [
+  { label: '联系人', command: () => (props.user ? emit('contacts') : emit('authenticate')) },
+  { label: '新建群聊', command: () => emit('create') },
+  { label: '发现群聊', command: () => emit('discover') },
   { label: '通过 ID 加入', command: () => emit('join') },
+  { label: '刷新会话', command: () => emit('refresh') },
 ])
 
-function openRoomContextMenu(event: MouseEvent, room: Room): void {
-  const items: MenuItem[] = [{ label: '打开聊天室', command: () => emit('select', room) }]
-  if (['owner', 'admin'].includes(room.membership_role || '')) {
-    items.push({ label: '管理聊天室', command: () => emit('manage', room) })
+function openContextMenu(event: MouseEvent, conversation: ConversationSummary): void {
+  const items: MenuItem[] = [{ label: '打开会话', command: () => emit('select', conversation) }]
+  const room = conversation.group
+  if (room && ['owner', 'admin'].includes(room.membership_role || '')) {
+    items.push({ label: '管理群聊', command: () => emit('manage', room) })
   }
-  if (room.membership_role && room.membership_role !== 'owner') {
-    items.push({
-      label: '退出聊天室',
-      command: () => {
-        if (window.confirm(`确定退出聊天室"${room.name}"吗？`)) emit('leaveRoom', room)
-      },
-    })
+  if (room?.membership_role && room.membership_role !== 'owner') {
+    items.push({ label: '退出群聊', command: () => emit('leaveRoom', room) })
   }
-  roomContextMenuItems.value = items
-  roomContextMenu.value?.show(event)
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(date)
+  contextItems.value = items
+  contextMenu.value?.show(event)
 }
 </script>
 
@@ -115,52 +103,38 @@ function formatDate(value: string): string {
     <div
       v-if="refreshing && !loading"
       class="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden bg-primary-100"
-      aria-hidden="true"
     >
       <span class="room-sync-progress block h-full w-1/3 bg-primary" />
     </div>
     <header
-      class="flex h-[72px] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-4"
+      class="flex h-[72px] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-3"
       :class="{ 'md:justify-center md:px-2': collapsed }"
     >
-      <div class="flex min-w-0 items-center gap-3">
-        <span
-          class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-100 shadow-sm"
-          :class="{ 'md:hidden': collapsed }"
-        >
-          <img src="/brand/echo-gate.svg" alt="" class="size-7" aria-hidden="true" />
-        </span>
-        <div class="min-w-0" :class="{ 'md:hidden': collapsed }">
-          <h1 class="truncate text-[15px] font-semibold text-surface-900">Chat Room</h1>
-          <p class="mt-0.5 truncate text-xs text-muted-color" aria-live="polite">
-            {{ loading ? '正在读取房间' : refreshing ? '正在同步' : `${joinedRooms.length} 个聊天室` }}
+      <div class="flex min-w-0 items-center gap-3" :class="{ 'md:hidden': collapsed }">
+        <img src="/brand/echo-gate.svg" alt="" class="size-8" aria-hidden="true" />
+        <div class="min-w-0">
+          <h1 class="truncate text-[15px] font-semibold text-surface-900">消息</h1>
+          <p class="mt-0.5 truncate text-xs text-muted-color">
+            {{ user ? `${conversations.length} 个会话` : '登录后开始聊天' }}
           </p>
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-1">
         <Button
-          :class="{ 'md:hidden': collapsed }"
+          v-if="user"
           text
           rounded
-          aria-label="新建聊天室"
-          title="新建聊天室"
-          data-testid="create-room-button"
-          @click="emit('create')"
+          aria-label="新对话"
+          title="新对话"
+          data-testid="new-chat-button"
+          @click="emit('newChat')"
         >
-          <Plus :size="17" />
+          <SquarePen :size="18" />
         </Button>
-        <Button
-          :class="{ 'md:hidden': collapsed }"
-          text
-          rounded
-          severity="secondary"
-          aria-label="更多操作"
-          title="更多操作"
-          @click="sidebarMenu.toggle($event)"
-        >
-          <EllipsisVertical :size="17" />
+        <Button text rounded severity="secondary" aria-label="更多操作" title="更多操作" @click="menu.toggle($event)">
+          <EllipsisVertical :size="18" />
         </Button>
-        <Menu ref="sidebarMenu" :model="sidebarMenuItems" :popup="true" />
+        <Menu ref="menu" :model="menuItems" :popup="true" />
         <Button
           class="hidden md:inline-flex"
           text
@@ -170,126 +144,99 @@ function formatDate(value: string): string {
           :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
           @click="emit('toggleCollapse')"
         >
-          <PanelLeftOpen v-if="collapsed" :size="18" />
-          <PanelLeftClose v-else :size="18" />
+          <PanelLeftOpen v-if="collapsed" :size="18" /><PanelLeftClose v-else :size="18" />
         </Button>
       </div>
     </header>
 
-    <div v-if="!collapsed" class="shrink-0 border-b border-surface-200 px-3 py-2">
-      <IconField>
-        <InputIcon><Search :size="14" /></InputIcon>
-        <InputText v-model="searchQuery" placeholder="搜索聊天室" size="small" fluid aria-label="搜索聊天室" />
-      </IconField>
+    <div v-if="!collapsed" class="shrink-0 px-3 py-2">
+      <IconField
+        ><InputIcon><Search :size="14" /></InputIcon
+        ><InputText v-model="query" placeholder="搜索会话" size="small" fluid aria-label="搜索会话"
+      /></IconField>
     </div>
-
-    <div class="min-h-0 flex-1 overflow-y-auto p-2" role="list" aria-label="聊天室列表" data-testid="room-list">
-      <div v-if="loading" class="space-y-2 p-1">
-        <div v-for="index in 5" :key="index" class="flex h-16 items-center gap-3 px-2">
-          <Skeleton width="2.5rem" height="2.5rem" border-radius="8px" />
+    <div
+      class="min-h-0 flex-1 overflow-y-auto px-2 pb-2"
+      role="list"
+      aria-label="会话列表"
+      data-testid="conversation-list"
+    >
+      <div v-if="loading" class="space-y-1 p-1">
+        <div v-for="index in 6" :key="index" class="flex h-[68px] items-center gap-3 px-2">
+          <Skeleton shape="circle" size="2.75rem" />
           <div class="flex-1 space-y-2" :class="{ 'md:hidden': collapsed }">
-            <Skeleton width="58%" height="0.85rem" />
-            <Skeleton width="38%" height="0.65rem" />
+            <Skeleton width="58%" height="0.85rem" /><Skeleton width="76%" height="0.65rem" />
           </div>
         </div>
       </div>
-
       <div
-        v-else-if="joinedRooms.length === 0 && searchQuery.trim()"
-        class="flex h-full flex-col items-center justify-center text-center text-muted-color"
+        v-else-if="!visibleConversations.length"
+        class="flex h-full flex-col items-center justify-center px-6 text-center text-muted-color"
       >
-        <span
-          class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"
-          ><Search :size="20"
-        /></span>
-        <strong class="mt-3 text-sm text-color" :class="{ 'md:hidden': collapsed }">没有匹配的聊天室</strong>
+        <Search v-if="query" :size="22" /><SquarePen v-else :size="22" />
+        <strong class="mt-3 text-sm text-color" :class="{ 'md:hidden': collapsed }">{{
+          query ? '没有匹配的会话' : '还没有会话'
+        }}</strong>
+        <span v-if="!query && user" class="mt-1 text-xs" :class="{ 'md:hidden': collapsed }">从好友开始一段对话</span>
+        <Button
+          v-if="!query && user"
+          class="mt-3"
+          :class="{ 'md:hidden': collapsed }"
+          size="small"
+          outlined
+          @click="emit('newChat')"
+          ><SquarePen :size="15" />新对话</Button
+        >
       </div>
-
-      <div
-        v-else-if="joinedRooms.length === 0"
-        class="flex h-full flex-col items-center justify-center text-center text-muted-color"
-      >
-        <span
-          class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"
-          ><IconSprite name="rooms" :size="23"
-        /></span>
-        <strong class="mt-3 text-sm text-color" :class="{ 'md:hidden': collapsed }">还没有聊天室</strong>
-        <span class="mt-1 text-xs" :class="{ 'md:hidden': collapsed }">创建一个，或去发现公开聊天室</span>
-        <Button class="mt-3" :class="{ 'md:hidden': collapsed }" size="small" outlined @click="emit('discover')">
-          <Compass :size="15" /><span>发现聊天室</span>
-        </Button>
-      </div>
-
       <button
-        v-for="room in joinedRooms"
+        v-for="conversation in visibleConversations"
         v-else
-        :key="room.id"
-        class="relative mb-1.5 flex min-h-16 w-full items-center gap-3 rounded-xl px-3 text-left transition-[background-color,box-shadow,transform] duration-200 ease-spring active:scale-[0.97]"
-        :class="[
-          room.id === selectedId
-            ? 'bg-primary-50 text-primary-900 shadow-sm ring-1 ring-primary-200'
-            : 'bg-surface-0 text-surface-800 shadow-xs hover:bg-surface-50 hover:shadow-sm',
-          collapsed ? 'md:justify-center md:px-1' : '',
-        ]"
+        :key="conversation.room_id"
         type="button"
         role="listitem"
-        :title="room.name"
-        :aria-current="room.id === selectedId ? 'true' : undefined"
-        @click="emit('select', room)"
-        @contextmenu.prevent="openRoomContextMenu($event, room)"
+        class="mb-0.5 flex h-[68px] w-full items-center gap-3 rounded-md px-2.5 text-left transition-colors active:bg-surface-100"
+        :class="[
+          conversation.room_id === selectedId ? 'bg-primary-50 text-primary-900' : 'hover:bg-surface-50',
+          collapsed ? 'md:justify-center md:px-1' : '',
+        ]"
+        :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
+        :title="conversation.title"
+        @click="emit('select', conversation)"
+        @contextmenu.prevent="openContextMenu($event, conversation)"
       >
-        <span
-          class="grid size-9 shrink-0 place-items-center rounded-full text-base text-white"
-          :style="{ backgroundColor: avatarColor(room.id) }"
-        >
-          <template v-if="room.avatar_emoji">{{ room.avatar_emoji }}</template>
-          <IconSprite v-else-if="room.has_password" name="lock" :size="17" />
-          <template v-else>{{ room.name.slice(0, 1).toUpperCase() }}</template>
-        </span>
-        <span class="min-w-0 flex-1" :class="{ 'md:hidden': collapsed }">
-          <span class="flex items-baseline gap-2">
-            <strong class="min-w-0 flex-1 truncate text-sm font-semibold">{{ room.name }}</strong>
-            <small class="shrink-0 text-[11px] text-muted-color">{{ formatDate(room.created_at) }}</small>
-          </span>
-          <span class="mt-0.5 flex items-center gap-2">
-            <small class="min-w-0 flex-1 truncate text-xs text-muted-color">
-              {{
-                room.membership_status === 'pending'
-                  ? '待审核'
-                  : room.membership_status === 'invited'
-                    ? '已邀请'
-                    : room.has_password
-                      ? '私密'
-                      : '公开'
-              }}
-            </small>
-            <Badge
-              v-if="room.unread_count > 0"
-              :value="room.unread_count > 99 ? '99+' : String(room.unread_count)"
-              severity="danger"
-              class="shrink-0"
-            />
-          </span>
-        </span>
-        <Badge
-          v-if="room.unread_count > 0 && collapsed"
-          :value="room.unread_count > 99 ? '99+' : String(room.unread_count)"
-          severity="danger"
-          class="md:absolute md:right-0 md:top-1"
+        <ConversationRow
+          :conversation="conversation"
+          :selected="conversation.room_id === selectedId"
+          :collapsed="collapsed"
         />
       </button>
     </div>
 
+    <button
+      v-if="user"
+      type="button"
+      class="relative flex h-12 shrink-0 items-center gap-3 border-t border-surface-200 px-4 text-sm hover:bg-surface-50"
+      :class="{ 'md:justify-center md:px-2': collapsed }"
+      @click="emit('contacts')"
+    >
+      <UsersRound :size="18" /><span :class="{ 'md:hidden': collapsed }">联系人</span>
+      <Badge
+        v-if="incomingRequests"
+        :value="incomingRequests > 99 ? '99+' : String(incomingRequests)"
+        severity="danger"
+        class="ml-auto"
+      />
+    </button>
     <footer
-      class="flex min-h-[76px] shrink-0 items-center gap-2 border-t border-surface-200 bg-surface-50 px-4 py-3"
+      class="flex min-h-[68px] shrink-0 items-center gap-1 border-t border-surface-200 bg-surface-50 px-3 py-2"
       :class="{ 'md:flex-col md:px-2': collapsed }"
     >
       <template v-if="user">
         <button
           type="button"
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left transition hover:text-primary"
+          class="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left hover:text-primary"
           :class="{ 'md:justify-center': collapsed }"
-          title="我的"
+          title="我的资料"
           @click="emit('profile')"
         >
           <Avatar
@@ -298,38 +245,36 @@ function formatDate(value: string): string {
             class="shrink-0 text-white!"
             :style="{ backgroundColor: avatarColor(user.id) }"
           />
-          <span class="min-w-0 flex-1" :class="{ 'md:hidden': collapsed }">
-            <small class="block text-[11px] text-muted-color">当前用户</small>
-            <strong class="mt-0.5 block truncate text-sm">{{ user.display_name || user.username }}</strong>
-          </span>
+          <strong class="min-w-0 flex-1 truncate text-sm" :class="{ 'md:hidden': collapsed }">{{
+            user.display_name || user.username
+          }}</strong>
         </button>
-        <Button text rounded severity="secondary" aria-label="锁定界面" title="锁定界面" @click="emit('lock')">
-          <LockKeyhole :size="17" />
-        </Button>
-        <Button text rounded severity="secondary" aria-label="设置" title="设置" @click="emit('settings')">
-          <Settings :size="17" />
-        </Button>
-        <Button text rounded severity="secondary" aria-label="退出登录" title="退出登录" @click="emit('logout')">
-          <LogOut :size="17" />
-        </Button>
+        <Button text rounded severity="secondary" aria-label="锁定界面" title="锁定界面" @click="emit('lock')"
+          ><LockKeyhole :size="17"
+        /></Button>
+        <Button text rounded severity="secondary" aria-label="设置" title="设置" @click="emit('settings')"
+          ><Settings :size="17"
+        /></Button>
+        <Button text rounded severity="secondary" aria-label="退出登录" title="退出登录" @click="emit('logout')"
+          ><LogOut :size="17"
+        /></Button>
       </template>
       <template v-else>
         <Button
           class="min-w-0 flex-1"
           :class="{ 'md:flex-none': collapsed }"
-          :aria-label="collapsed ? '登录或注册' : undefined"
           title="登录或注册"
           @click="emit('authenticate')"
+          ><LogIn :size="17" /><span :class="{ 'md:hidden': collapsed }">登录或注册</span></Button
         >
-          <LogIn :size="17" />
-          <span :class="{ 'md:hidden': collapsed }">登录或注册</span>
-        </Button>
-        <Button text rounded severity="secondary" aria-label="应用偏好" title="应用偏好" @click="emit('settings')">
-          <UserRound :size="17" />
-        </Button>
+        <Button text rounded severity="secondary" aria-label="发现群聊" title="发现群聊" @click="emit('discover')"
+          ><Compass :size="17"
+        /></Button>
+        <Button text rounded severity="secondary" aria-label="应用偏好" title="应用偏好" @click="emit('settings')"
+          ><UserRound :size="17"
+        /></Button>
       </template>
     </footer>
-
     <div
       v-if="!collapsed"
       class="absolute inset-y-0 right-0 z-10 hidden w-1.5 -translate-x-1/2 cursor-col-resize touch-none select-none hover:bg-primary-200 md:block"
@@ -339,7 +284,7 @@ function formatDate(value: string): string {
       aria-label="调整侧边栏宽度"
       @pointerdown.prevent="startResize"
     />
-    <ContextMenu ref="roomContextMenu" :model="roomContextMenuItems" />
+    <ContextMenu ref="contextMenu" :model="contextItems" />
   </aside>
 </template>
 
@@ -352,11 +297,9 @@ function formatDate(value: string): string {
     transform: translateX(400%);
   }
 }
-
 .room-sync-progress {
   animation: room-sync 1s var(--cr-ease-out) infinite;
 }
-
 @media (prefers-reduced-motion: reduce) {
   .room-sync-progress {
     animation: none;

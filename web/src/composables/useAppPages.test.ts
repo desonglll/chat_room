@@ -27,4 +27,8 @@ describe('app page routes', () => {
       params: { id: 'room-1' },
     })
   })
+
+  test('routes the contacts workspace independently from the selected room', () => {
+    expect(resolveTarget('contacts', room, true)).toEqual({ name: 'contacts' })
+  })
 })

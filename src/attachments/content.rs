@@ -251,6 +251,20 @@ impl AppState {
         let persisted: Result<(), sqlx::Error> = with_pool!(self, |pool| {
             async {
                 let mut transaction = pool.begin().await?;
+                let allowed: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM room_memberships \
+                     JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
+                     WHERE room_memberships.room_id = $1 AND room_memberships.user_id = $2 \
+                       AND room_memberships.status = 'active' \
+                       AND room_role_permissions.permission_key = 'message.send')",
+                )
+                .bind(room_id)
+                .bind(sender.id)
+                .fetch_one(&mut *transaction)
+                .await?;
+                if !allowed {
+                    return Err(sqlx::Error::RowNotFound);
+                }
                 sqlx::query(
                     "INSERT INTO attachments \
                      (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, \

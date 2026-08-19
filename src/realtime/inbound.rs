@@ -33,6 +33,13 @@ pub async fn handle_client_message(
     user: &User,
     message: ChatMessage,
 ) {
+    let active = state
+        .has_room_permission(room_id, user.id, "message.send")
+        .await
+        .unwrap_or(false);
+    if !active {
+        return;
+    }
     match message {
         ChatMessage::Message {
             content,

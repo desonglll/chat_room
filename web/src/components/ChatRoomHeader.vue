@@ -1,16 +1,28 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowLeft, Check, Copy, EllipsisVertical, ListChecks, LogOut } from 'lucide-vue-next'
+import {
+  ArrowLeft,
+  Ban,
+  Check,
+  Copy,
+  EllipsisVertical,
+  ListChecks,
+  LogOut,
+  UserMinus,
+  UserRound,
+} from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import Popover from 'primevue/popover'
 import { avatarColor } from '../avatarColor'
-import type { ChatStatus, Room, RoomMember } from '../types'
+import type { ChatStatus, Room, RoomMember, UserSummary } from '../types'
 import IconSprite from './IconSprite.vue'
 
 const props = defineProps<{
   room: Room
+  kind: 'group' | 'direct'
+  peer: UserSummary | null
   status: ChatStatus
   statusLabel: string
   authenticated: boolean
@@ -25,6 +37,8 @@ const emit = defineEmits<{
   files: []
   viewProfile: [userId: string]
   toggleSelection: []
+  removeFriend: []
+  blockUser: []
 }>()
 
 const memberPopover = ref()
@@ -42,12 +56,31 @@ const statusColor = computed(
 )
 const canManage = computed(() => ['owner', 'admin'].includes(props.room.membership_role || ''))
 const moreMenuItems = computed(() => [
+  ...(props.kind === 'direct' && props.peer
+    ? [{ label: '查看资料', icon: 'profile', command: () => emit('viewProfile', props.peer!.id) }]
+    : []),
   { label: '多选消息', icon: 'select', command: () => emit('toggleSelection') },
-  ...(canManage.value ? [{ label: '管理聊天室', icon: 'manage', command: () => emit('manage') }] : []),
-  ...(props.room.membership_role !== 'owner'
+  ...(props.kind === 'group' && canManage.value
+    ? [{ label: '管理聊天室', icon: 'manage', command: () => emit('manage') }]
+    : []),
+  ...(props.kind === 'group' && props.room.membership_role !== 'owner'
     ? [{ label: '退出聊天室', icon: 'leave', danger: true, command: () => emit('leave') }]
     : []),
+  ...(props.kind === 'direct'
+    ? [
+        { label: '删除好友', icon: 'remove', danger: true, command: confirmRemoveFriend },
+        { label: '拉黑', icon: 'block', danger: true, command: confirmBlockUser },
+      ]
+    : []),
 ])
+
+function confirmRemoveFriend(): void {
+  if (window.confirm(`删除好友“${props.room.name}”并关闭私聊？`)) emit('removeFriend')
+}
+
+function confirmBlockUser(): void {
+  if (window.confirm(`拉黑“${props.room.name}”？双方将无法继续私聊。`)) emit('blockUser')
+}
 
 async function copyRoomId(): Promise<void> {
   try {
@@ -78,12 +111,33 @@ async function copyRoomId(): Promise<void> {
       >
         <ArrowLeft :size="20" />
       </Button>
+      <button
+        type="button"
+        class="shrink-0 rounded-full"
+        :class="{ 'cursor-default': kind === 'group' }"
+        :aria-label="kind === 'direct' ? '查看对方资料' : undefined"
+        @click="kind === 'direct' && peer && emit('viewProfile', peer.id)"
+      >
+        <Avatar
+          :label="room.avatar_emoji || room.name.slice(0, 1).toUpperCase()"
+          shape="circle"
+          class="size-10! text-white!"
+          :style="{ backgroundColor: avatarColor(peer?.id || room.id) }"
+        />
+      </button>
       <div class="min-w-0">
         <div class="flex min-w-0 items-center gap-1.5">
-          <h2 class="truncate text-[15px] font-semibold text-surface-900" :title="room.description || undefined">
+          <button
+            type="button"
+            class="truncate text-left text-[15px] font-semibold text-surface-900"
+            :class="{ 'cursor-default': kind === 'group' }"
+            :title="room.description || undefined"
+            @click="kind === 'direct' && peer && emit('viewProfile', peer.id)"
+          >
             {{ room.name }}
-          </h2>
+          </button>
           <Button
+            v-if="kind === 'group'"
             text
             rounded
             severity="secondary"
@@ -100,21 +154,22 @@ async function copyRoomId(): Promise<void> {
           <span class="size-2 shrink-0 rounded-full" :class="statusColor" />
           <span class="shrink-0">{{ statusLabel }}</span>
           <button
-            v-if="authenticated"
+            v-if="authenticated && kind === 'group'"
             type="button"
             class="shrink-0 cursor-pointer underline-offset-2 hover:text-primary hover:underline"
             @click="memberPopover.toggle($event)"
           >
             · {{ members.length }} 人在线
           </button>
-          <span class="hidden shrink-0 sm:inline">· {{ room.has_password ? '私密房间' : '公开房间' }}</span>
-          <code class="hidden truncate font-mono text-[10px] lg:inline">· {{ room.id }}</code>
+          <span v-if="kind === 'direct' && peer" class="truncate">· @{{ peer.username }}</span>
+          <span v-else class="hidden shrink-0 sm:inline">· {{ room.has_password ? '私密房间' : '公开房间' }}</span>
+          <code v-if="kind === 'group'" class="hidden truncate font-mono text-[10px] lg:inline">· {{ room.id }}</code>
         </div>
       </div>
     </div>
 
     <div class="flex shrink-0 items-center gap-1">
-      <Popover ref="memberPopover">
+      <Popover v-if="kind === 'group'" ref="memberPopover">
         <div class="w-60">
           <div class="mb-2 flex items-center justify-between border-b border-surface-200 pb-3">
             <strong class="text-sm">在线成员</strong>
@@ -148,6 +203,7 @@ async function copyRoomId(): Promise<void> {
         </div>
       </Popover>
       <Button
+        v-if="kind === 'group'"
         text
         rounded
         severity="secondary"
@@ -183,8 +239,11 @@ async function copyRoomId(): Promise<void> {
         <template #item="{ item, props: itemProps }">
           <a v-bind="itemProps.action" :class="{ 'text-danger!': item.danger }">
             <ListChecks v-if="item.icon === 'select'" :size="17" />
+            <UserRound v-else-if="item.icon === 'profile'" :size="17" />
             <EllipsisVertical v-else-if="item.icon === 'manage'" :size="17" />
             <LogOut v-else-if="item.icon === 'leave'" :size="17" />
+            <UserMinus v-else-if="item.icon === 'remove'" :size="17" />
+            <Ban v-else-if="item.icon === 'block'" :size="17" />
             <span>{{ item.label }}</span>
           </a>
         </template>

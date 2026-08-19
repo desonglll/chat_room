@@ -374,10 +374,15 @@ pub async fn delete_account(
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
     }
-    state.delete_user(current.id).await.map_err(|error| {
+    let direct_room_ids = state.delete_user(current.id).await.map_err(|error| {
         tracing::error!("delete account failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+    for room_id in direct_room_ids {
+        state
+            .remove_cached_room(room_id, "direct conversation closed")
+            .await;
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 

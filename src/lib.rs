@@ -6,10 +6,13 @@ pub mod ai;
 pub mod ai_handlers;
 pub mod attachments;
 pub mod config;
+pub mod conversations;
+pub mod direct_conversations;
 pub mod messages;
 pub mod models;
 pub mod realtime;
 pub mod rooms;
+pub mod social;
 pub mod state;
 mod state_runtime;
 pub mod storage;
@@ -29,6 +32,7 @@ pub use realtime::ws;
 pub(crate) use realtime::{auth as ws_auth, inbound as ws_inbound};
 pub use rooms::{
     access as room_access, handlers, membership_handlers, membership_mutations, participants,
+    query_handlers as room_query_handlers,
 };
 
 use axum::{routing::get, Json, Router};
@@ -45,8 +49,8 @@ use crate::state::AppState;
 #[openapi(
     paths(
         handlers::create_room,
-        handlers::list_rooms,
-        handlers::get_room,
+        room_query_handlers::list_rooms,
+        room_query_handlers::get_room,
         handlers::update_room,
         handlers::delete_room,
         handlers::list_messages,
@@ -65,6 +69,18 @@ use crate::state::AppState;
         user_handlers::get_user,
         user_handlers::update_me,
         user_handlers::logout,
+        social::handlers::search_users,
+        social::handlers::create_friend_request,
+        social::handlers::list_friend_requests,
+        social::handlers::update_friend_request,
+        social::handlers::cancel_friend_request,
+        social::handlers::list_friends,
+        social::handlers::delete_friend,
+        social::handlers::list_blocks,
+        social::handlers::block_user,
+        social::handlers::unblock_user,
+        direct_conversations::handlers::start_direct_chat,
+        conversations::handlers::list_conversations,
         forward_handlers::forward_messages,
         ai_handlers::suggest,
         admin_metrics::overview,
@@ -89,6 +105,7 @@ use crate::state::AppState;
         attachment_upload_handlers::CompleteUploadRequest,
         attachment_upload_sessions::AttachmentUploadSession,
         models::User,
+        models::UserSummary,
         models::AuthRequest,
         models::AuthSession,
         models::UpdateProfileRequest,
@@ -100,6 +117,12 @@ use crate::state::AppState;
         models::UpdateMembershipRequest,
         models::UpdateNicknameRequest,
         models::RoomMembership,
+        social::models::SocialUser,
+        social::models::FriendRequestView,
+        social::models::FriendRequestPayload,
+        social::models::FriendRequestAction,
+        conversations::models::ConversationSummary,
+        conversations::models::MessagePreview,
         admin_metrics::AdminOverview,
         admin_metrics::PurgeResult,
     ))
@@ -128,11 +151,11 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route("/api/config", get(config::public_config))
         .route(
             "/api/rooms",
-            get(handlers::list_rooms).post(handlers::create_room),
+            get(room_query_handlers::list_rooms).post(handlers::create_room),
         )
         .route(
             "/api/rooms/:id",
-            get(handlers::get_room)
+            get(room_query_handlers::get_room)
                 .patch(handlers::update_room)
                 .delete(handlers::delete_room),
         )
@@ -212,7 +235,36 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/users/me/verify-password",
             axum::routing::post(user_handlers::verify_password),
         )
+        .route("/api/users/search", get(social::handlers::search_users))
         .route("/api/users/:id", get(user_handlers::get_user))
+        .route(
+            "/api/friend-requests",
+            get(social::handlers::list_friend_requests)
+                .post(social::handlers::create_friend_request),
+        )
+        .route(
+            "/api/friend-requests/:user_id",
+            axum::routing::patch(social::handlers::update_friend_request)
+                .delete(social::handlers::cancel_friend_request),
+        )
+        .route("/api/friends", get(social::handlers::list_friends))
+        .route(
+            "/api/friends/:user_id",
+            axum::routing::delete(social::handlers::delete_friend),
+        )
+        .route("/api/blocks", get(social::handlers::list_blocks))
+        .route(
+            "/api/blocks/:user_id",
+            axum::routing::put(social::handlers::block_user).delete(social::handlers::unblock_user),
+        )
+        .route(
+            "/api/direct-chats",
+            axum::routing::post(direct_conversations::handlers::start_direct_chat),
+        )
+        .route(
+            "/api/conversations",
+            get(conversations::handlers::list_conversations),
+        )
         .route(
             "/api/messages/forward",
             axum::routing::post(forward_handlers::forward_messages),

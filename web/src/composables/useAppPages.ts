@@ -2,7 +2,7 @@ import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { User, Room } from '../types'
 
-type AppPage = 'chat' | 'profile' | 'settings' | 'discover'
+type AppPage = 'chat' | 'profile' | 'settings' | 'discover' | 'contacts'
 
 // Membership survives refreshes and short WebSocket reconnects.  Route access
 // follows that durable state; the live socket only fills gaps in old snapshots.
@@ -10,6 +10,7 @@ export function resolveTarget(page: AppPage, selectedRoom: Room | null, authenti
   if (page === 'profile') return { name: 'profile' as const }
   if (page === 'settings') return { name: 'settings' as const }
   if (page === 'discover') return { name: 'discover' as const }
+  if (page === 'contacts') return { name: 'contacts' as const }
   if (!selectedRoom) return { name: 'home' as const }
   return authenticated || selectedRoom.membership_status === 'active'
     ? { name: 'room' as const, params: { id: selectedRoom.id } }
@@ -32,6 +33,7 @@ export function useAppPages(
       if (route.name === 'profile') return 'profile'
       if (route.name === 'settings') return 'settings'
       if (route.name === 'discover') return 'discover'
+      if (route.name === 'contacts') return 'contacts'
       return 'chat'
     },
     set: (value) => {
@@ -61,6 +63,12 @@ export function useAppPages(
     mobileView.value = 'chat'
   }
 
+  function openContacts(): void {
+    if (!user.value) return
+    activePage.value = 'contacts'
+    mobileView.value = 'chat'
+  }
+
   function returnToChat(): void {
     activePage.value = 'chat'
     if (!selectedRoom.value) mobileView.value = 'rooms'
@@ -71,5 +79,5 @@ export function useAppPages(
     else openAuthentication()
   }
 
-  return { activePage, openProfile, openSettings, openDiscover, requireAccount, returnToChat }
+  return { activePage, openProfile, openSettings, openDiscover, openContacts, requireAccount, returnToChat }
 }

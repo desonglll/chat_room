@@ -151,10 +151,18 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     };
 
+    let display_room_name = match state.conversation_summary(user.id, room_id).await {
+        Ok(Some(conversation)) => conversation.title,
+        Ok(None) => room.name.clone(),
+        Err(error) => {
+            tracing::warn!("load viewer room title failed: {error}");
+            room.name.clone()
+        }
+    };
     if send_json(
         &mut sink,
         &ChatMessage::AuthOk {
-            room_name: room.name.clone(),
+            room_name: display_room_name,
             members: members.clone(),
             participants: participants.clone(),
             read_receipts,

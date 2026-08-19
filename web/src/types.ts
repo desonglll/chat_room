@@ -22,6 +22,50 @@ export interface User {
   created_at: string
 }
 
+export interface UserSummary {
+  id: string
+  username: string
+  avatar_emoji: string
+  display_name: string
+}
+
+export type SocialRelationship = 'none' | 'incoming' | 'outgoing' | 'friend' | 'blocked'
+
+export interface SocialUser extends UserSummary {
+  signature: string
+  relationship: SocialRelationship
+}
+
+export interface FriendRequest {
+  user: UserSummary
+  direction: 'incoming' | 'outgoing'
+  created_at: string
+}
+
+export interface MessagePreview {
+  message_id: string
+  sender_id: string | null
+  sender: string
+  content: string
+  attachment_file_name: string | null
+  recalled: boolean
+  created_at: string
+}
+
+export interface ConversationSummary {
+  room_id: string
+  kind: 'group' | 'direct'
+  title: string
+  avatar_emoji: string
+  description: string
+  group: Room | null
+  peer: UserSummary | null
+  unread_count: number
+  last_message: MessagePreview | null
+  last_activity_at: string
+  created_at: string
+}
+
 export interface UpdateProfilePayload {
   avatar_emoji?: string
   display_name?: string
@@ -87,6 +131,8 @@ export interface AccountMessageEvent {
   message_id: string
   room_id: string
   room_name: string
+  conversation_kind: 'group' | 'direct'
+  conversation_title: string
   sender_id: string | null
   sender: string
   content: string

@@ -8,6 +8,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/rooms/:id/join', name: 'room-join', component: Empty },
   { path: '/rooms/:id', name: 'room', component: Empty },
   { path: '/discover', name: 'discover', component: Empty },
+  { path: '/contacts', name: 'contacts', component: Empty },
   { path: '/profile', name: 'profile', component: Empty },
   { path: '/settings', name: 'settings', component: Empty },
   { path: '/admin', name: 'admin', component: AdminDashboard },

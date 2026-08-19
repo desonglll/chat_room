@@ -179,13 +179,36 @@ impl AppState {
         })
     }
 
-    pub async fn delete_user(&self, user_id: Uuid) -> Result<bool, sqlx::Error> {
+    pub async fn delete_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, sqlx::Error> {
         with_pool!(self, |pool| {
-            sqlx::query("DELETE FROM users WHERE id = $1")
+            let mut transaction = pool.begin().await?;
+            let direct_room_ids: Vec<Uuid> = sqlx::query_scalar(
+                "SELECT room_id FROM direct_conversations \
+                 WHERE user_low_id = $1 OR user_high_id = $1",
+            )
+            .bind(user_id)
+            .fetch_all(&mut *transaction)
+            .await?;
+            for room_id in &direct_room_ids {
+                sqlx::query(
+                    "UPDATE rooms SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL",
+                )
+                .bind(Utc::now())
+                .bind(room_id)
+                .execute(&mut *transaction)
+                .await?;
+            }
+            let removed = sqlx::query("DELETE FROM users WHERE id = $1")
                 .bind(user_id)
-                .execute(pool)
-                .await
-                .map(|result| result.rows_affected() > 0)
+                .execute(&mut *transaction)
+                .await?
+                .rows_affected();
+            transaction.commit().await?;
+            Ok::<_, sqlx::Error>(if removed > 0 {
+                direct_room_ids
+            } else {
+                Vec::new()
+            })
         })
     }
 

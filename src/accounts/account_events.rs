@@ -18,6 +18,8 @@ struct AccountEventRow {
     message_id: Uuid,
     room_id: Uuid,
     room_name: String,
+    conversation_kind: String,
+    conversation_title: String,
     sender_id: Option<Uuid>,
     sender: String,
     content: String,
@@ -33,6 +35,8 @@ pub(crate) struct AccountMessageEvent {
     pub message_id: Uuid,
     pub room_id: Uuid,
     pub room_name: String,
+    pub conversation_kind: String,
+    pub conversation_title: String,
     pub sender_id: Option<Uuid>,
     pub sender: String,
     pub content: String,
@@ -55,6 +59,8 @@ impl AccountEventRow {
             message_id: self.message_id,
             room_id: self.room_id,
             room_name: self.room_name,
+            conversation_kind: self.conversation_kind,
+            conversation_title: self.conversation_title,
             sender_id: self.sender_id,
             sender: self.sender,
             content: self.content,
@@ -97,11 +103,20 @@ impl AppState {
         };
         let sql = format!(
             "SELECT messages.id AS message_id, messages.room_id, rooms.name AS room_name, \
+             CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END \
+               AS conversation_kind, \
+             CASE WHEN direct.room_id IS NULL THEN rooms.name \
+               ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END \
+               AS conversation_title, \
              messages.sender_id, messages.sender, messages.content, \
              attachments.file_name AS attachment_file_name, messages.created_at, \
              (mention.message_id IS NOT NULL) AS is_mention \
              FROM messages JOIN rooms ON rooms.id = messages.room_id \
              JOIN room_memberships ON room_memberships.room_id = messages.room_id \
+             LEFT JOIN direct_conversations AS direct ON direct.room_id = rooms.id \
+             LEFT JOIN users AS peer ON peer.id = CASE \
+               WHEN direct.user_low_id = $1 THEN direct.user_high_id \
+               WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \
              LEFT JOIN attachments ON attachments.id = messages.attachment_id \
              LEFT JOIN message_mentions AS mention ON mention.message_id = messages.id \
                AND mention.mentioned_user_id = $1 \

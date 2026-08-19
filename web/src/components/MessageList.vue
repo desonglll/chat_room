@@ -16,6 +16,7 @@ import type { Attachment, BroadcastMessage, DisplayMessage, ReadReceipt, ReplyPr
 
 const props = defineProps<{
   roomId: string
+  direct: boolean
   unreadCount: number
   messages: DisplayMessage[]
   readReceipts: ReadReceipt[]
@@ -332,7 +333,7 @@ onBeforeUnmount(() => {
               class="mb-1 flex items-center gap-2 text-xs text-muted-color"
               :class="{ 'justify-end': message.sender_id === currentUserId }"
             >
-              <strong v-if="isGroupStart(index)">{{
+              <strong v-if="isGroupStart(index) && !direct">{{
                 message.sender_id === currentUserId ? '你' : message.sender
               }}</strong>
               <time>{{ formatTime(message.timestamp) }}</time>
@@ -431,6 +432,7 @@ onBeforeUnmount(() => {
               "
               :read="readDetails.get(message.message_id)!.read"
               :unread="readDetails.get(message.message_id)!.unread"
+              :direct="direct"
             />
             <MessageDeliveryStatus
               v-else-if="message.sender_id === currentUserId && message.delivery_state"
