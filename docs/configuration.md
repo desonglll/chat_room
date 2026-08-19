@@ -38,6 +38,16 @@ be greater than zero. Restart the server after changing it. The browser client
 reads the effective value from `GET /api/config`, so its validation and error
 messages stay aligned with the server.
 
+The browser uses a durable chunked session for every attachment. It first
+reads the file in bounded chunks to compute SHA-256, then reports upload
+progress only from byte offsets confirmed by the server. An interrupted task
+is listed again after a refresh; the browser security model requires the user
+to reselect the original file, after which upload continues from the confirmed
+offset. If the same account has already uploaded healthy content with the same
+SHA-256 and size, the server creates a new logical attachment reference without
+receiving the file bytes again. The server still verifies newly received bytes
+against the declared hash before publishing them.
+
 `attachments.directory` is always used for in-progress staging. When OSS is
 disabled it also stores final attachment bytes. Relative paths are resolved
 from the server working directory. Final object keys are SHA-256 hashes, so

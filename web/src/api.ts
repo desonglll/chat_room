@@ -217,6 +217,7 @@ export interface CreateUploadSessionResult {
   upload_id: string
   received_bytes: number
   declared_size_bytes: number
+  deduplicated: boolean
 }
 
 export async function createUploadSession(
@@ -225,6 +226,7 @@ export async function createUploadSession(
   password: string,
   file: File,
   fingerprint: string,
+  contentHash: string,
 ): Promise<CreateUploadSessionResult> {
   const headers: Record<string, string> = { ...authHeaders(token), 'Content-Type': 'application/json' }
   if (password) headers['x-room-password'] = password
@@ -236,9 +238,11 @@ export async function createUploadSession(
       mime_type: file.type || 'application/octet-stream',
       size_bytes: file.size,
       fingerprint,
+      content_hash: contentHash,
     }),
   })
   if (response.status === 413) throw new Error('文件超出大小限制')
+  if (response.status === 409) throw new Error('所选文件与未完成上传的内容不一致')
   if (!response.ok) throw new Error(`创建上传会话失败：${response.status}`)
   return response.json() as Promise<CreateUploadSessionResult>
 }

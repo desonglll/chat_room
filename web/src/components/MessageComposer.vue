@@ -6,10 +6,8 @@ import Checkbox from 'primevue/checkbox'
 import Popover from 'primevue/popover'
 import Textarea from 'primevue/textarea'
 import EmojiPicker from './EmojiPicker.vue'
-import ProgressBar from 'primevue/progressbar'
 import { shouldSubmitMessage } from '../composer'
 import { formatUploadLimit, getAiSuggestions } from '../api'
-import type { ChunkedUploadProgress } from '../composables/useChunkedUpload'
 import type { BroadcastMessage, RoomMember, SendShortcut } from '../types'
 
 interface PendingFile {
@@ -26,7 +24,6 @@ const props = defineProps<{
   sendShortcut: SendShortcut
   maxUploadBytes: number
   participants: RoomMember[]
-  uploadProgress: ChunkedUploadProgress | null
   roomId: string
   token: string
   aiEnabled: boolean
@@ -362,14 +359,6 @@ defineExpose({ addFiles, focus })
       </Button>
     </div>
 
-    <div v-if="uploadProgress" class="flex items-center gap-2 px-3 pt-3 text-xs text-muted-color sm:px-7">
-      <span class="min-w-0 flex-1 truncate">正在上传 {{ uploadProgress.fileName }}</span>
-      <ProgressBar
-        :value="Math.round((uploadProgress.sentBytes / uploadProgress.totalBytes) * 100)"
-        class="h-1.5 w-24"
-        :show-value="false"
-      />
-    </div>
     <TransitionGroup
       v-if="pendingFiles.length"
       tag="div"

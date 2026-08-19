@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::attachment_upload_sessions::AttachmentUploadSession;
+use crate::attachment_upload_sessions::{AttachmentUploadSession, AttachmentUploadSpec};
 use crate::models::StoredMessage;
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
@@ -26,6 +26,8 @@ pub struct CreateUploadRequest {
     pub size_bytes: i64,
     #[serde(default)]
     pub fingerprint: String,
+    #[serde(default)]
+    pub content_hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -33,6 +35,7 @@ pub struct CreateUploadResponse {
     pub upload_id: Uuid,
     pub received_bytes: i64,
     pub declared_size_bytes: i64,
+    pub deduplicated: bool,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -64,6 +67,7 @@ pub struct ChunkQuery {
     responses(
         (status = 200, description = "Session created or resumed", body = CreateUploadResponse),
         (status = 400, description = "Invalid file name or size"),
+        (status = 409, description = "Selected content does not match the resumable session"),
         (status = 401, description = "Invalid account or room credentials"),
         (status = 413, description = "Declared size exceeds the configured upload limit")
     )
@@ -82,24 +86,59 @@ pub async fn create_upload(
     if request.size_bytes as usize > state.max_upload_bytes() {
         return Err(StatusCode::PAYLOAD_TOO_LARGE);
     }
+    let content_hash = normalize_content_hash(request.content_hash.as_deref())?;
+    let reusable_storage_key = match content_hash.as_deref() {
+        Some(hash) => state
+            .healthy_owned_storage_key(hash, user.id, request.size_bytes)
+            .await
+            .map_err(|error| {
+                tracing::error!("look up reusable attachment failed: {error}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?,
+        None => None,
+    };
+    let initial_received_bytes = if reusable_storage_key.is_some() {
+        request.size_bytes
+    } else {
+        0
+    };
     let session = state
-        .create_or_resume_attachment_upload(
+        .create_or_resume_attachment_upload(AttachmentUploadSpec {
             room_id,
-            user.id,
-            &file_name,
-            &request.mime_type,
-            request.size_bytes,
-            request.fingerprint.trim(),
-        )
+            uploader_id: user.id,
+            file_name: &file_name,
+            mime_type: &request.mime_type,
+            declared_size_bytes: request.size_bytes,
+            fingerprint: request.fingerprint.trim(),
+            content_hash: content_hash.as_deref(),
+            initial_received_bytes,
+        })
         .await
         .map_err(|error| {
             tracing::error!("create attachment upload session failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+    if matches!(
+        (session.content_hash.as_deref(), content_hash.as_deref()),
+        (Some(existing), Some(requested)) if existing != requested
+    ) {
+        return Err(StatusCode::CONFLICT);
+    }
+    if reusable_storage_key.is_some() {
+        state
+            .attachment_store()
+            .discard_chunked(session.id)
+            .await
+            .map_err(|error| {
+                tracing::error!("discard superseded upload staging failed: {error:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+    }
     Ok(Json(CreateUploadResponse {
         upload_id: session.id,
         received_bytes: session.received_bytes,
         declared_size_bytes: session.declared_size_bytes,
+        deduplicated: reusable_storage_key.is_some(),
     }))
 }
 
@@ -122,27 +161,33 @@ pub async fn upload_chunk(
     Query(query): Query<ChunkQuery>,
     headers: HeaderMap,
     body: Bytes,
-) -> Result<Json<ChunkResponse>, StatusCode> {
-    let token = bearer_token(&headers)?;
+) -> Result<Json<ChunkResponse>, (StatusCode, Json<ChunkResponse>)> {
+    let token = bearer_token(&headers).map_err(|status| chunk_error(status, 0))?;
     let user = state
         .session_user(token)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::UNAUTHORIZED)?;
+        .map_err(|_| chunk_error(StatusCode::INTERNAL_SERVER_ERROR, 0))?
+        .ok_or_else(|| chunk_error(StatusCode::UNAUTHORIZED, 0))?;
     let session = state
         .attachment_upload(upload_id)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
+        .map_err(|_| chunk_error(StatusCode::INTERNAL_SERVER_ERROR, 0))?
+        .ok_or_else(|| chunk_error(StatusCode::NOT_FOUND, 0))?;
     if session.uploader_id != user.id {
-        return Err(StatusCode::UNAUTHORIZED);
+        return Err(chunk_error(
+            StatusCode::UNAUTHORIZED,
+            session.received_bytes,
+        ));
     }
     if session.status != "in_progress" {
-        return Err(StatusCode::CONFLICT);
+        return Err(chunk_error(StatusCode::CONFLICT, session.received_bytes));
     }
     let next_size = session.received_bytes.saturating_add(body.len() as i64);
     if next_size > session.declared_size_bytes || next_size as usize > state.max_upload_bytes() {
-        return Err(StatusCode::PAYLOAD_TOO_LARGE);
+        return Err(chunk_error(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            session.received_bytes,
+        ));
     }
 
     match state
@@ -155,7 +200,7 @@ pub async fn upload_chunk(
             state
                 .update_attachment_upload_progress(upload_id, new_size)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|_| chunk_error(StatusCode::INTERNAL_SERVER_ERROR, new_size))?;
             Ok(Json(ChunkResponse {
                 received_bytes: new_size,
             }))
@@ -169,8 +214,10 @@ pub async fn upload_chunk(
                 .await
                 .unwrap_or(0) as i64;
             tracing::warn!("attachment chunk rejected: {error:#}");
-            let _ = state.update_attachment_upload_progress(upload_id, actual).await;
-            Err(StatusCode::CONFLICT)
+            let _ = state
+                .update_attachment_upload_progress(upload_id, actual)
+                .await;
+            Err(chunk_error(StatusCode::CONFLICT, actual))
         }
     }
 }
@@ -217,19 +264,52 @@ pub async fn complete_upload(
     }
 
     let display_name = state.resolve_display_name(session.room_id, &user).await;
-    let result = state
-        .store_chunked_attachment_message(
-            upload_id,
-            session.room_id,
-            &user,
-            &display_name,
-            session.file_name.clone(),
-            session.mime_type.clone(),
-            request.is_sensitive,
-            content,
-            request.reply_to,
-        )
-        .await;
+    let reusable_storage_key = match session.content_hash.as_deref() {
+        Some(hash) => state
+            .healthy_owned_storage_key(hash, user.id, session.declared_size_bytes)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        None => None,
+    };
+    let result = if let (Some(content_hash), Some(storage_key)) =
+        (session.content_hash.clone(), reusable_storage_key)
+    {
+        state
+            .attachment_store()
+            .discard_chunked(upload_id)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        state
+            .store_existing_attachment_message(
+                session.room_id,
+                &user,
+                &display_name,
+                session.file_name.clone(),
+                session.mime_type.clone(),
+                session.declared_size_bytes,
+                request.is_sensitive,
+                content,
+                request.reply_to,
+                content_hash,
+                storage_key,
+            )
+            .await
+    } else {
+        state
+            .store_chunked_attachment_message(
+                upload_id,
+                session.room_id,
+                &user,
+                &display_name,
+                session.file_name.clone(),
+                session.mime_type.clone(),
+                request.is_sensitive,
+                content,
+                request.reply_to,
+                session.content_hash.as_deref(),
+            )
+            .await
+    };
     match result {
         Ok(message) => {
             let _ = state.finish_attachment_upload(upload_id, "completed").await;
@@ -344,4 +424,18 @@ fn normalize_file_name(value: &str) -> Result<String, StatusCode> {
         return Err(StatusCode::BAD_REQUEST);
     }
     Ok(name)
+}
+
+fn normalize_content_hash(value: Option<&str>) -> Result<Option<String>, StatusCode> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    Ok(Some(value.to_ascii_lowercase()))
+}
+
+fn chunk_error(status: StatusCode, received_bytes: i64) -> (StatusCode, Json<ChunkResponse>) {
+    (status, Json(ChunkResponse { received_bytes }))
 }

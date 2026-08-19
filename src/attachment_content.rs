@@ -107,14 +107,20 @@ impl AppState {
         is_sensitive: bool,
         content: &str,
         reply_to: Option<Uuid>,
+        expected_hash: Option<&str>,
     ) -> Result<StoredMessage> {
         let content_hash = self.attachment_store().hash_chunked(upload_id).await?;
+        if expected_hash.is_some_and(|expected| expected != content_hash) {
+            anyhow::bail!("uploaded content does not match its declared SHA-256");
+        }
         let _guard = self.content_hash_locks().lock(&content_hash).await;
         let existing_key = self.healthy_storage_key(&content_hash).await?;
         let (storage_key, size_bytes) = match existing_key {
             Some(key) => {
                 let size = i64::try_from(
-                    self.attachment_store().chunked_upload_size(upload_id).await?,
+                    self.attachment_store()
+                        .chunked_upload_size(upload_id)
+                        .await?,
                 )
                 .context("attachment is too large")?;
                 self.attachment_store().discard_chunked(upload_id).await?;
@@ -142,6 +148,64 @@ impl AppState {
             storage_key,
         )
         .await
+    }
+
+    /// Create a new attachment reference without receiving the bytes again.
+    /// Callers must first resolve `storage_key` through the uploader-scoped
+    /// lookup below.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn store_existing_attachment_message(
+        &self,
+        room_id: Uuid,
+        sender: &User,
+        sender_display_name: &str,
+        file_name: String,
+        mime_type: String,
+        size_bytes: i64,
+        is_sensitive: bool,
+        content: &str,
+        reply_to: Option<Uuid>,
+        content_hash: String,
+        storage_key: String,
+    ) -> Result<StoredMessage> {
+        self.finalize_attachment_message(
+            room_id,
+            sender,
+            sender_display_name,
+            file_name,
+            mime_type,
+            size_bytes,
+            is_sensitive,
+            content,
+            reply_to,
+            content_hash,
+            storage_key,
+        )
+        .await
+    }
+
+    pub async fn healthy_owned_storage_key(
+        &self,
+        content_hash: &str,
+        uploader_id: Uuid,
+        size_bytes: i64,
+    ) -> Result<Option<String>> {
+        let key: Option<String> = with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "SELECT storage_key FROM attachments \
+                 WHERE content_hash = $1 AND uploader_id = $2 AND size_bytes = $3 \
+                 AND storage_key IS NOT NULL LIMIT 1",
+            )
+            .bind(content_hash)
+            .bind(uploader_id)
+            .bind(size_bytes)
+            .fetch_optional(pool)
+            .await
+        })?;
+        match key {
+            Some(key) if self.attachment_store().exists(&key).await? => Ok(Some(key)),
+            _ => Ok(None),
+        }
     }
 
     async fn healthy_storage_key(&self, content_hash: &str) -> Result<Option<String>> {
@@ -335,7 +399,9 @@ impl AppState {
                 let hash = match self.attachment_store().hash_stored(&key).await {
                     Ok(hash) => hash,
                     Err(error) => {
-                        tracing::warn!("backfill content hash for attachment {id} failed: {error:#}");
+                        tracing::warn!(
+                            "backfill content hash for attachment {id} failed: {error:#}"
+                        );
                         continue;
                     }
                 };

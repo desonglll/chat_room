@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@noble/hashes": "2.3.0",
     "@primeuix/themes": "1.2.5",
     "emoji-picker-element": "^1.29.1",
     "emoji-picker-element-data": "^1.8.0",

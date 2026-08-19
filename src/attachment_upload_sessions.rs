@@ -18,9 +18,22 @@ pub struct AttachmentUploadSession {
     pub declared_size_bytes: i64,
     pub received_bytes: i64,
     pub fingerprint: String,
+    #[serde(skip_serializing)]
+    pub content_hash: Option<String>,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+pub(crate) struct AttachmentUploadSpec<'a> {
+    pub room_id: Uuid,
+    pub uploader_id: Uuid,
+    pub file_name: &'a str,
+    pub mime_type: &'a str,
+    pub declared_size_bytes: i64,
+    pub fingerprint: &'a str,
+    pub content_hash: Option<&'a str>,
+    pub initial_received_bytes: i64,
 }
 
 impl AppState {
@@ -28,31 +41,64 @@ impl AppState {
     /// one for the same (uploader, room, fingerprint) — the resume handshake: the
     /// client re-selects the same file and this lets it continue instead of
     /// restarting from byte zero.
-    pub async fn create_or_resume_attachment_upload(
+    pub(crate) async fn create_or_resume_attachment_upload(
         &self,
-        room_id: Uuid,
-        uploader_id: Uuid,
-        file_name: &str,
-        mime_type: &str,
-        declared_size_bytes: i64,
-        fingerprint: &str,
+        spec: AttachmentUploadSpec<'_>,
     ) -> Result<AttachmentUploadSession, sqlx::Error> {
+        let AttachmentUploadSpec {
+            room_id,
+            uploader_id,
+            file_name,
+            mime_type,
+            declared_size_bytes,
+            fingerprint,
+            content_hash,
+            initial_received_bytes,
+        } = spec;
         if !fingerprint.is_empty() {
             let existing: Option<AttachmentUploadSession> = with_pool!(self, |pool| {
                 sqlx::query_as(
                     "SELECT id, room_id, uploader_id, file_name, mime_type, declared_size_bytes, \
-                     received_bytes, fingerprint, status, created_at, updated_at \
+                     received_bytes, fingerprint, content_hash, status, created_at, updated_at \
                      FROM attachment_uploads \
                      WHERE room_id = $1 AND uploader_id = $2 AND fingerprint = $3 \
-                     AND status = 'in_progress'",
+                     AND declared_size_bytes = $4 AND status = 'in_progress'",
                 )
                 .bind(room_id)
                 .bind(uploader_id)
                 .bind(fingerprint)
+                .bind(declared_size_bytes)
                 .fetch_optional(pool)
                 .await
             })?;
-            if let Some(session) = existing {
+            if let Some(mut session) = existing {
+                if matches!(
+                    (session.content_hash.as_deref(), content_hash),
+                    (Some(existing), Some(requested)) if existing != requested
+                ) {
+                    return Ok(session);
+                }
+                if session.content_hash.is_none() || initial_received_bytes > session.received_bytes
+                {
+                    let received_bytes = session.received_bytes.max(initial_received_bytes);
+                    with_pool!(self, |pool| {
+                        sqlx::query(
+                            "UPDATE attachment_uploads SET content_hash = COALESCE(content_hash, $1), \
+                             received_bytes = $2, updated_at = $3 WHERE id = $4",
+                        )
+                        .bind(content_hash)
+                        .bind(received_bytes)
+                        .bind(Utc::now())
+                        .bind(session.id)
+                        .execute(pool)
+                        .await
+                        .map(|_| ())
+                    })?;
+                    session.content_hash = session
+                        .content_hash
+                        .or_else(|| content_hash.map(str::to_owned));
+                    session.received_bytes = received_bytes;
+                }
                 return Ok(session);
             }
         }
@@ -63,8 +109,8 @@ impl AppState {
             sqlx::query(
                 "INSERT INTO attachment_uploads \
                  (id, room_id, uploader_id, file_name, mime_type, declared_size_bytes, \
-                  received_bytes, fingerprint, status, created_at, updated_at) \
-                 VALUES ($1, $2, $3, $4, $5, $6, 0, $7, 'in_progress', $8, $9)",
+                  received_bytes, fingerprint, content_hash, status, created_at, updated_at) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'in_progress', $10, $11)",
             )
             .bind(id)
             .bind(room_id)
@@ -72,7 +118,9 @@ impl AppState {
             .bind(file_name)
             .bind(mime_type)
             .bind(declared_size_bytes)
+            .bind(initial_received_bytes)
             .bind(fingerprint)
+            .bind(content_hash)
             .bind(now)
             .bind(now)
             .execute(pool)
@@ -86,8 +134,9 @@ impl AppState {
             file_name: file_name.to_string(),
             mime_type: mime_type.to_string(),
             declared_size_bytes,
-            received_bytes: 0,
+            received_bytes: initial_received_bytes,
             fingerprint: fingerprint.to_string(),
+            content_hash: content_hash.map(str::to_owned),
             status: "in_progress".to_string(),
             created_at: now,
             updated_at: now,
@@ -101,7 +150,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT id, room_id, uploader_id, file_name, mime_type, declared_size_bytes, \
-                 received_bytes, fingerprint, status, created_at, updated_at \
+                 received_bytes, fingerprint, content_hash, status, created_at, updated_at \
                  FROM attachment_uploads WHERE id = $1",
             )
             .bind(upload_id)
@@ -118,7 +167,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT id, room_id, uploader_id, file_name, mime_type, declared_size_bytes, \
-                 received_bytes, fingerprint, status, created_at, updated_at \
+                 received_bytes, fingerprint, content_hash, status, created_at, updated_at \
                  FROM attachment_uploads \
                  WHERE room_id = $1 AND uploader_id = $2 AND status = 'in_progress' \
                  ORDER BY updated_at DESC",

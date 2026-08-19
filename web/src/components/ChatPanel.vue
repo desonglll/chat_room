@@ -20,9 +20,11 @@ import ChatFilesDialog from './ChatFilesDialog.vue'
 import ImageViewerGallery from './ImageViewerGallery.vue'
 import ProfileCardDialog from './ProfileCardDialog.vue'
 import ScopedPasswordField from './ScopedPasswordField.vue'
+import UploadStatusPanel from './UploadStatusPanel.vue'
 import { shouldFocusComposer } from '../composer'
 import type {
   Attachment,
+  AttachmentUploadSession,
   BroadcastMessage,
   ChatStatus,
   DisplayMessage,
@@ -64,6 +66,7 @@ const props = defineProps<{
   loadingOlder: boolean
   hasMoreHistory: boolean
   uploadProgress: ChunkedUploadProgress | null
+  pendingUploads: AttachmentUploadSession[]
   aiEnabled: boolean
   loading: boolean
 }>()
@@ -78,6 +81,8 @@ const emit = defineEmits<{
   send: [content: string, replyTo: string]
   read: [messageId: string]
   upload: [files: File[], content: string, replyTo: string, isSensitive: boolean]
+  resumeUpload: [session: AttachmentUploadSession, file: File]
+  cancelUpload: [session: AttachmentUploadSession]
   recall: [messageId: string]
   edit: [messageId: string, content: string]
   forward: [messageIds: string[]]
@@ -386,27 +391,34 @@ onBeforeUnmount(() => {
           <span>保存</span>
         </Button>
       </div>
-      <MessageComposer
-        v-else
-        ref="composerRef"
-        :key="room.id"
-        :replying-to="replyingTo"
-        :editing-to="editingTo"
-        :uploading="uploading"
-        :send-shortcut="sendShortcut"
-        :max-upload-bytes="maxUploadBytes"
-        :participants="participants"
-        :upload-progress="uploadProgress"
-        :room-id="room.id"
-        :token="token"
-        :ai-enabled="aiEnabled"
-        @cancel-reply="replyingTo = null"
-        @cancel-edit="editingTo = null"
-        @send="sendMessage"
-        @edit="editMessage"
-        @typing="emit('typing', $event)"
-        @upload="uploadFiles"
-      />
+      <template v-else>
+        <UploadStatusPanel
+          :progress="uploadProgress"
+          :pending="pendingUploads"
+          :disabled="uploading"
+          @resume="(session, file) => emit('resumeUpload', session, file)"
+          @cancel="emit('cancelUpload', $event)"
+        />
+        <MessageComposer
+          ref="composerRef"
+          :key="room.id"
+          :replying-to="replyingTo"
+          :editing-to="editingTo"
+          :uploading="uploading"
+          :send-shortcut="sendShortcut"
+          :max-upload-bytes="maxUploadBytes"
+          :participants="participants"
+          :room-id="room.id"
+          :token="token"
+          :ai-enabled="aiEnabled"
+          @cancel-reply="replyingTo = null"
+          @cancel-edit="editingTo = null"
+          @send="sendMessage"
+          @edit="editMessage"
+          @typing="emit('typing', $event)"
+          @upload="uploadFiles"
+        />
+      </template>
     </section>
     <ChatFilesDialog
       :open="filesOpen"
