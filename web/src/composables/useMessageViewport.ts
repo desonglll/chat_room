@@ -1,11 +1,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { preferredScrollBehavior } from '../motionPreference'
+import { firstUnreadMessageId } from '../messageViewportPolicy'
 import type { BroadcastMessage, ReadReceipt } from '../types'
 
 interface MessageViewportOptions {
   list: Ref<HTMLElement | null>
   broadcasts: ComputedRef<BroadcastMessage[]>
   roomId: () => string
+  unreadCount: () => number
   historyReady: () => boolean
   currentUserId: () => string
   readReceipts: () => ReadReceipt[]
@@ -24,8 +26,11 @@ export function useMessageViewport(options: MessageViewportOptions) {
   const awayFromBottom = ref(false)
   const visibleIds = new Set<string>()
   let observer: IntersectionObserver | null = null
+  let layoutObserver: ResizeObserver | null = null
+  let layoutFrame = 0
   let lastReadId = ''
   let historyInitialized = false
+  let followLayoutChanges = false
   let suppressScrollUntil = 0
   let visibleReadTimer: number | undefined
 
@@ -70,10 +75,37 @@ export function useMessageViewport(options: MessageViewportOptions) {
     }, delay)
   }
 
+  function handleLayoutChange(): void {
+    window.cancelAnimationFrame(layoutFrame)
+    layoutFrame = window.requestAnimationFrame(() => {
+      layoutFrame = 0
+      const list = options.list.value
+      if (!list) return
+      if (!followLayoutChanges) {
+        updateBottomState()
+        return
+      }
+      suppressScrollUntil = performance.now() + 80
+      list.scrollTop = list.scrollHeight
+      awayFromBottom.value = false
+    })
+  }
+
+  function rebuildLayoutObserver(): void {
+    layoutObserver?.disconnect()
+    const list = options.list.value
+    if (!list || !('ResizeObserver' in window)) return
+    layoutObserver = new ResizeObserver(handleLayoutChange)
+    for (const element of list.querySelectorAll<HTMLElement>('[data-message-id], [data-upload-id]')) {
+      layoutObserver.observe(element)
+    }
+  }
+
   function rebuildObserver(): void {
     observer?.disconnect()
     visibleIds.clear()
     const list = options.list.value
+    rebuildLayoutObserver()
     if (!list || !('IntersectionObserver' in window)) return
     observer = new IntersectionObserver(
       (entries) => {
@@ -100,16 +132,23 @@ export function useMessageViewport(options: MessageViewportOptions) {
     const receipt = options.readReceipts().find((item) => item.user_id === options.currentUserId())
     lastReadId = receipt?.message_id || ''
     suppressScrollUntil = performance.now() + 180
-    list.scrollTop = list.scrollHeight
+    const firstUnreadId = firstUnreadMessageId(options.broadcasts.value, options.unreadCount(), options.currentUserId())
+    followLayoutChanges = !firstUnreadId
+    if (firstUnreadId) {
+      list.querySelector<HTMLElement>(`[data-message-id="${firstUnreadId}"]`)?.scrollIntoView({ block: 'start' })
+    } else {
+      list.scrollTop = list.scrollHeight
+    }
     updateBottomState()
     rebuildObserver()
-    markThrough(broadcastIds.value.at(-1) || '')
+    if (!firstUnreadId) markThrough(broadcastIds.value.at(-1) || '')
     scheduleVisibleRead()
   }
 
   function handleScroll(): void {
     updateBottomState()
     if (performance.now() < suppressScrollUntil) return
+    followLayoutChanges = isNearBottom()
     markVisibleMessages()
     if (options.onLoadOlder && (options.list.value?.scrollTop ?? Infinity) <= LOAD_OLDER_DISTANCE) {
       options.onLoadOlder()
@@ -122,6 +161,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
     if (!list) return
     unseenIds.value = []
     awayFromBottom.value = false
+    followLayoutChanges = true
     suppressScrollUntil = performance.now() + 220
     list.scrollTo({ top: list.scrollHeight, behavior: preferredScrollBehavior() })
     window.setTimeout(() => markThrough(broadcastIds.value.at(-1) || ''), 240)
@@ -131,11 +171,14 @@ export function useMessageViewport(options: MessageViewportOptions) {
     () => options.roomId(),
     () => {
       observer?.disconnect()
+      layoutObserver?.disconnect()
+      window.cancelAnimationFrame(layoutFrame)
       visibleIds.clear()
       unseenIds.value = []
       awayFromBottom.value = false
       lastReadId = ''
       historyInitialized = false
+      followLayoutChanges = false
       suppressScrollUntil = performance.now() + 180
     },
   )
@@ -159,6 +202,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
         nextIds.length > previousIds.length &&
         previousIds.every((id, index) => id === nextIds[index + (nextIds.length - previousIds.length)])
       if (isPrepend) {
+        followLayoutChanges = false
         const list = options.list.value
         const previousScrollHeight = list?.scrollHeight ?? 0
         const previousScrollTop = list?.scrollTop ?? 0
@@ -186,6 +230,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
       if (follow) {
         const list = options.list.value
         if (list) {
+          followLayoutChanges = true
           suppressScrollUntil = performance.now() + 120
           list.scrollTo({ top: list.scrollHeight, behavior: preferredScrollBehavior() })
           awayFromBottom.value = false
@@ -224,6 +269,8 @@ export function useMessageViewport(options: MessageViewportOptions) {
   })
   onBeforeUnmount(() => {
     observer?.disconnect()
+    layoutObserver?.disconnect()
+    window.cancelAnimationFrame(layoutFrame)
     window.clearTimeout(visibleReadTimer)
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })

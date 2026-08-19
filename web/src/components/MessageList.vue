@@ -16,6 +16,7 @@ import type { Attachment, BroadcastMessage, DisplayMessage, ReadReceipt, ReplyPr
 
 const props = defineProps<{
   roomId: string
+  unreadCount: number
   messages: DisplayMessage[]
   readReceipts: ReadReceipt[]
   participants: RoomMember[]
@@ -137,6 +138,7 @@ const { awayFromBottom, handleScroll, scrollToBottom, unseenCount } = useMessage
   list: messageList,
   broadcasts,
   roomId: () => props.roomId,
+  unreadCount: () => props.unreadCount,
   historyReady: () => props.historyReady,
   currentUserId: () => props.currentUserId,
   readReceipts: () => props.readReceipts,

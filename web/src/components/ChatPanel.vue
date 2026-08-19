@@ -323,6 +323,7 @@ onBeforeUnmount(() => {
       <MessageList
         ref="messageListRef"
         :room-id="room?.id || ''"
+        :unread-count="room?.unread_count || 0"
         :messages="messages"
         :read-receipts="readReceipts"
         :participants="participants"

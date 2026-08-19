@@ -84,6 +84,7 @@ export function useAttachmentUpload(options: UploadOptions) {
       mime_type: source.file.type || 'application/octet-stream',
       size_bytes: source.file.size,
       preview_url: source.previewUrl,
+      is_sensitive: source.draft.isSensitive,
       content: source.draft.content,
       phase: 'queued',
       processed_bytes: 0,

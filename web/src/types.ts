@@ -178,6 +178,7 @@ export interface UploadMessage {
   mime_type: string
   size_bytes: number
   preview_url: string
+  is_sensitive: boolean
   content: string
   phase: UploadPhase
   processed_bytes: number

@@ -180,7 +180,29 @@
   transform: scale(0.96);
 }
 
+.room-switch-enter-active,
+.room-switch-leave-active {
+  transition:
+    opacity var(--cr-motion-normal) var(--cr-ease-out),
+    transform var(--cr-motion-normal) var(--cr-ease-out);
+}
+
+.room-switch-enter-from {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.room-switch-leave-to {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .room-switch-enter-active,
+  .room-switch-leave-active {
+    transition: none;
+  }
+
   .p-button:active:not(:disabled):not([data-p-disabled='true']),
   .p-togglebutton:active:not(:disabled) {
     transform: none;

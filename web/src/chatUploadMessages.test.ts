@@ -10,6 +10,7 @@ const upload: UploadMessage = {
   mime_type: 'video/mp4',
   size_bytes: 100,
   preview_url: '',
+  is_sensitive: true,
   content: '',
   phase: 'queued',
   processed_bytes: 0,
@@ -41,6 +42,7 @@ describe('upload messages', () => {
     const result = completeUploadMessage([...progressing, completed], upload.key, completed)
 
     expect(progressing[0]).toMatchObject({ type: 'upload', phase: 'uploading', processed_bytes: 50 })
+    expect(progressing[0]).toMatchObject({ is_sensitive: true })
     expect(result?.[0]).toMatchObject({ type: 'broadcast', message_id: 'message-1', motion: 'outgoing' })
     expect(result).toHaveLength(1)
   })

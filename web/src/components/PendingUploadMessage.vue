@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { File, FileVideo, RotateCcw, X } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Eye, File, FileVideo, RotateCcw, ShieldAlert, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import ProgressBar from 'primevue/progressbar'
 import { uploadPercent } from '../attachmentUploadProgress'
@@ -7,6 +8,7 @@ import type { UploadMessage } from '../types'
 
 const props = defineProps<{ message: UploadMessage }>()
 const emit = defineEmits<{ cancel: [key: string]; retry: [key: string] }>()
+const revealed = ref(false)
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -36,20 +38,43 @@ function statusLabel(message: UploadMessage): string {
         <time>{{ formatTime(message.timestamp) }}</time>
       </div>
       <div class="overflow-hidden rounded-2xl rounded-br-md border border-surface-200 bg-surface-0 shadow-sm">
-        <img
-          v-if="message.preview_url && message.mime_type.startsWith('image/')"
-          :src="message.preview_url"
-          :alt="message.file_name"
-          class="max-h-64 w-full object-contain"
-        />
-        <video
-          v-else-if="message.preview_url && message.mime_type.startsWith('video/')"
-          :src="message.preview_url"
-          class="max-h-64 w-full bg-black object-contain"
-          muted
-          playsinline
-          preload="metadata"
-        />
+        <div
+          v-if="message.preview_url || (message.is_sensitive && !revealed)"
+          class="relative overflow-hidden"
+          :class="{ 'min-h-28': message.is_sensitive && !revealed }"
+        >
+          <img
+            v-if="message.mime_type.startsWith('image/')"
+            :src="message.preview_url"
+            :alt="message.file_name"
+            class="max-h-64 w-full object-contain transition"
+            :class="{ 'scale-110 blur-xl': message.is_sensitive && !revealed }"
+          />
+          <video
+            v-else-if="message.mime_type.startsWith('video/')"
+            :src="message.preview_url"
+            class="max-h-64 w-full bg-black object-contain transition"
+            :class="{ 'scale-110 blur-xl': message.is_sensitive && !revealed }"
+            muted
+            playsinline
+            preload="metadata"
+          />
+          <div
+            v-if="message.is_sensitive && !revealed"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-900/55 text-white"
+          >
+            <ShieldAlert :size="26" />
+            <strong class="text-sm">已标记为敏感内容</strong>
+            <button
+              type="button"
+              class="mt-1 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-surface-900 hover:bg-white"
+              @click="revealed = true"
+            >
+              <Eye :size="14" />
+              <span>确认查看</span>
+            </button>
+          </div>
+        </div>
         <div class="flex items-center gap-3 px-3 py-2.5">
           <span class="grid size-10 shrink-0 place-items-center rounded-full bg-primary-50 text-primary">
             <FileVideo v-if="message.mime_type.startsWith('video/')" :size="20" />
