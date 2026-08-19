@@ -318,3 +318,105 @@ async fn account_socket_updates_unread_count_after_message_and_read() {
     let read = next_type(&mut account_socket, "unread_counts").await;
     assert_eq!(read["rooms"][0]["unread_count"], 0);
 }
+
+#[tokio::test]
+async fn account_socket_surfaces_join_requests_to_room_managers() {
+    let server = start_server().await;
+    let client = reqwest::Client::new();
+    let (owner_token, _) = account(&server.base, "request-notice-owner").await;
+    let (applicant_token, applicant_id) = account(&server.base, "request-notice-applicant").await;
+    let room_id = create_room(
+        &server.base,
+        &owner_token,
+        "request-notice-room",
+        "approval",
+    )
+    .await;
+    let account_url = format!("{}/ws/account", server.base.replacen("http://", "ws://", 1));
+    let (mut owner_account, _) = connect_async(account_url).await.unwrap();
+    owner_account
+        .send(Message::Text(
+            serde_json::json!({ "token": owner_token }).to_string(),
+        ))
+        .await
+        .unwrap();
+    let initial = next_type(&mut owner_account, "unread_counts").await;
+    let room = initial["rooms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["room_id"] == room_id)
+        .unwrap();
+    assert_eq!(room["pending_join_requests"], 0);
+
+    assert_eq!(
+        client
+            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .bearer_auth(&applicant_token)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::ACCEPTED
+    );
+
+    let updated = next_type(&mut owner_account, "unread_counts").await;
+    let room = updated["rooms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["room_id"] == room_id)
+        .unwrap();
+    assert_eq!(room["pending_join_requests"], 1);
+    assert!(room["pending_join_requested_at"].is_string());
+
+    let conversations: Vec<serde_json::Value> = client
+        .get(format!("{}/api/conversations", server.base))
+        .bearer_auth(&owner_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let conversation = conversations
+        .iter()
+        .find(|item| item["room_id"] == room_id)
+        .unwrap();
+    assert_eq!(conversation["pending_join_requests"], 1);
+
+    let applicant_conversations: Vec<serde_json::Value> = client
+        .get(format!("{}/api/conversations", server.base))
+        .bearer_auth(&applicant_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(applicant_conversations[0]["pending_join_requests"], 0);
+
+    assert_eq!(
+        client
+            .patch(format!(
+                "{}/api/rooms/{room_id}/members/{applicant_id}",
+                server.base
+            ))
+            .bearer_auth(&owner_token)
+            .json(&serde_json::json!({ "action": "approve" }))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    let resolved = next_type(&mut owner_account, "unread_counts").await;
+    let room = resolved["rooms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["room_id"] == room_id)
+        .unwrap();
+    assert_eq!(room["pending_join_requests"], 0);
+}

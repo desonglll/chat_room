@@ -334,6 +334,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     }
 
     nextSocket.onerror = () => {
+      if (socket !== nextSocket) return
       clearHandshakeTimer()
       if (status.value !== 'online') {
         error.value = '无法连接聊天室'

@@ -324,6 +324,7 @@ function openForward(messageIds: string[]): void {
 function handleForwarded(): void {
   forwardOpen.value = false
   showToast('已转发')
+  void conversationState.refresh()
 }
 </script>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Badge from 'primevue/badge'
 import { avatarColor } from '../avatarColor'
-import { conversationPreview } from '../conversationState'
+import { conversationAttentionCount, conversationPreview } from '../conversationState'
 import type { ConversationSummary } from '../types'
 import IconSprite from './IconSprite.vue'
 
@@ -31,8 +31,8 @@ function formatActivity(value: string): string {
     <IconSprite v-else-if="conversation.kind === 'group'" name="rooms" :size="18" />
     <template v-else>{{ conversation.title.slice(0, 1).toUpperCase() }}</template>
     <Badge
-      v-if="collapsed && conversation.unread_count > 0"
-      :value="conversation.unread_count > 99 ? '99+' : String(conversation.unread_count)"
+      v-if="collapsed && conversationAttentionCount(conversation) > 0"
+      :value="conversationAttentionCount(conversation) > 99 ? '99+' : String(conversationAttentionCount(conversation))"
       severity="danger"
       class="absolute -right-1 -top-1"
     />
@@ -52,8 +52,10 @@ function formatActivity(value: string): string {
         {{ conversationPreview(conversation) }}
       </small>
       <Badge
-        v-if="conversation.unread_count > 0"
-        :value="conversation.unread_count > 99 ? '99+' : String(conversation.unread_count)"
+        v-if="conversationAttentionCount(conversation) > 0"
+        :value="
+          conversationAttentionCount(conversation) > 99 ? '99+' : String(conversationAttentionCount(conversation))
+        "
         severity="danger"
         class="shrink-0"
       />

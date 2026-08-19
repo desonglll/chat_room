@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { applyAccountMessage, conversationToRoom, sortConversations } from './conversationState'
+import {
+  applyAccountMessage,
+  applyAccountStates,
+  conversationPreview,
+  conversationToRoom,
+  sortConversations,
+} from './conversationState'
 import type { AccountMessageEvent, ConversationSummary } from './types'
 
 function conversation(overrides: Partial<ConversationSummary> = {}): ConversationSummary {
@@ -12,6 +18,7 @@ function conversation(overrides: Partial<ConversationSummary> = {}): Conversatio
     group: null,
     peer: null,
     unread_count: 0,
+    pending_join_requests: 0,
     last_message: null,
     last_activity_at: '2026-08-19T08:00:00Z',
     created_at: '2026-08-18T08:00:00Z',
@@ -75,5 +82,41 @@ describe('conversation state', () => {
       membership_status: 'active',
       membership_role: 'member',
     })
+  })
+
+  it('surfaces pending join requests ahead of the latest room message', () => {
+    const pending = conversation({
+      pending_join_requests: 2,
+      last_message: {
+        message_id: 'message-1',
+        sender_id: 'member-1',
+        sender: '成员',
+        content: '普通消息',
+        attachment_file_name: null,
+        recalled: false,
+        created_at: '2026-08-19T08:30:00Z',
+      },
+    })
+
+    expect(conversationPreview(pending)).toBe('2 条入群申请')
+  })
+
+  it('moves a room when an account snapshot reports a new join request', () => {
+    const result = applyAccountStates(
+      [conversation(), conversation({ room_id: 'room-2', last_activity_at: '2026-08-19T09:00:00Z' })],
+      new Map([
+        [
+          'room-1',
+          {
+            unread_count: 0,
+            pending_join_requests: 1,
+            pending_join_requested_at: '2026-08-19T10:00:00Z',
+          },
+        ],
+      ]),
+    )
+
+    expect(result[0]).toMatchObject({ room_id: 'room-1', pending_join_requests: 1 })
+    expect(conversationPreview(result[0] as ConversationSummary)).toBe('1 条入群申请')
   })
 })

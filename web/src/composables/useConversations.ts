@@ -1,10 +1,12 @@
 import { computed, ref, watch, type Ref } from 'vue'
-import { applyAccountMessage, sortConversations } from '../conversationState'
+import { applyAccountMessage, applyAccountStates, sortConversations } from '../conversationState'
 import { listConversations } from '../socialApi'
 import type { AccountMessageEvent, ConversationSummary } from '../types'
 
 interface UnreadState {
   unread_count: number
+  pending_join_requests: number
+  pending_join_requested_at: string | null
 }
 
 export function useConversations(token: Ref<string>, activeRoomId: Ref<string | undefined>) {
@@ -36,10 +38,7 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
   }
 
   function applyUnread(states: Map<string, UnreadState>): void {
-    conversations.value = conversations.value.map((conversation) => ({
-      ...conversation,
-      unread_count: states.get(conversation.room_id)?.unread_count || 0,
-    }))
+    conversations.value = applyAccountStates(conversations.value, states)
   }
 
   function handleMessage(event: AccountMessageEvent): void {

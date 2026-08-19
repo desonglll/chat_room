@@ -26,6 +26,7 @@ pub struct ConversationSummary {
     pub group: Option<Room>,
     pub peer: Option<UserSummary>,
     pub unread_count: i64,
+    pub pending_join_requests: i64,
     pub last_message: Option<MessagePreview>,
     pub last_activity_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,

@@ -21,6 +21,8 @@ struct ConversationRow {
     membership_status: String,
     membership_role: String,
     unread_count: i64,
+    pending_join_requests: i64,
+    pending_join_requested_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     last_activity_at: DateTime<Utc>,
     peer_id: Option<Uuid>,
@@ -42,6 +44,11 @@ fn preview_content(value: &str) -> String {
 
 impl ConversationRow {
     fn into_summary(self) -> ConversationSummary {
+        let last_activity_at = self
+            .pending_join_requested_at
+            .map_or(self.last_activity_at, |requested_at| {
+                requested_at.max(self.last_activity_at)
+            });
         let group = (self.kind == "group").then(|| Room {
             id: self.room_id,
             name: self.room_name,
@@ -80,8 +87,9 @@ impl ConversationRow {
             group,
             peer,
             unread_count: self.unread_count,
+            pending_join_requests: self.pending_join_requests,
             last_message,
-            last_activity_at: self.last_activity_at,
+            last_activity_at,
             created_at: self.created_at,
         }
     }
@@ -115,6 +123,14 @@ impl AppState {
                      AND (read_message.id IS NULL OR unread.created_at > read_message.created_at \
                        OR (unread.created_at = read_message.created_at AND unread.id > read_message.id))) \
                    AS BIGINT) AS unread_count, rooms.created_at, \
+                 CAST(CASE WHEN review.role_id IS NULL THEN 0 \
+                   ELSE (SELECT COUNT(*) FROM room_memberships AS requests \
+                     WHERE requests.room_id = rooms.id AND requests.status = 'pending') \
+                   END AS BIGINT) AS pending_join_requests, \
+                 CASE WHEN review.role_id IS NULL THEN NULL ELSE \
+                   (SELECT MAX(requests.requested_at) FROM room_memberships AS requests \
+                     WHERE requests.room_id = rooms.id AND requests.status = 'pending') \
+                   END AS pending_join_requested_at, rooms.created_at, \
                  COALESCE(last_message.created_at, rooms.created_at) AS last_activity_at, \
                  peer.id AS peer_id, peer.username AS peer_username, \
                  peer.avatar_emoji AS peer_avatar, peer.display_name AS peer_display_name, \
@@ -126,6 +142,8 @@ impl AppState {
                  FROM room_memberships AS memberships \
                  JOIN rooms ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
                  JOIN room_roles AS roles ON roles.id = memberships.role_id \
+                 LEFT JOIN room_role_permissions AS review ON review.role_id = roles.id \
+                   AND review.permission_key = 'members.review' \
                  LEFT JOIN direct_conversations AS direct ON direct.room_id = rooms.id \
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $1 THEN direct.user_high_id \

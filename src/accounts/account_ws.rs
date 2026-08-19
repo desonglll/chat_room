@@ -7,6 +7,7 @@ use axum::{
     extract::{State, WebSocketUpgrade},
     response::IntoResponse,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::time::{interval, timeout, MissedTickBehavior};
 use uuid::Uuid;
@@ -24,6 +25,8 @@ struct RoomAccountState {
     unread_count: i64,
     membership_status: String,
     membership_role: String,
+    pending_join_requests: i64,
+    pending_join_requested_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize)]
@@ -99,11 +102,13 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                     }
                 };
                 let counts = match state.account_membership_states(user.id).await {
-                    Ok(rows) => rows.into_iter().map(|(room_id, membership_status, membership_role)| RoomAccountState {
+                    Ok(rows) => rows.into_iter().map(|(room_id, membership_status, membership_role, pending_join_requests, pending_join_requested_at)| RoomAccountState {
                         room_id,
                         unread_count: unread.get(&room_id).copied().unwrap_or(0),
                         membership_status,
                         membership_role,
+                        pending_join_requests,
+                        pending_join_requested_at,
                     }).collect::<Vec<_>>(),
                     Err(error) => {
                         tracing::warn!("load live membership states failed: {}", error);

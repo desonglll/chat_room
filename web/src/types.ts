@@ -61,6 +61,7 @@ export interface ConversationSummary {
   group: Room | null
   peer: UserSummary | null
   unread_count: number
+  pending_join_requests: number
   last_message: MessagePreview | null
   last_activity_at: string
   created_at: string

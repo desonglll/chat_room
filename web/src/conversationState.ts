@@ -1,5 +1,11 @@
 import type { AccountMessageEvent, ConversationSummary, Room } from './types'
 
+export interface ConversationAccountState {
+  unread_count: number
+  pending_join_requests: number
+  pending_join_requested_at: string | null
+}
+
 export function sortConversations(conversations: readonly ConversationSummary[]): ConversationSummary[] {
   return [...conversations].sort((left, right) => {
     const activity = right.last_activity_at.localeCompare(left.last_activity_at)
@@ -35,6 +41,25 @@ export function applyAccountMessage(
   )
 }
 
+export function applyAccountStates(
+  conversations: readonly ConversationSummary[],
+  states: ReadonlyMap<string, ConversationAccountState>,
+): ConversationSummary[] {
+  return sortConversations(
+    conversations.map((conversation) => {
+      const state = states.get(conversation.room_id)
+      const requestActivity = state?.pending_join_requested_at || ''
+      return {
+        ...conversation,
+        unread_count: state?.unread_count || 0,
+        pending_join_requests: state?.pending_join_requests || 0,
+        last_activity_at:
+          requestActivity > conversation.last_activity_at ? requestActivity : conversation.last_activity_at,
+      }
+    }),
+  )
+}
+
 export function conversationToRoom(conversation: ConversationSummary): Room {
   if (conversation.kind === 'group' && conversation.group) {
     return { ...conversation.group, unread_count: conversation.unread_count }
@@ -55,10 +80,15 @@ export function conversationToRoom(conversation: ConversationSummary): Room {
 }
 
 export function conversationPreview(conversation: ConversationSummary): string {
+  if (conversation.pending_join_requests > 0) return `${conversation.pending_join_requests} 条入群申请`
   const message = conversation.last_message
   if (!message) return conversation.kind === 'direct' ? '开始聊天' : conversation.description || '暂无消息'
   if (message.recalled) return '消息已撤回'
   if (message.content.trim()) return message.content.trim()
   if (message.attachment_file_name) return `文件：${message.attachment_file_name}`
   return '新消息'
+}
+
+export function conversationAttentionCount(conversation: ConversationSummary): number {
+  return conversation.unread_count + conversation.pending_join_requests
 }

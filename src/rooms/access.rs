@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::models::{Room, RoomMembership, User};
@@ -188,12 +188,23 @@ impl AppState {
     pub async fn account_membership_states(
         &self,
         user_id: Uuid,
-    ) -> Result<Vec<(Uuid, String, String)>, sqlx::Error> {
+    ) -> Result<Vec<(Uuid, String, String, i64, Option<DateTime<Utc>>)>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT room_memberships.room_id, room_memberships.status, room_roles.name \
-             FROM room_memberships JOIN room_roles ON room_roles.id = room_memberships.role_id \
-             WHERE room_memberships.user_id = $1 ORDER BY room_memberships.room_id",
+                "SELECT memberships.room_id, memberships.status, roles.name, \
+                 CAST(CASE WHEN review.role_id IS NULL THEN 0 \
+                   ELSE (SELECT COUNT(*) FROM room_memberships AS requests \
+                     WHERE requests.room_id = memberships.room_id \
+                       AND requests.status = 'pending') END AS BIGINT), \
+                 CASE WHEN review.role_id IS NULL THEN NULL ELSE \
+                   (SELECT MAX(requests.requested_at) FROM room_memberships AS requests \
+                     WHERE requests.room_id = memberships.room_id \
+                       AND requests.status = 'pending') END \
+                 FROM room_memberships AS memberships \
+                 JOIN room_roles AS roles ON roles.id = memberships.role_id \
+                 LEFT JOIN room_role_permissions AS review ON review.role_id = roles.id \
+                   AND review.permission_key = 'members.review' \
+                 WHERE memberships.user_id = $1 ORDER BY memberships.room_id",
             )
             .bind(user_id)
             .fetch_all(pool)

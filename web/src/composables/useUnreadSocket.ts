@@ -8,6 +8,8 @@ interface UnreadSnapshot {
     unread_count: number
     membership_status: 'pending' | 'invited' | 'active'
     membership_role: 'owner' | 'admin' | 'member'
+    pending_join_requests: number
+    pending_join_requested_at: string | null
   }[]
 }
 
