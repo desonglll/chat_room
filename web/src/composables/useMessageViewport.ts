@@ -20,6 +20,7 @@ const LOAD_OLDER_DISTANCE = 160
 export function useMessageViewport(options: MessageViewportOptions) {
   const unseenIds = ref<string[]>([])
   const unseenCount = computed(() => unseenIds.value.length)
+  const awayFromBottom = ref(false)
   const visibleIds = new Set<string>()
   let observer: IntersectionObserver | null = null
   let lastReadId = ''
@@ -36,6 +37,10 @@ export function useMessageViewport(options: MessageViewportOptions) {
   function isNearBottom(): boolean {
     const list = options.list.value
     return !!list && list.scrollHeight - list.scrollTop - list.clientHeight <= FOLLOW_DISTANCE
+  }
+
+  function updateBottomState(): void {
+    awayFromBottom.value = !isNearBottom()
   }
 
   function markThrough(messageId: string): void {
@@ -101,11 +106,13 @@ export function useMessageViewport(options: MessageViewportOptions) {
     } else {
       list.scrollTop = list.scrollHeight
     }
+    updateBottomState()
     rebuildObserver()
     scheduleVisibleRead()
   }
 
   function handleScroll(): void {
+    updateBottomState()
     if (performance.now() < suppressScrollUntil) return
     markVisibleMessages()
     if (options.onLoadOlder && (options.list.value?.scrollTop ?? Infinity) <= LOAD_OLDER_DISTANCE) {
@@ -113,13 +120,15 @@ export function useMessageViewport(options: MessageViewportOptions) {
     }
   }
 
-  async function scrollToFirstUnseen(): Promise<void> {
-    const firstUnseen = unseenIds.value[0]
-    if (!firstUnseen) return
+  async function scrollToBottom(): Promise<void> {
     await nextTick()
-    options.list.value
-      ?.querySelector<HTMLElement>(`[data-message-id="${firstUnseen}"]`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const list = options.list.value
+    if (!list) return
+    unseenIds.value = []
+    awayFromBottom.value = false
+    suppressScrollUntil = performance.now() + 220
+    list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
+    window.setTimeout(() => markThrough(broadcastIds.value.at(-1) || ''), 240)
   }
 
   watch(
@@ -128,6 +137,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
       observer?.disconnect()
       visibleIds.clear()
       unseenIds.value = []
+      awayFromBottom.value = false
       lastReadId = ''
       historyInitialized = false
       suppressScrollUntil = performance.now() + 180
@@ -159,6 +169,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
         await nextTick()
         rebuildObserver()
         if (list) list.scrollTop = previousScrollTop + (list.scrollHeight - previousScrollHeight)
+        updateBottomState()
         return
       }
 
@@ -181,6 +192,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
         if (list) {
           suppressScrollUntil = performance.now() + 120
           list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' })
+          awayFromBottom.value = false
           window.setTimeout(() => markThrough(appended.at(-1)?.message_id || ''), 140)
         }
       } else if (incomingIds.length) {
@@ -220,5 +232,5 @@ export function useMessageViewport(options: MessageViewportOptions) {
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
-  return { handleScroll, scrollToFirstUnseen, unseenCount }
+  return { awayFromBottom, handleScroll, scrollToBottom, unseenCount }
 }

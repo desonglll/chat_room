@@ -17,6 +17,10 @@ interface AppBootstrapOptions {
   showToast: (message: string) => void
 }
 
+export function shouldReconnectRestoredRoom(routeName: unknown): boolean {
+  return routeName === 'room'
+}
+
 export function useAppBootstrap(options: AppBootstrapOptions) {
   const route = useRoute()
   const router = useRouter()
@@ -46,7 +50,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
         restoreAttempted = true
         const activeId = routeRoomId.value
         const restored = nextRooms.find((room) => room.id === activeId)
-        if (restored) options.selectRoom(restored, false)
+        if (restored) options.selectRoom(restored, shouldReconnectRestoredRoom(route.name))
         else if (activeId) void router.replace({ name: 'home' }).catch(() => {})
       }
     } catch (caught) {

@@ -3,10 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { Download, File, FileVideo, ShieldAlert } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
+import ContextMenu from 'primevue/contextmenu'
 import Dialog from 'primevue/dialog'
 import Message from 'primevue/message'
 import ProgressBar from 'primevue/progressbar'
 import SelectButton from 'primevue/selectbutton'
+import type { MenuItem } from 'primevue/menuitem'
 import { listRoomFiles } from '../api'
 import type { Attachment, ChatFileItem } from '../types'
 import type { DownloadProgress } from '../attachmentDownloads'
@@ -32,6 +34,7 @@ const emit = defineEmits<{
   close: []
   download: [attachments: Attachment[]]
   cancelDownload: []
+  locateMessage: [messageId: string]
 }>()
 
 const filter = ref('all')
@@ -42,6 +45,8 @@ const loading = ref(false)
 const error = ref('')
 const previewing = ref<Attachment | null>(null)
 const previewImageId = ref('')
+const contextMenu = ref()
+const contextMenuItems = ref<MenuItem[]>([])
 const visible = computed({
   get: () => props.open,
   set: (value: boolean) => {
@@ -115,6 +120,11 @@ function preview(attachment: Attachment): void {
   if (attachment.mime_type.startsWith('image/')) previewImageId.value = attachment.id
   else previewing.value = attachment
 }
+
+function openContextMenu(event: MouseEvent, messageId: string): void {
+  contextMenuItems.value = [{ label: '定位到会话', command: () => emit('locateMessage', messageId) }]
+  contextMenu.value?.show(event)
+}
 </script>
 
 <template>
@@ -137,6 +147,7 @@ function preview(attachment: Attachment): void {
         v-for="file in filtered"
         :key="file.message_id"
         class="flex min-h-16 items-center gap-3 border-b border-surface-100 px-1 py-2 transition hover:bg-surface-50"
+        @contextmenu.prevent="openContextMenu($event, file.message_id)"
       >
         <Checkbox v-model="selected" :value="file.message_id" />
         <button
@@ -209,4 +220,5 @@ function preview(attachment: Attachment): void {
     :active-id="previewImageId"
     @close="previewImageId = ''"
   />
+  <ContextMenu ref="contextMenu" :model="contextMenuItems" />
 </template>

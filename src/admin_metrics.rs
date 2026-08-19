@@ -231,17 +231,18 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
     let storage: StorageMetrics = with_pool!(state, |pool| {
         sqlx::query_as(
             "SELECT \
-             COALESCE((SELECT SUM(size_bytes) FROM attachments), 0) AS logical_bytes, \
-             COALESCE((SELECT SUM(object_size) FROM (\
+             CAST(COALESCE((SELECT SUM(size_bytes) FROM attachments), 0) AS BIGINT) \
+               AS logical_bytes, \
+             CAST(COALESCE((SELECT SUM(object_size) FROM (\
                SELECT MAX(size_bytes) AS object_size FROM attachments \
                  WHERE storage_key IS NOT NULL GROUP BY storage_key \
                UNION ALL SELECT size_bytes AS object_size FROM attachments \
                  WHERE storage_key IS NULL\
-             ) objects), 0) AS physical_bytes, \
+             ) objects), 0) AS BIGINT) AS physical_bytes, \
              (SELECT COUNT(*) FROM attachments WHERE orphaned_at IS NOT NULL) \
                AS orphaned_attachments, \
-             COALESCE((SELECT SUM(size_bytes) FROM attachments WHERE orphaned_at IS NOT NULL), 0) \
-               AS orphaned_bytes, \
+             CAST(COALESCE((SELECT SUM(size_bytes) FROM attachments \
+               WHERE orphaned_at IS NOT NULL), 0) AS BIGINT) AS orphaned_bytes, \
              (SELECT COUNT(*) FROM attachments WHERE content_hash IS NULL) AS missing_hashes",
         )
         .fetch_one(pool)

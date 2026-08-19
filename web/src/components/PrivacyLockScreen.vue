@@ -117,10 +117,9 @@ defineExpose({ lock })
       aria-modal="true"
       aria-labelledby="privacy-lock-title"
     >
-      <form
+      <div
         class="w-full max-w-[380px] rounded-md border border-surface-200 bg-surface-0 p-6 text-color shadow-xl sm:p-8"
-        autocomplete="on"
-        @submit.prevent="unlock"
+        @keydown.enter.stop.prevent="unlock"
       >
         <div class="flex items-center gap-3">
           <span class="grid size-11 shrink-0 place-items-center rounded-md bg-primary text-primary-contrast"
@@ -143,13 +142,13 @@ defineExpose({ lock })
           />
         </div>
         <Message v-if="error" class="mt-4" severity="error" size="small" :closable="false">{{ error }}</Message>
-        <Button type="submit" class="mt-5 w-full" :loading="busy" :disabled="!password">
+        <Button type="button" class="mt-5 w-full" :loading="busy" :disabled="!password" @click="unlock">
           <UnlockKeyhole :size="17" /><span>解锁</span>
         </Button>
         <Button type="button" class="mt-2 w-full" text severity="secondary" :disabled="busy" @click="logout">
           <LogOut :size="16" /><span>退出登录</span>
         </Button>
-      </form>
+      </div>
     </div>
   </Teleport>
 </template>

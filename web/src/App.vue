@@ -28,8 +28,9 @@ import { usePreferencesController } from './composables/usePreferencesController
 import { useRoomMembership } from './composables/useRoomMembership'
 import { useRoomHistory } from './composables/useRoomHistory'
 import { useTheme } from './composables/useTheme'
+import { useRoomRouteSync } from './composables/useRoomRouteSync'
 import { loadPreferences } from './preferences'
-import { reconcileMembershipAuthFailure } from './roomMembershipState'
+import { canAutoConnectRoom, reconcileMembershipAuthFailure } from './roomMembershipState'
 import { storageGet, storageSet } from './browserStorage'
 import type { Room, RoomUpdateResult } from './types'
 
@@ -182,21 +183,7 @@ watch(chat.authFailureReason, (reason) => {
   rooms.value = rooms.value.map((item) => (item.id === updated.id ? updated : item))
 })
 
-watch(chat.authenticated, (online) => {
-  if (online && selectedRoom.value?.has_password) {
-    storageSet(window.sessionStorage, passwordKey(selectedRoom.value.id), roomPassword.value)
-  }
-  // Keep the URL in sync with connection state: /rooms/:id only once actually
-  // online, /rooms/:id/join otherwise — connecting/disconnecting later (not
-  // just selecting the room) also needs to move between the two URLs.
-  if (!selectedRoom.value || (route.name !== 'room' && route.name !== 'room-join')) return
-  const target = online
-    ? { name: 'room' as const, params: { id: selectedRoom.value.id } }
-    : { name: 'room-join' as const, params: { id: selectedRoom.value.id } }
-  if (router.resolve(target).fullPath !== route.fullPath) {
-    void router.replace(target).catch(() => {})
-  }
-})
+useRoomRouteSync({ authenticated: chat.authenticated, room: selectedRoom, password: roomPassword })
 
 function showToast(message: string): void {
   toast.add({ severity: 'success', summary: message, life: 2600 })
@@ -227,18 +214,12 @@ function clearSelection(navigate = true): void {
 function selectRoom(room: Room, autoConnect = false): void {
   chat.close()
   selectedRoom.value = room
-  activePage.value = 'chat'
   roomPassword.value = storageGet(window.sessionStorage, passwordKey(room.id))
+  const reconnect = autoConnect && canAutoConnectRoom(room, currentUser.value, sessionToken.value, roomPassword.value)
+  const preserveRoomRoute = reconnect && route.name === 'room' && routeRoomId.value === room.id
+  if (!preserveRoomRoute) activePage.value = 'chat'
   mobileView.value = 'chat'
-  if (
-    autoConnect &&
-    room.membership_status === 'active' &&
-    currentUser.value &&
-    sessionToken.value &&
-    (!room.has_password || roomPassword.value)
-  ) {
-    joinSelectedRoom()
-  }
+  if (reconnect) joinSelectedRoom()
 }
 
 const history = useRoomHistory({
@@ -425,6 +406,7 @@ function handleForwarded(): void {
       :has-more-history="history.hasMore.value"
       :ai-enabled="aiEnabled"
       :loading="loading"
+      :ensure-message="history.ensureMessage"
       @back="mobileView = 'rooms'"
       @manage="manageOpen = true"
       @leave="handleLeaveRoom"

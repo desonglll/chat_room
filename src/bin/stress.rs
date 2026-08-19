@@ -1,27 +1,36 @@
 //! Reproducible mixed HTTP, WebSocket, and attachment load test.
 
-use std::{
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
-    },
-    time::Duration,
-};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use futures_util::{SinkExt, StreamExt};
-use reqwest::{multipart, Client};
-use serde_json::{json, Value};
+use reqwest::Client;
 use tokio::{task::JoinSet, time::Instant};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use uuid::Uuid;
+
+#[path = "stress_report.rs"]
+mod stress_report;
+#[path = "stress_scenarios.rs"]
+mod stress_scenarios;
+
+use stress_report::{write_report, ReportMetadata, RunReport, SeriesPoint};
+use stress_scenarios::{
+    prepare, run_http_worker, run_upload_worker, run_websocket_worker, websocket_url, Metric,
+    UploadTarget,
+};
 
 #[derive(Debug, Parser)]
 #[command(about = "Mixed chat-room HTTP, WebSocket, and attachment stress test")]
 struct Args {
-    #[arg(long, default_value = "http://127.0.0.1:3000")]
-    base_url: String,
+    /// Full target URL. Overrides --host, --port, and --scheme.
+    #[arg(long)]
+    base_url: Option<String>,
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+    #[arg(long, default_value_t = 3000)]
+    port: u16,
+    #[arg(long, default_value = "http", value_parser = ["http", "https"])]
+    scheme: String,
     #[arg(long, default_value_t = 30)]
     duration_secs: u64,
     #[arg(long, default_value_t = 24)]
@@ -37,78 +46,11 @@ struct Args {
     /// Maximum accepted failed-operation fraction, from 0.0 to 1.0.
     #[arg(long, default_value_t = 0.01)]
     max_error_rate: f64,
-}
-
-#[derive(Default)]
-struct Metric {
-    succeeded: AtomicU64,
-    failed: AtomicU64,
-    total_micros: AtomicU64,
-    max_micros: AtomicU64,
-    samples: Mutex<Vec<u64>>,
-}
-
-impl Metric {
-    fn success(&self, started: Instant) {
-        let micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
-        self.succeeded.fetch_add(1, Ordering::Relaxed);
-        self.total_micros.fetch_add(micros, Ordering::Relaxed);
-        self.max_micros.fetch_max(micros, Ordering::Relaxed);
-        let mut samples = self.samples.lock().expect("metric samples mutex");
-        if samples.len() < 200_000 {
-            samples.push(micros);
-        }
-    }
-
-    fn failure(&self) {
-        self.failed.fetch_add(1, Ordering::Relaxed);
-    }
-
-    fn snapshot(&self, elapsed: Duration) -> Snapshot {
-        let succeeded = self.succeeded.load(Ordering::Relaxed);
-        let failed = self.failed.load(Ordering::Relaxed);
-        let mut samples = self.samples.lock().expect("metric samples mutex").clone();
-        samples.sort_unstable();
-        Snapshot {
-            succeeded,
-            failed,
-            operations_per_second: succeeded as f64 / elapsed.as_secs_f64(),
-            average_ms: if succeeded == 0 {
-                0.0
-            } else {
-                self.total_micros.load(Ordering::Relaxed) as f64 / succeeded as f64 / 1000.0
-            },
-            p95_ms: percentile(&samples, 0.95),
-            p99_ms: percentile(&samples, 0.99),
-            max_ms: self.max_micros.load(Ordering::Relaxed) as f64 / 1000.0,
-        }
-    }
-}
-
-struct Snapshot {
-    succeeded: u64,
-    failed: u64,
-    operations_per_second: f64,
-    average_ms: f64,
-    p95_ms: f64,
-    p99_ms: f64,
-    max_ms: f64,
-}
-
-struct UploadTarget {
-    client: Client,
-    base: String,
-    token: String,
-    room_id: String,
-    payload: Vec<u8>,
-}
-
-fn percentile(samples: &[u64], percentile: f64) -> f64 {
-    if samples.is_empty() {
-        return 0.0;
-    }
-    let index = ((samples.len() - 1) as f64 * percentile).ceil() as usize;
-    samples[index] as f64 / 1000.0
+    /// Directory for the self-contained HTML, JSON, and CSV reports.
+    #[arg(long, default_value = "stress-reports")]
+    report_dir: PathBuf,
+    #[arg(long, default_value_t = 1000)]
+    sample_interval_ms: u64,
 }
 
 #[tokio::main]
@@ -120,7 +62,13 @@ async fn main() -> Result<()> {
     if !(0.0..=1.0).contains(&args.max_error_rate) {
         bail!("--max-error-rate must be between 0.0 and 1.0");
     }
-    let base = args.base_url.trim_end_matches('/').to_string();
+    if args.sample_interval_ms == 0 {
+        bail!("--sample-interval-ms must be greater than zero");
+    }
+    if args.http_workers + args.websocket_workers + args.upload_workers == 0 {
+        bail!("at least one worker must be enabled");
+    }
+    let base = target_url(&args)?;
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
@@ -171,6 +119,14 @@ async fn main() -> Result<()> {
         ));
     }
 
+    let series = collect_series(
+        [&http, &websocket, &upload],
+        started,
+        deadline,
+        Duration::from_millis(args.sample_interval_ms),
+    )
+    .await;
+
     while let Some(result) = tasks.join_next().await {
         if let Err(error) = result {
             eprintln!("worker task failed: {error}");
@@ -178,14 +134,33 @@ async fn main() -> Result<()> {
     }
     let elapsed = started.elapsed();
     let snapshots = [
-        ("HTTP", http.snapshot(elapsed)),
-        ("WebSocket", websocket.snapshot(elapsed)),
-        ("Upload", upload.snapshot(elapsed)),
+        http.snapshot("HTTP", elapsed),
+        websocket.snapshot("WebSocket", elapsed),
+        upload.snapshot("Upload", elapsed),
     ];
-    print_report(elapsed, &snapshots);
-    let succeeded: u64 = snapshots.iter().map(|(_, item)| item.succeeded).sum();
-    let failed: u64 = snapshots.iter().map(|(_, item)| item.failed).sum();
+    stress_report::print_summary(elapsed, &snapshots);
+    let succeeded: u64 = snapshots.iter().map(|item| item.succeeded).sum();
+    let failed: u64 = snapshots.iter().map(|item| item.failed).sum();
     let error_rate = failed as f64 / (succeeded + failed).max(1) as f64;
+    let report = RunReport {
+        metadata: ReportMetadata {
+            target: base,
+            started_at: chrono::Utc::now() - chrono::Duration::from_std(elapsed)?,
+            duration_secs: elapsed.as_secs_f64(),
+            http_workers: args.http_workers,
+            websocket_workers: args.websocket_workers,
+            upload_workers: args.upload_workers,
+            upload_bytes: args.upload_bytes,
+            max_error_rate: args.max_error_rate,
+        },
+        scenarios: snapshots.to_vec(),
+        series,
+        aggregate_error_rate: error_rate,
+    };
+    let paths = write_report(&args.report_dir, &report)?;
+    println!("\nHTML report: {}", paths.html.display());
+    println!("JSON data:   {}", paths.json.display());
+    println!("CSV series:  {}", paths.csv.display());
     if error_rate > args.max_error_rate {
         bail!(
             "error rate {:.3}% exceeded limit {:.3}%",
@@ -196,250 +171,120 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn prepare(client: &Client, base: &str, run_id: &str) -> Result<(String, String)> {
-    let username = format!("stress-{}", &run_id[..12]);
-    let response = client
-        .post(format!("{base}/api/users/register"))
-        .json(&json!({ "username": username, "password": "stress-test-password" }))
-        .send()
-        .await
-        .context("register stress-test account")?;
-    let status = response.status();
-    let session: Value = response
-        .json()
-        .await
-        .context("decode registration response")?;
-    if !status.is_success() {
-        bail!("registration returned {status}: {session}");
-    }
-    let token = session["token"]
-        .as_str()
-        .context("registration response has no token")?
-        .to_string();
-    let response = client
-        .post(format!("{base}/api/rooms"))
-        .bearer_auth(&token)
-        .json(&json!({
-            "name": format!("stress-{}", &run_id[..12]),
-            "password": "",
-            "join_policy": "open"
-        }))
-        .send()
-        .await
-        .context("create stress-test room")?;
-    let status = response.status();
-    let room: Value = response.json().await.context("decode room response")?;
-    if !status.is_success() {
-        bail!("room creation returned {status}: {room}");
-    }
-    let room_id = room["id"]
-        .as_str()
-        .context("room response has no id")?
-        .to_string();
-    Ok((token, room_id))
-}
-
-async fn run_http_worker(
-    client: Client,
-    base: String,
-    token: String,
-    worker: usize,
-    deadline: Instant,
-    metric: Arc<Metric>,
-) {
-    let mut sequence = worker;
-    while Instant::now() < deadline {
-        let path = if sequence.is_multiple_of(2) {
-            "/api/config"
-        } else {
-            "/api/rooms"
-        };
-        let started = Instant::now();
-        match client
-            .get(format!("{base}{path}"))
-            .bearer_auth(&token)
-            .send()
-            .await
-        {
-            Ok(response) if response.status().is_success() => metric.success(started),
-            _ => metric.failure(),
-        }
-        sequence += 1;
-    }
-}
-
-async fn run_websocket_worker(
-    url: String,
-    token: String,
-    run_id: String,
-    worker: usize,
-    interval_ms: u64,
-    deadline: Instant,
-    metric: Arc<Metric>,
-) {
-    let Ok((mut socket, _)) = connect_async(&url).await else {
-        metric.failure();
-        return;
-    };
-    if socket
-        .send(Message::Text(
-            json!({ "type": "join", "token": token }).to_string(),
-        ))
-        .await
-        .is_err()
-        || !wait_for_type(&mut socket, "auth_ok").await
-    {
-        metric.failure();
-        return;
-    }
-    let mut sequence = 0_u64;
-    while Instant::now() < deadline {
-        let content = format!("stress-{run_id}-{worker}-{sequence}");
-        let started = Instant::now();
-        if socket
-            .send(Message::Text(
-                json!({ "type": "message", "content": content }).to_string(),
-            ))
-            .await
-            .is_err()
-        {
-            metric.failure();
-            break;
-        }
-        if wait_for_broadcast(&mut socket, &content, deadline).await {
-            metric.success(started);
-        } else if Instant::now() >= deadline {
-            break;
-        } else {
-            metric.failure();
-            break;
-        }
-        sequence += 1;
-        tokio::time::sleep(Duration::from_millis(interval_ms)).await;
-    }
-    let _ = socket.close(None).await;
-}
-
-async fn wait_for_type<S>(
-    socket: &mut tokio_tungstenite::WebSocketStream<S>,
-    expected: &str,
-) -> bool
-where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
-{
-    let result = tokio::time::timeout(Duration::from_secs(5), async {
-        while let Some(frame) = socket.next().await {
-            if let Ok(Message::Text(text)) = frame {
-                let body: Value = serde_json::from_str(&text).ok()?;
-                if body["type"] == expected {
-                    return Some(());
-                }
-                if body["type"] == "auth_fail" {
-                    return None;
-                }
-            }
-        }
-        None
-    })
-    .await;
-    matches!(result, Ok(Some(())))
-}
-
-async fn wait_for_broadcast<S>(
-    socket: &mut tokio_tungstenite::WebSocketStream<S>,
-    content: &str,
-    deadline: Instant,
-) -> bool
-where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
-{
-    let remaining = deadline.saturating_duration_since(Instant::now());
-    let timeout = remaining.min(Duration::from_secs(5));
-    let result = tokio::time::timeout(timeout, async {
-        while let Some(frame) = socket.next().await {
-            match frame {
-                Ok(Message::Text(text)) => {
-                    let body: Value = serde_json::from_str(&text).ok()?;
-                    if body["type"] == "broadcast" && body["content"] == content {
-                        return Some(());
-                    }
-                }
-                Ok(Message::Close(_)) | Err(_) => return None,
-                _ => {}
-            }
-        }
-        None
-    })
-    .await;
-    matches!(result, Ok(Some(())))
-}
-
-async fn run_upload_worker(
-    target: Arc<UploadTarget>,
-    worker: usize,
-    deadline: Instant,
-    metric: Arc<Metric>,
-) {
-    let mut sequence = 0_u64;
-    while Instant::now() < deadline {
-        let part = match multipart::Part::bytes(target.payload.clone())
-            .file_name(format!("stress-{worker}-{sequence}.bin"))
-            .mime_str("application/octet-stream")
-        {
-            Ok(part) => part,
-            Err(_) => {
-                metric.failure();
-                return;
-            }
-        };
-        let started = Instant::now();
-        let response = target
-            .client
-            .post(format!(
-                "{}/api/rooms/{}/attachments",
-                target.base, target.room_id
-            ))
-            .bearer_auth(&target.token)
-            .multipart(multipart::Form::new().part("file", part))
-            .send()
-            .await;
-        match response {
-            Ok(response) if response.status().is_success() => metric.success(started),
-            _ => metric.failure(),
-        }
-        sequence += 1;
-    }
-}
-
-fn websocket_url(base: &str, room_id: &str) -> Result<String> {
-    if let Some(rest) = base.strip_prefix("https://") {
-        Ok(format!("wss://{rest}/ws/{room_id}"))
-    } else if let Some(rest) = base.strip_prefix("http://") {
-        Ok(format!("ws://{rest}/ws/{room_id}"))
+fn target_url(args: &Args) -> Result<String> {
+    let target = if let Some(base_url) = &args.base_url {
+        base_url.trim_end_matches('/').to_string()
     } else {
-        bail!("--base-url must start with http:// or https://")
+        let host = args.host.trim();
+        if host.is_empty() || host.contains("//") || host.contains('/') {
+            bail!("--host must be a hostname or IP address without a URL scheme or path");
+        }
+        let host = if host.contains(':') && !host.starts_with('[') {
+            format!("[{host}]")
+        } else {
+            host.to_string()
+        };
+        format!("{}://{}:{}", args.scheme, host, args.port)
+    };
+    if !target.starts_with("http://") && !target.starts_with("https://") {
+        bail!("--base-url must start with http:// or https://");
     }
+    Ok(target)
 }
 
-fn print_report(elapsed: Duration, rows: &[(&str, Snapshot)]) {
-    println!(
-        "\nMixed stress test completed in {:.2}s",
-        elapsed.as_secs_f64()
-    );
-    println!(
-        "{:<11} {:>9} {:>8} {:>10} {:>10} {:>10} {:>10} {:>10}",
-        "Scenario", "Success", "Failed", "Ops/s", "Avg ms", "P95 ms", "P99 ms", "Max ms"
-    );
-    for (name, item) in rows {
-        println!(
-            "{name:<11} {:>9} {:>8} {:>10.1} {:>10.2} {:>10.2} {:>10.2} {:>10.2}",
-            item.succeeded,
-            item.failed,
-            item.operations_per_second,
-            item.average_ms,
-            item.p95_ms,
-            item.p99_ms,
-            item.max_ms
-        );
+async fn collect_series(
+    metrics: [&Arc<Metric>; 3],
+    started: Instant,
+    deadline: Instant,
+    interval: Duration,
+) -> Vec<SeriesPoint> {
+    let mut points = Vec::new();
+    let mut previous_counts = [(0_u64, 0_u64); 3];
+    let mut previous_at = started;
+    loop {
+        let sample_at = (previous_at + interval).min(deadline);
+        tokio::time::sleep_until(sample_at).await;
+        let now = Instant::now();
+        let period = now.duration_since(previous_at).as_secs_f64().max(0.001);
+        let counts = metrics.map(|metric| metric.counts());
+        let throughput = std::array::from_fn(|index| {
+            let current = counts[index].0 + counts[index].1;
+            let previous = previous_counts[index].0 + previous_counts[index].1;
+            current.saturating_sub(previous) as f64 / period
+        });
+        let elapsed = now.duration_since(started);
+        let summaries = [
+            metrics[0].snapshot("HTTP", elapsed),
+            metrics[1].snapshot("WebSocket", elapsed),
+            metrics[2].snapshot("Upload", elapsed),
+        ];
+        let interval_succeeded: u64 = (0..3)
+            .map(|index| counts[index].0.saturating_sub(previous_counts[index].0))
+            .sum();
+        let interval_failed: u64 = (0..3)
+            .map(|index| counts[index].1.saturating_sub(previous_counts[index].1))
+            .sum();
+        points.push(SeriesPoint {
+            elapsed_secs: elapsed.as_secs_f64(),
+            throughput,
+            p95_ms: summaries.map(|summary| summary.p95_ms),
+            error_rate: interval_failed as f64
+                / (interval_succeeded + interval_failed).max(1) as f64,
+        });
+        previous_counts = counts;
+        previous_at = now;
+        if now >= deadline {
+            break;
+        }
+    }
+    points
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn target_accepts_host_and_port_or_a_complete_url() {
+        let args = Args::try_parse_from(["stress", "--host", "10.0.0.5", "--port", "8088"])
+            .expect("host and port arguments");
+        assert_eq!(target_url(&args).unwrap(), "http://10.0.0.5:8088");
+
+        let args = Args::try_parse_from(["stress", "--base-url", "https://chat.example.test/"])
+            .expect("base URL argument");
+        assert_eq!(target_url(&args).unwrap(), "https://chat.example.test");
+    }
+
+    #[test]
+    fn report_writer_creates_chart_and_raw_data_files() {
+        let directory = std::env::temp_dir().join(format!("stress-report-{}", Uuid::new_v4()));
+        let report = RunReport {
+            metadata: ReportMetadata {
+                target: "http://127.0.0.1:3000".into(),
+                started_at: chrono::Utc::now(),
+                duration_secs: 1.0,
+                http_workers: 1,
+                websocket_workers: 1,
+                upload_workers: 1,
+                upload_bytes: 1024,
+                max_error_rate: 0.01,
+            },
+            scenarios: vec![Metric::default().snapshot("HTTP", Duration::from_secs(1))],
+            series: vec![SeriesPoint {
+                elapsed_secs: 1.0,
+                throughput: [10.0, 2.0, 1.0],
+                p95_ms: [3.0, 5.0, 8.0],
+                error_rate: 0.0,
+            }],
+            aggregate_error_rate: 0.0,
+        };
+
+        let paths = write_report(&directory, &report).unwrap();
+        let html = std::fs::read_to_string(paths.html).unwrap();
+        let csv = std::fs::read_to_string(paths.csv).unwrap();
+        assert!(html.contains("每秒吞吐量") && html.contains("<polyline"));
+        assert!(csv.contains("http_ops_s") && csv.contains("10.000"));
+        assert!(paths.json.exists());
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

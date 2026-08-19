@@ -23,7 +23,6 @@ const emit = defineEmits<{
   manage: []
   leave: []
   files: []
-  poke: [userId: string]
   viewProfile: [userId: string]
   toggleSelection: []
 }>()
@@ -144,16 +143,6 @@ async function copyRoomId(): Promise<void> {
               <span class="min-w-0 flex-1 truncate">{{
                 member.user_id === currentUserId ? `${member.username}（你）` : member.username
               }}</span>
-              <button
-                v-if="member.user_id !== currentUserId"
-                type="button"
-                class="shrink-0 rounded px-1.5 py-0.5 text-xs text-muted-color opacity-0 transition hover:bg-surface-200 hover:text-primary group-hover:opacity-100"
-                aria-label="拍一拍"
-                title="拍一拍"
-                @click="emit('poke', member.user_id)"
-              >
-                拍一拍
-              </button>
             </li>
           </ul>
         </div>

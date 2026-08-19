@@ -5,8 +5,8 @@ export type CredentialScope = 'account-current' | 'account-new' | 'room-access' 
 const autocompleteByScope: Record<CredentialScope, string> = {
   'account-current': 'section-user-account current-password',
   'account-new': 'section-user-account new-password',
-  'room-access': 'section-chat-room-access new-password',
-  'room-new': 'section-chat-room-settings new-password',
+  'room-access': 'section-chat-room-access one-time-code',
+  'room-new': 'section-chat-room-settings one-time-code',
 }
 
 export function credentialInputProps(scope: CredentialScope): InputHTMLAttributes {

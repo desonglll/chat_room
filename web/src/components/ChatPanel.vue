@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Download, Forward, UploadCloud, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import ProgressBar from 'primevue/progressbar'
@@ -59,6 +59,7 @@ const props = defineProps<{
   pendingUploads: AttachmentUploadSession[]
   aiEnabled: boolean
   loading: boolean
+  ensureMessage: (messageId: string) => Promise<boolean>
 }>()
 
 const emit = defineEmits<{
@@ -92,6 +93,7 @@ const selectedMessageIds = ref<string[]>([])
 const previewImageId = ref('')
 const viewProfileUserId = ref('')
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
+const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
 const dragActive = ref(false)
 const shaking = ref(false)
 let dragDepth = 0
@@ -188,6 +190,12 @@ function forwardSelected(): void {
   closeSelection()
 }
 
+async function locateMessage(messageId: string): Promise<void> {
+  filesOpen.value = false
+  await nextTick()
+  await messageListRef.value?.scrollToMessage(messageId)
+}
+
 function isEditableTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null
   return Boolean(element?.closest('input, textarea, select, button, [contenteditable="true"]'))
@@ -251,7 +259,6 @@ onBeforeUnmount(() => {
       @manage="emit('manage')"
       @leave="emit('leave')"
       @files="filesOpen = true"
-      @poke="emit('poke', $event)"
       @view-profile="viewProfileUserId = $event"
       @toggle-selection="selecting = !selecting"
     />
@@ -295,6 +302,7 @@ onBeforeUnmount(() => {
         </div>
       </Transition>
       <MessageList
+        ref="messageListRef"
         :room-id="room.id"
         :messages="messages"
         :read-receipts="readReceipts"
@@ -306,6 +314,7 @@ onBeforeUnmount(() => {
         :selected-message-ids="selectedMessageIds"
         :loading-older="loadingOlder"
         :has-more-history="hasMoreHistory"
+        :ensure-message="ensureMessage"
         @read="emit('read', $event)"
         @reply="startReply"
         @recall="recallMessage"
@@ -315,6 +324,7 @@ onBeforeUnmount(() => {
         @load-older="emit('loadOlder')"
         @preview-image="previewImageId = $event.id"
         @view-profile="viewProfileUserId = $event"
+        @poke="emit('poke', $event)"
       />
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
@@ -395,6 +405,7 @@ onBeforeUnmount(() => {
       @close="filesOpen = false"
       @download="emit('download', $event)"
       @cancel-download="emit('cancelDownload')"
+      @locate-message="locateMessage"
     />
     <ImageViewerGallery :images="galleryImages" :active-id="previewImageId" @close="previewImageId = ''" />
     <ProfileCardDialog

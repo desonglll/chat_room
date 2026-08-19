@@ -6,7 +6,7 @@
 //! doesn't break `cargo test` on machines without Postgres set up.
 
 use super::*;
-use chat_room::config::AppConfig;
+use chat_room::config::{AdminConfig, AppConfig};
 use sqlx::postgres::PgPoolOptions;
 
 fn postgres_admin_url() -> String {
@@ -49,12 +49,33 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
 
     let (db_name, test_url) = create_scratch_database(&admin_pool, &admin_url).await;
 
+    let config = AppConfig {
+        admin: AdminConfig {
+            usernames: vec!["pg-admin".into()],
+            ..AdminConfig::default()
+        },
+        ..AppConfig::default()
+    };
     let state = Arc::new(
-        AppState::open_postgres(&test_url, &AppConfig::default())
+        AppState::open_postgres(&test_url, &config)
             .await
             .expect("open_postgres should apply migrations-postgres and connect"),
     );
     let server = start_server_with_state(state.clone()).await;
+
+    let admin_token = session_token(&server, "pg-admin").await;
+    let overview_response = reqwest::Client::new()
+        .get(format!("{server}/api/admin/overview"))
+        .bearer_auth(admin_token)
+        .send()
+        .await
+        .unwrap();
+    let overview_status = overview_response.status();
+    let overview_body = overview_response.text().await.unwrap();
+    assert_eq!(overview_status, 200, "postgres overview: {overview_body}");
+    let overview: serde_json::Value = serde_json::from_str(&overview_body).unwrap();
+    assert_eq!(overview["database_backend"], "postgres");
+    assert_eq!(overview["storage"]["logical_bytes"], 0);
 
     let (room_id, has_password) = create_room(&server, "pg-integration-room", None).await;
     assert!(!has_password);

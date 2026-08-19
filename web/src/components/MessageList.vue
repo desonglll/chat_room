@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { ChevronDown, CornerUpLeft, Forward } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Checkbox from 'primevue/checkbox'
@@ -23,6 +23,7 @@ const props = defineProps<{
   selectedMessageIds: string[]
   loadingOlder: boolean
   hasMoreHistory: boolean
+  ensureMessage: (messageId: string) => Promise<boolean>
 }>()
 
 const emit = defineEmits<{
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   toggleSelect: [messageId: string]
   previewImage: [attachment: Attachment]
   viewProfile: [userId: string]
+  poke: [userId: string]
   loadOlder: []
 }>()
 
@@ -41,6 +43,8 @@ const messageList = ref<HTMLElement | null>(null)
 const highlightedId = ref('')
 const contextMenu = ref()
 const contextMenuItems = ref<MenuItem[]>([])
+const avatarContextMenu = ref()
+const avatarContextMenuItems = ref<MenuItem[]>([])
 let highlightTimer: number | undefined
 
 function copyText(content: string): void {
@@ -67,6 +71,16 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
   if (!items.length) return
   contextMenuItems.value = items
   contextMenu.value?.show(event)
+}
+
+function openAvatarContextMenu(event: MouseEvent, message: BroadcastMessage): void {
+  if (!message.sender_id) return
+  const items: MenuItem[] = [{ label: '查看资料', command: () => emit('viewProfile', message.sender_id as string) }]
+  if (message.sender_id !== props.currentUserId) {
+    items.unshift({ label: '拍一拍', command: () => emit('poke', message.sender_id as string) })
+  }
+  avatarContextMenuItems.value = items
+  avatarContextMenu.value?.show(event)
 }
 
 const broadcasts = computed(() =>
@@ -97,7 +111,7 @@ const readDetails = computed(() => {
   return details
 })
 
-const { handleScroll, scrollToFirstUnseen, unseenCount } = useMessageViewport({
+const { awayFromBottom, handleScroll, scrollToBottom, unseenCount } = useMessageViewport({
   list: messageList,
   broadcasts,
   roomId: () => props.roomId,
@@ -182,8 +196,18 @@ function contentSegments(content: string): ContentSegment[] {
   return segments
 }
 
-function scrollToMessage(messageId: string): void {
-  const target = messageList.value?.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`)
+function findMessage(messageId: string): HTMLElement | undefined {
+  return Array.from(messageList.value?.querySelectorAll<HTMLElement>('[data-message-id]') || []).find(
+    (element) => element.dataset.messageId === messageId,
+  )
+}
+
+async function scrollToMessage(messageId: string): Promise<void> {
+  let target = findMessage(messageId)
+  if (!target && (await props.ensureMessage(messageId))) {
+    await nextTick()
+    target = findMessage(messageId)
+  }
   if (!target) return
   target.scrollIntoView({ behavior: 'smooth', block: 'center' })
   highlightedId.value = messageId
@@ -192,6 +216,8 @@ function scrollToMessage(messageId: string): void {
     highlightedId.value = ''
   }, 1400)
 }
+
+defineExpose({ scrollToMessage })
 
 onBeforeUnmount(() => {
   window.clearTimeout(highlightTimer)
@@ -248,6 +274,7 @@ onBeforeUnmount(() => {
             aria-label="查看用户资料"
             title="查看资料"
             @click="message.sender_id && emit('viewProfile', message.sender_id)"
+            @contextmenu.stop.prevent="openAvatarContextMenu($event, message)"
           >
             <Avatar
               :label="avatarLabel(message)"
@@ -367,16 +394,17 @@ onBeforeUnmount(() => {
       leave-to-class="translate-y-2 opacity-0"
     >
       <button
-        v-if="unseenCount"
+        v-if="awayFromBottom"
         type="button"
         class="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
-        @click="scrollToFirstUnseen"
+        @click="scrollToBottom"
       >
         <ChevronDown :size="15" />
-        下方 {{ unseenCount }} 条新消息
+        {{ unseenCount ? `下方 ${unseenCount} 条新消息` : '回到最新消息' }}
       </button>
     </Transition>
     <ContextMenu ref="contextMenu" :model="contextMenuItems" />
+    <ContextMenu ref="avatarContextMenu" :model="avatarContextMenuItems" />
   </div>
 </template>
 

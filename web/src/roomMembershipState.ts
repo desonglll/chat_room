@@ -1,4 +1,8 @@
-import type { Room } from './types'
+import type { Room, User } from './types'
+
+export function canAutoConnectRoom(room: Room, user: User | null, token: string, password: string): boolean {
+  return room.membership_status === 'active' && Boolean(user && token) && (!room.has_password || Boolean(password))
+}
 
 export function reconcileMembershipAuthFailure(room: Room, reason: string): Room {
   if (reason === 'membership required') {
