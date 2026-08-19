@@ -99,16 +99,11 @@ export function useMessageViewport(options: MessageViewportOptions) {
     if (!list) return
     const receipt = options.readReceipts().find((item) => item.user_id === options.currentUserId())
     lastReadId = receipt?.message_id || ''
-    const readPosition = receipt ? broadcastIds.value.indexOf(receipt.message_id) : -1
-    const firstUnread = broadcastIds.value[readPosition + 1]
     suppressScrollUntil = performance.now() + 180
-    if (firstUnread) {
-      list.querySelector<HTMLElement>(`[data-message-id="${firstUnread}"]`)?.scrollIntoView({ block: 'start' })
-    } else {
-      list.scrollTop = list.scrollHeight
-    }
+    list.scrollTop = list.scrollHeight
     updateBottomState()
     rebuildObserver()
+    markThrough(broadcastIds.value.at(-1) || '')
     scheduleVisibleRead()
   }
 
