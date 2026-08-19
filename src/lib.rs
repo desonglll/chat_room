@@ -1,10 +1,12 @@
 //! chat_room — Axum-based chat server with WebSocket and OpenAPI.
 
 mod account_events;
+pub mod admin_metrics;
 pub mod account_ws;
 pub mod ai;
 pub mod ai_handlers;
 pub mod attachment_handlers;
+mod attachment_content;
 pub mod attachment_storage;
 pub mod attachment_upload_handlers;
 pub mod attachment_upload_sessions;
@@ -20,7 +22,9 @@ pub mod models;
 pub mod participants;
 pub mod read_store;
 pub mod room_access;
+mod room_lifecycle;
 pub mod state;
+mod state_runtime;
 pub mod storage;
 pub mod user_handlers;
 pub mod users;
@@ -64,6 +68,8 @@ use crate::state::AppState;
         user_handlers::logout,
         forward_handlers::forward_messages,
         ai_handlers::suggest,
+        admin_metrics::overview,
+        admin_metrics::purge,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -94,6 +100,8 @@ use crate::state::AppState;
         models::UpdateMembershipRequest,
         models::UpdateNicknameRequest,
         models::RoomMembership,
+        admin_metrics::AdminOverview,
+        admin_metrics::PurgeResult,
     ))
 )]
 pub struct ApiDoc;
@@ -209,6 +217,11 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/users/logout",
             axum::routing::post(user_handlers::logout),
         )
+        .route("/api/admin/overview", get(admin_metrics::overview))
+        .route(
+            "/api/admin/maintenance/purge",
+            axum::routing::post(admin_metrics::purge),
+        )
         .route("/ws/account", get(account_ws::account_ws_handler))
         .route("/ws/:room_id", get(ws::ws_handler))
         .route("/api-docs/openapi.json", get(openapi_json));
@@ -228,7 +241,11 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             .fallback(get(web::index));
     }
 
-    app.layer(CorsLayer::permissive())
+    app.layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        admin_metrics::track_request,
+    ))
+        .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

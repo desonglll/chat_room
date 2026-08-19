@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ArrowLeft, KeyRound, Settings, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Gauge, KeyRound, Settings, Trash2 } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Password from 'primevue/password'
 import { changeAccountPassword, deleteAccount } from '../api'
+import ScopedPasswordField from './ScopedPasswordField.vue'
 import type { User } from '../types'
 
 const props = defineProps<{ user: User; token: string }>()
@@ -75,15 +75,22 @@ async function confirmDelete(): Promise<void> {
         </div>
       </section>
 
+      <section class="border-b border-surface-200 py-7">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3"><Gauge :size="19" class="text-warning" /><div><strong class="block text-sm">系统运维</strong><small class="text-muted-color">服务状态与保留期维护</small></div></div>
+          <Button as="a" href="/admin" severity="secondary" outlined>打开</Button>
+        </div>
+      </section>
+
       <form autocomplete="on" class="space-y-5 border-b border-surface-200 py-7" @submit.prevent="savePassword">
         <div class="flex items-center gap-2 text-sm font-semibold"><KeyRound :size="18" class="text-primary" />修改账户密码</div>
         <div>
-          <label for="account-current-password" class="mb-2 block text-sm font-medium">当前密码</label>
-          <Password id="account-current-password" v-model="currentPassword" name="current-password" autocomplete="current-password" :feedback="false" toggle-mask fluid required />
+          <label for="account-current-password" class="mb-2 block text-sm font-medium">当前账户密码</label>
+          <ScopedPasswordField v-model="currentPassword" input-id="account-current-password" name="account-current-password" scope="account-current" required />
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
-          <div><label for="account-new-password" class="mb-2 block text-sm font-medium">新密码</label><Password id="account-new-password" v-model="newPassword" name="new-password" autocomplete="new-password" :feedback="false" toggle-mask fluid required minlength="8" /></div>
-          <div><label for="account-confirm-password" class="mb-2 block text-sm font-medium">确认新密码</label><Password id="account-confirm-password" v-model="confirmPassword" name="new-password-confirmation" autocomplete="new-password" :feedback="false" toggle-mask fluid required minlength="8" /></div>
+          <div><label for="account-new-password" class="mb-2 block text-sm font-medium">新账户密码</label><ScopedPasswordField v-model="newPassword" input-id="account-new-password" name="account-new-password" scope="account-new" required /></div>
+          <div><label for="account-confirm-password" class="mb-2 block text-sm font-medium">确认新账户密码</label><ScopedPasswordField v-model="confirmPassword" input-id="account-confirm-password" name="account-new-password-confirmation" scope="account-new" required /></div>
         </div>
         <Message v-if="passwordError" severity="error" :closable="false">{{ passwordError }}</Message>
         <Message v-else-if="passwordSaved" severity="success" :closable="false">密码已修改，其他设备的登录已退出</Message>
@@ -102,7 +109,7 @@ async function confirmDelete(): Promise<void> {
       <form autocomplete="off" class="space-y-4" @submit.prevent="confirmDelete">
         <Message severity="warn" :closable="false">此操作无法撤销。请输入用户名和账户密码确认。</Message>
         <div><label for="delete-confirmation" class="mb-2 block text-sm font-medium">用户名</label><InputText id="delete-confirmation" v-model="deleteConfirmation" name="delete-account-confirmation" autocomplete="off" fluid /></div>
-        <div><label for="delete-password" class="mb-2 block text-sm font-medium">账户密码</label><Password id="delete-password" v-model="deletePassword" name="delete-account-current-password" autocomplete="current-password" :feedback="false" toggle-mask fluid /></div>
+        <div><label for="delete-password" class="mb-2 block text-sm font-medium">账户密码</label><ScopedPasswordField v-model="deletePassword" input-id="delete-password" name="delete-account-current-password" scope="account-current" /></div>
         <Message v-if="deleteError" severity="error" :closable="false">{{ deleteError }}</Message>
         <div class="flex justify-end gap-2 border-t border-surface-200 pt-4"><Button type="button" severity="secondary" outlined @click="deleteOpen = false">取消</Button><Button type="submit" severity="danger" :loading="deleting" :disabled="deleteConfirmation !== user.username || !deletePassword">永久注销</Button></div>
       </form>

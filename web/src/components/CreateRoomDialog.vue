@@ -6,12 +6,12 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Password from 'primevue/password'
 import Popover from 'primevue/popover'
 import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import EmojiPicker from './EmojiPicker.vue'
 import IconSprite from './IconSprite.vue'
+import ScopedPasswordField from './ScopedPasswordField.vue'
 import { createRoom } from '../api'
 import type { Room } from '../types'
 
@@ -104,9 +104,9 @@ async function submit(): Promise<void> {
 
       <div class="flex flex-col gap-2">
         <label for="createRoomPassword" class="text-sm font-medium">
-          密码 <span class="font-normal text-muted-color">可选</span>
+          聊天室访问密码 <span class="font-normal text-muted-color">可选</span>
         </label>
-        <Password id="createRoomPassword" v-model="password" name="new-room-password" :feedback="false" toggle-mask fluid maxlength="256" autocomplete="off" />
+        <ScopedPasswordField v-model="password" input-id="createRoomPassword" name="new-room-password" scope="room-new" />
       </div>
 
       <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>

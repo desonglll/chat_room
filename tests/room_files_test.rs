@@ -117,8 +117,15 @@ async fn room_files_are_disk_backed_filtered_and_paginated() {
     assert_eq!(images["items"][0]["attachment"]["file_name"], "one.png");
 
     let attachment_id = Uuid::parse_str(document["attachment"]["id"].as_str().unwrap()).unwrap();
+    let storage_key: Option<String> =
+        sqlx::query_scalar("SELECT storage_key FROM attachments WHERE id = ?")
+            .bind(attachment_id)
+            .fetch_one(server.state.pool())
+            .await
+            .unwrap();
+    let storage_key = storage_key.unwrap_or_else(|| attachment_id.simple().to_string());
     assert!(
-        tokio::fs::metadata(server.state.attachment_store().path(attachment_id))
+        tokio::fs::metadata(server.state.attachment_store().path(&storage_key))
             .await
             .is_ok()
     );

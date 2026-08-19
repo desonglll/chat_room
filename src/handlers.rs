@@ -181,6 +181,10 @@ pub async fn get_room(
     headers: HeaderMap,
 ) -> Result<Json<Room>, StatusCode> {
     let mut room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
+    // Cached rooms can carry the creator's membership from the create response.
+    // Always clear it before decorating this response for the current viewer.
+    room.membership_status = None;
+    room.membership_role = None;
     if let Some(token) = optional_bearer_token(&headers) {
         if let Some(user) = state
             .session_user(token)

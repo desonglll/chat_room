@@ -44,6 +44,7 @@ pub struct AttachmentMetadata {
     pub file_name: String,
     pub mime_type: String,
     pub size_bytes: i64,
+    pub storage_key: Option<String>,
 }
 
 #[derive(FromRow)]
@@ -181,161 +182,6 @@ impl AppState {
         })
     }
 
-    /// Atomically persist an attachment and the chat message that owns it.
-    pub async fn store_attachment_message(
-        &self,
-        room_id: Uuid,
-        sender: &User,
-        sender_display_name: &str,
-        upload: NewAttachment,
-        content: &str,
-        reply_to: Option<Uuid>,
-    ) -> anyhow::Result<StoredMessage> {
-        let attachment_id = Uuid::new_v4();
-        let NewAttachment {
-            file_name,
-            mime_type,
-            is_sensitive,
-            staged,
-        } = upload;
-        let size_bytes = self
-            .attachment_store()
-            .commit(staged, attachment_id)
-            .await?;
-        self.finalize_attachment_message(
-            attachment_id,
-            room_id,
-            sender,
-            sender_display_name,
-            file_name,
-            mime_type,
-            size_bytes,
-            is_sensitive,
-            content,
-            reply_to,
-        )
-        .await
-    }
-
-    /// Same as `store_attachment_message`, but for a file that was uploaded in
-    /// chunks via `AttachmentStore::append_chunk` rather than the single-shot
-    /// `begin()`/`write()` path.
-    pub async fn store_chunked_attachment_message(
-        &self,
-        upload_id: Uuid,
-        room_id: Uuid,
-        sender: &User,
-        sender_display_name: &str,
-        file_name: String,
-        mime_type: String,
-        is_sensitive: bool,
-        content: &str,
-        reply_to: Option<Uuid>,
-    ) -> anyhow::Result<StoredMessage> {
-        let attachment_id = Uuid::new_v4();
-        let size_bytes = self
-            .attachment_store()
-            .commit_chunked(upload_id, attachment_id)
-            .await?;
-        self.finalize_attachment_message(
-            attachment_id,
-            room_id,
-            sender,
-            sender_display_name,
-            file_name,
-            mime_type,
-            size_bytes,
-            is_sensitive,
-            content,
-            reply_to,
-        )
-        .await
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn finalize_attachment_message(
-        &self,
-        attachment_id: Uuid,
-        room_id: Uuid,
-        sender: &User,
-        sender_display_name: &str,
-        file_name: String,
-        mime_type: String,
-        size_bytes: i64,
-        is_sensitive: bool,
-        content: &str,
-        reply_to: Option<Uuid>,
-    ) -> anyhow::Result<StoredMessage> {
-        let access_key = Uuid::new_v4();
-        let message_id = Uuid::new_v4();
-        let created_at = Utc::now();
-        let reply_to = self.reply_preview(room_id, reply_to).await?;
-        let persisted: Result<(), sqlx::Error> = with_pool!(self, |pool| { async {
-            let mut transaction = pool.begin().await?;
-            sqlx::query(
-                "INSERT INTO attachments \
-             (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, \
-              is_sensitive, created_at) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-            )
-            .bind(attachment_id)
-            .bind(access_key)
-            .bind(room_id)
-            .bind(sender.id)
-            .bind(&file_name)
-            .bind(&mime_type)
-            .bind(size_bytes)
-            .bind(is_sensitive)
-            .bind(created_at)
-            .execute(&mut *transaction)
-            .await?;
-
-            sqlx::query(
-                "INSERT INTO messages \
-             (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, created_at) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            )
-            .bind(message_id)
-            .bind(room_id)
-            .bind(sender.id)
-            .bind(sender_display_name)
-            .bind(content)
-            .bind(attachment_id)
-            .bind(reply_to.as_ref().map(|reply| reply.message_id))
-            .bind(created_at)
-            .execute(&mut *transaction)
-            .await?;
-            transaction.commit().await.map(|_| ())
-        }
-        .await });
-        if let Err(error) = persisted {
-            let _ = self.attachment_store().remove(attachment_id).await;
-            return Err(error.into());
-        }
-
-        Ok(StoredMessage {
-            id: message_id,
-            room_id,
-            sender_id: Some(sender.id),
-            sender: sender_display_name.to_string(),
-            sender_avatar: sender.avatar_emoji.clone(),
-            content: content.to_string(),
-            attachment: Some(Attachment {
-                id: attachment_id,
-                file_name,
-                mime_type,
-                size_bytes,
-                download_url: format!("/api/attachments/{attachment_id}?key={access_key}"),
-                is_sensitive,
-            }),
-            reply_to,
-            recalled_at: None,
-            edited_at: None,
-            created_at,
-            forwarded_from: None,
-        })
-    }
-
     /// Copy a still-visible message (and its attachment, if any) into another room as
     /// a new message sent by `forwarder`. Returns `None` if the source message doesn't
     /// exist, isn't in `source_room_id`, or has been recalled.
@@ -435,8 +281,8 @@ impl AppState {
         id: Uuid,
         access_key: Uuid,
     ) -> Result<Option<AttachmentMetadata>, sqlx::Error> {
-        let row: Option<(String, String, i64)> = with_pool!(self, |pool| { sqlx::query_as(
-            "SELECT file_name, mime_type, size_bytes FROM attachments \
+        let row: Option<(String, String, i64, Option<String>)> = with_pool!(self, |pool| { sqlx::query_as(
+            "SELECT file_name, mime_type, size_bytes, storage_key FROM attachments \
              WHERE id = $1 AND access_key = $2 AND EXISTS (\
                SELECT 1 FROM messages WHERE messages.attachment_id = attachments.id \
                AND messages.recalled_at IS NULL\
@@ -446,13 +292,14 @@ impl AppState {
         .bind(access_key)
         .fetch_optional(pool)
         .await })?;
-        Ok(
-            row.map(|(file_name, mime_type, size_bytes)| AttachmentMetadata {
+        Ok(row.map(
+            |(file_name, mime_type, size_bytes, storage_key)| AttachmentMetadata {
                 file_name,
                 mime_type,
                 size_bytes,
-            }),
-        )
+                storage_key,
+            },
+        ))
     }
 
     pub(crate) async fn latest_message_cursor(
@@ -558,7 +405,7 @@ impl AppState {
             .collect())
     }
 
-    async fn reply_preview(
+    pub(crate) async fn reply_preview(
         &self,
         room_id: Uuid,
         message_id: Option<Uuid>,

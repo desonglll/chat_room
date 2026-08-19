@@ -7,12 +7,12 @@ import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Password from 'primevue/password'
 import Popover from 'primevue/popover'
 import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import EmojiPicker from './EmojiPicker.vue'
 import IconSprite from './IconSprite.vue'
+import ScopedPasswordField from './ScopedPasswordField.vue'
 import { deleteRoom, updateRoom } from '../api'
 import RoomMembersPanel from './RoomMembersPanel.vue'
 import type { Room, RoomUpdateResult } from '../types'
@@ -162,9 +162,9 @@ async function confirmDelete(): Promise<void> {
 
         <div class="flex flex-col gap-2">
           <label for="newRoomPassword" class="text-sm font-medium">
-            新密码 <span class="font-normal text-muted-color">留空则不更改</span>
+            新的聊天室访问密码 <span class="font-normal text-muted-color">留空则不更改</span>
           </label>
-          <Password id="newRoomPassword" v-model="newPassword" name="managed-room-password" :disabled="removePassword" :feedback="false" toggle-mask fluid maxlength="256" autocomplete="off" />
+          <ScopedPasswordField v-model="newPassword" input-id="newRoomPassword" name="managed-room-password" scope="room-new" :disabled="removePassword" />
         </div>
 
         <div v-if="room.has_password" class="flex items-center gap-2">

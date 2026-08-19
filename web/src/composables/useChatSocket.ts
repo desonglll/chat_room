@@ -72,6 +72,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   const typingDrafts = ref<TypingDraft[]>([])
   const currentUserId = ref('')
   const pokedAt = ref(0)
+  const authFailureReason = ref('')
   let socket: WebSocket | null = null
   let handshakeTimer: number | undefined
   let reconnectTimer: number | undefined
@@ -114,6 +115,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     socket = null
     status.value = 'idle'
     error.value = ''
+    authFailureReason.value = ''
     if (!preserveMessages) messages.value = []
     historyReady.value = false
     members.value = []
@@ -140,6 +142,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       readReceipts.value = message.read_receipts || []
       status.value = 'online'
       error.value = ''
+      authFailureReason.value = ''
       reconnectAttempt = 0
       return
     }
@@ -151,6 +154,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       clearHandshakeTimer()
       status.value = 'failed'
       error.value = AUTH_ERRORS[message.reason] || message.reason || '认证失败'
+      authFailureReason.value = message.reason
       reconnectEnabled = false
       socket?.close()
       return
@@ -414,6 +418,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   onBeforeUnmount(() => close())
 
   return {
+    authFailureReason,
     authenticated,
     currentUserId,
     error,

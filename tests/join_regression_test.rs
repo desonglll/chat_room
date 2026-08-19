@@ -71,3 +71,44 @@ async fn join_request_accepts_legacy_non_utf8_role_ids() {
     assert_eq!(response.status(), 202, "{}", response.text().await.unwrap());
     task.abort();
 }
+
+#[tokio::test]
+async fn room_lookup_does_not_inherit_the_creators_membership() {
+    let state = Arc::new(AppState::new().await.unwrap());
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn({
+        let state = state.clone();
+        async move { axum::serve(listener, build_app(state)).await.unwrap() }
+    });
+    let owner_token = session_token(&base, "lookup-owner").await;
+    let room: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/rooms"))
+        .bearer_auth(owner_token)
+        .json(&serde_json::json!({
+            "name": "lookup-membership-room",
+            "password": "room-secret",
+            "join_policy": "open"
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let viewer_token = session_token(&base, "lookup-viewer").await;
+
+    let lookup: serde_json::Value = reqwest::Client::new()
+        .get(format!("{base}/api/rooms/{}", room["id"].as_str().unwrap()))
+        .bearer_auth(viewer_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert!(lookup["membership_status"].is_null());
+    assert!(lookup["membership_role"].is_null());
+    task.abort();
+}

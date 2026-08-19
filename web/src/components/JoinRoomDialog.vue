@@ -5,8 +5,8 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Password from 'primevue/password'
 import { getRoom, requestRoomJoin } from '../api'
+import ScopedPasswordField from './ScopedPasswordField.vue'
 import type { Room } from '../types'
 
 const props = defineProps<{ open: boolean; token: string }>()
@@ -58,14 +58,13 @@ async function join(): Promise<void> {
   joining.value = true
   error.value = ''
   try {
-    let nextRoom = room.value
-    if (room.value.membership_status !== 'active') {
-      const membership = await requestRoomJoin(room.value.id, props.token, password.value)
-      nextRoom = {
-        ...room.value,
-        membership_status: membership.status,
-        membership_role: membership.role,
-      }
+    // The join endpoint is idempotent and is the authority for membership.
+    // A room lookup must never be enough to skip a first-time join request.
+    const membership = await requestRoomJoin(room.value.id, props.token, password.value)
+    const nextRoom = {
+      ...room.value,
+      membership_status: membership.status,
+      membership_role: membership.role,
     }
     emit('joined', nextRoom, password.value)
   } catch (caught) {
@@ -108,15 +107,12 @@ async function join(): Promise<void> {
       </div>
 
       <div v-if="room?.has_password">
-        <label for="join-room-password" class="mb-2 block text-sm font-medium">房间密码</label>
-        <Password
-          id="join-room-password"
+        <label for="join-room-password" class="mb-2 block text-sm font-medium">聊天室访问密码</label>
+        <ScopedPasswordField
           v-model="password"
+          input-id="join-room-password"
           name="room-access-password"
-          autocomplete="off"
-          :feedback="false"
-          toggle-mask
-          fluid
+          scope="room-access"
         />
       </div>
 

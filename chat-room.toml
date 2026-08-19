@@ -62,3 +62,13 @@ poke_cooldown_secs = 5
 
 [auth]
 session_lifetime_days = 30
+
+[admin]
+# System-wide operations are disabled until at least one existing account is
+# allowlisted here. Matching is case-insensitive.
+usernames = []
+# Recalled, unreferenced attachment objects are eligible for explicit cleanup
+# from the dashboard after this retention window.
+orphan_retention_hours = 168
+# Soft-deleted rooms are eligible for explicit permanent cleanup after this age.
+deleted_room_retention_days = 30

@@ -30,22 +30,33 @@ impl AppState {
         content: &str,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let edited_at = Utc::now();
-        let changed = with_pool!(self, |pool| { sqlx::query(
+        let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| { sqlx::query_scalar(
             "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
-             WHERE id = $3 AND room_id = $4 AND sender_id = $5",
+             WHERE id = $3 AND room_id = $4 AND sender_id = $5 \
+             RETURNING attachment_id",
         )
         .bind(content)
         .bind(edited_at)
         .bind(message_id)
         .bind(room_id)
         .bind(sender_id)
-        .execute(pool)
-        .await
-        .map(|result| result.rows_affected()) })?;
-        Ok((changed > 0).then_some(edited_at))
+        .fetch_optional(pool)
+        .await })?;
+        // A re-edit un-recalls the message, which can resurrect a reference to
+        // a physical file that was marked orphaned while it was recalled.
+        if let Some(Some(attachment_id)) = attachment_id {
+            if let Err(error) = self.recompute_attachment_orphan_status(attachment_id).await {
+                tracing::warn!("recompute attachment orphan status failed: {error:#}");
+            }
+        }
+        Ok(attachment_id.map(|_| edited_at))
     }
 
     /// Mark a message as recalled while retaining its original database record.
+    /// Never deletes the attachment's physical file directly — a forwarded
+    /// copy of the same message may still reference it. Instead this
+    /// recomputes and marks (or clears) `orphaned_at` for whatever physical
+    /// file it's backed by, for a future cleanup job to act on.
     pub async fn recall_message(
         &self,
         room_id: Uuid,
@@ -65,8 +76,8 @@ impl AppState {
         .fetch_optional(pool)
         .await })?;
         if let Some(Some(attachment_id)) = attachment_id {
-            if let Err(error) = self.attachment_store().remove(attachment_id).await {
-                tracing::warn!("remove recalled attachment failed: {error:#}");
+            if let Err(error) = self.recompute_attachment_orphan_status(attachment_id).await {
+                tracing::warn!("recompute attachment orphan status failed: {error:#}");
             }
         }
         Ok(attachment_id.map(|_| recalled_at))

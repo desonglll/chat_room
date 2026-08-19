@@ -1,17 +1,17 @@
 //! Shared room state backed by SQLite with in-memory broadcast channels.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use chrono::Utc;
-use sqlx::{PgPool, SqlitePool};
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
 use crate::ai::AiAssistant;
+use crate::admin_metrics::RuntimeMetrics;
+use crate::attachment_content::ContentHashLocks;
 use crate::attachment_storage::{self, AttachmentStore};
 use crate::config::AppConfig;
 use crate::models::{ChatMessage, Room, RoomMember, User};
@@ -58,17 +58,19 @@ impl RoomChannel {
 
 /// Application state. SQLite is durable storage; the room map is a read cache.
 pub struct AppState {
-    pool: storage::DatabasePool,
+    pub(crate) pool: storage::DatabasePool,
     rooms: RwLock<HashMap<Uuid, Room>>,
     channels: RwLock<HashMap<Uuid, RoomChannel>>,
     members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
-    max_upload_bytes: usize,
-    attachment_store: AttachmentStore,
+    pub(crate) max_upload_bytes: usize,
+    pub(crate) attachment_store: AttachmentStore,
+    pub(crate) content_hash_locks: ContentHashLocks,
+    pub(crate) runtime_metrics: RuntimeMetrics,
     /// Per-(room, from, target) cooldown timestamps for rate-limited, ephemeral
     /// actions (poke, AI suggestions) that don't need database persistence.
     action_cooldowns: RwLock<HashMap<(Uuid, Uuid, Uuid), Instant>>,
-    ai_assistant: Option<AiAssistant>,
-    config: AppConfig,
+    pub(crate) ai_assistant: Option<AiAssistant>,
+    pub(crate) config: AppConfig,
 }
 
 impl AppState {
@@ -158,17 +160,21 @@ impl AppState {
             rooms.insert(room.id, room);
         }
 
-        Ok(Self {
+        let state = Self {
             pool,
             rooms: RwLock::new(rooms),
             channels: RwLock::new(channels),
             members: RwLock::new(HashMap::new()),
             max_upload_bytes,
             attachment_store,
+            content_hash_locks: ContentHashLocks::default(),
+            runtime_metrics: RuntimeMetrics::default(),
             action_cooldowns: RwLock::new(HashMap::new()),
             ai_assistant,
             config,
-        })
+        };
+        state.backfill_attachment_content_hashes().await?;
+        Ok(state)
     }
 
     /// Returns true (and starts a new cooldown window) if enough time has passed
@@ -198,6 +204,15 @@ impl AppState {
         self.channels.write().await.insert(id, RoomChannel::new());
     }
 
+    pub(crate) async fn cache_updated_room(&self, room: Room) {
+        self.rooms.write().await.insert(room.id, room);
+    }
+
+    pub(crate) async fn remove_cached_room(&self, id: Uuid, reason: &str) {
+        self.rooms.write().await.remove(&id);
+        self.disconnect_room(id, reason).await;
+    }
+
     /// Return rooms in stable creation order, optionally filtered by exact name.
     pub async fn list_rooms(&self, name: Option<&str>) -> Vec<Room> {
         let rooms = self.rooms.read().await;
@@ -216,103 +231,6 @@ impl AppState {
 
     pub async fn room(&self, id: Uuid) -> Option<Room> {
         self.rooms.read().await.get(&id).cloned()
-    }
-
-    /// Persist a room edit only if the caller's view is still current.
-    pub async fn update_room(&self, previous: &Room, updated: Room) -> Result<bool, sqlx::Error> {
-        let changed = with_pool!(self, |pool| {
-            sqlx::query(
-                "UPDATE rooms SET name = $1, password_hash = $2, join_policy = $3, \
-                 avatar_emoji = $4, description = $5 \
-                 WHERE id = $6 AND name = $7 AND password_hash = $8 AND join_policy = $9",
-            )
-            .bind(&updated.name)
-            .bind(&updated.password_hash)
-            .bind(&updated.join_policy)
-            .bind(&updated.avatar_emoji)
-            .bind(&updated.description)
-            .bind(previous.id)
-            .bind(&previous.name)
-            .bind(&previous.password_hash)
-            .bind(&previous.join_policy)
-            .execute(pool)
-            .await
-            .map(|result| result.rows_affected())
-        })?;
-
-        if changed == 0 {
-            return Ok(false);
-        }
-
-        self.rooms.write().await.insert(updated.id, updated);
-        Ok(true)
-    }
-
-    /// Soft-delete a room if its password has not changed since authorization: the
-    /// room disappears from listings, but messages/attachments stay intact so the
-    /// deletion is reviewable/recoverable later rather than destructive.
-    pub async fn delete_room(
-        &self,
-        id: Uuid,
-        expected_password_hash: &str,
-    ) -> Result<bool, sqlx::Error> {
-        let changed = with_pool!(self, |pool| {
-            sqlx::query(
-                "UPDATE rooms SET deleted_at = $1 \
-                 WHERE id = $2 AND password_hash = $3 AND deleted_at IS NULL",
-            )
-            .bind(Utc::now())
-            .bind(id)
-            .bind(expected_password_hash)
-            .execute(pool)
-            .await
-            .map(|result| result.rows_affected())
-        })?;
-
-        if changed == 0 {
-            return Ok(false);
-        }
-
-        self.rooms.write().await.remove(&id);
-        self.disconnect_room(id, "room deleted").await;
-        Ok(true)
-    }
-
-    /// Permanently remove a room and its attachments. Not currently exposed by any
-    /// handler — soft-delete (`delete_room`) is the only user-facing deletion path —
-    /// but kept available for a future admin purge/retention job.
-    #[allow(dead_code)]
-    async fn hard_delete_room(
-        &self,
-        id: Uuid,
-        expected_password_hash: &str,
-    ) -> Result<bool, sqlx::Error> {
-        let (attachment_ids, changed) = with_pool!(self, |pool| {
-            let attachment_ids: Vec<Uuid> =
-            sqlx::query_scalar("SELECT id FROM attachments WHERE room_id = $1")
-                .bind(id)
-                .fetch_all(pool)
-                .await?;
-            let result = sqlx::query("DELETE FROM rooms WHERE id = $1 AND password_hash = $2")
-                .bind(id)
-                .bind(expected_password_hash)
-                .execute(pool)
-                .await?;
-            Ok::<_, sqlx::Error>((attachment_ids, result.rows_affected()))
-        })?;
-
-        if changed == 0 {
-            return Ok(false);
-        }
-
-        self.rooms.write().await.remove(&id);
-        self.disconnect_room(id, "room deleted").await;
-        for attachment_id in attachment_ids {
-            if let Err(error) = self.attachment_store.remove(attachment_id).await {
-                tracing::warn!("remove deleted room attachment failed: {error:#}");
-            }
-        }
-        Ok(true)
     }
 
     pub(crate) async fn subscribe(&self, id: Uuid) -> Option<broadcast::Receiver<RoomEvent>> {
@@ -461,63 +379,17 @@ impl AppState {
         }
     }
 
-    pub fn pool(&self) -> &SqlitePool {
-        match &self.pool {
-            storage::DatabasePool::Sqlite(pool) => pool,
-            storage::DatabasePool::Postgres(_) => panic!("SQLite pool requested for PostgreSQL state"),
+    pub(crate) async fn online_counts(&self) -> (u64, u64) {
+        let rooms = self.members.read().await;
+        let mut users = HashSet::new();
+        let mut connections = 0u64;
+        for members in rooms.values() {
+            for (user_id, connected) in members {
+                users.insert(*user_id);
+                connections += connected.connections as u64;
+            }
         }
-    }
-
-    pub fn postgres_pool(&self) -> Option<&PgPool> {
-        match &self.pool {
-            storage::DatabasePool::Postgres(pool) => Some(pool),
-            storage::DatabasePool::Sqlite(_) => None,
-        }
-    }
-
-    pub(crate) fn database_pool(&self) -> &storage::DatabasePool {
-        &self.pool
-    }
-
-    pub fn max_upload_bytes(&self) -> usize {
-        self.max_upload_bytes
-    }
-
-    pub fn ai_enabled(&self) -> bool {
-        self.ai_assistant.is_some()
-    }
-
-    pub(crate) fn ai_assistant(&self) -> Option<&AiAssistant> {
-        self.ai_assistant.as_ref()
-    }
-
-    pub(crate) fn ai_max_context_messages(&self) -> usize {
-        self.config.ai.max_context_messages
-    }
-
-    pub(crate) fn ai_suggest_cooldown(&self) -> Duration {
-        Duration::from_secs(self.config.ai.suggest_cooldown_secs)
-    }
-
-    pub(crate) fn realtime_config(&self) -> &crate::config::RealtimeConfig {
-        &self.config.realtime
-    }
-
-    pub(crate) fn poke_cooldown(&self) -> Duration {
-        Duration::from_secs(self.config.realtime.poke_cooldown_secs)
-    }
-
-    pub(crate) fn session_lifetime_days(&self) -> i64 {
-        self.config.auth.session_lifetime_days
-    }
-
-    /// Body-size cap for a single resumable-upload chunk request.
-    pub fn chunk_body_limit_bytes(&self) -> usize {
-        self.config.chunk_size_bytes().unwrap_or(8 * 1024 * 1024)
-    }
-
-    pub fn attachment_store(&self) -> &AttachmentStore {
-        &self.attachment_store
+        (users.len() as u64, connections)
     }
 }
 

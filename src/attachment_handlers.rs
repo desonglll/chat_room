@@ -150,9 +150,13 @@ pub async fn download_attachment(
     };
     let (start, end) = range.unwrap_or((0, metadata.size_bytes - 1));
     let length = end - start + 1;
+    let storage_key = metadata
+        .storage_key
+        .clone()
+        .unwrap_or_else(|| id.simple().to_string());
     let reader = match state
         .attachment_store()
-        .open_range(id, start as u64, length as u64)
+        .open_range(&storage_key, start as u64, length as u64)
         .await
     {
         Ok(reader) => reader,

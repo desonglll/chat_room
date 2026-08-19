@@ -25,6 +25,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
   let lastReadId = ''
   let historyInitialized = false
   let suppressScrollUntil = 0
+  let visibleReadTimer: number | undefined
 
   const broadcastIds = computed(() => options.broadcasts.value.map((message) => message.message_id))
 
@@ -54,6 +55,15 @@ export function useMessageViewport(options: MessageViewportOptions) {
     if (latestIndex >= 0) markThrough(broadcastIds.value[latestIndex])
   }
 
+  function scheduleVisibleRead(): void {
+    window.clearTimeout(visibleReadTimer)
+    const delay = Math.max(0, suppressScrollUntil - performance.now()) + 16
+    visibleReadTimer = window.setTimeout(() => {
+      visibleReadTimer = undefined
+      markVisibleMessages()
+    }, delay)
+  }
+
   function rebuildObserver(): void {
     observer?.disconnect()
     visibleIds.clear()
@@ -67,6 +77,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
         else visibleIds.delete(messageId)
       }
       if (performance.now() >= suppressScrollUntil) markVisibleMessages()
+      else scheduleVisibleRead()
     }, { root: list, threshold: [0, VIEW_THRESHOLD, 0.75] })
     for (const element of list.querySelectorAll<HTMLElement>('[data-message-id]')) observer.observe(element)
   }
@@ -88,6 +99,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
       list.scrollTop = list.scrollHeight
     }
     rebuildObserver()
+    scheduleVisibleRead()
   }
 
   function handleScroll(): void {
@@ -165,13 +177,31 @@ export function useMessageViewport(options: MessageViewportOptions) {
   }, { flush: 'pre' })
 
   watch(() => options.visible(), (visible) => {
-    if (visible) void nextTick(rebuildObserver)
+    if (visible) {
+      void nextTick(() => {
+        rebuildObserver()
+        scheduleVisibleRead()
+      })
+    }
   })
 
+  function handleVisibilityChange(): void {
+    if (document.visibilityState !== 'visible' || !options.visible()) return
+    void nextTick(() => {
+      rebuildObserver()
+      scheduleVisibleRead()
+    })
+  }
+
   onMounted(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     if (options.historyReady()) void initializeHistory()
   })
-  onBeforeUnmount(() => observer?.disconnect())
+  onBeforeUnmount(() => {
+    observer?.disconnect()
+    window.clearTimeout(visibleReadTimer)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  })
 
   return { handleScroll, scrollToFirstUnseen, unseenCount }
 }

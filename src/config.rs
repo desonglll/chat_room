@@ -23,6 +23,7 @@ pub struct AppConfig {
     pub ai: AiConfig,
     pub realtime: RealtimeConfig,
     pub auth: AuthConfig,
+    pub admin: AdminConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -186,16 +187,42 @@ impl Default for AuthConfig {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct AdminConfig {
+    /// Case-insensitive usernames allowed to access system-wide operations.
+    pub usernames: Vec<String>,
+    pub orphan_retention_hours: i64,
+    pub deleted_room_retention_days: i64,
+}
+
+impl Default for AdminConfig {
+    fn default() -> Self {
+        Self {
+            usernames: Vec::new(),
+            orphan_retention_hours: 168,
+            deleted_room_retention_days: 30,
+        }
+    }
+}
+
 impl AppConfig {
     pub fn load(path: &Path) -> Result<Self> {
-        let source = match std::fs::read_to_string(path) {
-            Ok(source) => source,
-            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Self::default()),
+        let mut config = match std::fs::read_to_string(path) {
+            Ok(source) => toml::from_str::<Self>(&source)
+                .with_context(|| format!("parse TOML configuration {}", path.display()))?,
+            Err(error) if error.kind() == ErrorKind::NotFound => Self::default(),
             Err(error) => return Err(error).with_context(|| format!("read {}", path.display())),
         };
-        toml::from_str::<Self>(&source)
-            .with_context(|| format!("parse TOML configuration {}", path.display()))?
-            .validate()
+        if let Ok(usernames) = std::env::var("CHAT_ROOM_ADMIN_USERNAMES") {
+            config.admin.usernames = usernames
+                .split(',')
+                .map(str::trim)
+                .filter(|username| !username.is_empty())
+                .map(str::to_string)
+                .collect();
+        }
+        config.validate()
     }
 
     pub fn validate(self) -> Result<Self> {
@@ -236,6 +263,20 @@ impl AppConfig {
         }
         if self.auth.session_lifetime_days <= 0 {
             bail!("auth.session_lifetime_days must be greater than zero");
+        }
+        if self.admin.orphan_retention_hours <= 0 {
+            bail!("admin.orphan_retention_hours must be greater than zero");
+        }
+        if self.admin.deleted_room_retention_days <= 0 {
+            bail!("admin.deleted_room_retention_days must be greater than zero");
+        }
+        if self
+            .admin
+            .usernames
+            .iter()
+            .any(|username| username.trim().is_empty())
+        {
+            bail!("admin.usernames must not contain empty values");
         }
         if !matches!(self.database.kind.as_str(), "sqlite" | "postgres") {
             bail!("database.kind must be 'sqlite' or 'postgres'");
@@ -329,6 +370,8 @@ mod tests {
         assert_eq!(config.realtime.message_poll_limit, 200);
         assert_eq!(config.realtime.poke_cooldown_secs, 5);
         assert_eq!(config.auth.session_lifetime_days, 30);
+        assert!(config.admin.usernames.is_empty());
+        assert_eq!(config.admin.orphan_retention_hours, 168);
         assert_eq!(config.ai.suggest_cooldown_secs, 10);
         assert_eq!(config.uploads.chunk_size_mib, 8);
         assert_eq!(config.uploads.abandoned_upload_gc_hours, 24);

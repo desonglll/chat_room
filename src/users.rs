@@ -6,6 +6,18 @@ use uuid::Uuid;
 use crate::models::{AuthSession, User};
 use crate::state::{with_pool, AppState};
 
+#[derive(sqlx::FromRow)]
+struct UserCredentialRow {
+    id: Uuid,
+    username: String,
+    avatar_emoji: String,
+    display_name: String,
+    signature: String,
+    homepage: String,
+    created_at: DateTime<Utc>,
+    password_hash: String,
+}
+
 impl AppState {
     pub async fn insert_user(
         &self,
@@ -42,33 +54,30 @@ impl AppState {
         &self,
         username: &str,
     ) -> Result<Option<(User, String)>, sqlx::Error> {
-        let row: Option<(Uuid, String, String, String, String, String, DateTime<Utc>, String)> =
-            with_pool!(self, |pool| {
-                sqlx::query_as(
-                    "SELECT id, username, avatar_emoji, display_name, signature, homepage, \
+        let row: Option<UserCredentialRow> = with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT id, username, avatar_emoji, display_name, signature, homepage, \
                      created_at, password_hash FROM users WHERE LOWER(username) = LOWER($1)",
-                )
-                .bind(username)
-                .fetch_optional(pool)
-                .await
-            })?;
+            )
+            .bind(username)
+            .fetch_optional(pool)
+            .await
+        })?;
 
-        Ok(
-            row.map(|(id, username, avatar_emoji, display_name, signature, homepage, created_at, password_hash)| {
-                (
-                    User {
-                        id,
-                        username,
-                        avatar_emoji,
-                        display_name,
-                        signature,
-                        homepage,
-                        created_at,
-                    },
-                    password_hash,
-                )
-            }),
-        )
+        Ok(row.map(|row| {
+            (
+                User {
+                    id: row.id,
+                    username: row.username,
+                    avatar_emoji: row.avatar_emoji,
+                    display_name: row.display_name,
+                    signature: row.signature,
+                    homepage: row.homepage,
+                    created_at: row.created_at,
+                },
+                row.password_hash,
+            )
+        }))
     }
 
     pub async fn create_session(&self, user: User) -> Result<AuthSession, sqlx::Error> {

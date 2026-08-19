@@ -13,6 +13,10 @@ path = "src/main.rs"
 name = "client"
 path = "src/bin/client.rs"
 
+[[bin]]
+name = "stress"
+path = "src/bin/stress.rs"
+
 [dependencies]
 axum = { version = "0.7", features = ["multipart", "ws"] }
 tokio = { version = "1", features = ["full"] }

@@ -32,8 +32,11 @@ async fn start_server_with_config(config: AppConfig) -> TestServer {
     let state = Arc::new(AppState::new_with_config(&config).await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
-    let task = tokio::spawn(async move {
-        axum::serve(listener, build_app(state)).await.unwrap();
+    let task = tokio::spawn({
+        let state = state.clone();
+        async move {
+            axum::serve(listener, build_app(state)).await.unwrap();
+        }
     });
     TestServer {
         base: format!("http://{address}"),
