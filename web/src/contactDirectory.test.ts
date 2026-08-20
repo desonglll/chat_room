@@ -27,7 +27,7 @@ describe('contact directory', () => {
     expect(contactSection('unknown')).toBe('friends')
   })
 
-  test('builds stable entries for each Telegram-style section', () => {
+  test('builds stable entries for each contact section', () => {
     expect(contactEntries('friends', [friend], [incoming], [outgoing], [])).toMatchObject([
       { key: 'friend:friend-1', kind: 'friend', subtitle: 'Designing quietly' },
     ])
