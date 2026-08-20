@@ -26,7 +26,8 @@ pub use attachments::{
     upload_handlers as attachment_upload_handlers, upload_sessions as attachment_upload_sessions,
 };
 pub use messages::{
-    actions as message_actions, forward_handlers, read_store, store as message_store,
+    actions as message_actions, forward_handlers, reactions as message_reactions, read_store,
+    store as message_store,
 };
 pub use realtime::ws;
 pub(crate) use realtime::{auth as ws_auth, inbound as ws_inbound};
@@ -97,6 +98,7 @@ use crate::state::AppState;
         models::ChatFilePage,
         models::ReplyPreview,
         models::ForwardedFrom,
+        models::MessageReaction,
         models::ForwardMessagesRequest,
         models::ForwardResult,
         attachment_upload_handlers::CreateUploadRequest,

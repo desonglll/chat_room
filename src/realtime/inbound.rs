@@ -210,6 +210,30 @@ pub async fn handle_client_message(
                 Err(error) => tracing::warn!("recall message failed: {}", error),
             }
         }
+        ChatMessage::Reaction {
+            message_id,
+            emoji,
+            active,
+        } => match state
+            .set_message_reaction(room_id, user.id, message_id, &emoji, active)
+            .await
+        {
+            Ok(true) => {
+                state
+                    .broadcast(
+                        room_id,
+                        ChatMessage::ReactionChanged {
+                            message_id,
+                            emoji,
+                            user_id: user.id,
+                            active,
+                        },
+                    )
+                    .await;
+            }
+            Ok(false) => {}
+            Err(error) => tracing::warn!("update message reaction failed: {}", error),
+        },
         _ => {}
     }
 }

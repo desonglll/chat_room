@@ -2,7 +2,8 @@
 
 use axum::{extract::State, http::StatusCode, Json};
 
-use crate::models::{ChatMessage, ForwardMessagesRequest, ForwardResult};
+use crate::models::{ForwardMessagesRequest, ForwardResult};
+use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
@@ -89,23 +90,7 @@ pub async fn forward_messages(
                         skipped_reason: None,
                     });
                     state
-                        .broadcast(
-                            target_room_id,
-                            ChatMessage::Broadcast {
-                                message_id: forwarded.id,
-                                client_message_id: forwarded.client_message_id,
-                                sender_id: forwarded.sender_id,
-                                sender: forwarded.sender,
-                                sender_avatar: forwarded.sender_avatar,
-                                content: forwarded.content,
-                                attachment: forwarded.attachment,
-                                reply_to: forwarded.reply_to,
-                                recalled_at: forwarded.recalled_at,
-                                edited_at: forwarded.edited_at,
-                                timestamp: forwarded.created_at,
-                                forwarded_from: forwarded.forwarded_from,
-                            },
-                        )
+                        .broadcast(target_room_id, stored_message_to_chat(forwarded))
                         .await;
                 }
                 Ok(None) => {

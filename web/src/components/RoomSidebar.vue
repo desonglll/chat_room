@@ -41,6 +41,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   select: [conversation: ConversationSummary]
+  clear: []
   refresh: []
   newChat: []
   create: []
@@ -155,9 +156,8 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
         ><InputText v-model="query" placeholder="搜索会话" size="small" fluid aria-label="搜索会话"
       /></IconField>
     </div>
-    <div
-      class="min-h-0 flex-1 overflow-y-auto px-2 pb-2"
-      role="list"
+    <nav
+      class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2"
       aria-label="会话列表"
       data-testid="conversation-list"
     >
@@ -188,29 +188,36 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
           ><SquarePen :size="15" />新对话</Button
         >
       </div>
-      <button
-        v-for="conversation in visibleConversations"
-        v-else
-        :key="conversation.room_id"
-        type="button"
-        role="listitem"
-        class="mb-0.5 flex h-[68px] w-full items-center gap-3 rounded-md px-2.5 text-left transition-colors active:bg-surface-100"
-        :class="[
-          conversation.room_id === selectedId ? 'bg-primary-50 text-primary-900' : 'hover:bg-surface-50',
-          collapsed ? 'md:justify-center md:px-1' : '',
-        ]"
-        :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
-        :title="conversation.title"
-        @click="emit('select', conversation)"
-        @contextmenu.prevent="openContextMenu($event, conversation)"
-      >
-        <ConversationRow
-          :conversation="conversation"
-          :selected="conversation.room_id === selectedId"
-          :collapsed="collapsed"
+      <template v-else>
+        <button
+          v-for="conversation in visibleConversations"
+          :key="conversation.room_id"
+          type="button"
+          class="mb-0.5 flex h-[68px] w-full shrink-0 items-center gap-3 rounded-md px-2.5 text-left transition-colors active:bg-surface-100"
+          :class="[
+            conversation.room_id === selectedId ? 'bg-primary-50 text-primary-900' : 'hover:bg-surface-50',
+            collapsed ? 'md:justify-center md:px-1' : '',
+          ]"
+          :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
+          :title="conversation.title"
+          @click="emit('select', conversation)"
+          @contextmenu.prevent="openContextMenu($event, conversation)"
+        >
+          <ConversationRow
+            :conversation="conversation"
+            :selected="conversation.room_id === selectedId"
+            :collapsed="collapsed"
+          />
+        </button>
+        <button
+          type="button"
+          class="min-h-10 w-full flex-1 cursor-default rounded-md"
+          aria-label="取消选择会话"
+          data-testid="conversation-list-blank"
+          @click="emit('clear')"
         />
-      </button>
-    </div>
+      </template>
+    </nav>
 
     <button
       v-if="user"

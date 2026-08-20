@@ -33,6 +33,7 @@ const completed: BroadcastMessage = {
   edited_at: null,
   timestamp: '2026-08-19T00:00:01Z',
   forwarded_from: null,
+  reactions: [],
 }
 
 describe('upload messages', () => {

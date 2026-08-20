@@ -167,6 +167,11 @@ export interface ForwardedFrom {
   room_name: string
 }
 
+export interface MessageReaction {
+  emoji: string
+  user_ids: string[]
+}
+
 export interface ForwardResult {
   message_id: string
   target_room_id: string
@@ -187,6 +192,7 @@ export interface BroadcastMessage {
   edited_at: string | null
   timestamp: string
   forwarded_from: ForwardedFrom | null
+  reactions: MessageReaction[]
   client_message_id?: string | null
   delivery_state?: DeliveryState
   motion?: MessageMotion
@@ -205,6 +211,7 @@ export interface StoredMessage {
   edited_at: string | null
   created_at: string
   forwarded_from: ForwardedFrom | null
+  reactions: MessageReaction[]
 }
 
 export interface SystemMessage {

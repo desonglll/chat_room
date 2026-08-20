@@ -338,6 +338,7 @@ impl AppState {
             edited_at: None,
             created_at,
             forwarded_from: None,
+            reactions: Vec::new(),
         })
     }
 

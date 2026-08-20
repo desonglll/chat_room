@@ -66,8 +66,10 @@ impl AppState {
                     .fetch_one(pool)
                     .await
             })?;
+            let mut messages = vec![row.into_message(Some(sender_id))];
+            self.attach_message_reactions(&mut messages).await?;
             return Ok(StoreMessageResult {
-                message: row.into_message(Some(sender_id)),
+                message: messages.pop().expect("stored message exists"),
                 inserted,
             });
         }
@@ -87,6 +89,7 @@ impl AppState {
                 edited_at: None,
                 created_at,
                 forwarded_from: None,
+                reactions: Vec::new(),
             },
             inserted,
         })

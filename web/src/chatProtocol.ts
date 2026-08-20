@@ -14,6 +14,7 @@ export type ServerMessage =
   | { type: 'read_receipt'; user_id: string; username: string; message_id: string }
   | { type: 'message_recalled'; message_id: string; recalled_at: string }
   | { type: 'message_edited'; message_id: string; content: string; edited_at: string }
+  | { type: 'reaction_changed'; message_id: string; emoji: string; user_id: string; active: boolean }
   | { type: 'typing'; user_id?: string; username?: string; content: string }
   | { type: 'presence'; members: RoomMember[]; participants: RoomMember[] }
   | { type: 'system'; content: string; members?: RoomMember[]; participants?: RoomMember[] }

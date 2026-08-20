@@ -7,6 +7,8 @@ import ContextMenu from 'primevue/contextmenu'
 import type { MenuItem } from 'primevue/menuitem'
 import MessageAttachment from './MessageAttachment.vue'
 import MessageDeliveryStatus from './MessageDeliveryStatus.vue'
+import MessageReactionChips from './MessageReactionChips.vue'
+import MessageReactionPicker from './MessageReactionPicker.vue'
 import PendingUploadMessage from './PendingUploadMessage.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
 import { avatarColor } from '../avatarColor'
@@ -45,6 +47,7 @@ const emit = defineEmits<{
   cancelUpload: [key: string]
   retryUpload: [key: string]
   loadOlder: []
+  reaction: [messageId: string, emoji: string, active: boolean]
 }>()
 
 const messageList = ref<HTMLElement | null>(null)
@@ -92,6 +95,13 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
 
 function isSettled(message: BroadcastMessage): boolean {
   return !message.delivery_state || message.delivery_state === 'sent'
+}
+
+function toggleReaction(message: BroadcastMessage, emoji: string): void {
+  const active = !(message.reactions || [])
+    .find((reaction) => reaction.emoji === emoji)
+    ?.user_ids.includes(props.currentUserId)
+  emit('reaction', message.message_id, emoji, active)
 }
 
 function openAvatarContextMenu(event: MouseEvent, message: BroadcastMessage): void {
@@ -337,6 +347,10 @@ onBeforeUnmount(() => {
                 message.sender_id === currentUserId ? '你' : message.sender
               }}</strong>
               <time>{{ formatTime(message.timestamp) }}</time>
+              <MessageReactionPicker
+                v-if="!message.recalled_at && !selecting && isSettled(message)"
+                @select="toggleReaction(message, $event)"
+              />
               <button
                 v-if="!message.recalled_at && !selecting && isSettled(message)"
                 type="button"
@@ -418,6 +432,14 @@ onBeforeUnmount(() => {
                 <template v-else>{{ segment.text }}</template>
               </template>
             </p>
+            <MessageReactionChips
+              v-if="!message.recalled_at && isSettled(message)"
+              :reactions="message.reactions || []"
+              :participants="participants"
+              :current-user-id="currentUserId"
+              :own="message.sender_id === currentUserId"
+              @toggle="(emoji, active) => emit('reaction', message.message_id, emoji, active)"
+            />
             <small
               v-if="message.edited_at && !message.recalled_at"
               class="mt-0.5 block text-right text-[10px] text-muted-color"

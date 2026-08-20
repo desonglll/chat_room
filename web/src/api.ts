@@ -336,6 +336,7 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     edited_at: message.edited_at,
     timestamp: message.created_at,
     forwarded_from: message.forwarded_from,
+    reactions: message.reactions || [],
   }
 }
 

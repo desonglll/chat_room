@@ -50,12 +50,8 @@ function handleJoin(): void {
     </div>
   </section>
 
-  <section v-else-if="!room" class="fade-in flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
-    <span class="grid size-24 place-items-center rounded-2xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-lg">
-      <img src="/brand/echo-gate.svg" alt="" class="size-12" aria-hidden="true" />
-    </span>
-    <strong class="mt-6 text-lg font-semibold">选择一个聊天室</strong>
-    <p class="mt-1.5 text-sm text-muted-color">从左侧列表开始，或去发现公开聊天室</p>
+  <section v-else-if="!room" class="min-h-0 flex-1 bg-surface-50">
+    <span class="sr-only">未选择会话</span>
   </section>
 
   <section v-else class="fade-in flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">

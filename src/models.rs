@@ -62,6 +62,15 @@ pub struct StoredMessage {
     pub edited_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub forwarded_from: Option<ForwardedFrom>,
+    #[serde(default)]
+    pub reactions: Vec<MessageReaction>,
+}
+
+/// Aggregated users who applied one emoji response to a message.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MessageReaction {
+    pub emoji: String,
+    pub user_ids: Vec<Uuid>,
 }
 
 /// Metadata needed to display or download a message attachment.
@@ -327,6 +336,14 @@ pub enum ChatMessage {
     #[serde(rename = "recall")]
     Recall { message_id: Uuid },
 
+    /// Client -> Server: explicitly add or remove one emoji response.
+    #[serde(rename = "reaction")]
+    Reaction {
+        message_id: Uuid,
+        emoji: String,
+        active: bool,
+    },
+
     /// Client -> Server: nudge another connected member in this room.
     #[serde(rename = "poke")]
     Poke { target_user_id: Uuid },
@@ -347,6 +364,17 @@ pub enum ChatMessage {
         edited_at: Option<DateTime<Utc>>,
         timestamp: DateTime<Utc>,
         forwarded_from: Option<ForwardedFrom>,
+        #[serde(default)]
+        reactions: Vec<MessageReaction>,
+    },
+
+    /// Server -> Client: one member added or removed an emoji response.
+    #[serde(rename = "reaction_changed")]
+    ReactionChanged {
+        message_id: Uuid,
+        emoji: String,
+        user_id: Uuid,
+        active: bool,
     },
 
     /// Server -> Client: a sender replaced a message's content.

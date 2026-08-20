@@ -135,6 +135,7 @@ impl MessageRow {
             edited_at: self.edited_at,
             created_at: self.created_at,
             forwarded_from,
+            reactions: Vec::new(),
         }
     }
 }
@@ -241,7 +242,12 @@ impl AppState {
         let row: Option<MessageRow> = with_pool!(self, |pool| {
             sqlx::query_as(&query).bind(id).fetch_optional(pool).await
         })?;
-        Ok(row.map(|row| row.into_message(viewer_id)))
+        let mut messages: Vec<StoredMessage> = row
+            .map(|row| row.into_message(viewer_id))
+            .into_iter()
+            .collect();
+        self.attach_message_reactions(&mut messages).await?;
+        Ok(messages.pop())
     }
 
     pub async fn attachment_metadata(
@@ -328,10 +334,12 @@ impl AppState {
                 }
             }
         })?;
-        Ok(rows
+        let mut messages: Vec<StoredMessage> = rows
             .into_iter()
             .map(|row| row.into_message(viewer_id))
-            .collect())
+            .collect();
+        self.attach_message_reactions(&mut messages).await?;
+        Ok(messages)
     }
 
     pub(crate) async fn message_history(
@@ -375,10 +383,12 @@ impl AppState {
             }
         })?;
         rows.reverse();
-        Ok(rows
+        let mut messages: Vec<StoredMessage> = rows
             .into_iter()
             .map(|row| row.into_message(viewer_id))
-            .collect())
+            .collect();
+        self.attach_message_reactions(&mut messages).await?;
+        Ok(messages)
     }
 
     pub(crate) async fn reply_preview(

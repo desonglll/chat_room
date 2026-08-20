@@ -1,6 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { preferredScrollBehavior } from '../motionPreference'
-import { firstUnreadMessageId } from '../messageViewportPolicy'
+import { firstUnreadMessageId, messageStartScrollTop } from '../messageViewportPolicy'
 import type { BroadcastMessage, ReadReceipt } from '../types'
 
 interface MessageViewportOptions {
@@ -135,7 +135,14 @@ export function useMessageViewport(options: MessageViewportOptions) {
     const firstUnreadId = firstUnreadMessageId(options.broadcasts.value, options.unreadCount(), options.currentUserId())
     followLayoutChanges = !firstUnreadId
     if (firstUnreadId) {
-      list.querySelector<HTMLElement>(`[data-message-id="${firstUnreadId}"]`)?.scrollIntoView({ block: 'start' })
+      const target = list.querySelector<HTMLElement>(`[data-message-id="${firstUnreadId}"]`)
+      if (target) {
+        list.scrollTop = messageStartScrollTop({
+          containerTop: list.getBoundingClientRect().top,
+          currentScrollTop: list.scrollTop,
+          messageTop: target.getBoundingClientRect().top,
+        })
+      }
     } else {
       list.scrollTop = list.scrollHeight
     }

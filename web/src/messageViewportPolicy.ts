@@ -11,3 +11,14 @@ export function firstUnreadMessageId(messages: ViewportMessage[], unreadCount: n
   const incoming = messages.filter((message) => message.sender_id !== currentUserId && !message.recalled_at)
   return incoming[Math.max(0, incoming.length - count)]?.message_id || ''
 }
+
+interface MessageStartPosition {
+  containerTop: number
+  currentScrollTop: number
+  messageTop: number
+  topGap?: number
+}
+
+export function messageStartScrollTop(position: MessageStartPosition): number {
+  return Math.max(0, position.currentScrollTop + position.messageTop - position.containerTop - (position.topGap ?? 20))
+}

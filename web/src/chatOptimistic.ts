@@ -41,6 +41,7 @@ export function createOptimisticMessage(input: OptimisticMessageInput): Broadcas
     edited_at: null,
     timestamp: input.timestamp || new Date().toISOString(),
     forwarded_from: null,
+    reactions: [],
     delivery_state: 'sending',
     motion: 'outgoing',
   }

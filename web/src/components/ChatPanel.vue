@@ -86,6 +86,7 @@ const emit = defineEmits<{
   cancelDownload: []
   poke: [userId: string]
   retry: [messageId: string]
+  reaction: [messageId: string, emoji: string, active: boolean]
   loadOlder: []
   removeFriend: []
   blockUser: []
@@ -355,6 +356,7 @@ onBeforeUnmount(() => {
         @view-profile="viewProfileUserId = $event"
         @poke="emit('poke', $event)"
         @retry="emit('retry', $event)"
+        @reaction="(messageId, emoji, active) => emit('reaction', messageId, emoji, active)"
         @cancel-upload="emit('cancelUploadTask', $event)"
         @retry-upload="emit('retryUploadTask', $event)"
       />

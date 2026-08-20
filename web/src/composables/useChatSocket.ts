@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { createOptimisticMessage, reconcileOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
 import { AUTH_ERRORS, readableSystemMessage, type ServerMessage } from '../chatProtocol'
 import { classifyMessageMotion, classifySystemMotion } from '../messageMotion'
+import { applyMessageReaction } from '../messageReactions'
 import { useChatUploadMessages } from './useChatUploadMessages'
 import type { BroadcastMessage, ChatStatus, DisplayMessage, ReadReceipt, Room, RoomMember, TypingDraft } from '../types'
 
@@ -191,6 +192,10 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       })
       return
     }
+    if (message.type === 'reaction_changed') {
+      messages.value = applyMessageReaction(messages.value, message)
+      return
+    }
     if (message.type === 'typing') {
       applyTyping(message)
       return
@@ -231,12 +236,19 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       return
     }
     const duplicate = messages.value.some((item) => item.type === 'broadcast' && item.message_id === message.message_id)
-    if (!duplicate) {
-      messages.value.push({
-        ...message,
-        motion: classifyMessageMotion(historyReady.value, message.sender_id, currentUserId.value),
-      })
+    if (duplicate) {
+      messages.value = messages.value.map((item) =>
+        item.type === 'broadcast' && item.message_id === message.message_id
+          ? { ...message, reactions: message.reactions || [], delivery_state: item.delivery_state, motion: item.motion }
+          : item,
+      )
+      return
     }
+    messages.value.push({
+      ...message,
+      reactions: message.reactions || [],
+      motion: classifyMessageMotion(historyReady.value, message.sender_id, currentUserId.value),
+    })
   }
 
   function prependHistory(older: BroadcastMessage[]): void {
@@ -450,6 +462,12 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     return true
   }
 
+  function react(messageId: string, emoji: string, active: boolean): boolean {
+    if (!messageId || !emoji || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
+    socket.send(JSON.stringify({ type: 'reaction', message_id: messageId, emoji, active }))
+    return true
+  }
+
   onBeforeUnmount(() => close())
 
   return {
@@ -474,6 +492,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     edit,
     markRead,
     recall,
+    react,
     retry,
     poke,
     send,
