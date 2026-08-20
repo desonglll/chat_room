@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { createOptimisticMessage, reconcileOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
+import { mergeIncomingBroadcast } from '../chatIncoming'
+import { createOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
 import { AUTH_ERRORS, readableSystemMessage, type ServerMessage } from '../chatProtocol'
 import { classifyMessageMotion, classifySystemMotion } from '../messageMotion'
 import { applyMessageReaction } from '../messageReactions'
@@ -229,26 +230,13 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   }
 
   function appendBroadcast(message: BroadcastMessage, _showBrowserNotification = true): void {
-    const reconciled = reconcileOptimisticMessage(messages.value, message)
-    if (reconciled.matched) {
-      if (message.client_message_id) clearDeliveryTimer(message.client_message_id)
-      messages.value = reconciled.messages
-      return
-    }
-    const duplicate = messages.value.some((item) => item.type === 'broadcast' && item.message_id === message.message_id)
-    if (duplicate) {
-      messages.value = messages.value.map((item) =>
-        item.type === 'broadcast' && item.message_id === message.message_id
-          ? { ...message, reactions: message.reactions || [], delivery_state: item.delivery_state, motion: item.motion }
-          : item,
-      )
-      return
-    }
-    messages.value.push({
-      ...message,
-      reactions: message.reactions || [],
-      motion: classifyMessageMotion(historyReady.value, message.sender_id, currentUserId.value),
-    })
+    const result = mergeIncomingBroadcast(
+      messages.value,
+      message,
+      classifyMessageMotion(historyReady.value, message.sender_id, currentUserId.value),
+    )
+    if (result.acknowledgedClientId) clearDeliveryTimer(result.acknowledgedClientId)
+    messages.value = result.messages
   }
 
   function prependHistory(older: BroadcastMessage[]): void {
