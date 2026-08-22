@@ -109,8 +109,7 @@ async function submit(): Promise<void> {
           name="new-room-name"
           maxlength="80"
           autocomplete="off"
-          placeholder="例如：产品讨论"
-          autofocus
+          placeholder="例如：产品讨论…"
           fluid
         />
       </div>
@@ -119,7 +118,16 @@ async function submit(): Promise<void> {
         <label for="createRoomDescription" class="text-sm font-medium">
           简介 <span class="font-normal text-muted-color">可选</span>
         </label>
-        <Textarea id="createRoomDescription" v-model="description" maxlength="300" rows="2" auto-resize fluid />
+        <Textarea
+          id="createRoomDescription"
+          v-model="description"
+          name="new-room-description"
+          autocomplete="off"
+          maxlength="300"
+          rows="2"
+          auto-resize
+          fluid
+        />
       </div>
 
       <div class="flex flex-col gap-2">

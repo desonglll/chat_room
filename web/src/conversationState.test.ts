@@ -4,6 +4,7 @@ import {
   applyAccountStates,
   conversationPreview,
   conversationToRoom,
+  removeConversation,
   sortConversations,
 } from './conversationState'
 import type { AccountMessageEvent, ConversationSummary } from './types'
@@ -34,6 +35,13 @@ describe('conversation state', () => {
 
     expect(sortConversations(source).map((item) => item.room_id)).toEqual(['newer', 'older'])
     expect(source).toEqual([older, newer])
+  })
+
+  it('removes a room immediately after a successful leave', () => {
+    const source = [conversation(), conversation({ room_id: 'room-2' })]
+
+    expect(removeConversation(source, 'room-1')).toEqual([source[1]])
+    expect(source).toHaveLength(2)
   })
 
   it('moves a conversation to the top and updates its viewer-specific title', () => {
@@ -101,6 +109,22 @@ describe('conversation state', () => {
     expect(conversationPreview(pending)).toBe('2 条入群申请')
   })
 
+  it('conceals message content while no conversation is focused', () => {
+    const message = conversation({
+      last_message: {
+        message_id: 'message-private',
+        sender_id: 'member-1',
+        sender: '51',
+        content: '11',
+        attachment_file_name: null,
+        recalled: false,
+        created_at: '2026-08-21T02:29:00Z',
+      },
+    })
+
+    expect(conversationPreview(message, false)).toBe('')
+  })
+
   it('moves a room when an account snapshot reports a new join request', () => {
     const result = applyAccountStates(
       [conversation(), conversation({ room_id: 'room-2', last_activity_at: '2026-08-19T09:00:00Z' })],
@@ -109,6 +133,7 @@ describe('conversation state', () => {
           'room-1',
           {
             unread_count: 0,
+            membership_status: 'active' as const,
             pending_join_requests: 1,
             pending_join_requested_at: '2026-08-19T10:00:00Z',
           },
@@ -118,5 +143,24 @@ describe('conversation state', () => {
 
     expect(result[0]).toMatchObject({ room_id: 'room-1', pending_join_requests: 1 })
     expect(conversationPreview(result[0] as ConversationSummary)).toBe('1 条入群申请')
+  })
+
+  it('removes conversations that are no longer active in the account snapshot', () => {
+    const result = applyAccountStates(
+      [conversation(), conversation({ room_id: 'pending-room' })],
+      new Map([
+        [
+          'pending-room',
+          {
+            unread_count: 0,
+            membership_status: 'pending' as const,
+            pending_join_requests: 0,
+            pending_join_requested_at: null,
+          },
+        ],
+      ]),
+    )
+
+    expect(result).toEqual([])
   })
 })

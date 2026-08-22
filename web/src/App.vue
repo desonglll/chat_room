@@ -50,7 +50,7 @@ const sidebarCollapsed = ref(storageGet(window.localStorage, SIDEBAR_COLLAPSED_K
 const preferences = ref(loadPreferences())
 const privacyLockScreen = ref<{ lock: () => void } | null>(null)
 useTheme(computed(() => preferences.value.theme))
-const sidebarWidth = ref(340)
+const sidebarWidth = ref(360)
 const toast = useToast()
 const {
   aiEnabled,
@@ -192,7 +192,6 @@ const {
   },
   showToast,
 })
-
 const roomActions = useRoomActions({
   rooms,
   selectedRoom,
@@ -217,6 +216,7 @@ const roomActions = useRoomActions({
   navigateHome: () => void router.push({ name: 'home' }).catch(() => {}),
   refreshRooms: loadRoomList,
   refreshConversations: conversationState.refresh,
+  removeConversation: conversationState.remove,
   upsertConversation: conversationState.upsert,
   showSuccess: showToast,
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
@@ -334,7 +334,7 @@ function handleForwarded(): void {
     v-else
     class="cr-canvas-ambient relative grid h-dvh w-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none md:[grid-template-columns:var(--sidebar-cols)]"
     :style="{
-      '--sidebar-cols': sidebarCollapsed ? '76px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
+      '--sidebar-cols': sidebarCollapsed ? '72px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
     }"
     data-testid="app-shell"
   >

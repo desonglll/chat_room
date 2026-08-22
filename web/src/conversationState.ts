@@ -2,6 +2,7 @@ import type { AccountMessageEvent, ConversationSummary, Room } from './types'
 
 export interface ConversationAccountState {
   unread_count: number
+  membership_status: 'pending' | 'invited' | 'active'
   pending_join_requests: number
   pending_join_requested_at: string | null
 }
@@ -11,6 +12,13 @@ export function sortConversations(conversations: readonly ConversationSummary[])
     const activity = right.last_activity_at.localeCompare(left.last_activity_at)
     return activity || left.room_id.localeCompare(right.room_id)
   })
+}
+
+export function removeConversation(
+  conversations: readonly ConversationSummary[],
+  roomId: string,
+): ConversationSummary[] {
+  return conversations.filter((conversation) => conversation.room_id !== roomId)
 }
 
 export function applyAccountMessage(
@@ -46,17 +54,19 @@ export function applyAccountStates(
   states: ReadonlyMap<string, ConversationAccountState>,
 ): ConversationSummary[] {
   return sortConversations(
-    conversations.map((conversation) => {
-      const state = states.get(conversation.room_id)
-      const requestActivity = state?.pending_join_requested_at || ''
-      return {
-        ...conversation,
-        unread_count: state?.unread_count || 0,
-        pending_join_requests: state?.pending_join_requests || 0,
-        last_activity_at:
-          requestActivity > conversation.last_activity_at ? requestActivity : conversation.last_activity_at,
-      }
-    }),
+    conversations
+      .filter((conversation) => states.get(conversation.room_id)?.membership_status === 'active')
+      .map((conversation) => {
+        const state = states.get(conversation.room_id)!
+        const requestActivity = state.pending_join_requested_at || ''
+        return {
+          ...conversation,
+          unread_count: state.unread_count,
+          pending_join_requests: state.pending_join_requests,
+          last_activity_at:
+            requestActivity > conversation.last_activity_at ? requestActivity : conversation.last_activity_at,
+        }
+      }),
   )
 }
 
@@ -79,8 +89,9 @@ export function conversationToRoom(conversation: ConversationSummary): Room {
   }
 }
 
-export function conversationPreview(conversation: ConversationSummary): string {
+export function conversationPreview(conversation: ConversationSummary, revealContent = true): string {
   if (conversation.pending_join_requests > 0) return `${conversation.pending_join_requests} 条入群申请`
+  if (!revealContent) return ''
   const message = conversation.last_message
   if (!message) return conversation.kind === 'direct' ? '开始聊天' : conversation.description || '暂无消息'
   if (message.recalled) return '消息已撤回'

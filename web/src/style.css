@@ -123,6 +123,13 @@
   [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
+
+  button,
+  a,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 }
 
 @layer utilities {
@@ -142,13 +149,22 @@
     }
   }
 
-  /* A whisper of brand-colored ambient light on the app canvas instead of a
-     flat fill — depth without calling attention to itself. */
   .cr-canvas-ambient {
-    background:
-      radial-gradient(1200px 640px at 6% -12%, color-mix(in srgb, var(--cr-primary) 7%, transparent), transparent 60%),
-      radial-gradient(900px 520px at 100% 108%, color-mix(in srgb, var(--cr-accent) 5%, transparent), transparent 55%),
-      var(--cr-canvas);
+    background: var(--cr-canvas);
+  }
+
+  .cr-chat-canvas {
+    background: var(--cr-chat-canvas);
+  }
+
+  .cr-bubble-incoming {
+    background: var(--cr-bubble-incoming);
+    color: var(--cr-text);
+  }
+
+  .cr-bubble-outgoing {
+    background: var(--cr-bubble-outgoing);
+    color: var(--cr-text);
   }
 }
 
@@ -173,6 +189,33 @@
     background var(--cr-motion-normal) var(--cr-ease-out),
     box-shadow var(--cr-motion-normal) var(--cr-ease-out),
     border-color var(--cr-motion-normal) var(--cr-ease-out);
+}
+
+.p-inputtext,
+.p-textarea {
+  box-shadow: none;
+}
+
+.p-dialog,
+.p-popover,
+.p-menu,
+.p-contextmenu {
+  border-radius: var(--cr-radius-lg);
+  box-shadow: var(--cr-shadow-lg);
+}
+
+.p-dialog {
+  overflow: hidden;
+}
+
+.p-dialog-content {
+  overscroll-behavior: contain;
+}
+
+.p-dialog-header,
+.p-dialog-content,
+.p-dialog-footer {
+  background: var(--cr-surface);
 }
 
 .p-button:active:not(:disabled):not([data-p-disabled='true']),

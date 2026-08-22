@@ -184,7 +184,16 @@ async function confirmDelete(): Promise<void> {
           <label for="manageRoomDescription" class="text-sm font-medium">
             简介 <span class="font-normal text-muted-color">可选</span>
           </label>
-          <Textarea id="manageRoomDescription" v-model="description" maxlength="300" rows="2" auto-resize fluid />
+          <Textarea
+            id="manageRoomDescription"
+            v-model="description"
+            name="managed-room-description"
+            autocomplete="off"
+            maxlength="300"
+            rows="2"
+            auto-resize
+            fluid
+          />
         </div>
 
         <div class="flex flex-col gap-2">

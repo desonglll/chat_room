@@ -8,19 +8,28 @@
   --cr-jade-700: #087f6b;
   --cr-jade-800: #066456;
   --cr-jade-900: #064e44;
+  --cr-blue-50: #f2f8fd;
+  --cr-blue-100: #e6f3fb;
+  --cr-blue-200: #c5e2f7;
+  --cr-blue-300: #8cc8ef;
+  --cr-blue-400: #54aee6;
+  --cr-blue-500: #3390ec;
+  --cr-blue-700: #2481cc;
+  --cr-blue-800: #1f6da8;
+  --cr-blue-900: #18547f;
   --cr-coral-100: #ffe5e0;
   --cr-coral-500: #ff6b57;
   --cr-coral-700: #b9362b;
   --cr-sun-100: #fff2ce;
   --cr-sun-500: #f4b942;
   --cr-sun-800: #8a5b00;
-  --cr-ink: #172321;
-  --cr-paper: #f7faf9;
+  --cr-ink: #182533;
+  --cr-paper: #e9edef;
   --cr-white: #fff;
-  --cr-mist-100: #eef4f1;
-  --cr-mist-200: #dce6e2;
-  --cr-mist-300: #c4d1cd;
-  --cr-muted: #52615d;
+  --cr-mist-100: #f4f6f8;
+  --cr-mist-200: #dfe5e9;
+  --cr-mist-300: #c7d1d8;
+  --cr-muted: #708499;
 
   --cr-canvas: var(--cr-paper);
   --cr-surface: var(--cr-white);
@@ -30,14 +39,17 @@
   --cr-border-subtle: color-mix(in srgb, var(--cr-mist-200) 60%, transparent);
   --cr-text: var(--cr-ink);
   --cr-text-muted: var(--cr-muted);
-  --cr-primary: var(--cr-jade-700);
-  --cr-primary-hover: var(--cr-jade-800);
-  --cr-primary-soft: var(--cr-jade-100);
+  --cr-primary: var(--cr-blue-700);
+  --cr-primary-hover: var(--cr-blue-800);
+  --cr-primary-soft: var(--cr-blue-100);
   --cr-accent: var(--cr-coral-500);
   --cr-warning: var(--cr-sun-800);
   --cr-danger: var(--cr-coral-700);
   --cr-success: var(--cr-jade-800);
   --cr-flash: var(--cr-sun-100);
+  --cr-chat-canvas: #e7ebee;
+  --cr-bubble-incoming: #fff;
+  --cr-bubble-outgoing: #e4f2fb;
 
   --cr-font-sans: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --cr-text-caption: 0.75rem;
@@ -59,12 +71,12 @@
   --cr-space-12: 3rem;
   --cr-space-16: 4rem;
 
-  --cr-radius-xs: 0.25rem;
-  --cr-radius-sm: 0.375rem;
-  --cr-radius-md: 0.5rem;
-  --cr-radius-lg: 1rem;
-  --cr-radius-xl: 1.25rem;
-  --cr-radius-2xl: 1.75rem;
+  --cr-radius-xs: 0.125rem;
+  --cr-radius-sm: 0.25rem;
+  --cr-radius-md: 0.375rem;
+  --cr-radius-lg: 0.5rem;
+  --cr-radius-xl: 0.5rem;
+  --cr-radius-2xl: 0.5rem;
   --cr-radius-round: 999px;
   --cr-control: 2.5rem;
   --cr-touch: 2.75rem;
@@ -80,31 +92,31 @@
 
   /* Layered, brand-tinted shadows (ink-based, not pure black) — depth reads as
      soft light falloff rather than a hard drop shadow. */
-  --cr-shadow-xs: 0 1px 2px rgba(23, 35, 33, 0.06);
-  --cr-shadow-sm: 0 1px 3px rgba(23, 35, 33, 0.07), 0 2px 6px rgba(23, 35, 33, 0.05);
-  --cr-shadow-md: 0 4px 12px rgba(23, 35, 33, 0.08), 0 12px 24px rgba(23, 35, 33, 0.05);
-  --cr-shadow-lg: 0 8px 24px rgba(23, 35, 33, 0.1), 0 24px 48px rgba(23, 35, 33, 0.08);
-  --cr-shadow-xl: 0 16px 40px rgba(23, 35, 33, 0.14), 0 32px 80px rgba(23, 35, 33, 0.1);
+  --cr-shadow-xs: 0 1px 1px rgba(24, 37, 51, 0.05);
+  --cr-shadow-sm: 0 1px 2px rgba(24, 37, 51, 0.08);
+  --cr-shadow-md: 0 4px 12px rgba(24, 37, 51, 0.1);
+  --cr-shadow-lg: 0 8px 24px rgba(24, 37, 51, 0.12);
+  --cr-shadow-xl: 0 16px 36px rgba(24, 37, 51, 0.16);
 
   /* Glass surfaces for floating chrome: dialogs' mask, popovers, composer strips. */
-  --cr-glass-bg: rgba(255, 255, 255, 0.78);
-  --cr-glass-border: rgba(255, 255, 255, 0.5);
-  --cr-glass-blur: 20px;
-  --cr-mask-bg: rgba(23, 35, 33, 0.32);
+  --cr-glass-bg: rgba(255, 255, 255, 0.96);
+  --cr-glass-border: var(--cr-border);
+  --cr-glass-blur: 12px;
+  --cr-mask-bg: rgba(24, 37, 51, 0.32);
 }
 
 [data-theme='dark'] {
-  --cr-canvas: #0e1513;
-  --cr-surface: #17211f;
-  --cr-surface-subtle: #1d2926;
-  --cr-surface-raised: #202e2b;
-  --cr-border: #30403c;
-  --cr-border-subtle: color-mix(in srgb, #30403c 65%, transparent);
+  --cr-canvas: #0e1621;
+  --cr-surface: #17212b;
+  --cr-surface-subtle: #202b36;
+  --cr-surface-raised: #253340;
+  --cr-border: #303f4d;
+  --cr-border-subtle: color-mix(in srgb, #303f4d 65%, transparent);
   --cr-text: #f4f8f6;
   --cr-text-muted: #a8b8b3;
-  --cr-primary: #39bfa6;
-  --cr-primary-hover: #5bcab4;
-  --cr-primary-soft: #123e35;
+  --cr-primary: #5eb5f7;
+  --cr-primary-hover: #82c7fa;
+  --cr-primary-soft: #233f57;
   --cr-accent: #ff806e;
   /* Light-mode --cr-danger/--cr-warning fail WCAG AA against the dark
      surfaces (~2.8:1) if left as a naive "same color, different bg" carry-
@@ -114,6 +126,9 @@
   --cr-warning: #f4b942;
   --cr-success: #4cd4b0;
   --cr-flash: color-mix(in srgb, var(--cr-sun-500) 30%, var(--cr-surface));
+  --cr-chat-canvas: #101922;
+  --cr-bubble-incoming: #182533;
+  --cr-bubble-outgoing: #2b5278;
 
   /* Dark surfaces need real black falloff, not brand-tinted ink, to still read
      as depth against an already-dark canvas. */
@@ -123,7 +138,7 @@
   --cr-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 24px 48px rgba(0, 0, 0, 0.32);
   --cr-shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.46), 0 32px 80px rgba(0, 0, 0, 0.36);
 
-  --cr-glass-bg: rgba(23, 33, 31, 0.78);
+  --cr-glass-bg: rgba(23, 33, 43, 0.96);
   --cr-glass-border: rgba(255, 255, 255, 0.08);
   --cr-glass-blur: 20px;
   --cr-mask-bg: rgba(4, 8, 7, 0.56);

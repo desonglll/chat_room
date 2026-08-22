@@ -20,7 +20,7 @@ const emit = defineEmits<{
 <template>
   <li
     class="contact-row group relative flex min-h-[72px] min-w-0 items-center rounded-md transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none"
-    :class="selected ? 'bg-primary-50 shadow-xs' : 'hover:bg-surface-50'"
+    :class="selected ? 'bg-primary-50' : 'hover:bg-surface-100'"
   >
     <span
       class="absolute inset-y-3 left-0 w-0.5 origin-center rounded-full bg-primary transition-transform duration-150 motion-reduce:transition-none"
@@ -36,7 +36,7 @@ const emit = defineEmits<{
       <Avatar
         :label="entry.user.avatar_emoji || entry.user.username.slice(0, 1).toUpperCase()"
         shape="circle"
-        class="size-11! shrink-0 text-white! shadow-xs"
+        class="size-11! shrink-0 text-white!"
         :style="{ backgroundColor: avatarColor(entry.user.id) }"
       />
       <span class="min-w-0 flex-1">

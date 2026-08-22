@@ -117,17 +117,54 @@ impl AppState {
         &self,
         room_id: Uuid,
         user_id: Uuid,
-        allow_owner: bool,
+        transfer_owner: bool,
     ) -> Result<Option<RoomMembership>, sqlx::Error> {
         let membership = self.room_membership(room_id, user_id).await?;
         let Some(membership) = membership else {
             return Ok(None);
         };
-        if membership.role == "owner" && !allow_owner {
+        if membership.role == "owner" && !transfer_owner {
             return Ok(None);
         }
-        with_pool!(self, |pool| {
+        let successor_id = with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
+            let successor_id = if membership.role == "owner" {
+                sqlx::query_scalar(
+                    "SELECT memberships.user_id FROM room_memberships AS memberships \
+                     JOIN room_roles AS roles ON roles.id = memberships.role_id \
+                     WHERE memberships.room_id = $1 AND memberships.user_id <> $2 \
+                       AND memberships.status = 'active' \
+                     ORDER BY CASE WHEN roles.name = 'admin' THEN 0 ELSE 1 END, \
+                       memberships.joined_at, memberships.requested_at, memberships.user_id LIMIT 1",
+                )
+                .bind(room_id)
+                .bind(user_id)
+                .fetch_optional(&mut *transaction)
+                .await?
+            } else {
+                None
+            };
+            if membership.role == "owner" && successor_id.is_none() {
+                transaction.rollback().await?;
+                return Ok(None);
+            }
+            if let Some(successor_id) = successor_id {
+                sqlx::query(
+                    "UPDATE room_memberships SET role_id = (\
+                       SELECT id FROM room_roles WHERE room_id = $1 AND name = 'owner'\
+                     ) WHERE room_id = $2 AND user_id = $3 AND status = 'active'",
+                )
+                .bind(room_id)
+                .bind(room_id)
+                .bind(successor_id)
+                .execute(&mut *transaction)
+                .await?;
+                sqlx::query("UPDATE rooms SET creator_user_id = $1 WHERE id = $2")
+                    .bind(successor_id)
+                    .bind(room_id)
+                    .execute(&mut *transaction)
+                    .await?;
+            }
             sqlx::query("DELETE FROM room_reads WHERE room_id = $1 AND user_id = $2")
                 .bind(room_id)
                 .bind(user_id)
@@ -139,8 +176,14 @@ impl AppState {
                 .execute(&mut *transaction)
                 .await?;
             transaction.commit().await?;
-            Ok::<_, sqlx::Error>(())
+            Ok::<_, sqlx::Error>(successor_id)
         })?;
+        if let Some(successor_id) = successor_id {
+            if let Some(mut room) = self.room(room_id).await {
+                room.creator_user_id = Some(successor_id);
+                self.cache_updated_room(room).await;
+            }
+        }
         Ok(Some(membership))
     }
 }

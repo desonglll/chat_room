@@ -145,7 +145,7 @@ const readDetails = computed(() => {
   return details
 })
 
-const { awayFromBottom, handleScroll, scrollToBottom, unseenCount } = useMessageViewport({
+const { awayFromBottom, handleScroll, scrollToBottom, unseenCount, viewportReady } = useMessageViewport({
   list: messageList,
   broadcasts,
   roomId: () => props.roomId,
@@ -275,9 +275,11 @@ onBeforeUnmount(() => {
   <div class="relative min-h-0 flex-1">
     <div
       ref="messageList"
-      class="h-full overscroll-contain overflow-y-auto px-3 py-5 [scrollbar-gutter:stable] sm:px-7"
+      class="h-full overscroll-contain overflow-y-auto px-3 py-4 transition-opacity duration-100 [scrollbar-gutter:stable] motion-reduce:transition-none sm:px-5"
+      :class="viewportReady ? 'visible opacity-100' : 'invisible opacity-0'"
       data-testid="message-list"
       aria-live="polite"
+      :aria-hidden="!viewportReady"
       @scroll.passive="handleScroll"
     >
       <div v-if="loadingOlder" class="mb-3 flex justify-center">
@@ -288,7 +290,7 @@ onBeforeUnmount(() => {
       <template v-for="(message, index) in messages" :key="displayKey(message)">
         <div
           v-if="message.type === 'system'"
-          class="my-4 flex items-center justify-center gap-3 text-center text-xs text-muted-color"
+          class="mx-auto my-4 flex w-full max-w-4xl items-center justify-center gap-3 text-center text-xs text-muted-color"
           :class="{ 'motion-system': message.motion === 'system' }"
         >
           <span class="h-px w-8 bg-surface-200" />
@@ -303,7 +305,7 @@ onBeforeUnmount(() => {
         />
         <div
           v-else
-          class="group flex items-start gap-2 rounded-lg transition-colors duration-200"
+          class="group mx-auto flex w-full max-w-4xl items-start gap-2 rounded-md transition-colors duration-200"
           :class="[
             message.sender_id === currentUserId ? 'flex-row-reverse justify-start' : 'justify-start',
             highlightedId === message.message_id ? 'message-highlight' : '',
@@ -324,7 +326,7 @@ onBeforeUnmount(() => {
           />
           <button
             type="button"
-            class="mt-5 shrink-0 cursor-pointer rounded-full"
+            class="mt-5 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             :class="{ invisible: !isGroupStart(index) }"
             aria-label="查看用户资料"
             title="查看资料"
@@ -338,7 +340,7 @@ onBeforeUnmount(() => {
               :style="{ backgroundColor: avatarColor(message.sender_id || message.sender) }"
             />
           </button>
-          <div class="max-w-[86%] sm:max-w-[72%] lg:max-w-[720px]">
+          <div class="max-w-[86%] sm:max-w-[76%] lg:max-w-[680px]">
             <div
               class="mb-1 flex items-center gap-2 text-xs text-muted-color"
               :class="{ 'justify-end': message.sender_id === currentUserId }"
@@ -354,7 +356,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="!message.recalled_at && !selecting && isSettled(message)"
                 type="button"
-                class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+                class="grid size-8 touch-manipulation place-items-center rounded-md text-muted-color opacity-100 outline-none transition-[background-color,color,opacity,transform] hover:bg-surface-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary active:scale-90 motion-reduce:transform-none motion-reduce:transition-none sm:size-7 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 aria-label="回复消息"
                 title="回复"
                 @click="emit('reply', message)"
@@ -364,7 +366,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="!message.recalled_at && !selecting && isSettled(message)"
                 type="button"
-                class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+                class="grid size-8 touch-manipulation place-items-center rounded-md text-muted-color opacity-100 outline-none transition-[background-color,color,opacity,transform] hover:bg-surface-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary active:scale-90 motion-reduce:transform-none motion-reduce:transition-none sm:size-7 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 aria-label="转发消息"
                 title="转发"
                 @click="emit('forward', message)"
@@ -375,7 +377,7 @@ onBeforeUnmount(() => {
             <button
               v-if="message.reply_to"
               type="button"
-              class="block w-full overflow-hidden rounded-md border-l-[3px] border-primary bg-surface-100 px-2.5 py-2 text-left text-surface-600 hover:bg-surface-200"
+              class="block w-full overflow-hidden rounded-md border-l-[3px] border-primary bg-surface-100 px-2.5 py-2 text-left text-surface-600 outline-none transition-colors hover:bg-surface-200 focus-visible:ring-2 focus-visible:ring-primary"
               @click="scrollToMessage(message.reply_to.message_id)"
             >
               <strong class="block truncate text-[11px] text-primary">{{ message.reply_to.sender }}</strong>
@@ -398,7 +400,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="message.sender_id === currentUserId && message.content"
                 type="button"
-                class="shrink-0 not-italic text-primary hover:underline"
+                class="shrink-0 rounded-sm not-italic text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary"
                 @click="emit('edit', message)"
               >
                 重新编辑
@@ -412,14 +414,11 @@ onBeforeUnmount(() => {
             />
             <p
               v-if="message.content && !message.recalled_at"
-              class="mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6 shadow-sm"
+              class="mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6 shadow-xs"
               :class="
                 message.sender_id === currentUserId
-                  ? [
-                      'bg-primary text-primary-contrast',
-                      isGroupEnd(index) ? 'rounded-2xl rounded-br-md' : 'rounded-2xl',
-                    ]
-                  : ['bg-surface-0 text-surface-900', isGroupEnd(index) ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl']
+                  ? ['cr-bubble-outgoing', isGroupEnd(index) ? 'rounded-xl rounded-br-sm' : 'rounded-xl']
+                  : ['cr-bubble-incoming', isGroupEnd(index) ? 'rounded-xl rounded-bl-sm' : 'rounded-xl']
               "
             >
               <template v-for="(segment, index) in contentSegments(message.content)" :key="index">
@@ -474,10 +473,10 @@ onBeforeUnmount(() => {
       <button
         v-if="awayFromBottom"
         type="button"
-        class="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+        class="absolute bottom-3 left-1/2 z-10 flex min-h-10 -translate-x-1/2 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg outline-none transition-[transform,box-shadow,background-color] hover:-translate-y-0.5 hover:bg-primary-50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none"
         @click="scrollToBottom"
       >
-        <ChevronDown :size="15" />
+        <ChevronDown :size="15" aria-hidden="true" />
         {{ unseenCount ? `下方 ${unseenCount} 条新消息` : '回到最新消息' }}
       </button>
     </Transition>

@@ -50,7 +50,15 @@ function handleJoin(): void {
     </div>
   </section>
 
-  <section v-else-if="!room" class="min-h-0 flex-1 bg-surface-50">
+  <section v-else-if="!room" class="cr-chat-empty min-h-0 flex-1">
+    <img
+      src="/brand/echo-gate.svg"
+      alt=""
+      width="40"
+      height="40"
+      class="empty-mark size-10 grayscale"
+      aria-hidden="true"
+    />
     <span class="sr-only">未选择会话</span>
   </section>
 
@@ -136,8 +144,28 @@ function handleJoin(): void {
   animation: fade-in 0.18s ease-out;
 }
 
+.cr-chat-empty {
+  display: grid;
+  place-items: center;
+  background: var(--cr-chat-canvas);
+  box-shadow: inset 1px 0 color-mix(in srgb, var(--cr-border) 45%, transparent);
+}
+
+.empty-mark {
+  opacity: 0.1;
+  animation: empty-mark-in 0.24s var(--cr-ease-out);
+}
+
+@keyframes empty-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .fade-in {
+  .fade-in,
+  .empty-mark {
     animation: none;
   }
 }

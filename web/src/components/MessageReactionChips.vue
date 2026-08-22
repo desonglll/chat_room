@@ -27,10 +27,10 @@ function reactionTitle(reaction: MessageReaction): string {
       v-for="reaction in reactions"
       :key="reaction.emoji"
       type="button"
-      class="flex h-7 min-w-11 items-center justify-center gap-1 rounded-full border px-2 text-xs transition active:scale-95"
+      class="flex min-h-8 min-w-11 touch-manipulation items-center justify-center gap-1 rounded-full border px-2 text-xs outline-none transition-[background-color,border-color,color,transform] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
       :class="
         reacted(reaction)
-          ? 'border-primary-300 bg-primary-50 text-primary-800'
+          ? 'border-primary-300 bg-primary-50 text-primary-800 hover:bg-primary-100'
           : 'border-surface-200 bg-surface-0 text-surface-700 hover:border-primary-200 hover:bg-surface-50'
       "
       :title="reactionTitle(reaction)"

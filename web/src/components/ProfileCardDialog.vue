@@ -106,8 +106,10 @@ async function saveNickname(): Promise<void> {
           <InputText
             id="roomNickname"
             v-model="nickname"
+            name="room-nickname"
+            autocomplete="off"
             maxlength="48"
-            placeholder="留空则显示原名称"
+            placeholder="留空则显示原名称…"
             class="min-w-0 flex-1"
             fluid
           />

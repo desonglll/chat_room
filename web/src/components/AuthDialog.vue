@@ -93,7 +93,7 @@ async function submit(): Promise<void> {
           name="account-username"
           maxlength="48"
           autocomplete="section-user-account username"
-          autofocus
+          spellcheck="false"
           fluid
         />
       </div>

@@ -122,6 +122,7 @@ async function save(): Promise<void> {
             id="profile-signature"
             v-model="signature"
             name="profile-signature"
+            autocomplete="off"
             maxlength="160"
             rows="3"
             auto-resize
@@ -138,7 +139,7 @@ async function save(): Promise<void> {
             type="url"
             autocomplete="url"
             maxlength="240"
-            placeholder="https://example.com"
+            placeholder="https://example.com…"
             fluid
           />
           <a

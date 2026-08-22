@@ -274,7 +274,7 @@ export async function leaveRoom(roomId: string, token: string): Promise<void> {
     method: 'DELETE',
     headers: authHeaders(token),
   })
-  if (response.status === 409) throw new Error('聊天室创建者不能直接退出，可以删除聊天室')
+  if (response.status === 409) throw new Error('聊天室内没有其他成员，暂时无法转让并退出')
   if (!response.ok) throw new Error(`退出聊天室失败：${response.status}`)
 }
 

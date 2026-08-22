@@ -50,9 +50,7 @@ function relationshipSeverity(entry: ContactEntry): 'success' | 'warn' | 'info' 
 </script>
 
 <template>
-  <aside
-    class="flex h-full min-h-0 min-w-0 flex-col border-l border-surface-200 bg-surface-50 shadow-lg xl:shadow-none"
-  >
+  <aside class="flex h-full min-h-0 min-w-0 flex-col border-l border-surface-200 bg-surface-0">
     <header class="flex h-14 shrink-0 items-center gap-2 border-b border-surface-200 bg-surface-0 px-3">
       <Button
         text
@@ -81,18 +79,18 @@ function relationshipSeverity(entry: ContactEntry): 'success' | 'warn' | 'info' 
     </header>
 
     <Transition name="contact-inspector" mode="out-in">
-      <div v-if="entry" :key="entry.key" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6">
+      <div v-if="entry" :key="entry.key" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
         <div class="flex min-w-0 items-center gap-4">
           <Avatar
             :label="entry.user.avatar_emoji || entry.user.username.slice(0, 1).toUpperCase()"
             shape="circle"
-            class="size-16! shrink-0 text-xl! text-white! shadow-sm"
+            class="size-16! shrink-0 text-xl! text-white!"
             :style="{ backgroundColor: avatarColor(entry.user.id) }"
           />
           <div class="min-w-0 flex-1">
             <h3 class="break-words text-lg font-semibold leading-tight text-surface-900">{{ displayName(entry) }}</h3>
             <p class="mt-1 truncate text-sm text-muted-color" translate="no">@{{ entry.user.username }}</p>
-            <Tag class="mt-2" :value="relationshipLabel(entry)" :severity="relationshipSeverity(entry)" rounded />
+            <Tag class="mt-2" :value="relationshipLabel(entry)" :severity="relationshipSeverity(entry)" />
           </div>
         </div>
 

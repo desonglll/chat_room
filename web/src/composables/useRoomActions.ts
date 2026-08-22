@@ -27,6 +27,7 @@ interface RoomActionOptions {
   navigateHome: () => void
   refreshRooms: () => Promise<void>
   refreshConversations: () => Promise<void>
+  removeConversation: (roomId: string) => void
   upsertConversation: (conversation: ConversationSummary) => void
   showSuccess: (message: string) => void
   showError: (message: string) => void
@@ -102,6 +103,7 @@ export function useRoomActions(options: RoomActionOptions) {
     if (!room || !options.token.value) return
     try {
       await leaveRoom(room.id, options.token.value)
+      options.removeConversation(room.id)
       if (options.selectedRoom.value?.id === room.id) clearSelection()
       await Promise.all([options.refreshRooms(), options.refreshConversations()])
       options.showSuccess('已退出聊天室')

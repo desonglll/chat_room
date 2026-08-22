@@ -395,7 +395,10 @@ async fn account_socket_surfaces_join_requests_to_room_managers() {
         .json()
         .await
         .unwrap();
-    assert_eq!(applicant_conversations[0]["pending_join_requests"], 0);
+    assert!(
+        applicant_conversations.is_empty(),
+        "a pending membership must not expose the room as a conversation"
+    );
 
     assert_eq!(
         client

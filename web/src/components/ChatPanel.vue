@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="absolute inset-0 flex min-h-0 min-w-0 flex-col bg-surface-50 transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    class="cr-chat-canvas absolute inset-0 flex min-h-0 min-w-0 flex-col transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
     :class="[
       visible
         ? 'visible translate-x-0 opacity-100'
@@ -363,7 +363,7 @@ onBeforeUnmount(() => {
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
         tag="div"
-        class="space-y-1 border-t border-surface-100 bg-surface-0 px-3 py-2 sm:px-7"
+        class="space-y-1 border-t border-surface-200 bg-surface-0 px-3 py-2 sm:px-5"
         enter-active-class="transition duration-150 motion-reduce:transition-none"
         enter-from-class="translate-y-1 opacity-0"
         leave-active-class="transition duration-100 motion-reduce:transition-none"
@@ -376,7 +376,7 @@ onBeforeUnmount(() => {
       </TransitionGroup>
       <div
         v-if="selecting"
-        class="flex min-h-[68px] shrink-0 items-center justify-between gap-3 border-t border-surface-200 bg-surface-0 px-3 sm:px-7"
+        class="flex min-h-16 shrink-0 items-center justify-between gap-3 border-t border-surface-200 bg-surface-0 px-3 sm:px-5"
       >
         <Button text rounded severity="secondary" aria-label="退出多选" title="退出多选" @click="closeSelection"
           ><X :size="19"

@@ -153,7 +153,8 @@ impl AppState {
                    WHERE candidate.room_id = rooms.id \
                    ORDER BY candidate.created_at DESC, candidate.id DESC LIMIT 1) \
                  LEFT JOIN attachments ON attachments.id = last_message.attachment_id \
-                 WHERE memberships.user_id = $1 AND ($2 IS NULL OR rooms.id = $2) \
+                 WHERE memberships.user_id = $1 AND memberships.status = 'active' \
+                   AND ($2 IS NULL OR rooms.id = $2) \
                  ORDER BY last_activity_at DESC, rooms.id",
             )
             .bind(user_id)

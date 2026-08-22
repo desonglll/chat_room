@@ -270,26 +270,24 @@ pub async fn leave_room(
     if state.room(room_id).await.is_none() {
         return Err(StatusCode::NOT_FOUND);
     }
-    let membership = state
-        .room_membership(room_id, user.id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    if membership
-        .as_ref()
-        .is_some_and(|membership| membership.role == "owner")
-    {
-        return Err(StatusCode::CONFLICT);
-    }
     let removed = state
-        .remove_room_participant(room_id, user.id)
+        .delete_room_membership(room_id, user.id, true)
         .await
         .map_err(|error| {
             tracing::error!("remove room participant failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    if !removed {
+    let Some(removed) = removed else {
+        if state
+            .room_membership(room_id, user.id)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .is_some_and(|membership| membership.role == "owner")
+        {
+            return Err(StatusCode::CONFLICT);
+        }
         return Ok(StatusCode::NO_CONTENT);
-    }
+    };
 
     let members = state.remove_connected_member(room_id, user.id).await;
     let participants = state.room_participants(room_id).await.map_err(|error| {
@@ -300,7 +298,7 @@ pub async fn leave_room(
         .broadcast(
             room_id,
             ChatMessage::System {
-                content: format!("{} left the room", user.username),
+                content: format!("{} left the room", removed.username),
                 members: Some(members),
                 participants: Some(participants),
             },

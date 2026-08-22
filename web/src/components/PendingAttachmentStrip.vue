@@ -35,6 +35,8 @@ const emit = defineEmits<{ remove: [id: number] }>()
         class="size-full object-cover"
         :src="item.previewUrl"
         :alt="item.file.name"
+        width="72"
+        height="72"
       />
       <video
         v-else-if="item.previewKind === 'video'"

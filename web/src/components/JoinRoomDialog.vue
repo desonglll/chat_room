@@ -99,7 +99,7 @@ async function join(): Promise<void> {
             autocomplete="off"
             spellcheck="false"
             class="min-w-0 flex-1 font-mono text-sm"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx…"
             :disabled="!!room"
           />
           <Button v-if="!room" type="submit" :loading="searching" aria-label="查找聊天室" title="查找聊天室">

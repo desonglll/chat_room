@@ -162,6 +162,8 @@ function openContextMenu(event: MouseEvent, messageId: string): void {
               v-if="file.attachment.mime_type.startsWith('image/')"
               :src="file.attachment.download_url"
               :alt="file.attachment.file_name"
+              width="40"
+              height="40"
               class="size-full object-cover"
               :class="{ 'blur-md': file.attachment.is_sensitive }"
             />
@@ -186,7 +188,7 @@ function openContextMenu(event: MouseEvent, messageId: string): void {
     <div v-else-if="!filtered.length && !loading" class="grid min-h-48 place-items-center text-sm text-muted-color">
       暂无聊天文件
     </div>
-    <div v-if="loading" class="grid min-h-20 place-items-center text-sm text-muted-color">正在加载...</div>
+    <div v-if="loading" class="grid min-h-20 place-items-center text-sm text-muted-color">正在加载…</div>
     <div v-if="nextBefore && !loading" class="flex justify-center py-3">
       <Button size="small" severity="secondary" outlined @click="loadFiles()">加载更多</Button>
     </div>

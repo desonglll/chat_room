@@ -37,5 +37,10 @@ export function useSidebarWidth() {
     document.addEventListener('pointerup', stopResize)
   }
 
-  return { width, resizing, startResize }
+  function resizeBy(delta: number): void {
+    width.value = clamp(width.value + delta)
+    storageSet(window.localStorage, WIDTH_KEY, String(width.value))
+  }
+
+  return { width, resizing, startResize, resizeBy }
 }

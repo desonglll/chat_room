@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Check, Clock3, MessageCircle, Search, UserPlus, UsersRound, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -28,10 +28,14 @@ const error = ref('')
 let timer: number | undefined
 let searchVersion = 0
 
+onBeforeUnmount(() => window.clearTimeout(timer))
+
 watch(
   () => props.open,
   (open) => {
     if (open) return
+    searchVersion += 1
+    searching.value = false
     query.value = ''
     results.value = []
     error.value = ''
@@ -39,17 +43,17 @@ watch(
 )
 watch(query, (value) => {
   window.clearTimeout(timer)
+  const version = ++searchVersion
   const needle = value.trim()
   if (needle.length < 2) {
     results.value = []
     searching.value = false
     return
   }
-  timer = window.setTimeout(() => void runSearch(needle), 300)
+  timer = window.setTimeout(() => void runSearch(needle, version), 300)
 })
 
-async function runSearch(needle: string): Promise<void> {
-  const version = ++searchVersion
+async function runSearch(needle: string, version: number): Promise<void> {
   searching.value = true
   error.value = ''
   try {
@@ -93,15 +97,24 @@ async function requestFriend(user: SocialUser): Promise<void> {
 
 <template>
   <Dialog v-model:visible="visible" modal header="新对话" class="w-[min(94vw,500px)]" :draggable="false">
-    <IconField
-      ><InputIcon><Search :size="15" /></InputIcon
-      ><InputText v-model="query" fluid autofocus placeholder="搜索用户名或显示名称" aria-label="搜索用户"
-    /></IconField>
+    <IconField class="w-full">
+      <InputIcon class="text-surface-500"><Search :size="15" aria-hidden="true" /></InputIcon>
+      <InputText
+        v-model="query"
+        name="user-search"
+        autocomplete="off"
+        fluid
+        variant="filled"
+        placeholder="搜索用户名或显示名称…"
+        aria-label="搜索用户"
+        class="h-10 rounded-lg! border-transparent! bg-surface-100! pl-9! hover:bg-surface-100! focus:border-primary! focus:bg-surface-0!"
+      />
+    </IconField>
     <Message v-if="error" severity="error" size="small" :closable="false" class="mt-3">{{ error }}</Message>
-    <div class="mt-3 max-h-[min(60vh,520px)] overflow-y-auto">
+    <div class="mt-3 max-h-[min(60vh,520px)] overflow-y-auto overscroll-contain">
       <button
         type="button"
-        class="flex h-14 w-full items-center gap-3 border-b border-surface-100 px-1 text-left hover:bg-surface-50"
+        class="flex h-14 w-full touch-manipulation items-center gap-3 border-b border-surface-100 px-1 text-left outline-none transition-colors hover:bg-surface-50 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset motion-reduce:transition-none"
         @click="emit('createGroup')"
       >
         <span class="grid size-10 place-items-center rounded-full bg-primary text-primary-contrast"

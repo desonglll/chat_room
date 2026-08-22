@@ -18,7 +18,7 @@ const emit = defineEmits<{
   <button
     v-else-if="state === 'failed'"
     type="button"
-    class="mt-0.5 ml-auto grid size-6 place-items-center rounded-full text-danger transition-colors hover:bg-red-50"
+    class="mt-0.5 ml-auto grid size-8 touch-manipulation place-items-center rounded-full text-danger outline-none transition-colors hover:bg-danger/10 focus-visible:ring-2 focus-visible:ring-danger motion-reduce:transition-none"
     aria-label="重新发送"
     title="发送失败，点击重试"
     @click="emit('retry')"

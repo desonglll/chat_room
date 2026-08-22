@@ -346,7 +346,7 @@ defineExpose({ addFiles, focus })
 
 <template>
   <form
-    class="shrink-0 border-t border-surface-200 bg-surface-0"
+    class="shrink-0 border-t border-surface-200 bg-surface-0 pb-[env(safe-area-inset-bottom)] md:pb-0"
     data-testid="chat-form"
     @submit.prevent="submitMessage"
   >
@@ -358,7 +358,7 @@ defineExpose({ addFiles, focus })
     />
     <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
 
-    <div class="flex items-center gap-1 px-3 py-3 sm:px-7">
+    <div class="flex items-center gap-1 px-3 py-2.5 sm:px-5">
       <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles" />
       <Button
         v-if="!editingTo"
@@ -411,11 +411,13 @@ defineExpose({ addFiles, focus })
           id="messageInput"
           ref="messageInput"
           v-model="draft"
+          name="message"
+          autocomplete="off"
           rows="1"
           maxlength="4096"
           auto-resize
           :disabled="disabled"
-          placeholder="输入消息"
+          placeholder="输入消息…"
           class="max-h-32 min-h-10 w-full overflow-y-auto! [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           @paste="onPaste"
           @compositionstart="onCompositionStart"
@@ -427,12 +429,12 @@ defineExpose({ addFiles, focus })
         />
         <ul
           v-if="mentionQuery !== null && mentionMatches.length"
-          class="cr-glass absolute bottom-full left-0 z-10 mb-1.5 w-56 space-y-0.5 rounded-xl p-1 shadow-lg"
+          class="cr-glass absolute bottom-full left-0 z-10 mb-1.5 w-56 space-y-0.5 rounded-md p-1 shadow-lg"
         >
           <li v-for="member in mentionMatches" :key="member.user_id">
             <button
               type="button"
-              class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-surface-100/80"
+              class="flex min-h-10 w-full touch-manipulation items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-surface-100/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
               @click="insertMention(member.username)"
             >
               <span>{{ member.avatar_emoji || '👤' }}</span>
@@ -442,7 +444,7 @@ defineExpose({ addFiles, focus })
         </ul>
         <div
           v-else-if="aiLoading || aiError || aiSummary || aiRemaining.length"
-          class="cr-glass absolute bottom-full left-0 z-10 mb-1.5 flex max-w-full flex-wrap items-center gap-1.5 rounded-xl p-2 shadow-lg"
+          class="cr-glass absolute bottom-full left-0 z-10 mb-1.5 flex max-w-full flex-wrap items-center gap-1.5 rounded-md p-2 shadow-lg"
         >
           <span v-if="aiLoading" class="flex items-center gap-1.5 text-xs text-muted-color">
             <Sparkles :size="13" class="animate-pulse text-primary" />
@@ -455,7 +457,7 @@ defineExpose({ addFiles, focus })
               v-for="(suggestion, index) in aiRemaining"
               :key="index"
               type="button"
-              class="rounded-full border border-surface-200 px-2.5 py-1 text-xs hover:border-primary hover:bg-primary/5"
+              class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
               @click="useSuggestion(suggestion, index)"
             >
               {{ suggestion }}
@@ -466,7 +468,7 @@ defineExpose({ addFiles, focus })
       <Button
         type="submit"
         rounded
-        class="!size-10 shrink-0 transition-transform active:scale-90"
+        class="!size-10 shrink-0 transition-transform active:scale-90 motion-reduce:transform-none motion-reduce:transition-none"
         :disabled="disabled || !canSend"
         aria-label="发送消息"
         title="发送消息"

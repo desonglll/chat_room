@@ -16,7 +16,7 @@ function select(emoji: string): void {
 <template>
   <button
     type="button"
-    class="grid size-6 place-items-center rounded text-muted-color opacity-100 transition hover:bg-surface-200 hover:text-primary active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+    class="grid size-8 touch-manipulation place-items-center rounded-md text-muted-color opacity-100 outline-none transition-[background-color,color,opacity,transform] hover:bg-surface-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary active:scale-90 motion-reduce:transform-none motion-reduce:transition-none sm:size-7 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
     aria-label="添加表情回应"
     title="添加回应"
     @click="popover.toggle($event)"
@@ -29,7 +29,7 @@ function select(emoji: string): void {
         v-for="emoji in QUICK_REACTIONS"
         :key="emoji"
         type="button"
-        class="grid size-9 place-items-center rounded-md text-xl transition hover:bg-surface-100 active:scale-90"
+        class="grid size-10 touch-manipulation place-items-center rounded-md text-xl outline-none transition-[background-color,transform] hover:bg-surface-100 focus-visible:ring-2 focus-visible:ring-primary active:scale-90 motion-reduce:transform-none motion-reduce:transition-none"
         :aria-label="`回应 ${emoji}`"
         @click="select(emoji)"
       >

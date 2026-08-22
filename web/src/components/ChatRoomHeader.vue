@@ -63,7 +63,7 @@ const moreMenuItems = computed(() => [
   ...(props.kind === 'group' && canManage.value
     ? [{ label: '管理聊天室', icon: 'manage', command: () => emit('manage') }]
     : []),
-  ...(props.kind === 'group' && props.room.membership_role !== 'owner'
+  ...(props.kind === 'group'
     ? [{ label: '退出聊天室', icon: 'leave', danger: true, command: () => emit('leave') }]
     : []),
   ...(props.kind === 'direct'
@@ -97,7 +97,7 @@ async function copyRoomId(): Promise<void> {
 
 <template>
   <header
-    class="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-surface-200 bg-surface-0 px-3 sm:px-5"
+    class="flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b border-surface-200 bg-surface-0 px-3 pt-[env(safe-area-inset-top)] sm:px-4 md:h-16 md:pt-0"
   >
     <div class="flex min-w-0 items-center gap-2 sm:gap-3">
       <Button
@@ -112,11 +112,11 @@ async function copyRoomId(): Promise<void> {
         <ArrowLeft :size="20" />
       </Button>
       <button
+        v-if="kind === 'direct' && peer"
         type="button"
-        class="shrink-0 rounded-full"
-        :class="{ 'cursor-default': kind === 'group' }"
-        :aria-label="kind === 'direct' ? '查看对方资料' : undefined"
-        @click="kind === 'direct' && peer && emit('viewProfile', peer.id)"
+        class="shrink-0 rounded-full outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
+        aria-label="查看对方资料"
+        @click="emit('viewProfile', peer.id)"
       >
         <Avatar
           :label="room.avatar_emoji || room.name.slice(0, 1).toUpperCase()"
@@ -125,17 +125,32 @@ async function copyRoomId(): Promise<void> {
           :style="{ backgroundColor: avatarColor(peer?.id || room.id) }"
         />
       </button>
-      <div class="min-w-0">
+      <span v-else class="shrink-0" aria-hidden="true">
+        <Avatar
+          :label="room.avatar_emoji || room.name.slice(0, 1).toUpperCase()"
+          shape="circle"
+          class="size-10! text-white!"
+          :style="{ backgroundColor: avatarColor(room.id) }"
+        />
+      </span>
+      <div class="group min-w-0">
         <div class="flex min-w-0 items-center gap-1.5">
           <button
+            v-if="kind === 'direct' && peer"
             type="button"
-            class="truncate text-left text-[15px] font-semibold text-surface-900"
-            :class="{ 'cursor-default': kind === 'group' }"
+            class="min-w-0 flex-1 truncate rounded-sm text-left text-[15px] font-semibold text-surface-900 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"
             :title="room.description || undefined"
-            @click="kind === 'direct' && peer && emit('viewProfile', peer.id)"
+            @click="emit('viewProfile', peer.id)"
           >
             {{ room.name }}
           </button>
+          <strong
+            v-else
+            class="min-w-0 flex-1 truncate text-[15px] font-semibold text-surface-900"
+            :title="room.description || undefined"
+          >
+            {{ room.name }}
+          </strong>
           <Button
             v-if="kind === 'group'"
             text
@@ -149,21 +164,21 @@ async function copyRoomId(): Promise<void> {
             <Check v-if="roomIdCopied" :size="14" class="text-success" />
             <Copy v-else :size="14" />
           </Button>
+          <span class="sr-only" aria-live="polite">{{ roomIdCopied ? '聊天室 ID 已复制' : '' }}</span>
         </div>
-        <div class="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-color">
-          <span class="size-2 shrink-0 rounded-full" :class="statusColor" />
+        <div class="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-color" aria-live="polite">
+          <span class="size-2 shrink-0 rounded-full" :class="statusColor" aria-hidden="true" />
           <span class="shrink-0">{{ statusLabel }}</span>
           <button
             v-if="authenticated && kind === 'group'"
             type="button"
-            class="shrink-0 cursor-pointer underline-offset-2 hover:text-primary hover:underline"
+            class="shrink-0 cursor-pointer rounded-sm outline-none underline-offset-2 hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary"
             @click="memberPopover.toggle($event)"
           >
             · {{ members.length }} 人在线
           </button>
-          <span v-if="kind === 'direct' && peer" class="truncate">· @{{ peer.username }}</span>
+          <span v-if="kind === 'direct' && peer" class="truncate" translate="no">· @{{ peer.username }}</span>
           <span v-else class="hidden shrink-0 sm:inline">· {{ room.has_password ? '私密房间' : '公开房间' }}</span>
-          <code v-if="kind === 'group'" class="hidden truncate font-mono text-[10px] lg:inline">· {{ room.id }}</code>
         </div>
       </div>
     </div>
@@ -175,7 +190,7 @@ async function copyRoomId(): Promise<void> {
             <strong class="text-sm">在线成员</strong>
             <span class="text-xs text-muted-color">{{ members.length }}</span>
           </div>
-          <ul class="max-h-72 space-y-1 overflow-y-auto p-0">
+          <ul v-if="members.length" class="max-h-72 space-y-1 overflow-y-auto overscroll-contain p-0">
             <li
               v-for="member in members"
               :key="member.user_id"
@@ -183,7 +198,7 @@ async function copyRoomId(): Promise<void> {
             >
               <button
                 type="button"
-                class="min-w-0 cursor-pointer rounded-full"
+                class="min-w-0 touch-manipulation cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label="查看用户资料"
                 @click="emit('viewProfile', member.user_id)"
               >
@@ -200,6 +215,7 @@ async function copyRoomId(): Promise<void> {
               }}</span>
             </li>
           </ul>
+          <p v-else class="py-6 text-center text-sm text-muted-color">暂无在线成员</p>
         </div>
       </Popover>
       <Button
@@ -237,7 +253,7 @@ async function copyRoomId(): Promise<void> {
       </Button>
       <Menu ref="moreMenu" :model="moreMenuItems" :popup="true">
         <template #item="{ item, props: itemProps }">
-          <a v-bind="itemProps.action" :class="{ 'text-danger!': item.danger }">
+          <button type="button" v-bind="itemProps.action" :class="{ 'text-danger!': item.danger }">
             <ListChecks v-if="item.icon === 'select'" :size="17" />
             <UserRound v-else-if="item.icon === 'profile'" :size="17" />
             <EllipsisVertical v-else-if="item.icon === 'manage'" :size="17" />
@@ -245,7 +261,7 @@ async function copyRoomId(): Promise<void> {
             <UserMinus v-else-if="item.icon === 'remove'" :size="17" />
             <Ban v-else-if="item.icon === 'block'" :size="17" />
             <span>{{ item.label }}</span>
-          </a>
+          </button>
         </template>
       </Menu>
     </div>

@@ -24,6 +24,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
   const unseenIds = ref<string[]>([])
   const unseenCount = computed(() => unseenIds.value.length)
   const awayFromBottom = ref(false)
+  const viewportReady = ref(false)
   const visibleIds = new Set<string>()
   let observer: IntersectionObserver | null = null
   let layoutObserver: ResizeObserver | null = null
@@ -146,6 +147,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
     } else {
       list.scrollTop = list.scrollHeight
     }
+    viewportReady.value = true
     updateBottomState()
     rebuildObserver()
     if (!firstUnreadId) markThrough(broadcastIds.value.at(-1) || '')
@@ -186,6 +188,7 @@ export function useMessageViewport(options: MessageViewportOptions) {
       lastReadId = ''
       historyInitialized = false
       followLayoutChanges = false
+      viewportReady.value = false
       suppressScrollUntil = performance.now() + 180
     },
   )
@@ -282,5 +285,5 @@ export function useMessageViewport(options: MessageViewportOptions) {
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
-  return { awayFromBottom, handleScroll, scrollToBottom, unseenCount }
+  return { awayFromBottom, handleScroll, scrollToBottom, unseenCount, viewportReady }
 }

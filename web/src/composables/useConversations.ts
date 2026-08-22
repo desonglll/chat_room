@@ -1,10 +1,11 @@
 import { computed, ref, watch, type Ref } from 'vue'
-import { applyAccountMessage, applyAccountStates, sortConversations } from '../conversationState'
+import { applyAccountMessage, applyAccountStates, removeConversation, sortConversations } from '../conversationState'
 import { listConversations } from '../socialApi'
 import type { AccountMessageEvent, ConversationSummary } from '../types'
 
 interface UnreadState {
   unread_count: number
+  membership_status: 'pending' | 'invited' | 'active'
   pending_join_requests: number
   pending_join_requested_at: string | null
 }
@@ -56,6 +57,10 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
     ])
   }
 
+  function remove(roomId: string): void {
+    conversations.value = removeConversation(conversations.value, roomId)
+  }
+
   watch(token, () => void refresh(), { immediate: true })
 
   return {
@@ -65,6 +70,7 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
     totalUnread: computed(() => conversations.value.reduce((sum, item) => sum + item.unread_count, 0)),
     applyUnread,
     handleMessage,
+    remove,
     refresh,
     upsert,
   }

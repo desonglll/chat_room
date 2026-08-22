@@ -40,9 +40,9 @@ function joinLabel(room: Room): string {
 </script>
 
 <template>
-  <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface-0">
+  <main class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-surface-0">
     <header
-      class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7"
+      class="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-3 backdrop-blur sm:px-5"
     >
       <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"
         ><ArrowLeft :size="19"
@@ -53,31 +53,39 @@ function joinLabel(room: Room): string {
       </div>
     </header>
 
-    <div class="mx-auto w-full max-w-2xl px-5 py-6 sm:px-8">
-      <IconField>
-        <InputIcon><Search :size="16" /></InputIcon>
-        <InputText v-model="query" placeholder="搜索聊天室名称" fluid />
+    <div class="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6">
+      <IconField class="w-full">
+        <InputIcon class="text-surface-500"><Search :size="16" aria-hidden="true" /></InputIcon>
+        <InputText
+          v-model="query"
+          name="room-discovery-search"
+          autocomplete="off"
+          placeholder="搜索聊天室名称…"
+          variant="filled"
+          fluid
+          aria-label="搜索聊天室"
+          class="h-10 rounded-lg! border-transparent! bg-surface-100! pl-10! hover:bg-surface-100! focus:border-primary! focus:bg-surface-0!"
+        />
       </IconField>
 
       <Message v-if="error" severity="error" :closable="false" class="mt-4">{{ error }}</Message>
 
-      <div v-if="loading" class="mt-6 space-y-2">
-        <div v-for="index in 4" :key="index" class="h-16 animate-pulse rounded-lg bg-surface-100" />
+      <div v-if="loading" class="mt-4 divide-y divide-surface-100 border-y border-surface-200">
+        <div v-for="index in 4" :key="index" class="h-[68px] animate-pulse bg-surface-50 motion-reduce:animate-none" />
       </div>
 
       <div v-else-if="discoverable.length === 0" class="mt-16 flex flex-col items-center text-center text-muted-color">
-        <span
-          class="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-surface-0 shadow-sm"
-          ><Compass :size="23"
+        <span class="grid size-12 place-items-center rounded-full bg-primary-50 text-primary"
+          ><Compass :size="22" aria-hidden="true"
         /></span>
         <strong class="mt-3 text-sm text-color">{{ query ? '没有匹配的聊天室' : '暂无可发现的公开聊天室' }}</strong>
       </div>
 
-      <ul v-else class="mt-4 space-y-2">
+      <ul v-else class="mt-4 divide-y divide-surface-100 border-y border-surface-200">
         <li
           v-for="room in discoverable"
           :key="room.id"
-          class="flex items-center gap-3 rounded-xl bg-surface-0 px-4 py-3 shadow-xs transition-shadow hover:shadow-sm"
+          class="flex min-h-[68px] items-center gap-3 px-2 py-2 transition-colors [contain-intrinsic-size:68px] [content-visibility:auto] hover:bg-surface-50 motion-reduce:transition-none sm:px-3"
         >
           <span
             class="grid size-10 shrink-0 place-items-center rounded-full text-base text-white"

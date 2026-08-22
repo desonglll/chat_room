@@ -141,7 +141,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
         <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="router.push('/')">
           <ArrowLeft :size="19" />
         </Button>
-        <img src="/brand/echo-gate.svg" alt="Echo Gate" class="h-8 w-auto" />
+        <img src="/brand/echo-gate.svg" alt="Echo Gate" width="32" height="32" class="h-8 w-auto" />
         <div class="min-w-0 flex-1 border-l border-surface-200 pl-3">
           <h1 class="truncate text-base font-semibold">系统运维</h1>
           <p class="text-xs text-muted-color">Operations</p>

@@ -59,7 +59,7 @@ const emit = defineEmits<{
   leaveRoom: [room: Room]
 }>()
 
-const { width: sidebarWidth, resizing, startResize } = useSidebarWidth()
+const { width: sidebarWidth, resizing, startResize, resizeBy } = useSidebarWidth()
 watch(sidebarWidth, (width) => emit('resize', width), { immediate: true })
 const query = ref('')
 const visibleConversations = computed(() => {
@@ -83,17 +83,24 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
   if (room && ['owner', 'admin'].includes(room.membership_role || '')) {
     items.push({ label: '管理群聊', command: () => emit('manage', room) })
   }
-  if (room?.membership_role && room.membership_role !== 'owner') {
+  if (room?.membership_role) {
     items.push({ label: '退出群聊', command: () => emit('leaveRoom', room) })
   }
   contextItems.value = items
   contextMenu.value?.show(event)
 }
+
+function handleResizeKeydown(event: KeyboardEvent): void {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+  event.preventDefault()
+  const direction = event.key === 'ArrowLeft' ? -1 : 1
+  resizeBy(direction * (event.shiftKey ? 32 : 8))
+}
 </script>
 
 <template>
   <aside
-    class="absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border-r border-surface-200 bg-surface-0 shadow-sm transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    class="absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border-r border-surface-200 bg-surface-0 transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
     :class="[
       visible
         ? 'visible translate-x-0 opacity-100'
@@ -108,11 +115,11 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
       <span class="room-sync-progress block h-full w-1/3 bg-primary" />
     </div>
     <header
-      class="flex h-[72px] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-3"
+      class="flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-3 pt-[env(safe-area-inset-top)] md:h-16 md:pt-0"
       :class="{ 'md:justify-center md:px-2': collapsed }"
     >
       <div class="flex min-w-0 items-center gap-3" :class="{ 'md:hidden': collapsed }">
-        <img src="/brand/echo-gate.svg" alt="" class="size-8" aria-hidden="true" />
+        <img src="/brand/echo-gate.svg" alt="" width="32" height="32" class="size-8" aria-hidden="true" />
         <div class="min-w-0">
           <h1 class="truncate text-[15px] font-semibold text-surface-900">消息</h1>
           <p class="mt-0.5 truncate text-xs text-muted-color">
@@ -123,7 +130,7 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
       <div class="flex shrink-0 items-center gap-1">
         <Button
           v-if="user"
-          text
+          class="size-9! shrink-0 p-0!"
           rounded
           aria-label="新对话"
           title="新对话"
@@ -132,12 +139,20 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
         >
           <SquarePen :size="18" />
         </Button>
-        <Button text rounded severity="secondary" aria-label="更多操作" title="更多操作" @click="menu.toggle($event)">
+        <Button
+          class="size-9! shrink-0 p-0!"
+          text
+          rounded
+          severity="secondary"
+          aria-label="更多操作"
+          title="更多操作"
+          @click="menu.toggle($event)"
+        >
           <EllipsisVertical :size="18" />
         </Button>
         <Menu ref="menu" :model="menuItems" :popup="true" />
         <Button
-          class="hidden md:inline-flex"
+          class="hidden size-9! shrink-0 p-0! md:inline-flex"
           text
           rounded
           severity="secondary"
@@ -150,14 +165,23 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
       </div>
     </header>
 
-    <div v-if="!collapsed" class="shrink-0 px-3 py-2">
-      <IconField
-        ><InputIcon><Search :size="14" /></InputIcon
-        ><InputText v-model="query" placeholder="搜索会话" size="small" fluid aria-label="搜索会话"
-      /></IconField>
+    <div v-if="!collapsed" class="shrink-0 px-3 py-2.5">
+      <IconField class="w-full">
+        <InputIcon class="text-surface-500"><Search :size="15" /></InputIcon>
+        <InputText
+          v-model="query"
+          name="conversation-search"
+          autocomplete="off"
+          placeholder="搜索会话…"
+          variant="filled"
+          fluid
+          aria-label="搜索会话"
+          class="h-10 rounded-lg! border-transparent! bg-surface-100! pl-9! text-sm hover:bg-surface-100! focus:border-primary! focus:bg-surface-0!"
+        />
+      </IconField>
     </div>
     <nav
-      class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2"
+      class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2 pt-0.5"
       aria-label="会话列表"
       data-testid="conversation-list"
     >
@@ -193,9 +217,11 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
           v-for="conversation in visibleConversations"
           :key="conversation.room_id"
           type="button"
-          class="mb-0.5 flex h-[68px] w-full shrink-0 items-center gap-3 rounded-md px-2.5 text-left transition-colors active:bg-surface-100"
+          class="mb-0.5 flex h-[68px] w-full shrink-0 touch-manipulation items-center gap-3 rounded-lg px-2.5 text-left outline-none transition-[background-color,color,box-shadow,transform] duration-150 [contain-intrinsic-size:68px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset active:scale-[0.99] motion-reduce:transition-none"
           :class="[
-            conversation.room_id === selectedId ? 'bg-primary-50 text-primary-900' : 'hover:bg-surface-50',
+            conversation.room_id === selectedId
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-surface-900 hover:bg-surface-100',
             collapsed ? 'md:justify-center md:px-1' : '',
           ]"
           :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
@@ -207,11 +233,12 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
             :conversation="conversation"
             :selected="conversation.room_id === selectedId"
             :collapsed="collapsed"
+            :reveal-preview="conversation.room_id === selectedId"
           />
         </button>
         <button
           type="button"
-          class="min-h-10 w-full flex-1 cursor-default rounded-md"
+          class="min-h-10 w-full flex-1 cursor-default rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
           aria-label="取消选择会话"
           data-testid="conversation-list-blank"
           @click="emit('clear')"
@@ -222,7 +249,7 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
     <button
       v-if="user"
       type="button"
-      class="relative flex h-12 shrink-0 items-center gap-3 border-t border-surface-200 px-4 text-sm hover:bg-surface-50"
+      class="relative flex h-13 shrink-0 touch-manipulation items-center gap-3 border-t border-surface-200 px-4 text-sm outline-none transition-colors hover:bg-surface-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
       :class="{ 'md:justify-center md:px-2': collapsed }"
       @click="emit('contacts')"
     >
@@ -235,13 +262,13 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
       />
     </button>
     <footer
-      class="flex min-h-[68px] shrink-0 items-center gap-1 border-t border-surface-200 bg-surface-50 px-3 py-2"
+      class="flex min-h-14 shrink-0 items-center gap-1 border-t border-surface-200 bg-surface-50 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
       :class="{ 'md:flex-col md:px-2': collapsed }"
     >
       <template v-if="user">
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left hover:text-primary"
+          class="flex min-h-10 min-w-0 flex-1 touch-manipulation items-center gap-2 rounded-md px-1.5 text-left outline-none transition-colors hover:bg-surface-100 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
           :class="{ 'md:justify-center': collapsed }"
           title="我的资料"
           @click="emit('profile')"
@@ -284,13 +311,22 @@ function openContextMenu(event: MouseEvent, conversation: ConversationSummary): 
     </footer>
     <div
       v-if="!collapsed"
-      class="absolute inset-y-0 right-0 z-10 hidden w-1.5 -translate-x-1/2 cursor-col-resize touch-none select-none hover:bg-primary-200 md:block"
-      :class="{ 'bg-primary-300': resizing }"
+      class="group absolute inset-y-0 right-0 z-10 hidden w-2 -translate-x-1/2 cursor-col-resize touch-none select-none outline-none md:block"
       role="separator"
       aria-orientation="vertical"
       aria-label="调整侧边栏宽度"
+      aria-valuemin="260"
+      aria-valuemax="480"
+      :aria-valuenow="sidebarWidth"
+      tabindex="0"
       @pointerdown.prevent="startResize"
-    />
+      @keydown="handleResizeKeydown"
+    >
+      <span
+        class="absolute left-1/2 top-1/2 h-10 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-100"
+        :class="{ 'opacity-100': resizing }"
+      />
+    </div>
     <ContextMenu ref="contextMenu" :model="contextItems" />
   </aside>
 </template>
