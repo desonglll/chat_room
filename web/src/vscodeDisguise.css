@@ -1,0 +1,427 @@
+.vs-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: grid;
+  grid-template-rows: 35px minmax(0, 1fr) 22px;
+  overflow: hidden;
+  color: #cccccc;
+  background: #1f1f1f;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+  user-select: none;
+}
+
+.vs-titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid #2b2b2b;
+  background: #181818;
+}
+
+.vs-window-controls {
+  display: flex;
+  gap: 8px;
+  margin-right: 18px;
+}
+.vs-window-controls i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+.vs-window-controls i:nth-child(2) {
+  background: #febc2e;
+}
+.vs-window-controls i:nth-child(3) {
+  background: #28c840;
+}
+.vs-menu {
+  display: flex;
+  gap: 16px;
+  color: #b8b8b8;
+  font-size: 12px;
+}
+.vs-title {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transform: translateX(-50%);
+  color: #a9a9a9;
+  white-space: nowrap;
+}
+.vs-layout-actions {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+  color: #a8a8a8;
+}
+
+.vs-workbench {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: 48px 240px minmax(0, 1fr);
+}
+.vs-activitybar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #181818;
+}
+.vs-activity-icons {
+  display: grid;
+}
+.vs-activity-icons > span {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: #858585;
+}
+.vs-activity-icons > span.active {
+  color: #e8e8e8;
+}
+.vs-activity-icons > span.active::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: #007acc;
+  content: '';
+}
+.vs-activity-icons b {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 8px;
+  color: #fff;
+  background: #007acc;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.vs-explorer {
+  overflow: hidden;
+  border-right: 1px solid #2b2b2b;
+  background: #181818;
+  color: #cccccc;
+}
+.vs-explorer-title {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  color: #bbbbbb;
+  font-size: 11px;
+}
+.vs-explorer-title span {
+  font-size: 14px;
+}
+.vs-tree-heading,
+.vs-tree-row {
+  display: flex;
+  height: 22px;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.vs-tree-heading {
+  padding: 0 5px;
+  background: #202020;
+  font-size: 11px;
+}
+.vs-tree-heading.lower {
+  margin-top: 13px;
+}
+.vs-tree-row {
+  padding: 0 11px;
+}
+.vs-tree-row.nested {
+  padding-left: 31px;
+}
+.vs-tree-row.selected {
+  background: #37373d;
+  color: #fff;
+}
+.vs-tree-row i {
+  margin-left: auto;
+  color: #d7ba7d;
+  font-size: 10px;
+  font-style: normal;
+}
+.folder {
+  color: #d7ba7d;
+}
+.file-indent {
+  width: 14px;
+}
+.git-icon {
+  margin-right: 3px;
+  color: #f14c28;
+  font-size: 10px;
+}
+.ts-icon {
+  color: #519aba;
+}
+.json-icon {
+  color: #cbcb41;
+}
+
+.vs-editor {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 35px 27px minmax(180px, 1fr) minmax(150px, 28%);
+  background: #1f1f1f;
+}
+.vs-tabs {
+  display: flex;
+  overflow: hidden;
+  background: #181818;
+}
+.vs-tab {
+  display: flex;
+  min-width: 150px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-right: 1px solid #2b2b2b;
+  color: #969696;
+  background: #181818;
+}
+.vs-tab.active {
+  border-top: 1px solid #007acc;
+  color: #fff;
+  background: #1f1f1f;
+}
+.vs-tab i {
+  margin-left: auto;
+  color: #d7ba7d;
+  font-size: 9px;
+  font-style: normal;
+}
+.vs-tab svg:last-child {
+  margin-left: auto;
+}
+.vs-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 14px;
+  color: #a4a4a4;
+  font-size: 12px;
+}
+.vs-code-scroll {
+  position: relative;
+  min-width: 0;
+  overflow: auto;
+}
+.vs-code {
+  min-width: 720px;
+  padding: 8px 110px 24px 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 14px;
+  line-height: 21px;
+}
+.vs-code-line {
+  display: grid;
+  min-height: 21px;
+  grid-template-columns: 54px minmax(0, 1fr);
+}
+.vs-line-number {
+  padding-right: 18px;
+  color: #858585;
+  text-align: right;
+}
+.vs-code code {
+  white-space: pre;
+}
+.tone-plain {
+  color: #d4d4d4;
+}
+.tone-blue {
+  color: #569cd6;
+}
+.tone-cyan {
+  color: #9cdcfe;
+}
+.tone-green,
+.tone-orange {
+  color: #ce9178;
+}
+.tone-purple {
+  color: #c586c0;
+}
+.tone-yellow {
+  color: #dcdcaa;
+}
+.vs-minimap {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: grid;
+  width: 78px;
+  gap: 3px;
+  opacity: 0.32;
+}
+.vs-minimap i {
+  display: block;
+  height: 2px;
+  background: #9cdcfe;
+}
+.vs-minimap i:nth-child(3n) {
+  background: #ce9178;
+}
+.vs-minimap i:nth-child(4n) {
+  background: #c586c0;
+}
+
+.vs-panel {
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid #2b2b2b;
+  background: #1f1f1f;
+}
+.vs-panel header {
+  display: flex;
+  height: 35px;
+  align-items: center;
+  gap: 23px;
+  padding: 0 18px;
+  color: #9b9b9b;
+  font-size: 11px;
+}
+.vs-panel header .active {
+  padding-top: 2px;
+  border-bottom: 1px solid #fff;
+  color: #fff;
+  line-height: 26px;
+}
+.vs-panel header b {
+  margin-left: auto;
+  font-weight: 400;
+}
+.vs-panel pre {
+  margin: 0;
+  padding: 2px 20px;
+  color: #cccccc;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  line-height: 18px;
+}
+.terminal-prompt {
+  color: #4ec9b0;
+}
+.terminal-branch {
+  color: #c586c0;
+}
+.terminal-time {
+  color: #858585;
+}
+.vs-panel pre i {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 2px;
+  background: #aeafad;
+  vertical-align: -3px;
+  animation: cursor-blink 1.05s steps(1) infinite;
+}
+
+.vs-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px;
+  color: #fff;
+  background: #007acc;
+  font-size: 11px;
+}
+.vs-statusbar div,
+.vs-statusbar span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.vs-statusbar div {
+  gap: 15px;
+}
+.disguise-fade-enter-active {
+  transition: opacity 140ms ease-out;
+}
+.disguise-fade-enter-from {
+  opacity: 0;
+}
+.disguise-fade-leave-active {
+  transition: opacity 90ms ease-in;
+}
+.disguise-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .vs-menu,
+  .vs-explorer {
+    display: none;
+  }
+  .vs-workbench {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .vs-activity-icons > span {
+    width: 44px;
+  }
+  .vs-title {
+    max-width: calc(100vw - 180px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vs-layout-actions {
+    gap: 11px;
+  }
+  .vs-panel {
+    display: none;
+  }
+  .vs-editor {
+    grid-template-rows: 35px 27px minmax(0, 1fr);
+  }
+  .vs-statusbar div:first-child span:not(:first-child),
+  .vs-statusbar div:last-child span:nth-child(-n + 3) {
+    display: none;
+  }
+}
+
+@media (max-height: 620px) {
+  .vs-panel {
+    display: none;
+  }
+  .vs-editor {
+    grid-template-rows: 35px 27px minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disguise-fade-enter-active,
+  .disguise-fade-leave-active {
+    transition: none;
+  }
+  .vs-panel pre i {
+    animation: none;
+  }
+}

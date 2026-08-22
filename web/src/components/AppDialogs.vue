@@ -18,6 +18,7 @@ const JoinRoomDialog = defineAsyncComponent(() => import('./JoinRoomDialog.vue')
 const ManageRoomDialog = defineAsyncComponent(() => import('./ManageRoomDialog.vue'))
 const NewConversationDialog = defineAsyncComponent(() => import('./NewConversationDialog.vue'))
 const PreferencesDialog = defineAsyncComponent(() => import('./PreferencesDialog.vue'))
+const VscodeDisguise = defineAsyncComponent(() => import('./VscodeDisguiseScreen.vue'))
 
 defineProps<{
   authOpen: boolean
@@ -106,5 +107,6 @@ const emit = defineEmits<{
     @close="emit('preferencesClose')"
     @save="emit('savePreferences', $event)"
   />
+  <VscodeDisguise :enabled="preferences.autoDisguiseEnabled" />
   <Toast position="top-right" />
 </template>

@@ -261,6 +261,7 @@ export interface ChatPreferences {
   sendShortcut: SendShortcut
   focusShortcut: FocusShortcut
   privacyLockShortcut: PrivacyLockShortcut
+  autoDisguiseEnabled: boolean
   notificationsEnabled: boolean
   notificationDetails: boolean
   avatarEmoji: string

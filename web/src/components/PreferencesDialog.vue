@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Bell, Keyboard, LockKeyhole, Moon, Save, UserRound } from 'lucide-vue-next'
+import { Bell, Keyboard, LockKeyhole, MonitorCog, Moon, Save, UserRound } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -40,6 +40,7 @@ const emit = defineEmits<{
 const sendShortcut = ref<SendShortcut>('enter')
 const focusShortcut = ref<FocusShortcut>('space')
 const privacyLockShortcut = ref<PrivacyLockShortcut>({ ...DEFAULT_PRIVACY_LOCK_SHORTCUT })
+const autoDisguiseEnabled = ref(false)
 const theme = ref<ThemePreference>('system')
 const notificationsEnabled = ref(false)
 const notificationDetails = ref(true)
@@ -58,6 +59,7 @@ watch(
     sendShortcut.value = props.preferences.sendShortcut
     focusShortcut.value = props.preferences.focusShortcut
     privacyLockShortcut.value = { ...props.preferences.privacyLockShortcut }
+    autoDisguiseEnabled.value = props.preferences.autoDisguiseEnabled
     theme.value = props.preferences.theme
     notificationsEnabled.value = props.preferences.notificationsEnabled
     notificationDetails.value = props.preferences.notificationDetails
@@ -70,6 +72,7 @@ function save(): void {
     sendShortcut: sendShortcut.value,
     focusShortcut: focusShortcut.value,
     privacyLockShortcut: privacyLockShortcut.value,
+    autoDisguiseEnabled: autoDisguiseEnabled.value,
     theme: theme.value,
     notificationsEnabled: notificationsEnabled.value,
     notificationDetails: notificationDetails.value,
@@ -132,6 +135,20 @@ function save(): void {
           <span class="text-sm font-medium">锁屏快捷键</span>
         </div>
         <ShortcutRecorder v-model="privacyLockShortcut" />
+      </section>
+
+      <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr]">
+        <div class="flex items-center gap-2 pt-1">
+          <MonitorCog :size="18" class="text-primary" />
+          <span class="text-sm font-medium">页面伪装</span>
+        </div>
+        <label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
+          <span>
+            <strong class="block font-medium">自动切换到代码编辑器</strong>
+            <small class="mt-1 block text-muted-color">5 秒无操作后显示，再次操作立即返回</small>
+          </span>
+          <ToggleSwitch v-model="autoDisguiseEnabled" aria-label="启用自动页面伪装" />
+        </label>
       </section>
 
       <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr]">
