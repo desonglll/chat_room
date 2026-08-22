@@ -51,6 +51,11 @@ export function createIdleDisguiseController(
   }
 
   function activity(): void {
+    if (!enabled || active) return
+    arm()
+  }
+
+  function dismiss(): void {
     if (!enabled) return
     setActive(false)
     arm()
@@ -62,5 +67,5 @@ export function createIdleDisguiseController(
     setActive(false)
   }
 
-  return { activity, setEnabled, stop }
+  return { activity, dismiss, setEnabled, stop }
 }

@@ -10,6 +10,7 @@ import {
   Code2,
   Files,
   GitBranch,
+  Minus,
   Search,
   Settings,
   SplitSquareHorizontal,
@@ -28,13 +29,23 @@ const controller = createIdleDisguiseController((active) => {
 })
 
 function handleActivity(event: Event): void {
-  const wasVisible = visible.value
   controller.activity()
   const privacyLockVisible = document.querySelector('[data-privacy-lock-root]')
-  if (wasVisible && event instanceof KeyboardEvent && !privacyLockVisible) {
-    event.preventDefault()
-    event.stopImmediatePropagation()
-  }
+  const windowControl = event.target instanceof Element && event.target.closest('.vs-window-control')
+  if (!visible.value || !(event instanceof KeyboardEvent) || privacyLockVisible || windowControl) return
+  event.preventDefault()
+  event.stopImmediatePropagation()
+}
+
+function returnToChat(): void {
+  controller.dismiss()
+}
+
+function closePage(): void {
+  window.close()
+  window.setTimeout(() => {
+    if (!window.closed) window.location.replace('about:blank')
+  }, 100)
 }
 
 watch(
@@ -60,9 +71,29 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="disguise-fade">
-      <section v-if="visible" class="vs-shell" aria-hidden="true" data-testid="vscode-disguise">
+      <section v-if="visible" class="vs-shell" aria-label="Visual Studio Code" data-testid="vscode-disguise">
         <header class="vs-titlebar">
-          <div class="vs-window-controls"><i></i><i></i><i></i></div>
+          <div class="vs-window-controls">
+            <button
+              class="vs-window-control close"
+              type="button"
+              title="关闭网页"
+              aria-label="关闭网页"
+              @click="closePage"
+            >
+              <X :size="8" :stroke-width="3" />
+            </button>
+            <button
+              class="vs-window-control minimize"
+              type="button"
+              title="返回聊天"
+              aria-label="返回聊天"
+              @click="returnToChat"
+            >
+              <Minus :size="9" :stroke-width="3" />
+            </button>
+            <span class="vs-window-control maximize" aria-hidden="true"></span>
+          </div>
           <nav class="vs-menu">
             <span>File</span><span>Edit</span><span>Selection</span><span>View</span><span>Go</span><span>Run</span
             ><span>Terminal</span><span>Help</span>

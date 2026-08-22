@@ -25,7 +25,7 @@ function runNext(pending: Map<number, { callback: () => void; delayMs: number }>
 }
 
 describe('idle disguise controller', () => {
-  test('activates after five idle seconds and hides on the next activity', () => {
+  test('stays disguised during activity until explicitly dismissed', () => {
     const { pending, scheduler } = createScheduler()
     const changes: boolean[] = []
     const controller = createIdleDisguiseController((active) => changes.push(active), scheduler)
@@ -36,6 +36,10 @@ describe('idle disguise controller', () => {
     expect(changes).toEqual([true])
 
     controller.activity()
+    expect(changes).toEqual([true])
+    expect(pending.size).toBe(0)
+
+    controller.dismiss()
     expect(changes).toEqual([true, false])
     expect(pending.size).toBe(1)
   })
