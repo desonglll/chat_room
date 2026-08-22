@@ -11,13 +11,16 @@ class FakeWebSocket {
   onerror: (() => void) | null = null
   onclose: (() => void) | null = null
   readyState = FakeWebSocket.OPEN
+  sent: string[] = []
 
   constructor(readonly url: string) {
     FakeWebSocket.instances.push(this)
   }
 
   close(): void {}
-  send(): void {}
+  send(payload: string): void {
+    this.sent.push(payload)
+  }
 }
 
 const originalWindow = globalThis.window
@@ -118,6 +121,49 @@ describe('room socket switching', () => {
     } as MessageEvent<string>)
 
     expect((chat.messages.value[0] as BroadcastMessage).reactions).toEqual([{ emoji: '👍', user_ids: ['user-2'] }])
+    chat.close()
+  })
+
+  test('sends messages when randomUUID is unavailable on an insecure origin', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        clearTimeout,
+        crypto: {
+          getRandomValues(values: Uint8Array) {
+            values.fill(0x11)
+            return values
+          },
+        },
+        location: { host: '124.223.157.37:3000', protocol: 'http:' },
+        setTimeout,
+      },
+    })
+    Object.defineProperty(globalThis, 'WebSocket', { configurable: true, value: FakeWebSocket })
+    const room: Room = {
+      id: 'room-1',
+      name: 'HTTP 聊天室',
+      has_password: false,
+      creator_user_id: 'user-1',
+      join_policy: 'open',
+      avatar_emoji: '',
+      description: '',
+      membership_status: 'active',
+      membership_role: 'member',
+      unread_count: 0,
+      created_at: '2026-08-22T00:00:00Z',
+    }
+    const warning = spyOn(console, 'warn').mockImplementation(() => {})
+    const chat = useChatSocket()
+    warning.mockRestore()
+    chat.connect(room, 'session-token', 'user-1', '')
+    const socket = FakeWebSocket.instances[0]
+    socket?.onmessage?.({ data: JSON.stringify({ type: 'auth_ok', participants: [] }) } as MessageEvent<string>)
+
+    expect(chat.send('HTTP 也能发送')).toBe(true)
+    expect(chat.messages.value).toHaveLength(1)
+    const payload = JSON.parse(socket?.sent.at(-1) || '{}') as { client_message_id?: string }
+    expect(payload.client_message_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
     chat.close()
   })
 })

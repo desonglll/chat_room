@@ -4,6 +4,7 @@ import { createOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
 import { AUTH_ERRORS, readableSystemMessage, type ServerMessage } from '../chatProtocol'
 import { classifyMessageMotion, classifySystemMotion } from '../messageMotion'
 import { applyMessageReaction } from '../messageReactions'
+import { createRandomUuid } from '../randomUuid'
 import { useChatUploadMessages } from './useChatUploadMessages'
 import type { BroadcastMessage, ChatStatus, DisplayMessage, ReadReceipt, Room, RoomMember, TypingDraft } from '../types'
 
@@ -367,7 +368,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   function send(content: string, replyTo = ''): boolean {
     const normalized = content.trim()
     if (!normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    const clientMessageId = window.crypto.randomUUID()
+    const clientMessageId = createRandomUuid()
     const optimistic = createOptimisticMessage({
       clientMessageId,
       content: normalized,

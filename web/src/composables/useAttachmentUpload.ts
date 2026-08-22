@@ -2,6 +2,7 @@ import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { formatUploadLimit } from '../api'
 import { cancelUploadSession, listUploadSessions } from '../attachmentUploadApi'
 import { loadUploadDraft, removeUploadDraft, saveUploadDraft, type UploadDraft } from '../uploadDraftStorage'
+import { createRandomUuid } from '../randomUuid'
 import { uploadFileInChunks } from './useChunkedUpload'
 import type { AttachmentUploadSession, BroadcastMessage, Room, UploadMessage } from '../types'
 
@@ -60,7 +61,7 @@ export function useAttachmentUpload(options: UploadOptions) {
 
   function createSource(file: File, draft: UploadDraft, preferredFingerprint?: string): UploadSource {
     const room = options.room.value as Room
-    const key = `upload-${window.crypto.randomUUID()}`
+    const key = `upload-${createRandomUuid()}`
     const previewUrl = file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : ''
     return {
       key,
