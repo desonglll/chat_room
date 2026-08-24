@@ -3,17 +3,10 @@ use std::{env, fmt::Write as _, fs, path::Path, path::PathBuf, process::Command}
 fn main() {
     let react_enabled = env::var_os("CARGO_FEATURE_REACT").is_some();
     let vue_enabled = env::var_os("CARGO_FEATURE_VUE").is_some();
-    let api_only = env::var_os("CARGO_FEATURE_API_ONLY").is_some();
     assert!(
-        usize::from(react_enabled) + usize::from(vue_enabled) + usize::from(api_only) <= 1,
-        "choose one build target: --features react, --features vue, or --features api-only"
+        !(react_enabled && vue_enabled),
+        "choose exactly one web client: --features react or --features vue"
     );
-
-    let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set")).join("web");
-    if api_only {
-        generate_api_only_assets(&output_dir);
-        return;
-    }
 
     let (web_dir, client_name) = if react_enabled {
         ("web2", "React")
@@ -43,6 +36,7 @@ fn main() {
         assert!(install.success(), "Bun dependency installation failed");
     }
 
+    let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set")).join("web");
     let status = Command::new("bun")
         .args(["run", "build", "--", "--outDir"])
         .arg(&output_dir)
@@ -53,23 +47,6 @@ fn main() {
 
     assert!(status.success(), "{client_name} web build failed");
     generate_asset_manifest(&output_dir);
-}
-
-fn generate_api_only_assets(output_dir: &Path) {
-    fs::create_dir_all(output_dir).expect("create API-only asset directory");
-    fs::write(
-        output_dir.join("index.html"),
-        "<!doctype html><title>API only</title>",
-    )
-    .expect("write API-only placeholder");
-    fs::write(
-        output_dir
-            .parent()
-            .expect("web build output has a parent")
-            .join("web_assets.rs"),
-        "const GENERATED_ASSETS: &[(&str, &str, &[u8])] = &[];\n",
-    )
-    .expect("write API-only asset manifest");
 }
 
 fn generate_asset_manifest(output_dir: &Path) {
