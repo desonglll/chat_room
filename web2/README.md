@@ -1,32 +1,31 @@
-# React + TypeScript + Vite
+# 栖语 React Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+`web2` 是独立于 Vue 客户端的 React SPA，使用 React 19、React Router、Axios、Ant Design 和 Tailwind CSS。
 
-Currently, two official plugins are available:
+## 本地开发
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+后端默认监听 `127.0.0.1:3000`，Vite 会代理 `/api` 和 `/ws`：
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+cd web2
+bun install
+bun run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+生产构建：
+
+```bash
+bun run lint
+bun run build
+```
+
+## Cargo 打包选择
+
+从仓库根目录选择要嵌入 Rust 二进制的前端：
+
+```bash
+cargo build --features react
+cargo build --features vue
+```
+
+不传 feature 时仍打包 Vue，以兼容原有构建命令。`react` 与 `vue` 不能同时启用。

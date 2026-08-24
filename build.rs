@@ -1,22 +1,36 @@
 use std::{env, fmt::Write as _, fs, path::Path, path::PathBuf, process::Command};
 
 fn main() {
+    let react_enabled = env::var_os("CARGO_FEATURE_REACT").is_some();
+    let vue_enabled = env::var_os("CARGO_FEATURE_VUE").is_some();
+    assert!(
+        !(react_enabled && vue_enabled),
+        "choose exactly one web client: --features react or --features vue"
+    );
+
+    let (web_dir, client_name) = if react_enabled {
+        ("web2", "React")
+    } else {
+        ("web", "Vue")
+    };
+
     for path in [
-        "web/index.html",
-        "web/package.json",
-        "web/bun.lock",
-        "web/tsconfig.json",
-        "web/vite.config.ts",
-        "web/src",
-        "web/public",
+        "index.html",
+        "package.json",
+        "bun.lock",
+        "tsconfig.json",
+        "vite.config.ts",
+        "src",
+        "public",
     ] {
-        println!("cargo:rerun-if-changed={path}");
+        println!("cargo:rerun-if-changed={web_dir}/{path}");
     }
 
-    if !Path::new("web/node_modules/.bin/vite").exists() {
+    let vite = Path::new(web_dir).join("node_modules/.bin/vite");
+    if !vite.exists() {
         let install = Command::new("bun")
             .args(["install", "--frozen-lockfile"])
-            .current_dir("web")
+            .current_dir(web_dir)
             .status()
             .expect("run Bun; install Bun before running Cargo");
         assert!(install.success(), "Bun dependency installation failed");
@@ -27,36 +41,27 @@ fn main() {
         .args(["run", "build", "--", "--outDir"])
         .arg(&output_dir)
         .arg("--emptyOutDir")
-        .current_dir("web")
+        .current_dir(web_dir)
         .status()
-        .expect("run Bun; install Bun and run `cd web && bun install`");
+        .unwrap_or_else(|_| panic!("run Bun; install Bun and run `cd {web_dir} && bun install`"));
 
-    assert!(status.success(), "Vue web build failed");
+    assert!(status.success(), "{client_name} web build failed");
     generate_asset_manifest(&output_dir);
 }
 
 fn generate_asset_manifest(output_dir: &Path) {
-    let asset_dir = output_dir.join("assets");
-    let mut names: Vec<String> = fs::read_dir(&asset_dir)
-        .expect("read built web assets")
-        .map(|entry| entry.expect("read web asset entry").file_name())
-        .map(|name| name.to_string_lossy().into_owned())
-        .collect();
-    names.sort();
+    let mut files = Vec::new();
+    collect_files(output_dir, output_dir, &mut files);
+    files.retain(|(name, _)| name != "index.html");
+    files.sort_by(|left, right| left.0.cmp(&right.0));
 
     let mut source = String::from("const GENERATED_ASSETS: &[(&str, &str, &[u8])] = &[\n");
-    for name in names {
-        let content_type = match Path::new(&name)
-            .extension()
-            .and_then(|value| value.to_str())
-        {
-            Some("css") => "text/css; charset=utf-8",
-            Some("js") => "text/javascript; charset=utf-8",
-            _ => "application/octet-stream",
-        };
+    for (name, path) in files {
+        let content_type = content_type(&path);
         writeln!(
             source,
-            "    ({name:?}, {content_type:?}, include_bytes!(concat!(env!(\"OUT_DIR\"), \"/web/assets/{name}\"))),"
+            "    ({name:?}, {content_type:?}, include_bytes!({path:?})),",
+            path = path.to_string_lossy(),
         )
         .expect("write asset manifest entry");
     }
@@ -69,4 +74,40 @@ fn generate_asset_manifest(output_dir: &Path) {
         source,
     )
     .expect("write web asset manifest");
+}
+
+fn collect_files(root: &Path, directory: &Path, files: &mut Vec<(String, PathBuf)>) {
+    for entry in fs::read_dir(directory).expect("read built web assets") {
+        let path = entry.expect("read web asset entry").path();
+        if path.is_dir() {
+            collect_files(root, &path, files);
+        } else {
+            let name = path
+                .strip_prefix(root)
+                .expect("asset is below output directory")
+                .to_string_lossy()
+                .replace('\\', "/");
+            files.push((name, path));
+        }
+    }
+}
+
+fn content_type(path: &Path) -> &'static str {
+    match path.extension().and_then(|value| value.to_str()) {
+        Some("css") => "text/css; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("json") => "application/json",
+        Some("svg") => "image/svg+xml",
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("ico") => "image/x-icon",
+        Some("woff") => "font/woff",
+        Some("woff2") => "font/woff2",
+        Some("mp4") => "video/mp4",
+        Some("webm") => "video/webm",
+        Some("pdf") => "application/pdf",
+        _ => "application/octet-stream",
+    }
 }

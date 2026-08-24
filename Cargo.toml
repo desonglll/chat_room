@@ -5,6 +5,11 @@ edition = "2021"
 autobins = false
 default-run = "server"
 
+[features]
+default = []
+vue = []
+react = []
+
 [[bin]]
 name = "server"
 path = "src/main.rs"

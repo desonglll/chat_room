@@ -312,8 +312,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             .route("/icons/icon-sprite.svg", get(web::icon_sprite))
             .route("/brand/echo-gate.svg", get(web::echo_gate))
             .route("/emoji-data-zh.json", get(web::emoji_data_zh))
-            // The Vue client uses history-mode client-side routing (/rooms/:id, /profile,
-            // /settings) — any path not matched above is a client route, not a 404.
+            // Both browser clients use history-mode routing; unmatched paths are client routes.
             .fallback(get(web::index));
     }
 
