@@ -78,8 +78,27 @@ in `postgres_data`; uploaded files stay in `attachment_data`.
 ## Use published images
 
 Pushes to `master` and `v*` tags publish the backend, React frontend, and Vue
-frontend images to GitHub Container Registry. Select one frontend and set its
-published image in `.env`:
+frontend images to both GitHub Container Registry and Docker Hub. Docker Hub
+publishing requires these GitHub Actions repository secrets:
+
+- `DOCKERHUB_USERNAME`: Docker Hub account name.
+- `DOCKERHUB_TOKEN`: Docker Hub access token with write permission.
+
+When either secret is missing, CI skips Docker Hub and continues publishing to
+GHCR. Once both are present, the same build is tagged and pushed to both
+registries.
+
+Run the setup wizard from the repository root to create the token and store
+both values as GitHub Actions secrets without writing them to disk:
+
+```sh
+./scripts/setup-dockerhub-publishing.sh
+```
+
+The Docker Hub repository prefix defaults to `desonglll/chat_room`. Set the
+GitHub Actions repository variable `DOCKERHUB_IMAGE_NAME` to override it.
+
+Select one frontend and set its published image in `.env`:
 
 ```dotenv
 CHAT_ROOM_BACKEND_IMAGE=ghcr.io/desonglll/chat_room-backend:latest
@@ -89,6 +108,16 @@ CHAT_ROOM_FRONTEND_IMAGE=ghcr.io/desonglll/chat_room-frontend-react:latest
 
 For Vue, use `CHAT_ROOM_FRONTEND=vue` and
 `ghcr.io/desonglll/chat_room-frontend-vue:latest`.
+
+The equivalent Docker Hub images are:
+
+```dotenv
+CHAT_ROOM_BACKEND_IMAGE=desonglll/chat_room-backend:latest
+CHAT_ROOM_FRONTEND=react
+CHAT_ROOM_FRONTEND_IMAGE=desonglll/chat_room-frontend-react:latest
+```
+
+For Vue, use `desonglll/chat_room-frontend-vue:latest`.
 
 Then pull and start without a local rebuild:
 
