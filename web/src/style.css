@@ -1,27 +1,32 @@
 @import 'tailwindcss';
 @import 'tailwindcss-primeui';
 @import './tokens.css';
+@import './navigation.css';
 @import './workspace.css';
+@import './chat.css';
+@import './composer.css';
+@import './surfaces.css';
+@import './motion.css';
 
 @keyframes message-incoming {
   from {
     opacity: 0;
-    transform: translate(-6px, 4px) scale(0.985);
+    transform: translate(-4px, 3px);
   }
   to {
     opacity: 1;
-    transform: translate(0, 0) scale(1);
+    transform: translate(0, 0);
   }
 }
 
 @keyframes message-outgoing {
   from {
     opacity: 0;
-    transform: translate(7px, 6px) scale(0.975);
+    transform: translate(4px, 3px);
   }
   to {
     opacity: 1;
-    transform: translate(0, 0) scale(1);
+    transform: translate(0, 0);
   }
 }
 
@@ -43,11 +48,11 @@
 }
 
 .motion-incoming {
-  animation: message-incoming 0.18s var(--cr-ease-out);
+  animation: message-incoming 0.16s var(--cr-ease-out);
 }
 
 .motion-outgoing {
-  animation: message-outgoing 0.16s var(--cr-ease-out);
+  animation: message-outgoing 0.14s var(--cr-ease-out);
 }
 
 .motion-system {
@@ -111,6 +116,7 @@
     font-family: var(--cr-font-sans);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+    font-optical-sizing: auto;
   }
 
   html,
@@ -142,6 +148,30 @@
   [role='button'] {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .cr-glass,
+  .cr-chat-header,
+  .cr-composer {
+    background: var(--cr-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cr-border: #b3bdb8;
+    --cr-border-strong: #7d8b84;
+    --cr-text-muted: #4d5a54;
+  }
+
+  [data-theme='dark'] {
+    --cr-border: #65716c;
+    --cr-border-strong: #8c9893;
+    --cr-text-muted: #d1dad6;
   }
 }
 
@@ -188,7 +218,7 @@
    flat black scrim. */
 .p-dialog-mask,
 .p-overlay-mask {
-  background: var(--cr-mask-bg);
+  background: var(--cr-mask-bg) !important;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -198,9 +228,10 @@
 .p-togglebutton {
   transition:
     transform var(--cr-motion-fast) var(--cr-ease-out),
-    background var(--cr-motion-normal) var(--cr-ease-out),
-    box-shadow var(--cr-motion-normal) var(--cr-ease-out),
-    border-color var(--cr-motion-normal) var(--cr-ease-out);
+    color var(--cr-motion-normal) ease,
+    background-color var(--cr-motion-normal) ease,
+    box-shadow var(--cr-motion-normal) ease,
+    border-color var(--cr-motion-normal) ease;
 }
 
 .p-inputtext,
@@ -214,6 +245,7 @@
 .p-contextmenu {
   border-radius: var(--cr-radius-lg);
   box-shadow: var(--cr-shadow-lg);
+  transition: none;
 }
 
 .p-dialog {
@@ -237,12 +269,15 @@
 
 .room-switch-enter-active,
 .room-switch-leave-active {
-  transition: opacity var(--cr-motion-fast) var(--cr-ease-out);
+  transition:
+    opacity var(--cr-motion-fast) var(--cr-ease-out),
+    transform var(--cr-motion-fast) var(--cr-ease-out);
 }
 
 .room-switch-enter-from,
 .room-switch-leave-to {
   opacity: 0;
+  transform: translateY(3px);
 }
 
 @media (prefers-reduced-motion: reduce) {

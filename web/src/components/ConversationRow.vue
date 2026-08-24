@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { avatarColor } from '../avatarColor'
-import { conversationAttentionCount, conversationPreview } from '../conversationState'
+import { conversationAttentionCount, conversationDisplayTitle, conversationPreview } from '../conversationState'
 import type { ConversationSummary } from '../types'
 import IconSprite from './IconSprite.vue'
 
@@ -24,7 +24,7 @@ function formatActivity(value: string): string {
 
 <template>
   <span
-    class="cr-conversation-avatar relative grid size-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white"
+    class="cr-conversation-avatar relative grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white"
     :style="{
       backgroundColor: avatarColor(
         conversation.kind === 'direct' ? conversation.peer?.id || conversation.room_id : conversation.room_id,
@@ -33,7 +33,7 @@ function formatActivity(value: string): string {
   >
     <template v-if="conversation.avatar_emoji">{{ conversation.avatar_emoji }}</template>
     <IconSprite v-else-if="conversation.kind === 'group'" name="rooms" :size="18" />
-    <template v-else>{{ conversation.title.slice(0, 1).toUpperCase() }}</template>
+    <template v-else>{{ conversationDisplayTitle(conversation).slice(0, 1).toUpperCase() }}</template>
     <span
       v-if="collapsed && conversationAttentionCount(conversation) > 0"
       class="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full border-2 border-surface-0 bg-primary px-1 text-[10px] font-semibold leading-4 text-white"
@@ -43,14 +43,12 @@ function formatActivity(value: string): string {
   </span>
   <span class="min-w-0 flex-1" :class="{ 'md:hidden': collapsed }">
     <span class="flex items-baseline gap-2">
-      <strong
-        class="min-w-0 flex-1 truncate text-sm font-semibold"
-        :class="selected ? 'text-white' : 'text-surface-900'"
-        >{{ conversation.title }}</strong
-      >
+      <strong class="cr-conversation-title min-w-0 flex-1 truncate text-sm font-semibold">{{
+        conversationDisplayTitle(conversation)
+      }}</strong>
       <small
-        class="shrink-0 text-[11px]"
-        :class="selected ? 'text-white/80' : conversation.unread_count ? 'text-primary' : 'text-muted-color'"
+        class="cr-conversation-time shrink-0 text-[11px]"
+        :class="conversation.unread_count ? 'font-semibold' : ''"
       >
         {{ formatActivity(conversation.last_activity_at) }}
       </small>
@@ -58,8 +56,7 @@ function formatActivity(value: string): string {
     <span class="mt-1 flex min-w-0 items-center gap-2">
       <small
         v-if="revealPreview || conversation.pending_join_requests > 0"
-        class="min-w-0 flex-1 truncate text-xs"
-        :class="selected ? 'text-white/80' : 'text-muted-color'"
+        class="cr-conversation-preview min-w-0 flex-1 truncate text-xs"
       >
         <template v-if="revealPreview && conversation.last_message?.sender && conversation.kind === 'group'">
           {{ conversation.last_message.sender }}:
@@ -77,7 +74,6 @@ function formatActivity(value: string): string {
       <span
         v-if="conversationAttentionCount(conversation) > 0"
         class="cr-unread-badge grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[10px] font-semibold leading-5"
-        :class="selected ? 'bg-white text-primary-700' : 'bg-primary text-white'"
       >
         {{ conversationAttentionCount(conversation) > 99 ? '99+' : conversationAttentionCount(conversation) }}
       </span>

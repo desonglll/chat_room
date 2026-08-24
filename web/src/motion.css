@@ -1,0 +1,180 @@
+@keyframes cr-page-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes cr-skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.p-skeleton {
+  position: relative;
+  overflow: hidden;
+  animation: none !important;
+  background: color-mix(in srgb, var(--cr-border) 68%, var(--cr-surface)) !important;
+}
+
+.p-skeleton::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cr-surface) 72%, transparent), transparent);
+  content: '';
+  transform: translateX(-100%);
+  animation: cr-skeleton-sweep 1.35s linear infinite;
+}
+
+.p-overlay-mask-enter-active,
+.p-overlay-mask-leave-active {
+  transition: opacity var(--cr-motion-normal) var(--cr-ease-out) !important;
+}
+
+.p-overlay-mask-enter-active > .p-dialog {
+  transition:
+    opacity var(--cr-motion-enter) var(--cr-ease-out),
+    transform var(--cr-motion-enter) var(--cr-ease-out) !important;
+}
+
+.p-overlay-mask-leave-active > .p-dialog {
+  transition:
+    opacity var(--cr-motion-exit) var(--cr-ease-out),
+    transform var(--cr-motion-exit) var(--cr-ease-out) !important;
+}
+
+.p-overlay-mask-enter-from,
+.p-overlay-mask-leave-to {
+  opacity: 0;
+}
+
+.p-overlay-mask-enter-from > .p-dialog,
+.p-overlay-mask-leave-to > .p-dialog {
+  opacity: 0;
+  transform: translateY(10px) scale(0.975);
+}
+
+.p-connected-overlay-enter-active {
+  transition:
+    opacity var(--cr-motion-normal) var(--cr-ease-out),
+    transform var(--cr-motion-normal) var(--cr-ease-out) !important;
+}
+
+.p-connected-overlay-leave-active {
+  transition:
+    opacity var(--cr-motion-fast) var(--cr-ease-out),
+    transform var(--cr-motion-fast) var(--cr-ease-out) !important;
+}
+
+.p-connected-overlay-enter-from,
+.p-connected-overlay-leave-to {
+  opacity: 0;
+  transform: translateY(-3px) scale(0.97);
+}
+
+.cr-popover-bottom-left.p-connected-overlay-enter-from,
+.cr-popover-bottom-left.p-connected-overlay-leave-to {
+  transform: translateY(3px) scale(0.97);
+}
+
+.p-toast-message-enter-active {
+  transition:
+    opacity var(--cr-motion-slow) ease,
+    transform var(--cr-motion-slow) ease !important;
+}
+
+.p-toast-message-leave-active {
+  transition:
+    opacity var(--cr-motion-normal) var(--cr-ease-out),
+    transform var(--cr-motion-normal) var(--cr-ease-out) !important;
+}
+
+.p-toast-message-enter-from,
+.p-toast-message-leave-to {
+  opacity: 0;
+  transform: translateY(-100%) scale(0.98);
+}
+
+.p-selectbutton {
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--cr-border) 86%, transparent);
+  border-radius: var(--cr-radius-lg);
+  background: var(--cr-surface-subtle);
+  transition: none;
+}
+
+.p-selectbutton .p-togglebutton {
+  border: 0 !important;
+  border-radius: calc(var(--cr-radius-lg) - 2px) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--cr-text-muted) !important;
+}
+
+.p-selectbutton .p-togglebutton[data-p-checked='true'] {
+  background: var(--cr-surface) !important;
+  box-shadow:
+    0 1px 2px rgba(24, 35, 30, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--cr-border) 72%, transparent) !important;
+  color: var(--cr-text) !important;
+}
+
+.p-selectbutton .p-togglebutton-content {
+  transition: transform var(--cr-motion-fast) var(--cr-ease-out);
+}
+
+.p-selectbutton .p-togglebutton:active .p-togglebutton-content {
+  transform: scale(0.97);
+}
+
+.cr-rail-action:active,
+.cr-rail-brand:active,
+.cr-conversation-row:active,
+.cr-page-tab:active,
+.cr-contact-row:active,
+.cr-discovery-row:active,
+.cr-message-inline-action:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-skeleton::after {
+    animation: none;
+  }
+
+  .p-overlay-mask-enter-active,
+  .p-overlay-mask-leave-active,
+  .p-overlay-mask-enter-active > .p-dialog,
+  .p-overlay-mask-leave-active > .p-dialog,
+  .p-connected-overlay-enter-active,
+  .p-connected-overlay-leave-active,
+  .p-toast-message-enter-active,
+  .p-toast-message-leave-active {
+    transition: opacity 120ms ease !important;
+  }
+
+  .p-overlay-mask-enter-from > .p-dialog,
+  .p-overlay-mask-leave-to > .p-dialog,
+  .p-connected-overlay-enter-from,
+  .p-connected-overlay-leave-to,
+  .p-toast-message-enter-from,
+  .p-toast-message-leave-to {
+    transform: none;
+  }
+
+  .p-selectbutton .p-togglebutton-content {
+    transition: none;
+  }
+
+  .cr-rail-action:active,
+  .cr-rail-brand:active,
+  .cr-conversation-row:active,
+  .cr-page-tab:active,
+  .cr-contact-row:active,
+  .cr-discovery-row:active,
+  .cr-message-inline-action:active {
+    transform: none;
+  }
+}

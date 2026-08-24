@@ -1,0 +1,199 @@
+.cr-workspace-rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 0.5rem;
+  border-right: 1px solid var(--cr-sidebar-border);
+  background: var(--cr-sidebar-bg);
+  color: var(--cr-sidebar-muted);
+}
+
+.cr-rail-brand {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  place-items: center;
+  border-radius: var(--cr-radius-lg);
+  outline: none;
+  transition: transform var(--cr-motion-fast) var(--cr-ease-out);
+}
+
+.cr-rail-brand img {
+  width: 2rem;
+  height: 2rem;
+}
+
+.cr-rail-primary,
+.cr-rail-account {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.cr-rail-primary {
+  padding-top: 0.375rem;
+}
+
+.cr-rail-account {
+  margin-top: auto;
+}
+
+.cr-rail-action {
+  position: relative;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--cr-radius-lg);
+  color: var(--cr-sidebar-muted);
+  outline: none;
+  transition:
+    transform var(--cr-motion-fast) var(--cr-ease-out),
+    color var(--cr-motion-normal) ease,
+    background-color var(--cr-motion-normal) ease,
+    border-color var(--cr-motion-normal) ease;
+}
+
+.cr-rail-action::before {
+  position: absolute;
+  inset: 0 auto 0 -0.5rem;
+  width: 2px;
+  height: 1.25rem;
+  margin: auto 0;
+  border-radius: 0 2px 2px 0;
+  background: var(--cr-rail-indicator);
+  content: '';
+  opacity: 0;
+  transform: scaleY(0.35);
+  transition:
+    opacity var(--cr-motion-fast) ease,
+    transform var(--cr-motion-normal) var(--cr-ease-out);
+}
+
+.cr-rail-action > span:not(.p-badge) {
+  display: none;
+}
+
+.cr-rail-action--active {
+  border-color: color-mix(in srgb, var(--cr-primary) 12%, transparent);
+  background: var(--cr-sidebar-active);
+  color: var(--cr-sidebar-active-text);
+}
+
+.cr-rail-action--active::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.cr-rail-create {
+  margin-top: 0.5rem;
+  border-color: color-mix(in srgb, var(--cr-primary) 24%, transparent);
+  background: var(--cr-primary-soft);
+  color: var(--cr-primary);
+}
+
+.cr-rail-mobile-settings {
+  display: none;
+}
+
+.cr-rail-avatar .p-avatar {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.8125rem;
+}
+
+.cr-rail-badge {
+  position: absolute !important;
+  top: -0.2rem;
+  right: -0.3rem;
+  min-width: 1.15rem !important;
+  height: 1.15rem !important;
+  padding: 0 0.25rem !important;
+  font-size: 0.625rem !important;
+}
+
+.cr-rail-brand:focus-visible,
+.cr-rail-action:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--cr-sidebar-bg),
+    0 0 0 4px var(--cr-jade-300);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cr-rail-action:hover,
+  .cr-rail-brand:hover {
+    background: var(--cr-sidebar-hover);
+    color: var(--cr-sidebar-text);
+  }
+}
+
+@media (max-width: 767px) {
+  .cr-workspace-rail {
+    grid-row: 2;
+    display: block;
+    min-height: calc(3.75rem + env(safe-area-inset-bottom));
+    padding: 0.35rem 0.5rem max(0.35rem, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--cr-sidebar-border);
+  }
+
+  .cr-rail-brand,
+  .cr-rail-account,
+  .cr-rail-create {
+    display: none;
+  }
+
+  .cr-rail-primary {
+    display: grid;
+    height: 3.1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.25rem;
+    padding: 0;
+  }
+
+  .cr-rail-mobile-settings {
+    display: flex;
+  }
+
+  .cr-rail-action {
+    display: flex;
+    width: 100%;
+    height: 3.05rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    border-radius: var(--cr-radius-md);
+    font-size: 0.625rem;
+  }
+
+  .cr-rail-action > span:not(.p-badge) {
+    display: block;
+  }
+
+  .cr-rail-action::before {
+    inset: auto 22% -0.35rem;
+    width: auto;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    transform: scaleX(0.35);
+  }
+
+  .cr-rail-action--active::before {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-rail-action,
+  .cr-rail-brand,
+  .cr-rail-action::before {
+    transition: none;
+  }
+}

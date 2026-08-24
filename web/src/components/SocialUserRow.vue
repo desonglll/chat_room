@@ -7,7 +7,9 @@ defineProps<{ user: UserSummary; subtitle?: string }>()
 </script>
 
 <template>
-  <div class="group flex min-h-[72px] items-center gap-3 px-3 py-2 transition-colors hover:bg-surface-50">
+  <div
+    class="group flex min-h-[72px] items-center gap-3 px-3 py-2 transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-50 motion-reduce:transition-none"
+  >
     <Avatar
       :label="user.avatar_emoji || user.username.slice(0, 1).toUpperCase()"
       shape="circle"

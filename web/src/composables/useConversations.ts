@@ -1,6 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { applyAccountMessage, applyAccountStates, removeConversation, sortConversations } from '../conversationState'
-import { listConversations } from '../socialApi'
+import { listConversations, setConversationAlias } from '../socialApi'
 import type { AccountMessageEvent, ConversationSummary } from '../types'
 
 interface UnreadState {
@@ -61,6 +61,12 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
     conversations.value = removeConversation(conversations.value, roomId)
   }
 
+  async function setAlias(roomId: string, alias: string): Promise<ConversationSummary> {
+    const updated = await setConversationAlias(roomId, alias, token.value)
+    upsert(updated)
+    return updated
+  }
+
   watch(token, () => void refresh(), { immediate: true })
 
   return {
@@ -72,6 +78,7 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
     handleMessage,
     remove,
     refresh,
+    setAlias,
     upsert,
   }
 }

@@ -118,10 +118,11 @@ function openFriendMenu(event: Event, entry: ContactEntry): void {
 
 <template>
   <main
-    class="absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden bg-surface-0 md:relative md:inset-auto md:z-auto"
+    id="workspace-main"
+    class="cr-page cr-contacts-page absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden md:relative md:inset-auto md:z-auto"
   >
     <header
-      class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 border-b border-surface-200 bg-surface-0 px-3 py-2 lg:flex lg:h-16 lg:gap-2 lg:px-3 lg:py-0"
+      class="cr-page-header grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 px-3 py-2 lg:flex lg:gap-2 lg:px-4 lg:py-0"
     >
       <div class="flex min-w-0 items-center gap-2">
         <Button
@@ -142,19 +143,15 @@ function openFriendMenu(event: Event, entry: ContactEntry): void {
       </div>
 
       <nav
-        class="order-3 col-span-2 mt-2 flex min-w-0 items-center gap-0.5 overflow-x-auto lg:order-none lg:col-span-1 lg:mt-0 lg:ml-2"
+        class="cr-page-tabs order-3 col-span-2 mt-2 flex min-w-0 items-center gap-0.5 overflow-x-auto lg:order-none lg:col-span-1 lg:mt-0 lg:ml-2"
         aria-label="联系人分类"
       >
         <button
           v-for="tab in tabs"
           :key="tab.value"
           type="button"
-          class="relative flex h-10 shrink-0 touch-manipulation items-center gap-2 rounded-md px-3 text-sm font-medium transition-[background-color,color] duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset motion-reduce:transition-none"
-          :class="
-            active === tab.value
-              ? 'bg-primary-50 text-primary-800'
-              : 'text-muted-color hover:bg-surface-100 hover:text-surface-900'
-          "
+          class="cr-page-tab relative flex h-10 shrink-0 touch-manipulation items-center gap-2 rounded-md px-3 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+          :class="active === tab.value ? 'cr-page-tab--active' : 'cr-page-tab--idle'"
           :aria-current="active === tab.value ? 'page' : undefined"
           @click="active = tab.value"
         >
@@ -182,7 +179,7 @@ function openFriendMenu(event: Event, entry: ContactEntry): void {
       </Button>
     </header>
 
-    <div class="relative grid min-h-0 min-w-0 flex-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div class="cr-contacts-workspace relative grid min-h-0 min-w-0 flex-1 xl:grid-cols-[minmax(0,1fr)_360px]">
       <ContactDirectoryPane
         :active="active"
         :entries="visibleEntries"
@@ -203,7 +200,7 @@ function openFriendMenu(event: Event, entry: ContactEntry): void {
       />
 
       <ContactProfilePane
-        class="absolute inset-0 z-20 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none xl:relative xl:inset-auto xl:z-auto"
+        class="absolute inset-0 z-20 transition-[transform,opacity] duration-[var(--cr-motion-enter)] [transition-timing-function:var(--cr-ease-drawer)] motion-reduce:transition-none xl:relative xl:inset-auto xl:z-auto"
         :class="
           detailOpen
             ? 'visible translate-x-0 opacity-100'

@@ -18,11 +18,11 @@ const emit = defineEmits<{ remove: [id: number] }>()
   <TransitionGroup
     v-if="files.length"
     tag="div"
-    class="flex gap-2 overflow-x-auto px-3 pt-3 sm:px-7"
+    class="cr-composer-width flex gap-2 overflow-x-auto px-3 pb-2 sm:px-1"
     aria-label="待发送附件"
-    enter-active-class="transition duration-200 ease-out"
+    enter-active-class="transition-[opacity,transform] duration-[var(--cr-motion-normal)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
     enter-from-class="translate-y-1 opacity-0"
-    leave-active-class="transition duration-150 ease-out"
+    leave-active-class="transition-[opacity,transform] duration-[var(--cr-motion-fast)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
     leave-to-class="scale-95 opacity-0"
   >
     <div
@@ -62,7 +62,10 @@ const emit = defineEmits<{ remove: [id: number] }>()
     </div>
   </TransitionGroup>
 
-  <label v-if="files.length" class="flex items-center gap-2 px-3 pt-2 text-xs text-muted-color sm:px-7">
+  <label
+    v-if="files.length"
+    class="cr-composer-width flex items-center gap-2 px-3 pb-2 text-xs text-muted-color sm:px-1"
+  >
     <Checkbox v-model="sensitive" binary input-id="sensitiveContent" />
     <span>包含敏感内容，接收方需点击确认才能查看</span>
   </label>

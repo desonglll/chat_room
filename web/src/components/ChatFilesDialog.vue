@@ -146,7 +146,7 @@ function openContextMenu(event: MouseEvent, messageId: string): void {
       <div
         v-for="file in filtered"
         :key="file.message_id"
-        class="flex min-h-16 items-center gap-3 border-b border-surface-100 px-1 py-2 transition hover:bg-surface-50"
+        class="flex min-h-16 items-center gap-3 border-b border-surface-100 px-1 py-2 transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-50 motion-reduce:transition-none"
         @contextmenu.prevent="openContextMenu($event, file.message_id)"
       >
         <Checkbox v-model="selected" :value="file.message_id" />

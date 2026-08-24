@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#122b29" />
+    <meta name="theme-color" content="#f7f9f8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <script>
       try {
@@ -11,10 +11,10 @@
         const dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) document.documentElement.setAttribute('data-theme', 'dark')
         document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b1716' : '#122b29')
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#111614' : '#f7f9f8')
       } catch {}
     </script>
-    <title>Chat Room</title>
+    <title>Echo Gate</title>
   </head>
   <body>
     <div id="app"></div>

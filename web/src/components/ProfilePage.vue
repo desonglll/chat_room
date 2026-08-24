@@ -61,21 +61,19 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface-0">
-    <header
-      class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7"
-    >
+  <main id="workspace-main" class="cr-page min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <header class="cr-page-header sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-7">
       <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"
         ><ArrowLeft :size="19"
       /></Button>
       <div>
-        <h2 class="text-base font-semibold">我的</h2>
+        <h2 class="text-base font-semibold">个人资料</h2>
         <p class="mt-0.5 text-xs text-muted-color">@{{ user.username }}</p>
       </div>
     </header>
 
-    <form autocomplete="on" class="mx-auto w-full max-w-2xl px-5 py-8 sm:px-8" @submit.prevent="save">
-      <section class="border-b border-surface-200 pb-7">
+    <form autocomplete="on" class="cr-page-form mx-auto w-full max-w-2xl px-5 py-8 sm:px-8" @submit.prevent="save">
+      <section class="cr-form-section pb-7">
         <div class="mb-4 flex items-center gap-2 text-sm font-semibold">
           <UserRound :size="18" class="text-primary" />头像
         </div>
@@ -104,7 +102,7 @@ async function save(): Promise<void> {
         </Popover>
       </section>
 
-      <section class="space-y-5 pt-7">
+      <section class="cr-form-section space-y-5 py-7">
         <div>
           <label for="profile-display-name" class="mb-2 block text-sm font-medium">显示名称</label>
           <InputText
@@ -156,7 +154,7 @@ async function save(): Promise<void> {
 
       <Message v-if="error" severity="error" :closable="false" class="mt-5">{{ error }}</Message>
       <Message v-else-if="saved" severity="success" :closable="false" class="mt-5">个人资料已保存</Message>
-      <div class="mt-6 flex justify-end border-t border-surface-200 pt-5">
+      <div class="cr-form-footer flex justify-end pt-5">
         <Button type="submit" :loading="saving"><Save :size="17" /><span>保存资料</span></Button>
       </div>
     </form>

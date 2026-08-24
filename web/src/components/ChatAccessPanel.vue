@@ -52,14 +52,21 @@ function handleJoin(): void {
 
   <section v-else-if="!room" class="cr-chat-empty min-h-0 flex-1">
     <div class="cr-empty-state">
-      <img src="/brand/echo-gate.svg" alt="" width="72" height="72" class="empty-mark" aria-hidden="true" />
-      <small>ECHO GATE</small>
+      <div class="cr-empty-mark-wrap">
+        <img src="/brand/echo-gate.svg" alt="" width="72" height="72" class="empty-mark" aria-hidden="true" />
+      </div>
+      <small>YOUR CONVERSATIONS</small>
       <h2>选择一段会话</h2>
     </div>
   </section>
 
-  <section v-else class="fade-in flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
-    <form class="w-full max-w-[420px]" autocomplete="off" data-testid="join-form" @submit.prevent="handleJoin">
+  <section v-else class="fade-in cr-access-stage flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
+    <form
+      class="cr-access-form w-full max-w-[420px]"
+      autocomplete="off"
+      data-testid="join-form"
+      @submit.prevent="handleJoin"
+    >
       <span class="grid size-12 place-items-center rounded-lg bg-primary-50 text-primary-700">
         <DoorOpen :size="23" />
       </span>
@@ -145,19 +152,15 @@ function handleJoin(): void {
   display: grid;
   overflow: hidden;
   place-items: center;
-  background: transparent;
+  background: var(--cr-chat-canvas);
 }
 
 .cr-chat-empty::before {
   position: absolute;
-  width: min(34vw, 24rem);
-  aspect-ratio: 0.78;
-  border: 1px solid color-mix(in srgb, var(--cr-primary) 9%, transparent);
-  border-radius: var(--cr-radius-lg);
+  inset: 14% 12%;
+  border: 1px solid color-mix(in srgb, var(--cr-border) 42%, transparent);
   content: '';
-  box-shadow:
-    0 0 0 3.5rem color-mix(in srgb, var(--cr-primary) 2.5%, transparent),
-    0 0 0 7rem color-mix(in srgb, var(--cr-primary) 1.8%, transparent);
+  clip-path: polygon(0 0, 16% 0, 16% 1px, 0 1px, 0 100%, 1px 100%, 1px 84%, 0 84%);
 }
 
 .cr-empty-state {
@@ -169,13 +172,23 @@ function handleJoin(): void {
 }
 
 .cr-empty-state img {
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 4rem;
+  height: 4rem;
   filter: drop-shadow(0 12px 22px rgba(23, 37, 33, 0.15));
 }
 
+.cr-empty-mark-wrap {
+  display: grid;
+  width: 6.5rem;
+  height: 6.5rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--cr-border) 78%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--cr-surface) 52%, transparent);
+}
+
 .cr-empty-state small {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   color: var(--cr-primary);
   font-size: 0.65rem;
   font-weight: 800;
@@ -183,11 +196,42 @@ function handleJoin(): void {
 }
 
 .cr-empty-state h2 {
-  margin-top: 0.35rem;
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: 0;
+  margin-top: 0.45rem;
+  font-size: 1.125rem;
+  font-weight: 700;
   text-wrap: balance;
+}
+
+.cr-empty-state > span {
+  margin-top: 0.35rem;
+  color: var(--cr-text-muted);
+  font-size: 0.75rem;
+}
+
+.cr-empty-state > small,
+.cr-empty-state > h2,
+.cr-empty-state > span {
+  animation: empty-copy-in var(--cr-motion-slow) var(--cr-ease-out) both;
+}
+
+.cr-empty-state > h2 {
+  animation-delay: 40ms;
+}
+
+.cr-empty-state > span {
+  animation-delay: 80ms;
+}
+
+.cr-access-stage {
+  background: var(--cr-chat-canvas);
+}
+
+.cr-access-form {
+  padding: 1.5rem;
+  border: 1px solid var(--cr-border);
+  border-radius: var(--cr-radius-lg);
+  background: color-mix(in srgb, var(--cr-surface) 88%, transparent);
+  box-shadow: var(--cr-shadow-md);
 }
 
 .empty-mark {
@@ -201,16 +245,26 @@ function handleJoin(): void {
   }
 }
 
+@keyframes empty-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-in,
-  .empty-mark {
+  .empty-mark,
+  .cr-empty-state > small,
+  .cr-empty-state > h2,
+  .cr-empty-state > span {
     animation: none;
   }
 }
 
 @media (max-width: 767px) {
   .cr-chat-empty::before {
-    width: min(56vw, 15rem);
+    inset: 10% 7%;
   }
 }
 </style>

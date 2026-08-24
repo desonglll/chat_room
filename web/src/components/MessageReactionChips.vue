@@ -27,7 +27,7 @@ function reactionTitle(reaction: MessageReaction): string {
       v-for="reaction in reactions"
       :key="reaction.emoji"
       type="button"
-      class="flex min-h-8 min-w-11 touch-manipulation items-center justify-center gap-1 rounded-full border px-2 text-xs outline-none transition-[background-color,border-color,color,transform] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
+      class="flex min-h-8 min-w-11 touch-manipulation items-center justify-center gap-1 rounded-full border px-2 text-xs outline-none transition-[background-color,border-color,color,transform] duration-[var(--cr-motion-fast)] [transition-timing-function:var(--cr-ease-out)] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none"
       :class="
         reacted(reaction)
           ? 'border-primary-300 bg-primary-50 text-primary-800 hover:bg-primary-100'

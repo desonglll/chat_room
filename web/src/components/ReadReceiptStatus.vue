@@ -27,12 +27,12 @@ function avatarLabel(member: RoomMember): string {
 <template>
   <button
     type="button"
-    class="mt-1 ml-auto flex min-h-6 items-center gap-1 rounded px-1.5 text-[11px] transition-colors hover:bg-surface-200"
+    class="cr-read-receipt ml-auto flex min-h-5 items-center gap-1 rounded px-1 text-[10px] hover:bg-surface-200"
     :class="unread.length ? 'text-muted-color' : 'text-success'"
     :aria-label="direct ? label : `${label}，查看详情`"
     @click="!direct && receiptPopover.toggle($event)"
   >
-    <CheckCheck :size="13" />
+    <CheckCheck :size="13" aria-hidden="true" />
     <span>{{ label }}</span>
   </button>
   <Popover v-if="!direct" ref="receiptPopover">

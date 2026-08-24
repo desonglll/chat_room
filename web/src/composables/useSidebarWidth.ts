@@ -2,9 +2,9 @@ import { ref } from 'vue'
 import { storageGet, storageSet } from '../browserStorage'
 
 const WIDTH_KEY = 'chat-room.sidebar-width'
-const MIN_WIDTH = 260
-const MAX_WIDTH = 480
-const DEFAULT_WIDTH = 340
+const MIN_WIDTH = 340
+const MAX_WIDTH = 460
+const DEFAULT_WIDTH = 380
 
 function clamp(value: number): number {
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value))

@@ -19,11 +19,11 @@ const emit = defineEmits<{
 
 <template>
   <li
-    class="contact-row group relative flex min-h-[72px] min-w-0 items-center rounded-md transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none"
-    :class="selected ? 'bg-primary-50' : 'hover:bg-surface-100'"
+    class="contact-row cr-contact-row group relative flex min-h-[72px] min-w-0 items-center rounded-md"
+    :class="selected ? 'cr-contact-row--active' : 'cr-contact-row--idle'"
   >
     <span
-      class="absolute inset-y-3 left-0 w-0.5 origin-center rounded-full bg-primary transition-transform duration-150 motion-reduce:transition-none"
+      class="absolute inset-y-3 left-0 w-0.5 origin-center rounded-full bg-primary transition-transform duration-[var(--cr-motion-normal)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
       :class="selected ? 'scale-y-100' : 'scale-y-0'"
       aria-hidden="true"
     />
@@ -58,7 +58,7 @@ const emit = defineEmits<{
     </button>
 
     <div
-      class="contact-actions mr-2 flex shrink-0 items-center gap-0.5 transition-[opacity,transform] duration-150 motion-reduce:transition-none"
+      class="contact-actions mr-2 flex shrink-0 items-center gap-0.5 transition-[opacity,transform] duration-[var(--cr-motion-normal)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
       aria-label="联系人快捷操作"
     >
       <template v-if="entry.kind === 'friend'">

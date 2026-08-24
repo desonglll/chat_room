@@ -82,6 +82,7 @@ use crate::state::AppState;
         social::handlers::unblock_user,
         direct_conversations::handlers::start_direct_chat,
         conversations::handlers::list_conversations,
+        conversations::handlers::update_conversation_alias,
         forward_handlers::forward_messages,
         ai_handlers::suggest,
         admin_metrics::overview,
@@ -125,6 +126,7 @@ use crate::state::AppState;
         social::models::FriendRequestAction,
         conversations::models::ConversationSummary,
         conversations::models::MessagePreview,
+        conversations::models::UpdateConversationAliasRequest,
         admin_metrics::AdminOverview,
         admin_metrics::PurgeResult,
     ))
@@ -266,6 +268,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/conversations",
             get(conversations::handlers::list_conversations),
+        )
+        .route(
+            "/api/conversations/:room_id/alias",
+            axum::routing::put(conversations::handlers::update_conversation_alias),
         )
         .route(
             "/api/messages/forward",

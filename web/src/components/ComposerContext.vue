@@ -20,7 +20,7 @@ function replySummary(message: BroadcastMessage): string {
 </script>
 
 <template>
-  <div v-if="editing" class="flex items-center gap-3 px-3 pt-3 sm:px-7">
+  <div v-if="editing" class="cr-composer-width flex items-center gap-3 px-3 pb-2 sm:px-1">
     <Pencil :size="16" class="shrink-0 text-primary" />
     <div class="min-w-0 flex-1">
       <strong class="block truncate text-xs text-primary">编辑已发送消息</strong>
@@ -39,7 +39,7 @@ function replySummary(message: BroadcastMessage): string {
     </Button>
   </div>
 
-  <div v-if="replying" class="flex items-center gap-3 px-3 pt-3 sm:px-7">
+  <div v-if="replying" class="cr-composer-width flex items-center gap-3 px-3 pb-2 sm:px-1">
     <div class="min-w-0 flex-1 border-l-[3px] border-primary pl-2.5">
       <strong class="block truncate text-xs text-primary">回复 {{ replying.sender }}</strong>
       <span class="mt-0.5 block truncate text-xs text-muted-color">{{ replySummary(replying) }}</span>

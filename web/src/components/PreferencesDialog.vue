@@ -181,7 +181,7 @@ function save(): void {
             v-for="emoji in AVATARS"
             :key="emoji || 'default'"
             type="button"
-            class="grid aspect-square place-items-center rounded-md border text-xl transition-[background-color,border-color,transform] hover:border-primary hover:bg-primary-50 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none"
+            class="grid aspect-square place-items-center rounded-md border text-xl transition-[background-color,border-color,transform] duration-[var(--cr-motion-fast)] [transition-timing-function:var(--cr-ease-out)] hover:border-primary hover:bg-primary-50 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none"
             :class="
               emoji === avatarEmoji ? 'border-primary bg-primary-50 shadow-sm' : 'border-surface-200 bg-surface-0'
             "

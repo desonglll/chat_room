@@ -3,6 +3,7 @@ import {
   applyAccountMessage,
   applyAccountStates,
   conversationPreview,
+  conversationDisplayTitle,
   conversationToRoom,
   removeConversation,
   sortConversations,
@@ -14,6 +15,7 @@ function conversation(overrides: Partial<ConversationSummary> = {}): Conversatio
     room_id: 'room-1',
     kind: 'group',
     title: '研发群',
+    alias: '',
     avatar_emoji: '',
     description: '',
     group: null,
@@ -90,6 +92,14 @@ describe('conversation state', () => {
       membership_status: 'active',
       membership_role: 'member',
     })
+  })
+
+  it('uses a private alias for display without replacing the canonical title', () => {
+    const source = conversation({ title: '原始群名', alias: '设计组' })
+
+    expect(conversationDisplayTitle(source)).toBe('设计组')
+    expect(conversationToRoom(source).name).toBe('设计组')
+    expect(source.title).toBe('原始群名')
   })
 
   it('surfaces pending join requests ahead of the latest room message', () => {

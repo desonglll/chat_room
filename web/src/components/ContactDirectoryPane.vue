@@ -52,8 +52,8 @@ function emptyLabel(): string {
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 min-w-0 flex-col bg-surface-0" aria-labelledby="contact-section-title">
-    <div class="shrink-0 border-b border-surface-200 px-4 py-3 sm:px-5">
+  <section class="cr-contact-directory flex h-full min-h-0 min-w-0 flex-col" aria-labelledby="contact-section-title">
+    <div class="cr-contact-toolbar shrink-0 px-4 py-3 sm:px-5">
       <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="contact-section-title" class="text-base font-semibold text-surface-900">{{ sectionTitle }}</h2>
@@ -80,7 +80,7 @@ function emptyLabel(): string {
       error
     }}</Message>
 
-    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-live="polite">
+    <div class="cr-contact-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-live="polite">
       <div v-if="loading" class="w-full px-3 py-2 sm:px-4">
         <div v-for="index in 7" :key="index" class="flex h-[72px] items-center gap-3 border-b border-surface-100">
           <Skeleton shape="circle" size="2.75rem" />
@@ -97,7 +97,7 @@ function emptyLabel(): string {
             {{ group.label }}
             <span class="ml-1 font-normal tabular-nums">{{ group.entries.length }}</span>
           </h3>
-          <TransitionGroup name="contact-list" tag="ul" class="divide-y divide-surface-100">
+          <TransitionGroup name="contact-list" tag="ul" class="cr-contact-list">
             <ContactDirectoryRow
               v-for="entry in group.entries"
               :key="entry.key"

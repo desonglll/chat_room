@@ -56,6 +56,7 @@ export interface ConversationSummary {
   room_id: string
   kind: 'group' | 'direct'
   title: string
+  alias: string
   avatar_emoji: string
   description: string
   group: Room | null

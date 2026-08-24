@@ -40,10 +40,8 @@ function joinLabel(room: Room): string {
 </script>
 
 <template>
-  <main class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-surface-0">
-    <header
-      class="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-3 backdrop-blur sm:px-5"
-    >
+  <main id="workspace-main" class="cr-page min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+    <header class="cr-page-header sticky top-0 z-10 flex items-center gap-3 px-3 sm:px-5">
       <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"
         ><ArrowLeft :size="19"
       /></Button>
@@ -53,7 +51,7 @@ function joinLabel(room: Room): string {
       </div>
     </header>
 
-    <div class="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6">
+    <div class="cr-page-body mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
       <IconField class="w-full">
         <InputIcon class="text-surface-500"><Search :size="16" aria-hidden="true" /></InputIcon>
         <InputText
@@ -81,11 +79,11 @@ function joinLabel(room: Room): string {
         <strong class="mt-3 text-sm text-color">{{ query ? '没有匹配的聊天室' : '暂无可发现的公开聊天室' }}</strong>
       </div>
 
-      <ul v-else class="mt-4 divide-y divide-surface-100 border-y border-surface-200">
+      <ul v-else class="cr-discovery-list mt-4">
         <li
           v-for="room in discoverable"
           :key="room.id"
-          class="flex min-h-[68px] items-center gap-3 px-2 py-2 transition-colors [contain-intrinsic-size:68px] [content-visibility:auto] hover:bg-surface-50 motion-reduce:transition-none sm:px-3"
+          class="cr-discovery-row flex min-h-[72px] items-center gap-3 px-3 py-2 [contain-intrinsic-size:72px] [content-visibility:auto] sm:px-4"
         >
           <span
             class="grid size-10 shrink-0 place-items-center rounded-full text-base text-white"

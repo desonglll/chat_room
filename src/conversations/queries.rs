@@ -10,6 +10,7 @@ struct ConversationRow {
     room_id: Uuid,
     kind: String,
     title: String,
+    conversation_alias: String,
     display_avatar: String,
     display_description: String,
     room_name: String,
@@ -82,6 +83,7 @@ impl ConversationRow {
             room_id: self.room_id,
             kind: self.kind,
             title: self.title,
+            alias: self.conversation_alias,
             avatar_emoji: self.display_avatar,
             description: self.display_description,
             group,
@@ -107,6 +109,7 @@ impl AppState {
                  CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END AS kind, \
                  CASE WHEN direct.room_id IS NULL THEN rooms.name \
                    ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END AS title, \
+                 memberships.conversation_alias, \
                  CASE WHEN direct.room_id IS NULL THEN rooms.avatar_emoji \
                    ELSE COALESCE(peer.avatar_emoji, '') END AS display_avatar, \
                  CASE WHEN direct.room_id IS NULL THEN rooms.description \
@@ -183,5 +186,25 @@ impl AppState {
         self.conversation_rows(user_id, Some(room_id))
             .await
             .map(|rows| rows.into_iter().next().map(ConversationRow::into_summary))
+    }
+
+    pub async fn set_conversation_alias(
+        &self,
+        user_id: Uuid,
+        room_id: Uuid,
+        alias: &str,
+    ) -> Result<bool, sqlx::Error> {
+        with_pool!(self, |pool| {
+            sqlx::query(
+                "UPDATE room_memberships SET conversation_alias = $1 \
+                 WHERE user_id = $2 AND room_id = $3 AND status = 'active'",
+            )
+            .bind(alias)
+            .bind(user_id)
+            .bind(room_id)
+            .execute(pool)
+            .await
+            .map(|result| result.rows_affected() > 0)
+        })
     }
 }

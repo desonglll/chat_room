@@ -358,7 +358,7 @@ defineExpose({ addFiles, focus })
     />
     <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
 
-    <div class="cr-composer-inner flex items-center gap-1">
+    <div class="cr-composer-inner flex items-end gap-1">
       <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles" />
       <Button
         v-if="!editingTo"
@@ -366,7 +366,7 @@ defineExpose({ addFiles, focus })
         text
         rounded
         severity="secondary"
-        class="!size-10 shrink-0"
+        class="cr-composer-tool !size-10 shrink-0"
         :disabled="disabled || pendingFiles.length >= 8"
         aria-label="添加附件"
         title="添加附件"
@@ -379,7 +379,7 @@ defineExpose({ addFiles, focus })
         text
         rounded
         severity="secondary"
-        class="!size-10 shrink-0"
+        class="cr-composer-tool !size-10 shrink-0"
         :disabled="disabled"
         aria-label="插入表情"
         title="表情"
@@ -387,7 +387,7 @@ defineExpose({ addFiles, focus })
       >
         <Smile :size="19" />
       </Button>
-      <Popover ref="emojiPopover">
+      <Popover ref="emojiPopover" class="cr-popover-bottom-left">
         <EmojiPicker @select="insertEmoji" />
       </Popover>
       <Button
@@ -396,7 +396,7 @@ defineExpose({ addFiles, focus })
         text
         rounded
         severity="secondary"
-        class="!size-10 shrink-0"
+        class="cr-composer-tool !size-10 shrink-0"
         :disabled="disabled"
         :aria-label="aiLoading ? 'AI 正在思考' : 'AI 助手：总结对话并建议回复'"
         :title="aiLoading ? 'AI 正在思考…' : 'AI 助手'"
@@ -429,12 +429,12 @@ defineExpose({ addFiles, focus })
         />
         <ul
           v-if="mentionQuery !== null && mentionMatches.length"
-          class="cr-glass absolute bottom-full left-0 z-10 mb-1.5 w-56 space-y-0.5 rounded-md p-1 shadow-lg"
+          class="cr-composer-popover cr-glass absolute bottom-full left-0 z-10 mb-2 w-56 space-y-0.5 rounded-md p-1 shadow-lg"
         >
           <li v-for="member in mentionMatches" :key="member.user_id">
             <button
               type="button"
-              class="flex min-h-10 w-full touch-manipulation items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-surface-100/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+              class="flex min-h-10 w-full touch-manipulation items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-100/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
               @click="insertMention(member.username)"
             >
               <span>{{ member.avatar_emoji || '👤' }}</span>
@@ -444,7 +444,7 @@ defineExpose({ addFiles, focus })
         </ul>
         <div
           v-else-if="aiLoading || aiError || aiSummary || aiRemaining.length"
-          class="cr-glass absolute bottom-full left-0 z-10 mb-1.5 flex max-w-full flex-wrap items-center gap-1.5 rounded-md p-2 shadow-lg"
+          class="cr-composer-popover cr-glass absolute bottom-full left-0 z-10 mb-2 flex max-w-full flex-wrap items-center gap-1.5 rounded-md p-2 shadow-lg"
         >
           <span v-if="aiLoading" class="flex items-center gap-1.5 text-xs text-muted-color">
             <Sparkles :size="13" class="animate-pulse text-primary" />
@@ -457,7 +457,7 @@ defineExpose({ addFiles, focus })
               v-for="(suggestion, index) in aiRemaining"
               :key="index"
               type="button"
-              class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+              class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
               @click="useSuggestion(suggestion, index)"
             >
               {{ suggestion }}
@@ -468,7 +468,7 @@ defineExpose({ addFiles, focus })
       <Button
         type="submit"
         rounded
-        class="!size-10 shrink-0 transition-transform active:scale-90 motion-reduce:transform-none motion-reduce:transition-none"
+        class="cr-composer-send !size-10 shrink-0"
         :disabled="disabled || !canSend"
         aria-label="发送消息"
         title="发送消息"
@@ -476,6 +476,8 @@ defineExpose({ addFiles, focus })
         <Send :size="18" />
       </Button>
     </div>
-    <small v-if="fileError" class="block px-3 pb-2 text-right text-danger sm:px-7">{{ fileError }}</small>
+    <small v-if="fileError" class="cr-composer-width block px-3 pt-1 text-right text-danger sm:px-1">{{
+      fileError
+    }}</small>
   </form>
 </template>

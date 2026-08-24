@@ -261,7 +261,8 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="cr-chat-panel cr-chat-canvas absolute inset-0 flex min-h-0 min-w-0 flex-col transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    id="workspace-main"
+    class="cr-chat-panel cr-chat-canvas absolute inset-0 flex min-h-0 min-w-0 flex-col transition-[transform,opacity,visibility] duration-[var(--cr-motion-enter)] [transition-timing-function:var(--cr-ease-drawer)] motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
     :class="[
       visible
         ? 'visible translate-x-0 opacity-100'
@@ -272,6 +273,8 @@ onBeforeUnmount(() => {
     <ChatRoomHeader
       v-if="room"
       :room="room"
+      :alias="conversation?.alias || ''"
+      :original-title="conversation?.title || room.name"
       :kind="conversation?.kind || 'group'"
       :peer="conversation?.peer || null"
       :status="status"
@@ -314,9 +317,9 @@ onBeforeUnmount(() => {
       @drop.prevent="handleDrop"
     >
       <Transition
-        enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
+        enter-active-class="transition-[opacity] duration-[var(--cr-motion-normal)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
         enter-from-class="opacity-0"
-        leave-active-class="transition duration-100 ease-out motion-reduce:transition-none"
+        leave-active-class="transition-[opacity] duration-[var(--cr-motion-fast)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
         leave-to-class="opacity-0"
       >
         <div
@@ -363,10 +366,10 @@ onBeforeUnmount(() => {
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
         tag="div"
-        class="space-y-1 border-t border-surface-200 bg-surface-0 px-3 py-2 sm:px-5"
-        enter-active-class="transition duration-150 motion-reduce:transition-none"
+        class="cr-typing-strip space-y-1 px-4 py-2 sm:px-6"
+        enter-active-class="transition-[opacity,transform] duration-[var(--cr-motion-normal)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
         enter-from-class="translate-y-1 opacity-0"
-        leave-active-class="transition duration-100 motion-reduce:transition-none"
+        leave-active-class="transition-[opacity,transform] duration-[var(--cr-motion-fast)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
         leave-to-class="opacity-0"
       >
         <div v-for="draft in typingDrafts" :key="draft.user_id" class="flex min-w-0 items-center gap-2 text-xs">
@@ -376,7 +379,7 @@ onBeforeUnmount(() => {
       </TransitionGroup>
       <div
         v-if="selecting"
-        class="flex min-h-16 shrink-0 items-center justify-between gap-3 border-t border-surface-200 bg-surface-0 px-3 sm:px-5"
+        class="cr-selection-bar flex min-h-16 shrink-0 items-center justify-between gap-3 px-3 sm:px-5"
       >
         <Button text rounded severity="secondary" aria-label="退出多选" title="退出多选" @click="closeSelection"
           ><X :size="19"

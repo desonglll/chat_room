@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -21,6 +21,7 @@ pub struct ConversationSummary {
     pub room_id: Uuid,
     pub kind: String,
     pub title: String,
+    pub alias: String,
     pub avatar_emoji: String,
     pub description: String,
     pub group: Option<Room>,
@@ -30,4 +31,9 @@ pub struct ConversationSummary {
     pub last_message: Option<MessagePreview>,
     pub last_activity_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateConversationAliasRequest {
+    pub alias: String,
 }

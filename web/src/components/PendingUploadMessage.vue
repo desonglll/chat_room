@@ -47,13 +47,13 @@ function statusLabel(message: UploadMessage): string {
             v-if="message.mime_type.startsWith('image/')"
             :src="message.preview_url"
             :alt="message.file_name"
-            class="max-h-64 w-full object-contain transition"
+            class="max-h-64 w-full object-contain"
             :class="{ 'scale-110 blur-xl': message.is_sensitive && !revealed }"
           />
           <video
             v-else-if="message.mime_type.startsWith('video/')"
             :src="message.preview_url"
-            class="max-h-64 w-full bg-black object-contain transition"
+            class="max-h-64 w-full bg-black object-contain"
             :class="{ 'scale-110 blur-xl': message.is_sensitive && !revealed }"
             muted
             playsinline

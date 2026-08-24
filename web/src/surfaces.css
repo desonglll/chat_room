@@ -1,0 +1,293 @@
+.cr-page {
+  background: var(--cr-canvas);
+  color: var(--cr-text);
+}
+
+.cr-page-header {
+  min-height: 4.5rem;
+  border-bottom: 1px solid var(--cr-border);
+  background: var(--cr-surface);
+}
+
+.cr-page-header h1,
+.cr-page-header h2 {
+  color: var(--cr-text);
+}
+
+.cr-page-body,
+.cr-page-form {
+  animation: cr-page-content-in var(--cr-motion-slow) var(--cr-ease-out);
+}
+
+.cr-page-tabs {
+  scrollbar-width: none;
+}
+
+.cr-page-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.cr-page-tab {
+  color: var(--cr-text-muted);
+  transition:
+    transform var(--cr-motion-fast) var(--cr-ease-out),
+    color var(--cr-motion-normal) ease,
+    background-color var(--cr-motion-normal) ease,
+    box-shadow var(--cr-motion-normal) ease;
+}
+
+.cr-page-tab--active {
+  background: var(--cr-primary-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cr-primary) 9%, transparent);
+  color: var(--cr-primary);
+}
+
+.cr-form-section {
+  border-bottom: 1px solid var(--cr-border);
+}
+
+.cr-form-section label {
+  color: color-mix(in srgb, var(--cr-text) 86%, transparent);
+}
+
+.cr-form-footer {
+  margin-top: 0;
+}
+
+.cr-page-form .p-inputtext,
+.cr-page-form .p-textarea,
+.cr-page-body .p-inputtext {
+  border-color: color-mix(in srgb, var(--cr-border) 86%, transparent);
+  background: color-mix(in srgb, var(--cr-surface) 80%, transparent);
+}
+
+.cr-page-form .p-inputtext:focus,
+.cr-page-form .p-textarea:focus,
+.cr-page-body .p-inputtext:focus {
+  border-color: color-mix(in srgb, var(--cr-primary) 62%, transparent);
+  background: var(--cr-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cr-primary) 9%, transparent);
+}
+
+.cr-setting-row {
+  transition: none;
+}
+
+.cr-contacts-workspace {
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--cr-surface);
+}
+
+.cr-contact-directory {
+  background: color-mix(in srgb, var(--cr-surface) 92%, transparent);
+}
+
+.cr-contact-toolbar,
+.cr-inspector-header {
+  border-bottom: 1px solid var(--cr-border);
+  background: color-mix(in srgb, var(--cr-surface) 92%, transparent);
+}
+
+.cr-contact-scroll {
+  scrollbar-color: color-mix(in srgb, var(--cr-text-muted) 28%, transparent) transparent;
+}
+
+.cr-contact-list {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cr-contact-row {
+  border: 1px solid transparent;
+  transition:
+    transform var(--cr-motion-fast) var(--cr-ease-out),
+    background-color var(--cr-motion-normal) ease,
+    border-color var(--cr-motion-normal) ease,
+    box-shadow var(--cr-motion-normal) ease;
+}
+
+.cr-contact-row--active {
+  border-color: var(--cr-inbox-active-border);
+  background: var(--cr-inbox-active);
+  box-shadow: var(--cr-shadow-xs);
+}
+
+.cr-contact-inspector {
+  border-left: 1px solid var(--cr-border);
+  background: var(--cr-surface-subtle);
+}
+
+.cr-inspector-body {
+  background: color-mix(in srgb, var(--cr-surface-subtle) 88%, transparent);
+}
+
+.cr-inspector-body .p-avatar {
+  border: 3px solid var(--cr-surface);
+  box-shadow: var(--cr-shadow-md);
+}
+
+.cr-discovery-list {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--cr-border);
+  border-radius: var(--cr-radius-lg);
+  background: color-mix(in srgb, var(--cr-surface) 72%, transparent);
+}
+
+.cr-discovery-row {
+  border: 1px solid transparent;
+  border-radius: var(--cr-radius-md);
+  transition:
+    transform var(--cr-motion-fast) var(--cr-ease-out),
+    background-color var(--cr-motion-normal) ease,
+    border-color var(--cr-motion-normal) ease;
+}
+
+.cr-discovery-row > span:first-child {
+  border: 2px solid var(--cr-surface);
+  box-shadow: var(--cr-shadow-sm);
+}
+
+.p-inputtext,
+.p-textarea {
+  transition:
+    background-color var(--cr-motion-normal) ease,
+    border-color var(--cr-motion-normal) ease,
+    box-shadow var(--cr-motion-normal) ease;
+}
+
+.p-dialog,
+.p-popover,
+.p-menu,
+.p-contextmenu {
+  border: 1px solid color-mix(in srgb, var(--cr-border) 86%, transparent);
+  background: var(--cr-surface);
+}
+
+.p-menu,
+.p-contextmenu,
+.p-popover {
+  transform-origin: var(--cr-overlay-origin, top left);
+}
+
+.cr-menu-top-right,
+.cr-popover-top-right {
+  --cr-overlay-origin: top right;
+}
+
+.cr-popover-bottom-left {
+  --cr-overlay-origin: bottom left;
+}
+
+.p-dialog-header {
+  min-height: 3.75rem;
+  border-bottom: 1px solid var(--cr-border);
+}
+
+.p-dialog-title {
+  font-weight: 680;
+}
+
+.p-dialog-close-button {
+  width: 2rem !important;
+  height: 2rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  transition:
+    transform var(--cr-motion-fast) var(--cr-ease-out),
+    color var(--cr-motion-normal) ease,
+    background-color var(--cr-motion-normal) ease;
+}
+
+.p-dialog-close-button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.p-dialog-close-button:focus-visible {
+  outline: 0 !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cr-primary) 14%, transparent) !important;
+}
+
+.p-menu-list,
+.p-contextmenu-list {
+  gap: 2px;
+  padding: 4px !important;
+}
+
+.p-menu-item-content,
+.p-contextmenu-item-content {
+  border-radius: var(--cr-radius-md) !important;
+  transition:
+    color var(--cr-motion-fast) ease,
+    background-color var(--cr-motion-fast) ease;
+}
+
+.p-dialog-footer {
+  border-top: 1px solid var(--cr-border);
+}
+
+.p-toast-message {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--cr-border) 84%, transparent) !important;
+  border-radius: var(--cr-radius-lg) !important;
+  background: color-mix(in srgb, var(--cr-surface) 94%, transparent) !important;
+  box-shadow: var(--cr-shadow-lg) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .p-dialog-close-button:hover {
+    background: var(--cr-surface-subtle) !important;
+  }
+
+  .cr-page-tab--idle:hover,
+  .cr-setting-row:hover,
+  .cr-contact-row--idle:hover,
+  .cr-discovery-row:hover {
+    background: color-mix(in srgb, var(--cr-surface) 62%, transparent);
+    color: var(--cr-text);
+  }
+
+  .cr-discovery-row:hover {
+    border-color: var(--cr-border);
+  }
+}
+
+@media (max-width: 767px) {
+  .cr-page-header {
+    min-height: calc(4rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .cr-contacts-workspace {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .cr-contact-inspector {
+    border-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-page-body,
+  .cr-page-form {
+    animation: none;
+  }
+
+  .cr-page-tab,
+  .cr-contact-row,
+  .cr-discovery-row,
+  .p-inputtext,
+  .p-textarea {
+    transition: none;
+  }
+}

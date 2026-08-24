@@ -20,6 +20,17 @@ export async function listConversations(token: string): Promise<ConversationSumm
   return response.json() as Promise<ConversationSummary[]>
 }
 
+export async function setConversationAlias(roomId: string, alias: string, token: string): Promise<ConversationSummary> {
+  const response = await socialRequest(`/api/conversations/${encodeURIComponent(roomId)}/alias`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ alias }),
+  })
+  if (response.status === 400) throw new Error('备注最多 64 个字符，且不能包含控制字符')
+  if (response.status === 404) throw new Error('会话已失效，请刷新后重试')
+  if (!response.ok) throw new Error(`保存备注失败：${response.status}`)
+  return response.json() as Promise<ConversationSummary>
+}
+
 export async function searchUsers(query: string, token: string): Promise<SocialUser[]> {
   const params = new URLSearchParams({ q: query, limit: '30' })
   const response = await socialRequest(`/api/users/search?${params}`, token)

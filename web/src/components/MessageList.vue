@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ChevronDown, CornerUpLeft, Forward } from 'lucide-vue-next'
+import { ChevronDown } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Checkbox from 'primevue/checkbox'
 import ContextMenu from 'primevue/contextmenu'
 import type { MenuItem } from 'primevue/menuitem'
 import MessageAttachment from './MessageAttachment.vue'
 import MessageDeliveryStatus from './MessageDeliveryStatus.vue'
+import MessageHoverActions from './MessageHoverActions.vue'
 import MessageReactionChips from './MessageReactionChips.vue'
-import MessageReactionPicker from './MessageReactionPicker.vue'
 import PendingUploadMessage from './PendingUploadMessage.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
 import { avatarColor } from '../avatarColor'
@@ -290,7 +290,7 @@ onBeforeUnmount(() => {
       <template v-for="(message, index) in messages" :key="displayKey(message)">
         <div
           v-if="message.type === 'system'"
-          class="mx-auto my-4 flex w-full max-w-4xl items-center justify-center gap-3 text-center text-xs text-muted-color"
+          class="cr-system-message mx-auto my-5 flex w-full items-center justify-center gap-3 text-center text-xs"
           :class="{ 'motion-system': message.motion === 'system' }"
         >
           <span class="h-px w-8 bg-surface-200" />
@@ -305,13 +305,15 @@ onBeforeUnmount(() => {
         />
         <div
           v-else
-          class="cr-message-row group mx-auto flex w-full max-w-4xl items-start gap-2 rounded-md transition-colors duration-200"
+          class="cr-message-row group mx-auto flex w-full items-start gap-2"
           :class="[
-            message.sender_id === currentUserId ? 'flex-row-reverse justify-start' : 'justify-start',
+            message.sender_id === currentUserId
+              ? 'cr-message-row--own justify-end'
+              : 'cr-message-row--other justify-start',
             highlightedId === message.message_id ? 'message-highlight' : '',
             message.motion === 'incoming' ? 'motion-incoming' : '',
             message.motion === 'outgoing' ? 'motion-outgoing' : '',
-            isGroupEnd(index) ? 'mb-4' : 'mb-0.5',
+            isGroupEnd(index) ? 'mb-3' : 'mb-0.5',
           ]"
           :data-message-id="message.message_id"
           @contextmenu.prevent="openContextMenu($event, message)"
@@ -325,8 +327,9 @@ onBeforeUnmount(() => {
             @update:model-value="emit('toggleSelect', message.message_id)"
           />
           <button
+            v-if="message.sender_id !== currentUserId"
             type="button"
-            class="mt-5 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            class="cr-message-avatar mt-5 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             :class="{ invisible: !isGroupStart(index) }"
             aria-label="查看用户资料"
             title="查看资料"
@@ -340,44 +343,19 @@ onBeforeUnmount(() => {
               :style="{ backgroundColor: avatarColor(message.sender_id || message.sender) }"
             />
           </button>
-          <div class="max-w-[86%] sm:max-w-[76%] lg:max-w-[680px]">
+          <div class="cr-message-stack">
             <div
-              class="mb-1 flex items-center gap-2 text-xs text-muted-color"
+              v-if="isGroupStart(index)"
+              class="cr-message-meta mb-1 flex items-center gap-2 text-xs"
               :class="{ 'justify-end': message.sender_id === currentUserId }"
             >
-              <strong v-if="isGroupStart(index) && !direct">{{
-                message.sender_id === currentUserId ? '你' : message.sender
-              }}</strong>
+              <strong v-if="!direct && message.sender_id !== currentUserId">{{ message.sender }}</strong>
               <time>{{ formatTime(message.timestamp) }}</time>
-              <MessageReactionPicker
-                v-if="!message.recalled_at && !selecting && isSettled(message)"
-                @select="toggleReaction(message, $event)"
-              />
-              <button
-                v-if="!message.recalled_at && !selecting && isSettled(message)"
-                type="button"
-                class="grid size-8 touch-manipulation place-items-center rounded-md text-muted-color opacity-100 outline-none transition-[background-color,color,opacity,transform] hover:bg-surface-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary active:scale-90 motion-reduce:transform-none motion-reduce:transition-none sm:size-7 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-                aria-label="回复消息"
-                title="回复"
-                @click="emit('reply', message)"
-              >
-                <CornerUpLeft :size="14" />
-              </button>
-              <button
-                v-if="!message.recalled_at && !selecting && isSettled(message)"
-                type="button"
-                class="grid size-8 touch-manipulation place-items-center rounded-md text-muted-color opacity-100 outline-none transition-[background-color,color,opacity,transform] hover:bg-surface-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary active:scale-90 motion-reduce:transform-none motion-reduce:transition-none sm:size-7 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-                aria-label="转发消息"
-                title="转发"
-                @click="emit('forward', message)"
-              >
-                <Forward :size="14" />
-              </button>
             </div>
             <button
               v-if="message.reply_to"
               type="button"
-              class="block w-full overflow-hidden rounded-md border-l-[3px] border-primary bg-surface-100 px-2.5 py-2 text-left text-surface-600 outline-none transition-colors hover:bg-surface-200 focus-visible:ring-2 focus-visible:ring-primary"
+              class="cr-reply-preview block w-full overflow-hidden rounded-md px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary"
               @click="scrollToMessage(message.reply_to.message_id)"
             >
               <strong class="block truncate text-[11px] text-primary">{{ message.reply_to.sender }}</strong>
@@ -414,11 +392,17 @@ onBeforeUnmount(() => {
             />
             <p
               v-if="message.content && !message.recalled_at"
-              class="mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6 shadow-xs"
+              class="cr-message-bubble mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6"
               :class="
                 message.sender_id === currentUserId
-                  ? ['cr-bubble-outgoing', isGroupEnd(index) ? 'rounded-xl rounded-br-sm' : 'rounded-xl']
-                  : ['cr-bubble-incoming', isGroupEnd(index) ? 'rounded-xl rounded-bl-sm' : 'rounded-xl']
+                  ? [
+                      'cr-bubble-outgoing cr-message-bubble--outgoing',
+                      isGroupEnd(index) ? 'cr-message-bubble--end rounded-br-sm' : '',
+                    ]
+                  : [
+                      'cr-bubble-incoming cr-message-bubble--incoming',
+                      isGroupEnd(index) ? 'cr-message-bubble--end rounded-bl-sm' : '',
+                    ]
               "
             >
               <template v-for="(segment, index) in contentSegments(message.content)" :key="index">
@@ -431,6 +415,12 @@ onBeforeUnmount(() => {
                 <template v-else>{{ segment.text }}</template>
               </template>
             </p>
+            <MessageHoverActions
+              :enabled="!message.recalled_at && !selecting && isSettled(message)"
+              @reaction="toggleReaction(message, $event)"
+              @reply="emit('reply', message)"
+              @forward="emit('forward', message)"
+            />
             <MessageReactionChips
               v-if="!message.recalled_at && isSettled(message)"
               :reactions="message.reactions || []"
@@ -465,15 +455,15 @@ onBeforeUnmount(() => {
       </template>
     </div>
     <Transition
-      enter-active-class="transition duration-200 ease-out motion-reduce:transition-none"
+      enter-active-class="transition-[opacity,transform] duration-[var(--cr-motion-normal)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
       enter-from-class="translate-y-2 opacity-0"
-      leave-active-class="transition duration-150 ease-out motion-reduce:transition-none"
+      leave-active-class="transition-[opacity,transform] duration-[var(--cr-motion-fast)] [transition-timing-function:var(--cr-ease-out)] motion-reduce:transition-none"
       leave-to-class="translate-y-2 opacity-0"
     >
       <button
         v-if="awayFromBottom"
         type="button"
-        class="cr-scroll-latest absolute bottom-3 left-1/2 z-10 flex min-h-10 -translate-x-1/2 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg outline-none hover:bg-primary-50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none"
+        class="cr-scroll-latest absolute bottom-3 left-1/2 z-10 flex min-h-10 -translate-x-1/2 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none"
         @click="scrollToBottom"
       >
         <ChevronDown :size="15" aria-hidden="true" />

@@ -50,8 +50,8 @@ function relationshipSeverity(entry: ContactEntry): 'success' | 'warn' | 'info' 
 </script>
 
 <template>
-  <aside class="flex h-full min-h-0 min-w-0 flex-col border-l border-surface-200 bg-surface-0">
-    <header class="flex h-14 shrink-0 items-center gap-2 border-b border-surface-200 bg-surface-0 px-3">
+  <aside class="cr-contact-inspector flex h-full min-h-0 min-w-0 flex-col">
+    <header class="cr-inspector-header flex h-14 shrink-0 items-center gap-2 px-3">
       <Button
         text
         rounded
@@ -79,7 +79,11 @@ function relationshipSeverity(entry: ContactEntry): 'success' | 'warn' | 'info' 
     </header>
 
     <Transition name="contact-inspector" mode="out-in">
-      <div v-if="entry" :key="entry.key" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+      <div
+        v-if="entry"
+        :key="entry.key"
+        class="cr-inspector-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5"
+      >
         <div class="flex min-w-0 items-center gap-4">
           <Avatar
             :label="entry.user.avatar_emoji || entry.user.username.slice(0, 1).toUpperCase()"

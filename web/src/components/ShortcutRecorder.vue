@@ -44,7 +44,7 @@ function reset(): void {
     <div class="flex min-h-10 items-stretch gap-2">
       <button
         type="button"
-        class="min-w-0 flex-1 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        class="min-w-0 flex-1 rounded-md border px-3 text-sm font-medium transition-[background-color,border-color,box-shadow] duration-[var(--cr-motion-normal)] [transition-timing-function:ease] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         :class="
           recording
             ? 'border-primary bg-primary-50 text-primary'

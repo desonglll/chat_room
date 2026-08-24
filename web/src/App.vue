@@ -185,7 +185,7 @@ const {
   token: sessionToken,
   password: roomPassword,
   requireAccount,
-  selectRoom,
+  selectRoom: (room) => selectRoom(room),
   connect: chat.connect,
   setError: (message) => {
     chat.error.value = message
@@ -257,13 +257,9 @@ function toggleSidebar(): void {
   storageSet(window.localStorage, SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed.value))
 }
 
-function selectRoom(room: Room, autoConnect = false): void {
-  roomActions.selectRoom(room, autoConnect)
-}
-
-function selectConversation(conversation: ConversationSummary, autoConnect = true): void {
+const selectRoom = (room: Room, autoConnect = false) => roomActions.selectRoom(room, autoConnect)
+const selectConversation = (conversation: ConversationSummary, autoConnect = true) =>
   roomActions.selectConversation(conversation, autoConnect)
-}
 
 async function openDirectConversation(userId: string): Promise<void> {
   selectConversation(await startDirectChat(userId, sessionToken.value))
@@ -334,12 +330,13 @@ function handleForwarded(): void {
     v-else
     class="cr-app-shell cr-canvas-ambient relative grid h-dvh w-full overflow-hidden md:[grid-template-columns:var(--sidebar-cols)]"
     :style="{
-      '--sidebar-cols': sidebarCollapsed ? '72px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
+      '--sidebar-cols': sidebarCollapsed ? '60px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
     }"
     data-testid="app-shell"
   >
     <NetworkErrorBanner :message="networkError" @retry="loadRoomList" />
-
+    <!-- prettier-ignore -->
+    <a class="cr-skip-link" :href="activePage === 'chat' && mobileView === 'rooms' ? '#conversation-list' : '#workspace-main'">跳到主要内容</a>
     <RoomSidebar
       :conversations="conversationState.conversations.value"
       :selected-id="selectedId"
@@ -349,6 +346,8 @@ function handleForwarded(): void {
       :visible="mobileView === 'rooms'"
       :collapsed="sidebarCollapsed"
       :incoming-requests="contacts.incomingCount.value"
+      :active-section="activePage"
+      :set-alias="conversationState.setAlias"
       @select="selectConversation"
       @clear="clearSelection"
       @refresh="refreshWorkspace"
@@ -357,6 +356,7 @@ function handleForwarded(): void {
       @join="openJoinRoom"
       @discover="openDiscover"
       @contacts="openContacts"
+      @chat="returnToChat"
       @authenticate="authOpen = true"
       @logout="handleLogout"
       @lock="privacyLockScreen?.lock()"

@@ -114,7 +114,7 @@ async function requestFriend(user: SocialUser): Promise<void> {
     <div class="mt-3 max-h-[min(60vh,520px)] overflow-y-auto overscroll-contain">
       <button
         type="button"
-        class="flex h-14 w-full touch-manipulation items-center gap-3 border-b border-surface-100 px-1 text-left outline-none transition-colors hover:bg-surface-50 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset motion-reduce:transition-none"
+        class="flex h-14 w-full touch-manipulation items-center gap-3 border-b border-surface-100 px-1 text-left outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-50 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset motion-reduce:transition-none"
         @click="emit('createGroup')"
       >
         <span class="grid size-10 place-items-center rounded-full bg-primary text-primary-contrast"

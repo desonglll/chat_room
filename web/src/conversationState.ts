@@ -71,12 +71,13 @@ export function applyAccountStates(
 }
 
 export function conversationToRoom(conversation: ConversationSummary): Room {
+  const name = conversationDisplayTitle(conversation)
   if (conversation.kind === 'group' && conversation.group) {
-    return { ...conversation.group, unread_count: conversation.unread_count }
+    return { ...conversation.group, name, unread_count: conversation.unread_count }
   }
   return {
     id: conversation.room_id,
-    name: conversation.title,
+    name,
     has_password: false,
     creator_user_id: null,
     join_policy: 'approval',
@@ -87,6 +88,10 @@ export function conversationToRoom(conversation: ConversationSummary): Room {
     unread_count: conversation.unread_count,
     created_at: conversation.created_at,
   }
+}
+
+export function conversationDisplayTitle(conversation: ConversationSummary): string {
+  return conversation.alias || conversation.title
 }
 
 export function conversationPreview(conversation: ConversationSummary, revealContent = true): string {

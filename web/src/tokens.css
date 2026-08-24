@@ -23,42 +23,51 @@
   --cr-sun-100: #fff2ce;
   --cr-sun-500: #f4b942;
   --cr-sun-800: #8a5b00;
-  --cr-ink: #172521;
-  --cr-paper: #e8ebe6;
+  --cr-ink: #1b2420;
+  --cr-paper: #f4f6f5;
   --cr-white: #fff;
   --cr-mist-100: #f4f6f8;
   --cr-mist-200: #dfe5e9;
   --cr-mist-300: #c7d1d8;
-  --cr-muted: #687870;
+  --cr-muted: #6d7872;
 
-  --cr-canvas: var(--cr-paper);
+  --cr-canvas: #f1f3f2;
   --cr-surface: var(--cr-white);
-  --cr-surface-subtle: #f5f6f2;
+  --cr-surface-subtle: #f7f9f8;
   --cr-surface-raised: var(--cr-white);
-  --cr-border: #dce2dc;
+  --cr-border: #e1e6e3;
+  --cr-border-strong: #cfd7d2;
   --cr-border-subtle: color-mix(in srgb, var(--cr-mist-200) 60%, transparent);
   --cr-text: var(--cr-ink);
+  --cr-ink-soft: #34413b;
   --cr-text-muted: var(--cr-muted);
-  --cr-primary: #0d7563;
-  --cr-primary-hover: #095b4f;
-  --cr-primary-soft: #dcf2e9;
+  --cr-primary: #176b59;
+  --cr-primary-hover: #105847;
+  --cr-primary-soft: #e5f1ec;
+  --cr-on-primary: #f7fffc;
   --cr-accent: var(--cr-coral-500);
   --cr-warning: var(--cr-sun-800);
   --cr-danger: var(--cr-coral-700);
   --cr-success: var(--cr-jade-800);
   --cr-flash: var(--cr-sun-100);
-  --cr-chat-canvas: #edf0eb;
+  --cr-chat-canvas: #f4f6f5;
+  --cr-chat-outgoing: var(--cr-bubble-outgoing);
+  --cr-chat-outgoing-ink: var(--cr-bubble-outgoing-text);
   --cr-bubble-incoming: #fff;
-  --cr-bubble-outgoing: #0d7563;
+  --cr-bubble-outgoing: #246b5b;
   --cr-bubble-outgoing-text: #f7fffc;
-  --cr-sidebar-bg: #122b29;
-  --cr-sidebar-bg-raised: #193632;
-  --cr-sidebar-border: rgba(231, 245, 239, 0.1);
-  --cr-sidebar-text: #f2faf7;
-  --cr-sidebar-muted: #9db8b0;
-  --cr-sidebar-hover: rgba(255, 255, 255, 0.07);
-  --cr-sidebar-active: #e6f4ee;
-  --cr-sidebar-active-text: #17312c;
+  --cr-sidebar-bg: #f7f9f8;
+  --cr-sidebar-bg-raised: #ffffff;
+  --cr-sidebar-border: #e1e6e3;
+  --cr-sidebar-text: #26312c;
+  --cr-sidebar-muted: #737f79;
+  --cr-sidebar-hover: #edf1ef;
+  --cr-sidebar-active: #e4efea;
+  --cr-sidebar-active-text: #145b4b;
+  --cr-inbox-bg: #fbfcfb;
+  --cr-inbox-active: #edf4f1;
+  --cr-inbox-active-border: #dce8e2;
+  --cr-rail-indicator: var(--cr-primary);
 
   --cr-font-sans: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --cr-text-caption: 0.75rem;
@@ -87,25 +96,30 @@
   --cr-radius-xl: 0.5rem;
   --cr-radius-2xl: 0.5rem;
   --cr-radius-round: 999px;
+  --cr-radius-control: 0.5rem;
   --cr-control: 2.5rem;
   --cr-touch: 2.75rem;
   --cr-sidebar: 21.25rem;
 
   /* Motion stays fast and interruptible for a high-frequency workspace. */
   --cr-motion-fast: 120ms;
+  --cr-duration-fast: var(--cr-motion-fast);
   --cr-motion-normal: 180ms;
   --cr-motion-slow: 260ms;
+  --cr-motion-exit: 140ms;
+  --cr-motion-enter: 220ms;
   --cr-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --cr-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --cr-ease-spring: var(--cr-ease-out);
+  --cr-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Layered, brand-tinted shadows (ink-based, not pure black) — depth reads as
      soft light falloff rather than a hard drop shadow. */
-  --cr-shadow-xs: 0 1px 2px rgba(23, 37, 33, 0.06);
-  --cr-shadow-sm: 0 2px 6px rgba(23, 37, 33, 0.08);
-  --cr-shadow-md: 0 8px 20px rgba(23, 37, 33, 0.1);
-  --cr-shadow-lg: 0 16px 38px rgba(23, 37, 33, 0.13);
-  --cr-shadow-xl: 0 24px 56px rgba(23, 37, 33, 0.17);
+  --cr-shadow-xs: 0 1px 2px rgba(24, 35, 30, 0.04);
+  --cr-shadow-sm: 0 2px 7px rgba(24, 35, 30, 0.055);
+  --cr-shadow-md: 0 8px 22px rgba(24, 35, 30, 0.075);
+  --cr-shadow-lg: 0 16px 40px rgba(24, 35, 30, 0.1);
+  --cr-shadow-xl: 0 24px 56px rgba(24, 35, 30, 0.13);
+  --cr-shadow-float: var(--cr-shadow-md);
 
   /* Glass surfaces for floating chrome: dialogs' mask, popovers, composer strips. */
   --cr-glass-bg: rgba(255, 255, 255, 0.96);
@@ -115,17 +129,19 @@
 }
 
 [data-theme='dark'] {
-  --cr-canvas: #0e1621;
-  --cr-surface: #17212b;
-  --cr-surface-subtle: #202b36;
-  --cr-surface-raised: #253340;
-  --cr-border: #303f4d;
-  --cr-border-subtle: color-mix(in srgb, #303f4d 65%, transparent);
+  --cr-canvas: #0f1312;
+  --cr-surface: #171c1a;
+  --cr-surface-subtle: #1c2320;
+  --cr-surface-raised: #222a27;
+  --cr-border: #303936;
+  --cr-border-strong: #414d49;
+  --cr-border-subtle: color-mix(in srgb, #303936 65%, transparent);
   --cr-text: #f4f8f6;
+  --cr-ink-soft: #d5dfdb;
   --cr-text-muted: #a8b8b3;
-  --cr-primary: #5eb5f7;
-  --cr-primary-hover: #82c7fa;
-  --cr-primary-soft: #233f57;
+  --cr-primary: #72c8b1;
+  --cr-primary-hover: #91d8c5;
+  --cr-primary-soft: #203d35;
   --cr-accent: #ff806e;
   /* Light-mode --cr-danger/--cr-warning fail WCAG AA against the dark
      surfaces (~2.8:1) if left as a naive "same color, different bg" carry-
@@ -135,18 +151,22 @@
   --cr-warning: #f4b942;
   --cr-success: #4cd4b0;
   --cr-flash: color-mix(in srgb, var(--cr-sun-500) 30%, var(--cr-surface));
-  --cr-chat-canvas: #101922;
-  --cr-bubble-incoming: #182533;
-  --cr-bubble-outgoing: #245f55;
+  --cr-chat-canvas: #121715;
+  --cr-bubble-incoming: #1c2421;
+  --cr-bubble-outgoing: #285f53;
   --cr-bubble-outgoing-text: #f7fffc;
-  --cr-sidebar-bg: #0b1716;
-  --cr-sidebar-bg-raised: #122421;
-  --cr-sidebar-border: rgba(231, 245, 239, 0.08);
+  --cr-sidebar-bg: #111614;
+  --cr-sidebar-bg-raised: #171d1a;
+  --cr-sidebar-border: #29312e;
   --cr-sidebar-text: #f2faf7;
   --cr-sidebar-muted: #90aaa2;
   --cr-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --cr-sidebar-active: #d7eee5;
-  --cr-sidebar-active-text: #102820;
+  --cr-sidebar-active: #203c34;
+  --cr-sidebar-active-text: #8dd8c3;
+  --cr-inbox-bg: #151b19;
+  --cr-inbox-active: #202925;
+  --cr-inbox-active-border: #33403b;
+  --cr-rail-indicator: var(--cr-primary);
 
   /* Dark surfaces need real black falloff, not brand-tinted ink, to still read
      as depth against an already-dark canvas. */

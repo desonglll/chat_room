@@ -21,6 +21,8 @@ import IconSprite from './IconSprite.vue'
 
 const props = defineProps<{
   room: Room
+  alias: string
+  originalTitle: string
   kind: 'group' | 'direct'
   peer: UserSummary | null
   status: ChatStatus
@@ -55,6 +57,7 @@ const statusColor = computed(
     })[props.status],
 )
 const canManage = computed(() => ['owner', 'admin'].includes(props.room.membership_role || ''))
+const displayTitle = computed(() => props.alias || props.room.name)
 const moreMenuItems = computed(() => [
   ...(props.kind === 'direct' && props.peer
     ? [{ label: '查看资料', icon: 'profile', command: () => emit('viewProfile', props.peer!.id) }]
@@ -75,11 +78,11 @@ const moreMenuItems = computed(() => [
 ])
 
 function confirmRemoveFriend(): void {
-  if (window.confirm(`删除好友“${props.room.name}”并关闭私聊？`)) emit('removeFriend')
+  if (window.confirm(`删除好友“${displayTitle.value}”并关闭私聊？`)) emit('removeFriend')
 }
 
 function confirmBlockUser(): void {
-  if (window.confirm(`拉黑“${props.room.name}”？双方将无法继续私聊。`)) emit('blockUser')
+  if (window.confirm(`拉黑“${displayTitle.value}”？双方将无法继续私聊。`)) emit('blockUser')
 }
 
 async function copyRoomId(): Promise<void> {
@@ -96,12 +99,10 @@ async function copyRoomId(): Promise<void> {
 </script>
 
 <template>
-  <header
-    class="cr-chat-header flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b px-3 pt-[env(safe-area-inset-top)] sm:px-5 md:h-19 md:pt-0"
-  >
-    <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+  <header class="cr-chat-header flex shrink-0 items-center justify-between gap-3 px-3 sm:px-4">
+    <div class="cr-chat-identity flex min-w-0 items-center gap-2 sm:gap-3">
       <Button
-        class="md:hidden"
+        class="cr-header-back md:hidden"
         text
         rounded
         severity="secondary"
@@ -114,22 +115,22 @@ async function copyRoomId(): Promise<void> {
       <button
         v-if="kind === 'direct' && peer"
         type="button"
-        class="cr-profile-trigger shrink-0 rounded-full outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
+        class="cr-profile-trigger cr-chat-avatar shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         aria-label="查看对方资料"
         @click="emit('viewProfile', peer.id)"
       >
         <Avatar
-          :label="room.avatar_emoji || room.name.slice(0, 1).toUpperCase()"
+          :label="room.avatar_emoji || displayTitle.slice(0, 1).toUpperCase()"
           shape="circle"
-          class="size-10! text-white!"
+          class="size-9! text-white!"
           :style="{ backgroundColor: avatarColor(peer?.id || room.id) }"
         />
       </button>
-      <span v-else class="shrink-0" aria-hidden="true">
+      <span v-else class="cr-chat-avatar shrink-0" aria-hidden="true">
         <Avatar
-          :label="room.avatar_emoji || room.name.slice(0, 1).toUpperCase()"
+          :label="room.avatar_emoji || displayTitle.slice(0, 1).toUpperCase()"
           shape="circle"
-          class="size-10! text-white!"
+          class="size-9! text-white!"
           :style="{ backgroundColor: avatarColor(room.id) }"
         />
       </span>
@@ -139,17 +140,17 @@ async function copyRoomId(): Promise<void> {
             v-if="kind === 'direct' && peer"
             type="button"
             class="cr-chat-header-title min-w-0 flex-1 truncate rounded-sm text-left text-base font-semibold text-surface-900 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"
-            :title="room.description || undefined"
+            :title="alias ? `原名：${originalTitle}` : room.description || undefined"
             @click="emit('viewProfile', peer.id)"
           >
-            {{ room.name }}
+            {{ displayTitle }}
           </button>
           <strong
             v-else
             class="cr-chat-header-title min-w-0 flex-1 truncate text-base font-semibold text-surface-900"
-            :title="room.description || undefined"
+            :title="alias ? `原名：${originalTitle}` : room.description || undefined"
           >
-            {{ room.name }}
+            {{ displayTitle }}
           </strong>
           <Button
             v-if="kind === 'group'"
@@ -167,8 +168,8 @@ async function copyRoomId(): Promise<void> {
           </Button>
           <span class="sr-only" aria-live="polite">{{ roomIdCopied ? '聊天室 ID 已复制' : '' }}</span>
         </div>
-        <div class="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-color" aria-live="polite">
-          <span class="size-2 shrink-0 rounded-full" :class="statusColor" aria-hidden="true" />
+        <div class="cr-chat-status mt-0.5 flex min-w-0 items-center gap-1.5 text-xs" aria-live="polite">
+          <span class="size-1.5 shrink-0 rounded-full" :class="statusColor" aria-hidden="true" />
           <span class="shrink-0">{{ statusLabel }}</span>
           <button
             v-if="authenticated && kind === 'group'"
@@ -179,13 +180,14 @@ async function copyRoomId(): Promise<void> {
             · {{ members.length }} 人在线
           </button>
           <span v-if="kind === 'direct' && peer" class="truncate" translate="no">· @{{ peer.username }}</span>
+          <span v-else-if="alias" class="hidden truncate sm:inline">· 原名 {{ originalTitle }}</span>
           <span v-else class="hidden shrink-0 sm:inline">· {{ room.has_password ? '私密房间' : '公开房间' }}</span>
         </div>
       </div>
     </div>
 
-    <div class="cr-chat-actions flex shrink-0 items-center gap-1">
-      <Popover v-if="kind === 'group'" ref="memberPopover">
+    <div class="cr-chat-actions flex shrink-0 items-center gap-0.5">
+      <Popover v-if="kind === 'group'" ref="memberPopover" class="cr-popover-top-right">
         <div class="w-60">
           <div class="mb-2 flex items-center justify-between border-b border-surface-200 pb-3">
             <strong class="text-sm">在线成员</strong>
@@ -221,6 +223,7 @@ async function copyRoomId(): Promise<void> {
       </Popover>
       <Button
         v-if="kind === 'group'"
+        class="cr-header-action cr-header-secondary"
         text
         rounded
         severity="secondary"
@@ -232,6 +235,7 @@ async function copyRoomId(): Promise<void> {
       </Button>
       <Button
         v-if="authenticated"
+        class="cr-header-action cr-header-secondary"
         text
         rounded
         severity="secondary"
@@ -243,6 +247,7 @@ async function copyRoomId(): Promise<void> {
       </Button>
       <Button
         v-if="authenticated"
+        class="cr-header-action"
         text
         rounded
         severity="secondary"
@@ -252,7 +257,7 @@ async function copyRoomId(): Promise<void> {
       >
         <EllipsisVertical :size="20" />
       </Button>
-      <Menu ref="moreMenu" :model="moreMenuItems" :popup="true">
+      <Menu ref="moreMenu" :model="moreMenuItems" :popup="true" class="cr-menu-top-right">
         <template #item="{ item, props: itemProps }">
           <button type="button" v-bind="itemProps.action" :class="{ 'text-danger!': item.danger }">
             <ListChecks v-if="item.icon === 'select'" :size="17" />

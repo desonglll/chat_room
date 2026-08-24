@@ -61,10 +61,8 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface-0">
-    <header
-      class="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-surface-200 bg-surface-0/95 px-4 backdrop-blur sm:px-7"
-    >
+  <main id="workspace-main" class="cr-page min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <header class="cr-page-header sticky top-0 z-10 flex items-center gap-3 px-4 sm:px-7">
       <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')"
         ><ArrowLeft :size="19"
       /></Button>
@@ -74,8 +72,8 @@ async function confirmDelete(): Promise<void> {
       </div>
     </header>
 
-    <div class="mx-auto w-full max-w-2xl px-5 py-8 sm:px-8">
-      <section class="border-b border-surface-200 pb-7">
+    <div class="cr-page-form mx-auto w-full max-w-2xl px-5 py-8 sm:px-8">
+      <section class="cr-setting-row cr-form-section pb-7">
         <div class="flex items-center justify-between gap-4">
           <div class="flex items-center gap-3">
             <Settings :size="19" class="text-primary" />
@@ -88,7 +86,7 @@ async function confirmDelete(): Promise<void> {
         </div>
       </section>
 
-      <section class="border-b border-surface-200 py-7">
+      <section class="cr-setting-row cr-form-section py-7">
         <div class="flex items-center justify-between gap-4">
           <div class="flex items-center gap-3">
             <Gauge :size="19" class="text-warning" />
@@ -101,7 +99,7 @@ async function confirmDelete(): Promise<void> {
         </div>
       </section>
 
-      <form autocomplete="on" class="space-y-5 border-b border-surface-200 py-7" @submit.prevent="savePassword">
+      <form autocomplete="on" class="cr-form-section space-y-5 py-7" @submit.prevent="savePassword">
         <div class="flex items-center gap-2 text-sm font-semibold">
           <KeyRound :size="18" class="text-primary" />修改账户密码
         </div>
@@ -146,7 +144,7 @@ async function confirmDelete(): Promise<void> {
         </div>
       </form>
 
-      <section class="pt-7">
+      <section class="cr-setting-row pt-7">
         <div class="flex items-start justify-between gap-4">
           <div class="flex gap-3">
             <Trash2 :size="19" class="mt-0.5 text-danger" />
