@@ -1,44 +1,51 @@
 # Container deployment
 
+The Compose stack contains exactly two application services on one private
+bridge network:
+
+| Service | Image | Purpose | Host port |
+| --- | --- | --- | --- |
+| `frontend` | `chatroom-frontend` | Serves the React application and proxies HTTP/WebSocket traffic | `3000` |
+| `backend` | `chatroom-backend` | Runs the Rust API with SQLite | None |
+
+The browser only connects to the frontend. Nginx forwards `/api`, `/api-docs`,
+and `/ws` to `backend:3000` over the private Compose network.
+
 ## Run locally
 
-Copy `.env.example` to `.env` when you need to change the defaults, then start
-the application and PostgreSQL:
+Copy `.env.example` to `.env` when you need to change the defaults, then build
+and start both images:
 
 ```sh
 docker compose up --build -d
 docker compose ps
 ```
 
-ChatRoom is available at <http://localhost:3000>. The application waits for
-PostgreSQL to become healthy and applies `migrations-postgres` automatically at
-startup.
+ChatRoom is available at <http://localhost:3000>. Compose waits for the backend
+health check before starting the frontend.
 
-The Compose stack keeps database records in `postgres_data` and uploaded files
-in `attachment_data`. PostgreSQL is only reachable from the internal Compose
-network. Use `docker compose exec postgres psql -U chatroom -d chatroom` for
-local database access.
+The stack keeps the SQLite database in `backend_data` and uploaded files in
+`attachment_data`. Neither the backend port nor these volumes are exposed by
+the frontend container.
 
-For non-local deployments, set a strong `POSTGRES_PASSWORD`. If it contains URL
-reserved characters, percent-encode them because the same value is placed in
-`CHAT_ROOM_DATABASE_URL`.
+## Use published images
 
-## Use a published image
-
-The GitHub Actions workflow tests Rust and Vue changes on pull requests. Pushes
-to `master` and `v*` tags publish the same image to GitHub Container Registry
-and, when configured, Docker Hub. Set one of these in `.env` to use a published
-image instead of the local image name:
+The GitHub Actions workflow tests the Rust, Vue, and React projects. Pushes to
+`master` and `v*` tags publish separate backend and frontend images to GitHub
+Container Registry and, when configured, Docker Hub. Set both image variables
+in `.env`:
 
 ```dotenv
-CHAT_ROOM_IMAGE=ghcr.io/desonglll/chat_room:latest
-# Or: CHAT_ROOM_IMAGE=<dockerhub-username>/chat_room:latest
+CHAT_ROOM_BACKEND_IMAGE=ghcr.io/desonglll/chat_room-backend:latest
+CHAT_ROOM_FRONTEND_IMAGE=ghcr.io/desonglll/chat_room-frontend:latest
+# Or use <dockerhub-username>/chat_room-backend:latest and
+# <dockerhub-username>/chat_room-frontend:latest.
 ```
 
 Then pull and start the services without a local rebuild:
 
 ```sh
-docker compose pull chatroom
+docker compose pull backend frontend
 docker compose up -d --no-build
 ```
 
@@ -48,9 +55,9 @@ Published tags include `latest` for `master`, the branch or version tag, and a
 
 ### Enable Docker Hub publishing
 
-Create a Docker Hub repository with the same name as the GitHub repository
-(`chat_room`), then add these under **GitHub repository settings > Secrets and
-variables > Actions**:
+Create the Docker Hub repositories `chat_room-backend` and
+`chat_room-frontend`, then add these under **GitHub repository settings >
+Secrets and variables > Actions**:
 
 | Type | Name | Value |
 | --- | --- | --- |
@@ -67,7 +74,7 @@ secret.
 Inspect logs and health status with:
 
 ```sh
-docker compose logs -f chatroom
+docker compose logs -f frontend backend
 docker compose ps
 ```
 
@@ -78,5 +85,5 @@ docker compose down
 ```
 
 Back up both named volumes before upgrades. `docker compose down --volumes`
-deletes the PostgreSQL database and uploaded attachments and should not be used
-for a normal shutdown.
+deletes the SQLite database and uploaded attachments and should not be used for
+a normal shutdown.

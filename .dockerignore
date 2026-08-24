@@ -4,6 +4,7 @@
 .claude
 .scratch-shot
 .DS_Store
+.env
 target
 chat_attachments
 chat_rooms.db*
@@ -17,5 +18,8 @@ web/.DS_Store
 web/dist
 web/node_modules
 web/package-lock.json
+web2/.DS_Store
+web2/dist
+web2/node_modules
 Dockerfile*
 docker-compose*.yaml

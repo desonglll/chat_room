@@ -9,6 +9,7 @@ default-run = "server"
 default = []
 vue = []
 react = []
+api-only = []
 
 [[bin]]
 name = "server"
