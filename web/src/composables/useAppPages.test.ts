@@ -31,4 +31,8 @@ describe('app page routes', () => {
   test('routes the contacts workspace independently from the selected room', () => {
     expect(resolveTarget('contacts', room, true)).toEqual({ name: 'contacts' })
   })
+
+  test('routes the personal favorites independently from the selected room', () => {
+    expect(resolveTarget('favorites', room, true)).toEqual({ name: 'favorites' })
+  })
 })

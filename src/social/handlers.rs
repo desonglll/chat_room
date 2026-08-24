@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::social::models::{
     FriendRequestAction, FriendRequestOutcome, FriendRequestPayload, FriendRequestView, SocialUser,
+    UpdateFriendRemarkRequest,
 };
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
@@ -240,6 +241,39 @@ pub async fn delete_friend(
             .await;
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/friends/{user_id}/remark",
+    params(("user_id" = Uuid, Path, description = "Friend to annotate")),
+    request_body = UpdateFriendRemarkRequest,
+    responses(
+        (status = 204, description = "Remark saved"),
+        (status = 400, description = "Remark is invalid"),
+        (status = 404, description = "Active friendship not found")
+    )
+)]
+pub async fn update_friend_remark(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(friend_id): Path<Uuid>,
+    Json(payload): Json<UpdateFriendRemarkRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let owner_id = current_user_id(&state, &headers).await?;
+    let remark = payload.remark.trim();
+    if remark.chars().count() > 64 || remark.chars().any(char::is_control) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    state
+        .set_friend_remark(owner_id, friend_id, remark)
+        .await
+        .map_err(|error| {
+            tracing::error!("update friend remark failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .then_some(StatusCode::NO_CONTENT)
+        .ok_or(StatusCode::NOT_FOUND)
 }
 
 #[utoipa::path(

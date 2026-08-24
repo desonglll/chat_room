@@ -258,10 +258,11 @@ impl AppState {
         let row: Option<(String, String, i64, Option<String>)> = with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT file_name, mime_type, size_bytes, storage_key FROM attachments \
-             WHERE id = $1 AND access_key = $2 AND EXISTS (\
+             WHERE id = $1 AND access_key = $2 AND (EXISTS (\
                SELECT 1 FROM messages WHERE messages.attachment_id = attachments.id \
                AND messages.recalled_at IS NULL\
-             )",
+             ) OR EXISTS (SELECT 1 FROM favorites \
+               WHERE favorites.attachment_id = attachments.id))",
             )
             .bind(id)
             .bind(access_key)

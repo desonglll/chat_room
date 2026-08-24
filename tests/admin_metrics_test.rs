@@ -193,3 +193,89 @@ async fn purge_removes_only_data_older_than_configured_retention() {
         .unwrap();
     assert_eq!(result["rooms_deleted"], 1);
 }
+
+#[tokio::test]
+async fn purge_preserves_a_deleted_room_while_its_video_is_favorited() {
+    let server = start().await;
+    let client = reqwest::Client::new();
+    let admin = session_token(&server.base, "ops-admin").await;
+    let room = create_room(&server.base, &admin, "favorited-retention-room").await;
+    let room_id = Uuid::parse_str(room["id"].as_str().unwrap()).unwrap();
+    let part = multipart::Part::bytes(b"favorite-video".to_vec())
+        .file_name("preserved.mp4")
+        .mime_str("video/mp4")
+        .unwrap();
+    let uploaded: serde_json::Value = client
+        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .bearer_auth(&admin)
+        .multipart(multipart::Form::new().part("file", part))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let attachment_id = Uuid::parse_str(uploaded["attachment"]["id"].as_str().unwrap()).unwrap();
+    let message_id = uploaded["id"].as_str().unwrap();
+    let favorites: Vec<serde_json::Value> = client
+        .post(format!("{}/api/favorites/messages", server.base))
+        .bearer_auth(&admin)
+        .json(&serde_json::json!({ "message_ids": [message_id] }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    client
+        .delete(format!("{}/api/rooms/{room_id}", server.base))
+        .bearer_auth(&admin)
+        .send()
+        .await
+        .unwrap();
+    sqlx::query("UPDATE rooms SET deleted_at = ? WHERE id = ?")
+        .bind(Utc::now() - Duration::days(2))
+        .bind(room_id)
+        .execute(server.state.pool())
+        .await
+        .unwrap();
+    let preserved: serde_json::Value = client
+        .post(format!("{}/api/admin/maintenance/purge", server.base))
+        .bearer_auth(&admin)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(preserved["rooms_deleted"], 0);
+    let attachment_exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM attachments WHERE id = ?)")
+            .bind(attachment_id)
+            .fetch_one(server.state.pool())
+            .await
+            .unwrap();
+    assert!(attachment_exists);
+
+    client
+        .delete(format!(
+            "{}/api/favorites/{}",
+            server.base,
+            favorites[0]["id"].as_str().unwrap()
+        ))
+        .bearer_auth(&admin)
+        .send()
+        .await
+        .unwrap();
+    let removed: serde_json::Value = client
+        .post(format!("{}/api/admin/maintenance/purge", server.base))
+        .bearer_auth(&admin)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(removed["rooms_deleted"], 1);
+}

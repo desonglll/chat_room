@@ -5,16 +5,16 @@ import {
   LogIn,
   LogOut,
   MessageCircle,
+  Bookmark,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Settings,
   UsersRound,
 } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Badge from 'primevue/badge'
-import { avatarColor } from '../avatarColor'
 import type { User } from '../types'
+import AppAvatar from './AppAvatar.vue'
 
 const props = defineProps<{
   activeSection: string
@@ -26,6 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   chat: []
   contacts: []
+  favorites: []
   discover: []
   create: []
   authenticate: []
@@ -40,6 +41,11 @@ function openContacts(): void {
   if (props.user) emit('contacts')
   else emit('authenticate')
 }
+
+function openFavorites(): void {
+  if (props.user) emit('favorites')
+  else emit('authenticate')
+}
 </script>
 
 <template>
@@ -49,6 +55,18 @@ function openContacts(): void {
     </button>
 
     <div class="cr-rail-primary">
+      <button
+        type="button"
+        class="cr-rail-action"
+        :class="{ 'cr-rail-action--active': activeSection === 'favorites' }"
+        :aria-current="activeSection === 'favorites' ? 'page' : undefined"
+        aria-label="收藏"
+        title="收藏"
+        @click="openFavorites"
+      >
+        <Bookmark :size="20" aria-hidden="true" />
+        <span>收藏</span>
+      </button>
       <button
         type="button"
         class="cr-rail-action"
@@ -125,12 +143,7 @@ function openContacts(): void {
         title="我的资料"
         @click="emit('profile')"
       >
-        <Avatar
-          :label="user.avatar_emoji || user.username.slice(0, 1).toUpperCase()"
-          shape="circle"
-          class="text-white!"
-          :style="{ backgroundColor: avatarColor(user.id) }"
-        />
+        <AppAvatar :avatar="user.avatar_emoji" :fallback="user.username" :color-key="user.id" class="text-white!" />
       </button>
       <button
         v-else

@@ -34,6 +34,7 @@ export type SocialRelationship = 'none' | 'incoming' | 'outgoing' | 'friend' | '
 export interface SocialUser extends UserSummary {
   signature: string
   relationship: SocialRelationship
+  remark: string
 }
 
 export interface FriendRequest {
@@ -98,6 +99,26 @@ export interface Attachment {
   size_bytes: number
   download_url: string
   is_sensitive: boolean
+}
+
+export interface FavoriteItem {
+  id: string
+  kind: 'message' | 'video' | 'manual'
+  title: string
+  content: string
+  source_message_id: string | null
+  source_sender: string
+  source_room_name: string
+  attachment: Attachment | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FavoriteForwardResult {
+  favorite_id: string
+  target_room_id: string
+  forwarded_message_id: string | null
+  skipped_reason: string | null
 }
 
 export interface AttachmentUploadSession {
@@ -265,6 +286,7 @@ export interface ChatPreferences {
   autoDisguiseEnabled: boolean
   notificationsEnabled: boolean
   notificationDetails: boolean
+  rememberRoomPasswords: boolean
   avatarEmoji: string
   theme: ThemePreference
 }

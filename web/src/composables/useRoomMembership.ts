@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { requestRoomJoin } from '../api'
-import { storageSet } from '../browserStorage'
+import { saveRoomPassword } from '../roomPasswordVault'
 import type { Room, User } from '../types'
 
 interface RoomMembershipOptions {
@@ -9,14 +9,13 @@ interface RoomMembershipOptions {
   currentUser: Ref<User | null>
   token: Ref<string>
   password: Ref<string>
+  rememberPasswords: () => boolean
   requireAccount: (action: () => void) => void
   selectRoom: (room: Room) => void
   connect: (room: Room, token: string, userId: string, password: string) => void
   setError: (message: string) => void
   showToast: (message: string) => void
 }
-
-const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
 
 export function useRoomMembership(options: RoomMembershipOptions) {
   const joinOpen = ref(false)
@@ -36,7 +35,7 @@ export function useRoomMembership(options: RoomMembershipOptions) {
       : [...options.rooms.value, room]
     options.selectRoom(room)
     options.password.value = password
-    if (password) storageSet(window.sessionStorage, passwordKey(room.id), password)
+    if (password) saveRoomPassword(room.id, password, options.rememberPasswords())
     if (room.membership_status === 'active') {
       joinSelectedRoom()
       options.showToast('已加入聊天室')

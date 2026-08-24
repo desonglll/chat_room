@@ -9,6 +9,7 @@ const friend: SocialUser = {
   display_name: 'Shinoda',
   signature: 'Designing quietly',
   relationship: 'friend',
+  remark: 'Mike',
 }
 const incoming: FriendRequest = {
   user: { id: 'incoming-1', username: 'alice', avatar_emoji: '', display_name: 'Alice' },
@@ -29,7 +30,7 @@ describe('contact directory', () => {
 
   test('builds stable entries for each contact section', () => {
     expect(contactEntries('friends', [friend], [incoming], [outgoing], [])).toMatchObject([
-      { key: 'friend:friend-1', kind: 'friend', subtitle: 'Designing quietly' },
+      { key: 'friend:friend-1', kind: 'friend', displayName: 'Mike', subtitle: 'Designing quietly' },
     ])
     expect(contactEntries('requests', [friend], [incoming], [outgoing], []).map((entry) => entry.kind)).toEqual([
       'incoming',

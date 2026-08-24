@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { Check, Clock3, Ellipsis, MessageCircle, RotateCcw, X } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
-import { avatarColor } from '../avatarColor'
 import type { ContactEntry } from '../contactDirectory'
+import AppAvatar from './AppAvatar.vue'
 
 defineProps<{ entry: ContactEntry; selected: boolean; busy: boolean }>()
 const emit = defineEmits<{
@@ -33,16 +32,16 @@ const emit = defineEmits<{
       :aria-current="selected ? 'true' : undefined"
       @click="emit('select')"
     >
-      <Avatar
-        :label="entry.user.avatar_emoji || entry.user.username.slice(0, 1).toUpperCase()"
-        shape="circle"
+      <AppAvatar
+        :avatar="entry.user.avatar_emoji"
+        :fallback="entry.user.username"
+        :color-key="entry.user.id"
         class="size-11! shrink-0 text-white!"
-        :style="{ backgroundColor: avatarColor(entry.user.id) }"
       />
       <span class="min-w-0 flex-1">
         <span class="flex min-w-0 items-center gap-2">
           <strong class="truncate text-sm font-semibold text-surface-900">
-            {{ entry.user.display_name || entry.user.username }}
+            {{ entry.displayName }}
           </strong>
           <span
             v-if="entry.kind === 'incoming'"

@@ -108,7 +108,7 @@ impl AppState {
                 "SELECT rooms.id AS room_id, \
                  CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END AS kind, \
                  CASE WHEN direct.room_id IS NULL THEN rooms.name \
-                   ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END AS title, \
+                   ELSE COALESCE(NULLIF(remarks.remark, ''), NULLIF(peer.display_name, ''), peer.username) END AS title, \
                  memberships.conversation_alias, \
                  CASE WHEN direct.room_id IS NULL THEN rooms.avatar_emoji \
                    ELSE COALESCE(peer.avatar_emoji, '') END AS display_avatar, \
@@ -151,6 +151,8 @@ impl AppState {
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $1 THEN direct.user_high_id \
                    WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \
+                 LEFT JOIN friend_remarks AS remarks ON remarks.owner_id = $1 \
+                   AND remarks.friend_id = peer.id \
                  LEFT JOIN messages AS last_message ON last_message.id = ( \
                    SELECT candidate.id FROM messages AS candidate \
                    WHERE candidate.room_id = rooms.id \

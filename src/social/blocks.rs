@@ -10,7 +10,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT users.id, users.username, users.avatar_emoji, users.display_name, \
-                 users.signature, 'blocked' AS relationship \
+                 users.signature, '' AS remark, 'blocked' AS relationship \
                  FROM user_blocks JOIN users ON users.id = user_blocks.blocked_id \
                  WHERE user_blocks.blocker_id = $1 \
                  ORDER BY user_blocks.created_at DESC, users.id",
@@ -51,6 +51,15 @@ impl AppState {
                 .bind(high)
                 .execute(&mut *transaction)
                 .await?;
+            sqlx::query(
+                "DELETE FROM friend_remarks WHERE \
+                 (owner_id = $1 AND friend_id = $2) OR \
+                 (owner_id = $2 AND friend_id = $1)",
+            )
+            .bind(user_id)
+            .bind(target_id)
+            .execute(&mut *transaction)
+            .await?;
             let room_id: Option<Uuid> = sqlx::query_scalar(
                 "SELECT room_id FROM direct_conversations \
                  WHERE user_low_id = $1 AND user_high_id = $2",

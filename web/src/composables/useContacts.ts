@@ -8,6 +8,7 @@ import {
   removeFriend,
   respondFriendRequest,
   sendFriendRequest,
+  setFriendRemark,
   unblockUser,
 } from '../socialApi'
 import type { FriendRequest, SocialUser } from '../types'
@@ -74,6 +75,7 @@ export function useContacts(token: Ref<string>) {
     respond: (userId: string, action: 'accept' | 'decline') =>
       mutate((value) => respondFriendRequest(userId, action, value)),
     remove: (userId: string) => mutate((value) => removeFriend(userId, value)),
+    setRemark: (userId: string, remark: string) => mutate((value) => setFriendRemark(userId, remark, value)),
     block: (userId: string) => mutate((value) => blockUser(userId, value)),
     unblock: (userId: string) => mutate((value) => unblockUser(userId, value)),
   }

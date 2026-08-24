@@ -18,6 +18,32 @@ struct UserCredentialRow {
     password_hash: String,
 }
 
+#[derive(sqlx::FromRow)]
+struct SessionUserRow {
+    id: Uuid,
+    username: String,
+    avatar_emoji: String,
+    display_name: String,
+    signature: String,
+    homepage: String,
+    created_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+}
+
+impl SessionUserRow {
+    fn user(&self) -> User {
+        User {
+            id: self.id,
+            username: self.username.clone(),
+            avatar_emoji: self.avatar_emoji.clone(),
+            display_name: self.display_name.clone(),
+            signature: self.signature.clone(),
+            homepage: self.homepage.clone(),
+            created_at: self.created_at,
+        }
+    }
+}
+
 impl AppState {
     pub async fn insert_user(
         &self,
@@ -97,18 +123,31 @@ impl AppState {
             .map(|_| ())
         })?;
 
-        Ok(AuthSession {
+        let session = AuthSession {
             token,
             user,
             expires_at,
-        })
+        };
+        if let Some(cache) = self.session_cache() {
+            if let Err(error) = cache.set(token, &session.user, expires_at).await {
+                tracing::warn!("cache newly created session failed: {error:#}");
+            }
+        }
+        Ok(session)
     }
 
     pub async fn session_user(&self, token: Uuid) -> Result<Option<User>, sqlx::Error> {
-        with_pool!(self, |pool| {
+        if let Some(cache) = self.session_cache() {
+            match cache.get(token).await {
+                Ok(Some(user)) => return Ok(Some(user)),
+                Ok(None) => {}
+                Err(error) => tracing::warn!("read Redis session cache failed: {error:#}"),
+            }
+        }
+        let row: Option<SessionUserRow> = with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT users.id, users.username, users.avatar_emoji, users.display_name, \
-                 users.signature, users.homepage, users.created_at FROM sessions \
+                 users.signature, users.homepage, users.created_at, sessions.expires_at FROM sessions \
                  JOIN users ON users.id = sessions.user_id \
                  WHERE sessions.id = $1 AND sessions.expires_at > $2",
             )
@@ -116,7 +155,13 @@ impl AppState {
             .bind(Utc::now())
             .fetch_optional(pool)
             .await
-        })
+        })?;
+        if let (Some(cache), Some(row)) = (self.session_cache(), row.as_ref()) {
+            if let Err(error) = cache.set(token, &row.user(), row.expires_at).await {
+                tracing::warn!("populate Redis session cache failed: {error:#}");
+            }
+        }
+        Ok(row.map(|row| row.user()))
     }
 
     pub async fn user_by_id(&self, user_id: Uuid) -> Result<Option<User>, sqlx::Error> {
@@ -139,7 +184,7 @@ impl AppState {
         signature: &str,
         homepage: &str,
     ) -> Result<Option<User>, sqlx::Error> {
-        with_pool!(self, |pool| {
+        let updated = with_pool!(self, |pool| {
             sqlx::query_as(
                 "UPDATE users SET avatar_emoji = $1, display_name = $2, signature = $3, \
                  homepage = $4 WHERE id = $5 RETURNING id, username, avatar_emoji, \
@@ -152,7 +197,11 @@ impl AppState {
             .bind(user_id)
             .fetch_optional(pool)
             .await
-        })
+        })?;
+        if updated.is_some() {
+            self.invalidate_user_sessions(user_id).await;
+        }
+        Ok(updated)
     }
 
     pub async fn update_user_password(
@@ -161,7 +210,7 @@ impl AppState {
         password_hash: &str,
         current_session: Uuid,
     ) -> Result<bool, sqlx::Error> {
-        with_pool!(self, |pool| {
+        let changed = with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             let changed = sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
                 .bind(password_hash)
@@ -176,11 +225,15 @@ impl AppState {
                 .await?;
             transaction.commit().await?;
             Ok::<_, sqlx::Error>(changed > 0)
-        })
+        })?;
+        if changed {
+            self.invalidate_user_sessions(user_id).await;
+        }
+        Ok(changed)
     }
 
     pub async fn delete_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, sqlx::Error> {
-        with_pool!(self, |pool| {
+        let room_ids = with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             let direct_room_ids: Vec<Uuid> = sqlx::query_scalar(
                 "SELECT room_id FROM direct_conversations \
@@ -209,16 +262,31 @@ impl AppState {
             } else {
                 Vec::new()
             })
-        })
+        })?;
+        self.invalidate_user_sessions(user_id).await;
+        Ok(room_ids)
     }
 
     pub async fn delete_session(&self, token: Uuid) -> Result<bool, sqlx::Error> {
-        with_pool!(self, |pool| {
-            sqlx::query("DELETE FROM sessions WHERE id = $1")
+        let user_id: Option<Uuid> = with_pool!(self, |pool| {
+            sqlx::query_scalar("DELETE FROM sessions WHERE id = $1 RETURNING user_id")
                 .bind(token)
-                .execute(pool)
+                .fetch_optional(pool)
                 .await
-                .map(|result| result.rows_affected() > 0)
-        })
+        })?;
+        if let (Some(cache), Some(user_id)) = (self.session_cache(), user_id) {
+            if let Err(error) = cache.delete(token, user_id).await {
+                tracing::warn!("delete Redis session cache failed: {error:#}");
+            }
+        }
+        Ok(user_id.is_some())
+    }
+
+    pub(crate) async fn invalidate_user_sessions(&self, user_id: Uuid) {
+        if let Some(cache) = self.session_cache() {
+            if let Err(error) = cache.delete_user(user_id).await {
+                tracing::warn!("invalidate Redis user sessions failed: {error:#}");
+            }
+        }
     }
 }

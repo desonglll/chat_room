@@ -11,13 +11,12 @@ import {
   UserMinus,
   UserRound,
 } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import Popover from 'primevue/popover'
-import { avatarColor } from '../avatarColor'
 import type { ChatStatus, Room, RoomMember, UserSummary } from '../types'
 import AdminRoomLockButton from './AdminRoomLockButton.vue'
+import AppAvatar from './AppAvatar.vue'
 import IconSprite from './IconSprite.vue'
 
 const props = defineProps<{
@@ -121,19 +120,19 @@ async function copyRoomId(): Promise<void> {
         aria-label="查看对方资料"
         @click="emit('viewProfile', peer.id)"
       >
-        <Avatar
-          :label="room.avatar_emoji || displayTitle.slice(0, 1).toUpperCase()"
-          shape="circle"
+        <AppAvatar
+          :avatar="room.avatar_emoji"
+          :fallback="displayTitle"
+          :color-key="peer?.id || room.id"
           class="size-9! text-white!"
-          :style="{ backgroundColor: avatarColor(peer?.id || room.id) }"
         />
       </button>
       <span v-else class="cr-chat-avatar shrink-0" aria-hidden="true">
-        <Avatar
-          :label="room.avatar_emoji || displayTitle.slice(0, 1).toUpperCase()"
-          shape="circle"
+        <AppAvatar
+          :avatar="room.avatar_emoji"
+          :fallback="displayTitle"
+          :color-key="room.id"
           class="size-9! text-white!"
-          :style="{ backgroundColor: avatarColor(room.id) }"
         />
       </span>
       <div class="group min-w-0">
@@ -207,12 +206,12 @@ async function copyRoomId(): Promise<void> {
                 aria-label="查看用户资料"
                 @click="emit('viewProfile', member.user_id)"
               >
-                <Avatar
-                  :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
-                  shape="circle"
+                <AppAvatar
+                  :avatar="member.avatar_emoji"
+                  :fallback="member.username"
+                  :color-key="member.user_id"
                   size="small"
                   class="shrink-0 text-white!"
-                  :style="{ backgroundColor: avatarColor(member.user_id) }"
                 />
               </button>
               <span class="min-w-0 flex-1 truncate">{{

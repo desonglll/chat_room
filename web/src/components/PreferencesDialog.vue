@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Bell, Keyboard, LockKeyhole, MonitorCog, Moon, Save, UserRound } from 'lucide-vue-next'
+import { Bell, KeyRound, Keyboard, LockKeyhole, MonitorCog, Moon, Save, UserRound } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -44,6 +44,7 @@ const autoDisguiseEnabled = ref(false)
 const theme = ref<ThemePreference>('system')
 const notificationsEnabled = ref(false)
 const notificationDetails = ref(true)
+const rememberRoomPasswords = ref(true)
 const avatarEmoji = ref('')
 const visible = computed({
   get: () => props.open,
@@ -63,6 +64,7 @@ watch(
     theme.value = props.preferences.theme
     notificationsEnabled.value = props.preferences.notificationsEnabled
     notificationDetails.value = props.preferences.notificationDetails
+    rememberRoomPasswords.value = props.preferences.rememberRoomPasswords
     avatarEmoji.value = props.user?.avatar_emoji || ''
   },
 )
@@ -76,6 +78,7 @@ function save(): void {
     theme: theme.value,
     notificationsEnabled: notificationsEnabled.value,
     notificationDetails: notificationDetails.value,
+    rememberRoomPasswords: rememberRoomPasswords.value,
     avatarEmoji: avatarEmoji.value,
   })
 }
@@ -135,6 +138,17 @@ function save(): void {
           <span class="text-sm font-medium">锁屏快捷键</span>
         </div>
         <ShortcutRecorder v-model="privacyLockShortcut" />
+      </section>
+
+      <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr]">
+        <div class="flex items-center gap-2 pt-1">
+          <KeyRound :size="18" class="text-primary" />
+          <span class="text-sm font-medium">房间密码</span>
+        </div>
+        <label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
+          <span>记住已验证的密码</span>
+          <ToggleSwitch v-model="rememberRoomPasswords" aria-label="记住已验证的聊天室密码" />
+        </label>
       </section>
 
       <section class="grid gap-3 border-t border-surface-200 pt-5 sm:grid-cols-[150px_1fr]">

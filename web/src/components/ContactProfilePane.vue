@@ -12,12 +12,11 @@ import {
   UsersRound,
   X,
 } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Tag from 'primevue/tag'
-import { avatarColor } from '../avatarColor'
 import type { ContactEntry } from '../contactDirectory'
+import AppAvatar from './AppAvatar.vue'
 
 defineProps<{ entry: ContactEntry | null; busy: boolean }>()
 const emit = defineEmits<{
@@ -31,7 +30,7 @@ const emit = defineEmits<{
 }>()
 
 function displayName(entry: ContactEntry): string {
-  return entry.user.display_name || entry.user.username
+  return entry.displayName
 }
 
 function relationshipLabel(entry: ContactEntry): string {
@@ -85,11 +84,11 @@ function relationshipSeverity(entry: ContactEntry): 'success' | 'warn' | 'info' 
         class="cr-inspector-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5"
       >
         <div class="flex min-w-0 items-center gap-4">
-          <Avatar
-            :label="entry.user.avatar_emoji || entry.user.username.slice(0, 1).toUpperCase()"
-            shape="circle"
+          <AppAvatar
+            :avatar="entry.user.avatar_emoji"
+            :fallback="entry.user.username"
+            :color-key="entry.user.id"
             class="size-16! shrink-0 text-xl! text-white!"
-            :style="{ backgroundColor: avatarColor(entry.user.id) }"
           />
           <div class="min-w-0 flex-1">
             <h3 class="break-words text-lg font-semibold leading-tight text-surface-900">{{ displayName(entry) }}</h3>
@@ -155,6 +154,18 @@ function relationshipSeverity(entry: ContactEntry): 'success' | 'warn' | 'info' 
         <Divider />
 
         <dl class="space-y-5">
+          <div
+            v-if="entry.kind === 'friend' && displayName(entry) !== (entry.user.display_name || entry.user.username)"
+            class="flex min-w-0 gap-3"
+          >
+            <Quote :size="18" class="mt-0.5 shrink-0 text-muted-color" aria-hidden="true" />
+            <div class="min-w-0">
+              <dt class="text-xs font-medium text-muted-color">原名称</dt>
+              <dd class="mt-1 break-words text-sm text-surface-900">
+                {{ entry.user.display_name || entry.user.username }}
+              </dd>
+            </div>
+          </div>
           <div class="flex min-w-0 gap-3">
             <AtSign :size="18" class="mt-0.5 shrink-0 text-muted-color" aria-hidden="true" />
             <div class="min-w-0">

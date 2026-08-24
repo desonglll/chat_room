@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ArrowLeft, ExternalLink, Save, UserRound } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
+import { ArrowLeft, ExternalLink, ImageUp, Save, UserRound } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Popover from 'primevue/popover'
 import Textarea from 'primevue/textarea'
 import EmojiPicker from './EmojiPicker.vue'
-import { updateCurrentUser } from '../api'
+import AppAvatar from './AppAvatar.vue'
+import { updateCurrentUser, uploadCurrentUserAvatar } from '../api'
 import type { User } from '../types'
 
 const props = defineProps<{ user: User; token: string }>()
@@ -22,6 +22,8 @@ const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
 const avatarPopover = ref()
+const avatarInput = ref<HTMLInputElement | null>(null)
+const uploadingAvatar = ref(false)
 
 function selectAvatar(emoji: string): void {
   avatarEmoji.value = emoji
@@ -58,6 +60,28 @@ async function save(): Promise<void> {
     saving.value = false
   }
 }
+
+async function uploadAvatar(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = '头像不能超过 5 MiB'
+    return
+  }
+  uploadingAvatar.value = true
+  error.value = ''
+  try {
+    const user = await uploadCurrentUserAvatar(props.token, file)
+    avatarEmoji.value = user.avatar_emoji
+    emit('updated', user)
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : '上传头像失败'
+  } finally {
+    uploadingAvatar.value = false
+  }
+}
 </script>
 
 <template>
@@ -78,20 +102,23 @@ async function save(): Promise<void> {
           <UserRound :size="18" class="text-primary" />头像
         </div>
         <div class="flex items-center gap-3">
-          <Avatar
-            v-if="avatarEmoji"
-            :label="avatarEmoji"
-            shape="circle"
+          <AppAvatar
+            :avatar="avatarEmoji"
+            :fallback="user.username"
+            :color-key="user.id"
             size="large"
-            class="bg-primary-50! text-2xl!"
+            class="text-2xl! text-white!"
           />
-          <Avatar
-            v-else
-            :label="user.username.slice(0, 1).toUpperCase()"
-            shape="circle"
-            size="large"
-            class="bg-surface-200! text-surface-700!"
+          <input
+            ref="avatarInput"
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+            hidden
+            @change="uploadAvatar"
           />
+          <Button type="button" outlined size="small" :loading="uploadingAvatar" @click="avatarInput?.click()">
+            <ImageUp :size="16" /><span>上传图片</span>
+          </Button>
           <Button type="button" outlined size="small" @click="avatarPopover.toggle($event)">选择表情</Button>
           <Button v-if="avatarEmoji" type="button" text severity="secondary" size="small" @click="avatarEmoji = ''"
             >清除</Button

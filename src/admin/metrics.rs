@@ -321,7 +321,11 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
                JOIN messages ON messages.attachment_id = shared.id \
                WHERE COALESCE(shared.storage_key, CAST(shared.id AS TEXT)) = \
                      COALESCE(a.storage_key, CAST(a.id AS TEXT)) \
-               AND messages.recalled_at IS NULL)",
+               AND messages.recalled_at IS NULL) \
+             AND NOT EXISTS (SELECT 1 FROM attachments shared \
+               JOIN favorites ON favorites.attachment_id = shared.id \
+               WHERE COALESCE(shared.storage_key, CAST(shared.id AS TEXT)) = \
+                     COALESCE(a.storage_key, CAST(a.id AS TEXT)))",
         )
         .bind(orphan_cutoff)
         .bind(orphan_cutoff)
@@ -353,8 +357,12 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
         let _guard = state.content_hash_locks().lock(&group.physical_key).await;
         let still_referenced: bool = with_pool!(state, |pool| {
             sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM attachments a JOIN messages m ON m.attachment_id = a.id \
-                 WHERE COALESCE(a.storage_key, CAST(a.id AS TEXT)) = $1 AND m.recalled_at IS NULL)",
+                "SELECT EXISTS(\
+                   SELECT 1 FROM attachments a JOIN messages m ON m.attachment_id = a.id \
+                   WHERE COALESCE(a.storage_key, CAST(a.id AS TEXT)) = $1 AND m.recalled_at IS NULL \
+                   UNION ALL \
+                   SELECT 1 FROM attachments a JOIN favorites f ON f.attachment_id = a.id \
+                   WHERE COALESCE(a.storage_key, CAST(a.id AS TEXT)) = $1)",
             )
             .bind(&group.query_key)
             .fetch_one(pool)
@@ -397,10 +405,15 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
 async fn purge_deleted_rooms(state: &AppState) -> anyhow::Result<u64> {
     let cutoff = Utc::now() - Duration::days(state.deleted_room_retention_days());
     let room_ids: Vec<Uuid> = with_pool!(state, |pool| {
-        sqlx::query_scalar("SELECT id FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at <= $1")
-            .bind(cutoff)
-            .fetch_all(pool)
-            .await
+        sqlx::query_scalar(
+            "SELECT id FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at <= $1 \
+             AND NOT EXISTS (SELECT 1 FROM attachments \
+               JOIN favorites ON favorites.attachment_id = attachments.id \
+               WHERE attachments.room_id = rooms.id)",
+        )
+        .bind(cutoff)
+        .fetch_all(pool)
+        .await
     })?;
     let mut deleted = 0;
     for room_id in room_ids {

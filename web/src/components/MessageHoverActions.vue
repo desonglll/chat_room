@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CornerUpLeft, Forward } from 'lucide-vue-next'
+import { Bookmark, CornerUpLeft, Forward } from 'lucide-vue-next'
 import MessageReactionPicker from './MessageReactionPicker.vue'
 
 defineProps<{ enabled: boolean }>()
@@ -7,6 +7,7 @@ const emit = defineEmits<{
   reaction: [emoji: string]
   reply: []
   forward: []
+  favorite: []
 }>()
 </script>
 
@@ -18,6 +19,9 @@ const emit = defineEmits<{
     </button>
     <button type="button" class="cr-message-inline-action" aria-label="转发消息" title="转发" @click="emit('forward')">
       <Forward :size="14" aria-hidden="true" />
+    </button>
+    <button type="button" class="cr-message-inline-action" aria-label="收藏消息" title="收藏" @click="emit('favorite')">
+      <Bookmark :size="14" aria-hidden="true" />
     </button>
   </div>
 </template>

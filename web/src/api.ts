@@ -83,6 +83,17 @@ export async function updateCurrentUser(token: string, payload: UpdateProfilePay
   return response.json() as Promise<User>
 }
 
+export async function uploadCurrentUserAvatar(token: string, file: File): Promise<User> {
+  const body = new FormData()
+  body.append('file', file)
+  const response = await request('/api/users/me/avatar', { method: 'POST', headers: authHeaders(token), body })
+  if (response.status === 413) throw new Error('头像不能超过 5 MiB')
+  if (response.status === 415) throw new Error('请选择 PNG、JPEG、GIF、WebP 或 AVIF 图片')
+  if (response.status === 401) throw new Error('登录已过期')
+  if (!response.ok) throw new Error(`上传头像失败：${response.status}`)
+  return response.json() as Promise<User>
+}
+
 export async function changeAccountPassword(
   token: string,
   currentPassword: string,

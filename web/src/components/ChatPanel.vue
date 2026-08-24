@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Download, Forward, UploadCloud, X } from 'lucide-vue-next'
-import Button from 'primevue/button'
-import ProgressBar from 'primevue/progressbar'
+import { UploadCloud } from 'lucide-vue-next'
 import ChatAccessPanel from './ChatAccessPanel.vue'
 import ChatRoomHeader from './ChatRoomHeader.vue'
 import MessageComposer from './MessageComposer.vue'
 import MessageList from './MessageList.vue'
+import MessageSelectionBar from './MessageSelectionBar.vue'
 import RoomConnectingView from './RoomConnectingView.vue'
 import UploadStatusPanel from './UploadStatusPanel.vue'
 import { shouldFocusComposer } from '../composer'
@@ -81,6 +80,7 @@ const emit = defineEmits<{
   recall: [messageId: string]
   edit: [messageId: string, content: string]
   forward: [messageIds: string[]]
+  favorite: [messageIds: string[]]
   typing: [content: string]
   download: [attachments: Attachment[]]
   cancelDownload: []
@@ -204,6 +204,11 @@ function downloadSelected(): void {
 
 function forwardSelected(): void {
   emit('forward', [...selectedMessageIds.value])
+  closeSelection()
+}
+
+function favoriteSelected(): void {
+  emit('favorite', [...selectedMessageIds.value])
   closeSelection()
 }
 
@@ -354,6 +359,7 @@ onBeforeUnmount(() => {
         @recall="recallMessage"
         @edit="startEdit"
         @forward="(message) => emit('forward', [message.message_id])"
+        @favorite="(message) => emit('favorite', [message.message_id])"
         @toggle-select="toggleSelection"
         @load-older="emit('loadOlder')"
         @preview-image="previewImageId = $event.id"
@@ -378,32 +384,18 @@ onBeforeUnmount(() => {
           <span class="truncate text-muted-color">{{ draft.content }}</span>
         </div>
       </TransitionGroup>
-      <div
+      <MessageSelectionBar
         v-if="selecting"
-        class="cr-selection-bar flex min-h-16 shrink-0 items-center justify-between gap-3 px-3 sm:px-5"
-      >
-        <Button text rounded severity="secondary" aria-label="退出多选" title="退出多选" @click="closeSelection"
-          ><X :size="19"
-        /></Button>
-        <div class="min-w-0 flex-1">
-          <span class="text-sm text-muted-color">已选择 {{ selectedMessageIds.length }} 条消息</span>
-          <div v-if="downloadProgress" class="mt-2 flex items-center gap-2">
-            <ProgressBar :value="downloadProgress.percent" :show-value="false" class="h-1.5 min-w-24 flex-1" />
-            <span class="shrink-0 text-xs text-muted-color"
-              >{{ downloadProgress.completedFiles }}/{{ downloadProgress.totalFiles }}</span
-            >
-            <Button size="small" text severity="danger" @click="emit('cancelDownload')">取消</Button>
-          </div>
-        </div>
-        <Button :disabled="!selectedMessageIds.length" severity="secondary" outlined @click="forwardSelected">
-          <Forward :size="17" />
-          <span>转发</span>
-        </Button>
-        <Button :disabled="!selectedAttachments.length" :loading="downloading" @click="downloadSelected">
-          <Download :size="17" />
-          <span>保存</span>
-        </Button>
-      </div>
+        :selected-count="selectedMessageIds.length"
+        :attachment-count="selectedAttachments.length"
+        :downloading="downloading"
+        :download-progress="downloadProgress"
+        @close="closeSelection"
+        @forward="forwardSelected"
+        @favorite="favoriteSelected"
+        @download="downloadSelected"
+        @cancel-download="emit('cancelDownload')"
+      />
       <template v-else>
         <UploadStatusPanel
           :pending="pendingUploads"

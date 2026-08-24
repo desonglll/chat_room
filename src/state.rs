@@ -14,6 +14,7 @@ use crate::ai::AiAssistant;
 use crate::attachment_content::ContentHashLocks;
 use crate::attachment_storage::{self, AttachmentStore};
 use crate::attachments::upload_hashes::UploadHashTracker;
+use crate::cache::SessionCache;
 use crate::config::AppConfig;
 use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::social::rate_limits::SocialRateLimits;
@@ -75,6 +76,7 @@ pub struct AppState {
     pub(crate) social_rate_limits: SocialRateLimits,
     pub(crate) ai_assistant: Option<AiAssistant>,
     pub(crate) config: AppConfig,
+    pub(crate) session_cache: Option<SessionCache>,
 }
 
 impl AppState {
@@ -156,6 +158,20 @@ impl AppState {
             }
         }
         .context("load rooms from database")?;
+        let session_cache = if config.redis.enabled {
+            match SessionCache::connect(&config.redis).await {
+                Ok(cache) => {
+                    tracing::info!("Redis session cache enabled");
+                    Some(cache)
+                }
+                Err(error) => {
+                    tracing::warn!("Redis unavailable; using database sessions: {error:#}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         let mut rooms = HashMap::with_capacity(loaded.len());
         let mut channels = HashMap::with_capacity(loaded.len());
@@ -178,6 +194,7 @@ impl AppState {
             social_rate_limits: SocialRateLimits::default(),
             ai_assistant,
             config,
+            session_cache,
         };
         state.backfill_attachment_content_hashes().await?;
         Ok(state)

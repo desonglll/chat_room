@@ -9,13 +9,16 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT users.id, users.username, users.avatar_emoji, users.display_name, \
-                 users.signature, 'friend' AS relationship \
+                 users.signature, COALESCE(remarks.remark, '') AS remark, 'friend' AS relationship \
                  FROM friendships JOIN users ON users.id = CASE \
                    WHEN friendships.user_low_id = $1 THEN friendships.user_high_id \
                    ELSE friendships.user_low_id END \
+                 LEFT JOIN friend_remarks AS remarks ON remarks.owner_id = $1 \
+                   AND remarks.friend_id = users.id \
                  WHERE friendships.status = 'accepted' AND \
                    (friendships.user_low_id = $1 OR friendships.user_high_id = $1) \
-                 ORDER BY LOWER(COALESCE(NULLIF(users.display_name, ''), users.username)), users.id",
+                 ORDER BY LOWER(COALESCE(NULLIF(remarks.remark, ''), \
+                   NULLIF(users.display_name, ''), users.username)), users.id",
             )
             .bind(user_id)
             .fetch_all(pool)
@@ -64,6 +67,15 @@ impl AppState {
                 transaction.commit().await?;
                 return Ok::<_, sqlx::Error>(None);
             }
+            sqlx::query(
+                "DELETE FROM friend_remarks WHERE \
+                 (owner_id = $1 AND friend_id = $2) OR \
+                 (owner_id = $2 AND friend_id = $1)",
+            )
+            .bind(user_id)
+            .bind(target_id)
+            .execute(&mut *transaction)
+            .await?;
             let room_id: Option<Uuid> = sqlx::query_scalar(
                 "SELECT room_id FROM direct_conversations \
                  WHERE user_low_id = $1 AND user_high_id = $2",

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import Avatar from 'primevue/avatar'
-import { avatarColor } from '../avatarColor'
 import type { UserSummary } from '../types'
+import AppAvatar from './AppAvatar.vue'
 
 defineProps<{ user: UserSummary; subtitle?: string }>()
 </script>
@@ -10,11 +9,11 @@ defineProps<{ user: UserSummary; subtitle?: string }>()
   <div
     class="group flex min-h-[72px] items-center gap-3 px-3 py-2 transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-50 motion-reduce:transition-none"
   >
-    <Avatar
-      :label="user.avatar_emoji || user.username.slice(0, 1).toUpperCase()"
-      shape="circle"
+    <AppAvatar
+      :avatar="user.avatar_emoji"
+      :fallback="user.username"
+      :color-key="user.id"
       class="size-12! shrink-0 text-white!"
-      :style="{ backgroundColor: avatarColor(user.id) }"
     />
     <div class="min-w-0 flex-1">
       <strong class="block truncate text-sm text-surface-900">{{ user.display_name || user.username }}</strong>

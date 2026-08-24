@@ -1,15 +1,14 @@
 import { watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storageSet } from '../browserStorage'
+import { saveRoomPassword } from '../roomPasswordVault'
 import type { Room } from '../types'
 
 interface RoomRouteSyncOptions {
   authenticated: Ref<boolean>
   room: Ref<Room | null>
   password: Ref<string>
+  rememberPasswords: () => boolean
 }
-
-const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
 
 export function shouldPromoteJoinRoute(online: boolean, routeName: unknown): boolean {
   return online && routeName === 'room-join'
@@ -22,7 +21,7 @@ export function useRoomRouteSync(options: RoomRouteSyncOptions): void {
   watch(options.authenticated, (online) => {
     const room = options.room.value
     if (online && room?.has_password) {
-      storageSet(window.sessionStorage, passwordKey(room.id), options.password.value)
+      saveRoomPassword(room.id, options.password.value, options.rememberPasswords())
     }
     // A refresh briefly makes the socket offline while it reconnects.  That
     // transport state must never turn an existing room URL into a join URL.

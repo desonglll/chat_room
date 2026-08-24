@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Check, UserMinus, UserPlus, X } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { inviteRoomMember, listRoomMembers, updateRoomMember } from '../api'
-import { avatarColor } from '../avatarColor'
 import type { Room, RoomMembership } from '../types'
+import AppAvatar from './AppAvatar.vue'
 
 const props = defineProps<{
   room: Room
@@ -115,11 +114,11 @@ onMounted(refresh)
       </div>
       <div class="divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="member in pending" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar
-            :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
-            shape="circle"
+          <AppAvatar
+            :avatar="member.avatar_emoji"
+            :fallback="member.username"
+            :color-key="member.user_id"
             class="text-white!"
-            :style="{ backgroundColor: avatarColor(member.user_id) }"
           />
           <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
           <Button
@@ -153,11 +152,11 @@ onMounted(refresh)
       </div>
       <div class="divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="member in invited" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar
-            :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
-            shape="circle"
+          <AppAvatar
+            :avatar="member.avatar_emoji"
+            :fallback="member.username"
+            :color-key="member.user_id"
             class="text-white!"
-            :style="{ backgroundColor: avatarColor(member.user_id) }"
           />
           <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
           <Button
@@ -181,11 +180,11 @@ onMounted(refresh)
       </div>
       <div class="max-h-64 divide-y divide-surface-100 overflow-y-auto border-y border-surface-200">
         <div v-for="member in active" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
-          <Avatar
-            :label="member.avatar_emoji || member.username.slice(0, 1).toUpperCase()"
-            shape="circle"
+          <AppAvatar
+            :avatar="member.avatar_emoji"
+            :fallback="member.username"
+            :color-key="member.user_id"
             class="text-white!"
-            :style="{ backgroundColor: avatarColor(member.user_id) }"
           />
           <span class="min-w-0 flex-1 truncate text-sm">
             <strong>{{ member.nickname || member.username }}</strong>

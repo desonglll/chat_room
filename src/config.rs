@@ -24,6 +24,29 @@ pub struct AppConfig {
     pub realtime: RealtimeConfig,
     pub auth: AuthConfig,
     pub admin: AdminConfig,
+    pub redis: RedisConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct RedisConfig {
+    pub enabled: bool,
+    pub url: String,
+    pub key_prefix: String,
+    pub connect_timeout_ms: u64,
+    pub command_timeout_ms: u64,
+}
+
+impl Default for RedisConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: "redis://127.0.0.1:6379/".into(),
+            key_prefix: "chat-room".into(),
+            connect_timeout_ms: 1500,
+            command_timeout_ms: 500,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -222,6 +245,10 @@ impl AppConfig {
                 .map(str::to_string)
                 .collect();
         }
+        if let Ok(url) = std::env::var("CHAT_ROOM_REDIS_URL") {
+            config.redis.enabled = !url.trim().is_empty();
+            config.redis.url = url;
+        }
         config.validate()
     }
 
@@ -269,6 +296,15 @@ impl AppConfig {
         }
         if self.admin.deleted_room_retention_days <= 0 {
             bail!("admin.deleted_room_retention_days must be greater than zero");
+        }
+        if self.redis.enabled && self.redis.url.trim().is_empty() {
+            bail!("redis.url is required when redis.enabled is true");
+        }
+        if self.redis.key_prefix.trim().is_empty() {
+            bail!("redis.key_prefix must not be empty");
+        }
+        if self.redis.connect_timeout_ms == 0 || self.redis.command_timeout_ms == 0 {
+            bail!("redis timeouts must be greater than zero");
         }
         if self
             .admin

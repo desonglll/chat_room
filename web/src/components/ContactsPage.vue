@@ -15,6 +15,7 @@ import {
 import type { FriendRequest, SocialUser, UserSummary } from '../types'
 import ContactDirectoryPane from './ContactDirectoryPane.vue'
 import ContactProfilePane from './ContactProfilePane.vue'
+import FriendRemarkDialog from './FriendRemarkDialog.vue'
 
 const props = defineProps<{
   friends: SocialUser[]
@@ -29,8 +30,9 @@ const props = defineProps<{
   removeFriend: (userId: string) => Promise<void>
   blockUser: (userId: string) => Promise<void>
   unblockUser: (userId: string) => Promise<void>
+  setRemark: (userId: string, remark: string) => Promise<void>
 }>()
-const emit = defineEmits<{ back: []; newChat: []; error: [message: string] }>()
+const emit = defineEmits<{ back: []; newChat: []; changed: []; error: [message: string] }>()
 const route = useRoute()
 const router = useRouter()
 const active = ref<ContactSection>(contactSection(route.query.section))
@@ -40,6 +42,7 @@ const detailOpen = ref(false)
 const busyId = ref('')
 const actionMenu = ref()
 const actionItems = ref<MenuItem[]>([])
+const remarkUser = ref<SocialUser | null>(null)
 
 const tabs = [
   { label: '全部好友', compactLabel: '好友', value: 'friends' as const, icon: UsersRound },
@@ -109,6 +112,10 @@ function confirmBlock(user: UserSummary): void {
 
 function openFriendMenu(event: Event, entry: ContactEntry): void {
   actionItems.value = [
+    {
+      label: entry.kind === 'friend' && 'remark' in entry.user && entry.user.remark ? '修改备注' : '设置备注',
+      command: () => (remarkUser.value = entry.user as SocialUser),
+    },
     { label: '删除好友', command: () => confirmRemove(entry.user) },
     { label: '加入黑名单', command: () => confirmBlock(entry.user) },
   ]
@@ -218,5 +225,6 @@ function openFriendMenu(event: Event, entry: ContactEntry): void {
       />
     </div>
     <Menu ref="actionMenu" :model="actionItems" :popup="true" />
+    <FriendRemarkDialog :user="remarkUser" :save="setRemark" @close="remarkUser = null" @saved="emit('changed')" />
   </main>
 </template>

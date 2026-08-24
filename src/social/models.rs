@@ -12,6 +12,7 @@ pub struct SocialUser {
     pub avatar_emoji: String,
     pub display_name: String,
     pub signature: String,
+    pub remark: String,
     pub relationship: String,
 }
 
@@ -30,6 +31,11 @@ pub struct FriendRequestPayload {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct FriendRequestAction {
     pub action: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateFriendRemarkRequest {
+    pub remark: String,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

@@ -5,9 +5,12 @@ pub mod admin;
 pub mod ai;
 pub mod ai_handlers;
 pub mod attachments;
+pub mod backup;
+mod cache;
 pub mod config;
 pub mod conversations;
 pub mod direct_conversations;
+pub mod favorites;
 pub mod messages;
 pub mod models;
 pub mod realtime;
@@ -18,7 +21,7 @@ mod state_runtime;
 pub mod storage;
 pub mod web;
 
-pub use accounts::{account_ws, user_handlers, users};
+pub use accounts::{account_ws, avatar_handlers, user_handlers, users};
 pub use admin::{metrics as admin_metrics, system_lock as admin_system_lock};
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
@@ -69,6 +72,8 @@ use crate::state::AppState;
         user_handlers::verify_password,
         user_handlers::get_user,
         user_handlers::update_me,
+        avatar_handlers::upload_avatar,
+        avatar_handlers::download_avatar,
         user_handlers::logout,
         social::handlers::search_users,
         social::handlers::create_friend_request,
@@ -76,6 +81,7 @@ use crate::state::AppState;
         social::handlers::update_friend_request,
         social::handlers::cancel_friend_request,
         social::handlers::list_friends,
+        social::handlers::update_friend_remark,
         social::handlers::delete_friend,
         social::handlers::list_blocks,
         social::handlers::block_user,
@@ -84,6 +90,11 @@ use crate::state::AppState;
         conversations::handlers::list_conversations,
         conversations::handlers::update_conversation_alias,
         forward_handlers::forward_messages,
+        favorites::handlers::list_favorites,
+        favorites::handlers::create_favorite,
+        favorites::handlers::favorite_messages,
+        favorites::handlers::delete_favorite,
+        favorites::handlers::forward_favorite,
         ai_handlers::suggest,
         admin_metrics::overview,
         admin_metrics::purge,
@@ -105,6 +116,11 @@ use crate::state::AppState;
         models::MessageReaction,
         models::ForwardMessagesRequest,
         models::ForwardResult,
+        favorites::models::FavoriteItem,
+        favorites::models::CreateFavoriteRequest,
+        favorites::models::FavoriteMessagesRequest,
+        favorites::models::ForwardFavoriteRequest,
+        favorites::models::FavoriteForwardResult,
         attachment_upload_handlers::CreateUploadRequest,
         attachment_upload_handlers::CreateUploadResponse,
         attachment_upload_handlers::ChunkResponse,
@@ -127,6 +143,7 @@ use crate::state::AppState;
         social::models::FriendRequestView,
         social::models::FriendRequestPayload,
         social::models::FriendRequestAction,
+        social::models::UpdateFriendRemarkRequest,
         conversations::models::ConversationSummary,
         conversations::models::MessagePreview,
         conversations::models::UpdateConversationAliasRequest,
@@ -242,10 +259,22 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             axum::routing::put(user_handlers::change_password),
         )
         .route(
+            "/api/users/me/avatar",
+            axum::routing::post(avatar_handlers::upload_avatar).layer(
+                axum::extract::DefaultBodyLimit::max(
+                    avatar_handlers::MAX_AVATAR_BYTES + avatar_handlers::MULTIPART_OVERHEAD_BYTES,
+                ),
+            ),
+        )
+        .route(
             "/api/users/me/verify-password",
             axum::routing::post(user_handlers::verify_password),
         )
         .route("/api/users/search", get(social::handlers::search_users))
+        .route(
+            "/api/users/:id/avatar",
+            get(avatar_handlers::download_avatar),
+        )
         .route("/api/users/:id", get(user_handlers::get_user))
         .route(
             "/api/friend-requests",
@@ -258,6 +287,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
                 .delete(social::handlers::cancel_friend_request),
         )
         .route("/api/friends", get(social::handlers::list_friends))
+        .route(
+            "/api/friends/:user_id/remark",
+            axum::routing::put(social::handlers::update_friend_remark),
+        )
         .route(
             "/api/friends/:user_id",
             axum::routing::delete(social::handlers::delete_friend),
@@ -282,6 +315,22 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/messages/forward",
             axum::routing::post(forward_handlers::forward_messages),
+        )
+        .route(
+            "/api/favorites",
+            get(favorites::handlers::list_favorites).post(favorites::handlers::create_favorite),
+        )
+        .route(
+            "/api/favorites/messages",
+            axum::routing::post(favorites::handlers::favorite_messages),
+        )
+        .route(
+            "/api/favorites/:id",
+            axum::routing::delete(favorites::handlers::delete_favorite),
+        )
+        .route(
+            "/api/favorites/:id/forward",
+            axum::routing::post(favorites::handlers::forward_favorite),
         )
         .route(
             "/api/users/logout",

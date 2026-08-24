@@ -1,5 +1,6 @@
 import type { ChatPreferences } from './types'
 import { parsePrivacyLockShortcut } from './privacyLock'
+import { clearRememberedRoomPasswords } from './roomPasswordVault'
 
 const SEND_SHORTCUT_KEY = 'chat-room.send-shortcut'
 const FOCUS_SHORTCUT_KEY = 'chat-room.focus-shortcut'
@@ -8,6 +9,7 @@ const NOTIFICATION_DETAILS_KEY = 'chat-room.notification-details'
 const THEME_KEY = 'chat-room.theme'
 const PRIVACY_LOCK_SHORTCUT_KEY = 'chat-room.privacy-lock-shortcut'
 const AUTO_DISGUISE_KEY = 'chat-room.auto-disguise'
+const REMEMBER_ROOM_PASSWORDS_KEY = 'chat-room.remember-room-passwords'
 
 function read(key: string): string {
   try {
@@ -35,6 +37,7 @@ export function loadPreferences(avatarEmoji = ''): ChatPreferences {
     autoDisguiseEnabled: read(AUTO_DISGUISE_KEY) === 'true',
     notificationsEnabled: read(NOTIFICATIONS_KEY) === 'true',
     notificationDetails: read(NOTIFICATION_DETAILS_KEY) !== 'false',
+    rememberRoomPasswords: read(REMEMBER_ROOM_PASSWORDS_KEY) !== 'false',
     avatarEmoji,
     theme: theme === 'light' || theme === 'dark' ? theme : 'system',
   }
@@ -47,5 +50,7 @@ export function storePreferences(preferences: ChatPreferences): void {
   write(AUTO_DISGUISE_KEY, String(preferences.autoDisguiseEnabled))
   write(NOTIFICATIONS_KEY, String(preferences.notificationsEnabled))
   write(NOTIFICATION_DETAILS_KEY, String(preferences.notificationDetails))
+  write(REMEMBER_ROOM_PASSWORDS_KEY, String(preferences.rememberRoomPasswords))
+  if (!preferences.rememberRoomPasswords) clearRememberedRoomPasswords()
   write(THEME_KEY, preferences.theme)
 }

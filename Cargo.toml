@@ -44,5 +44,6 @@ mime_guess = "2"
 toml = "1.1.4"
 genai = "0.6.5"
 opendal = { version = "0.58.1", default-features = false, features = ["services-fs", "services-oss", "executors-tokio"] }
+redis = { version = "1", features = ["tokio-comp", "connection-manager"] }
 
 [dev-dependencies]

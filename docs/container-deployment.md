@@ -11,8 +11,10 @@ docker compose ps
 ```
 
 ChatRoom is available at <http://localhost:3000>. The application waits for
-PostgreSQL to become healthy and applies `migrations-postgres` automatically at
-startup.
+PostgreSQL and Redis to become healthy and applies `migrations-postgres`
+automatically at startup. Redis caches authenticated sessions; PostgreSQL
+remains authoritative and the application falls back to it if cache commands
+fail.
 
 The Compose stack keeps database records in `postgres_data` and uploaded files
 in `attachment_data`. PostgreSQL is only reachable from the internal Compose
@@ -77,6 +79,7 @@ Stop containers without deleting stored data:
 docker compose down
 ```
 
-Back up both named volumes before upgrades. `docker compose down --volumes`
-deletes the PostgreSQL database and uploaded attachments and should not be used
-for a normal shutdown.
+Back up `postgres_data`, `attachment_data`, and `redis_data` before upgrades,
+or use the verified PostgreSQL/local-file commands documented in
+`docs/configuration.md`. `docker compose down --volumes` deletes all three and
+should not be used for a normal shutdown.

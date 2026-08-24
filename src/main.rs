@@ -3,8 +3,8 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
-use chat_room::{build_app_with_web, config::AppConfig, state::AppState};
-use clap::{Parser, ValueEnum};
+use chat_room::{backup, build_app_with_web, config::AppConfig, state::AppState};
+use clap::{Parser, Subcommand, ValueEnum};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Parser)]
@@ -27,22 +27,46 @@ struct Args {
     port: Option<u16>,
 
     /// Database type. Overrides database.kind in the TOML configuration.
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, global = true)]
     database_type: Option<DatabaseType>,
 
     /// SQLite path or PostgreSQL URL, according to --database-type.
-    #[arg(long, value_name = "PATH_OR_URL")]
+    #[arg(long, value_name = "PATH_OR_URL", global = true)]
     database: Option<String>,
 
     /// TOML configuration path. A missing file uses built-in defaults.
-    #[arg(long, default_value = "chat-room.toml", value_name = "PATH")]
+    #[arg(
+        long,
+        default_value = "chat-room.toml",
+        value_name = "PATH",
+        global = true
+    )]
     config: PathBuf,
+
+    #[command(subcommand)]
+    command: Option<MaintenanceCommand>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum DatabaseType {
     Sqlite,
     Postgres,
+}
+
+#[derive(Debug, Subcommand)]
+enum MaintenanceCommand {
+    /// Export a complete PostgreSQL dump and all local attachment files.
+    Export {
+        /// New directory to create for the backup.
+        #[arg(short, long, value_name = "DIRECTORY")]
+        output: PathBuf,
+    },
+    /// Restore PostgreSQL and local attachments from a verified backup.
+    Restore {
+        /// Backup directory containing manifest.json.
+        #[arg(short, long, value_name = "DIRECTORY")]
+        input: PathBuf,
+    },
 }
 
 impl Args {
@@ -74,6 +98,35 @@ async fn main() -> Result<()> {
             DatabaseType::Sqlite
         }
     });
+    if let Some(command) = &args.command {
+        if !matches!(database_type, DatabaseType::Postgres) {
+            anyhow::bail!("export and restore require PostgreSQL; select --database-type postgres");
+        }
+        let url = postgres_url(&args, &config)?;
+        match command {
+            MaintenanceCommand::Export { output } => {
+                let manifest = backup::export_postgres(&config, &url, output).await?;
+                let bytes: u64 = manifest.files.iter().map(|file| file.size_bytes).sum();
+                println!(
+                    "backup created at {} ({} files, {} bytes)",
+                    output.display(),
+                    manifest.files.len(),
+                    bytes
+                );
+            }
+            MaintenanceCommand::Restore { input } => {
+                let outcome = backup::restore_postgres(&config, &url, input).await?;
+                println!("backup restored from {}", input.display());
+                if let Some(previous) = outcome.previous_attachments {
+                    println!("previous attachments preserved at {}", previous.display());
+                }
+                if config.redis.enabled {
+                    println!("cleared {} Redis cache keys", outcome.redis_keys_cleared);
+                }
+            }
+        }
+        return Ok(());
+    }
     let state = Arc::new(match database_type {
         DatabaseType::Sqlite => {
             let path = args
@@ -84,13 +137,7 @@ async fn main() -> Result<()> {
             AppState::open_with_config(&path, &config).await?
         }
         DatabaseType::Postgres => {
-            let url = args
-                .database
-                .or_else(|| std::env::var("CHAT_ROOM_DATABASE_URL").ok())
-                .unwrap_or_else(|| config.database.postgres_url.clone());
-            if url.trim().is_empty() {
-                anyhow::bail!("PostgreSQL requires --database URL, CHAT_ROOM_DATABASE_URL, or database.postgres_url");
-            }
+            let url = postgres_url(&args, &config)?;
             AppState::open_postgres(&url, &config).await?
         }
     });
@@ -110,6 +157,20 @@ async fn main() -> Result<()> {
     }
 
     axum::serve(listener, app).await.context("serve chat room")
+}
+
+fn postgres_url(args: &Args, config: &AppConfig) -> Result<String> {
+    let url = args
+        .database
+        .clone()
+        .or_else(|| std::env::var("CHAT_ROOM_DATABASE_URL").ok())
+        .unwrap_or_else(|| config.database.postgres_url.clone());
+    if url.trim().is_empty() {
+        anyhow::bail!(
+            "PostgreSQL requires --database URL, CHAT_ROOM_DATABASE_URL, or database.postgres_url"
+        );
+    }
+    Ok(url)
 }
 
 #[cfg(test)]
@@ -146,5 +207,33 @@ mod tests {
             Args::try_parse_from(["server", "--listen", "0.0.0.0:3000", "--port", "8080"]).unwrap();
 
         assert_eq!(args.listen_addr(), "0.0.0.0:8080".parse().unwrap());
+    }
+
+    #[test]
+    fn parses_backup_commands_with_global_database_options() {
+        let export = Args::try_parse_from([
+            "server",
+            "export",
+            "--output",
+            "backups/complete",
+            "--database-type",
+            "postgres",
+            "--database",
+            "postgres://localhost/chat",
+        ])
+        .unwrap();
+        assert!(matches!(
+            export.command,
+            Some(MaintenanceCommand::Export { output })
+                if output.as_path() == std::path::Path::new("backups/complete")
+        ));
+
+        let restore =
+            Args::try_parse_from(["server", "restore", "--input", "backups/complete"]).unwrap();
+        assert!(matches!(
+            restore.command,
+            Some(MaintenanceCommand::Restore { input })
+                if input.as_path() == std::path::Path::new("backups/complete")
+        ));
     }
 }

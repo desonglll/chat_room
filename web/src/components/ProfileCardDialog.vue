@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ExternalLink, Save } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import { getUserProfile, setRoomNickname } from '../api'
-import { avatarColor } from '../avatarColor'
 import type { User } from '../types'
+import AppAvatar from './AppAvatar.vue'
 
 const props = defineProps<{
   open: boolean
@@ -79,11 +78,11 @@ async function saveNickname(): Promise<void> {
     </div>
     <Message v-else-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>
     <div v-else-if="profile" class="flex flex-col items-center gap-3 py-2 text-center">
-      <Avatar
-        :label="profile.avatar_emoji || profile.username.slice(0, 1).toUpperCase()"
-        shape="circle"
+      <AppAvatar
+        :avatar="profile.avatar_emoji"
+        :fallback="profile.username"
+        :color-key="profile.id"
         class="size-16! text-3xl! text-white!"
-        :style="{ backgroundColor: avatarColor(profile.id) }"
       />
       <div>
         <strong class="block text-base">{{ profile.display_name || profile.username }}</strong>

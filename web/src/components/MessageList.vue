@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
-import Avatar from 'primevue/avatar'
 import Checkbox from 'primevue/checkbox'
 import ContextMenu from 'primevue/contextmenu'
 import type { MenuItem } from 'primevue/menuitem'
@@ -10,8 +9,8 @@ import MessageDeliveryStatus from './MessageDeliveryStatus.vue'
 import MessageHoverActions from './MessageHoverActions.vue'
 import MessageReactionChips from './MessageReactionChips.vue'
 import PendingUploadMessage from './PendingUploadMessage.vue'
+import AppAvatar from './AppAvatar.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
-import { avatarColor } from '../avatarColor'
 import { useMessageViewport } from '../composables/useMessageViewport'
 import { preferredScrollBehavior } from '../motionPreference'
 import type { Attachment, BroadcastMessage, DisplayMessage, ReadReceipt, ReplyPreview, RoomMember } from '../types'
@@ -39,6 +38,7 @@ const emit = defineEmits<{
   recall: [messageId: string]
   edit: [message: BroadcastMessage]
   forward: [message: BroadcastMessage]
+  favorite: [message: BroadcastMessage]
   toggleSelect: [messageId: string]
   previewImage: [attachment: Attachment]
   viewProfile: [userId: string]
@@ -78,6 +78,7 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
     items.push({ label: '回复', command: () => emit('reply', message) })
     if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
     items.push({ label: '转发', command: () => emit('forward', message) })
+    items.push({ label: '收藏', command: () => emit('favorite', message) })
   }
   if (isOwn && message.content && !message.recalled_at) {
     items.push({ label: '编辑', command: () => emit('edit', message) })
@@ -336,11 +337,11 @@ onBeforeUnmount(() => {
             @click="message.sender_id && emit('viewProfile', message.sender_id)"
             @contextmenu.stop.prevent="openAvatarContextMenu($event, message)"
           >
-            <Avatar
-              :label="avatarLabel(message)"
-              shape="circle"
+            <AppAvatar
+              :avatar="message.sender_avatar"
+              :fallback="avatarLabel(message)"
+              :color-key="message.sender_id || message.sender"
               class="text-white!"
-              :style="{ backgroundColor: avatarColor(message.sender_id || message.sender) }"
             />
           </button>
           <div class="cr-message-stack">
@@ -420,6 +421,7 @@ onBeforeUnmount(() => {
               @reaction="toggleReaction(message, $event)"
               @reply="emit('reply', message)"
               @forward="emit('forward', message)"
+              @favorite="emit('favorite', message)"
             />
             <MessageReactionChips
               v-if="!message.recalled_at && isSettled(message)"

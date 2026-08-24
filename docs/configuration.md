@@ -27,6 +27,13 @@ sqlite_path = "chat_rooms.db"
 postgres_url = ""
 max_connections = 10
 
+[redis]
+enabled = false
+url = "redis://127.0.0.1:6379/"
+key_prefix = "chat-room"
+connect_timeout_ms = 1500
+command_timeout_ms = 500
+
 [admin]
 usernames = []
 orphan_retention_hours = 168
@@ -61,6 +68,39 @@ storage setting.
 
 `database.kind` accepts `sqlite` or `postgres`. The CLI `--database-type` and
 `--database` options override the selected backend and connection path/URL.
+
+Redis is an optional cache for bearer-session lookups; PostgreSQL/SQLite
+remains the source of truth. Set `redis.enabled = true`, or set
+`CHAT_ROOM_REDIS_URL`, to enable it. Startup falls back to direct database
+reads if Redis is temporarily unavailable. Profile, password, avatar, logout,
+and account-deletion changes invalidate affected cached sessions.
+
+## Complete PostgreSQL backup and restore
+
+Stop the chat server while taking a maintenance backup so the PostgreSQL
+snapshot and attachment directory describe the same point in time. PostgreSQL
+client tools (`pg_dump` and `pg_restore`) must be installed and match the
+server's major version.
+
+```sh
+cargo run -- export --output backups/chat-room-2026-08-24
+cargo run -- restore --input backups/chat-room-2026-08-24
+```
+
+Both commands use `chat-room.toml` and accept the global `--config`,
+`--database-type postgres`, and `--database` overrides. An export creates a new
+directory containing `database.dump`, the complete local `attachments`
+directory, and `manifest.json` with a SHA-256 and byte count for every file.
+The output path must not already exist.
+
+Restore verifies the complete manifest before changing data, then runs
+`pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error`.
+It stages attachment bytes before restoring PostgreSQL. The current attachment
+directory is renamed to a unique `.pre-restore-*` sibling before restored files
+are activated, so it remains available for manual rollback. When Redis is
+enabled, restore requires Redis to be reachable and clears this application's
+cache namespace before replacing the database. The commands intentionally reject SQLite and
+OSS-backed attachment configurations rather than producing a partial backup.
 
 The system dashboard is available at `/admin`. Access requires a normal logged
 in account whose username appears in `admin.usernames` (case-insensitive).

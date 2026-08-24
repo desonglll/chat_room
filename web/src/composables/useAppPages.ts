@@ -2,7 +2,7 @@ import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { User, Room } from '../types'
 
-type AppPage = 'chat' | 'profile' | 'settings' | 'discover' | 'contacts'
+type AppPage = 'chat' | 'profile' | 'settings' | 'discover' | 'contacts' | 'favorites'
 
 // Membership survives refreshes and short WebSocket reconnects.  Route access
 // follows that durable state; the live socket only fills gaps in old snapshots.
@@ -11,6 +11,7 @@ export function resolveTarget(page: AppPage, selectedRoom: Room | null, authenti
   if (page === 'settings') return { name: 'settings' as const }
   if (page === 'discover') return { name: 'discover' as const }
   if (page === 'contacts') return { name: 'contacts' as const }
+  if (page === 'favorites') return { name: 'favorites' as const }
   if (!selectedRoom) return { name: 'home' as const }
   return authenticated || selectedRoom.membership_status === 'active'
     ? { name: 'room' as const, params: { id: selectedRoom.id } }
@@ -34,6 +35,7 @@ export function useAppPages(
       if (route.name === 'settings') return 'settings'
       if (route.name === 'discover') return 'discover'
       if (route.name === 'contacts') return 'contacts'
+      if (route.name === 'favorites') return 'favorites'
       return 'chat'
     },
     set: (value) => {
@@ -69,6 +71,12 @@ export function useAppPages(
     mobileView.value = 'chat'
   }
 
+  function openFavorites(): void {
+    if (!user.value) return
+    activePage.value = 'favorites'
+    mobileView.value = 'chat'
+  }
+
   function returnToChat(): void {
     activePage.value = 'chat'
     if (!selectedRoom.value) mobileView.value = 'rooms'
@@ -79,5 +87,14 @@ export function useAppPages(
     else openAuthentication()
   }
 
-  return { activePage, openProfile, openSettings, openDiscover, openContacts, requireAccount, returnToChat }
+  return {
+    activePage,
+    openProfile,
+    openSettings,
+    openDiscover,
+    openContacts,
+    openFavorites,
+    requireAccount,
+    returnToChat,
+  }
 }

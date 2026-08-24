@@ -31,7 +31,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT users.id, users.username, users.avatar_emoji, users.display_name, \
-                 users.signature, CASE \
+                 users.signature, COALESCE(remarks.remark, '') AS remark, CASE \
                    WHEN friendships.status = 'accepted' THEN 'friend' \
                    WHEN friendships.requested_by_id = $1 THEN 'outgoing' \
                    WHEN friendships.status = 'pending' THEN 'incoming' \
@@ -39,6 +39,8 @@ impl AppState {
                  FROM users LEFT JOIN friendships ON \
                    (friendships.user_low_id = $1 AND friendships.user_high_id = users.id) OR \
                    (friendships.user_high_id = $1 AND friendships.user_low_id = users.id) \
+                 LEFT JOIN friend_remarks AS remarks ON remarks.owner_id = $1 \
+                   AND remarks.friend_id = users.id \
                  WHERE users.id <> $1 \
                    AND (LOWER(users.username) LIKE LOWER($3) ESCAPE '\\' \
                      OR LOWER(users.display_name) LIKE LOWER($3) ESCAPE '\\') \

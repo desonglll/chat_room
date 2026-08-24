@@ -63,6 +63,10 @@ impl AppState {
         self.config.auth.session_lifetime_days
     }
 
+    pub(crate) fn session_cache(&self) -> Option<&crate::cache::SessionCache> {
+        self.session_cache.as_ref()
+    }
+
     pub fn chunk_body_limit_bytes(&self) -> usize {
         self.config.chunk_size_bytes().unwrap_or(8 * 1024 * 1024)
     }

@@ -81,6 +81,16 @@ export async function removeFriend(userId: string, token: string): Promise<void>
   if (!response.ok) throw new Error(`删除好友失败：${response.status}`)
 }
 
+export async function setFriendRemark(userId: string, remark: string, token: string): Promise<void> {
+  const response = await socialRequest(`/api/friends/${encodeURIComponent(userId)}/remark`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ remark }),
+  })
+  if (response.status === 400) throw new Error('好友备注最多 64 个字符')
+  if (response.status === 404) throw new Error('好友关系已失效')
+  if (!response.ok) throw new Error(`保存好友备注失败：${response.status}`)
+}
+
 export async function listBlockedUsers(token: string): Promise<SocialUser[]> {
   const response = await socialRequest('/api/blocks', token)
   if (!response.ok) throw new Error(`读取黑名单失败：${response.status}`)

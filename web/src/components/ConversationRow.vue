@@ -31,7 +31,13 @@ function formatActivity(value: string): string {
       ),
     }"
   >
-    <template v-if="conversation.avatar_emoji">{{ conversation.avatar_emoji }}</template>
+    <img
+      v-if="conversation.avatar_emoji.startsWith('/api/')"
+      :src="conversation.avatar_emoji"
+      alt=""
+      class="size-full rounded-full object-cover"
+    />
+    <template v-else-if="conversation.avatar_emoji">{{ conversation.avatar_emoji }}</template>
     <IconSprite v-else-if="conversation.kind === 'group'" name="rooms" :size="18" />
     <template v-else>{{ conversationDisplayTitle(conversation).slice(0, 1).toUpperCase() }}</template>
     <span

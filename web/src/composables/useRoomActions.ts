@@ -1,11 +1,9 @@
 import type { Ref } from 'vue'
 import { leaveRoom } from '../api'
-import { storageGet, storageSet } from '../browserStorage'
 import { conversationToRoom } from '../conversationState'
+import { clearRoomPassword, readRoomPassword, saveRoomPassword } from '../roomPasswordVault'
 import { canAutoConnectRoom } from '../roomMembershipState'
 import type { ChatStatus, ConversationSummary, Room, RoomUpdateResult, User } from '../types'
-
-const passwordKey = (roomId: string) => `chat-room.password.${roomId}`
 
 interface RoomActionOptions {
   rooms: Ref<Room[]>
@@ -13,6 +11,7 @@ interface RoomActionOptions {
   currentUser: Ref<User | null>
   token: Ref<string>
   password: Ref<string>
+  rememberPasswords: () => boolean
   mobileView: Ref<'rooms' | 'chat'>
   createOpen: Ref<boolean>
   manageOpen: Ref<boolean>
@@ -51,7 +50,7 @@ export function useRoomActions(options: RoomActionOptions) {
   function selectRoom(room: Room, autoConnect = false): void {
     options.closeChat()
     options.selectedRoom.value = room
-    options.password.value = storageGet(window.sessionStorage, passwordKey(room.id))
+    options.password.value = readRoomPassword(room.id, options.rememberPasswords())
     const reconnect =
       autoConnect && canAutoConnectRoom(room, options.currentUser.value, options.token.value, options.password.value)
     const preserveRoute = reconnect && options.routeName() === 'room' && options.routeRoomId.value === room.id
@@ -69,7 +68,7 @@ export function useRoomActions(options: RoomActionOptions) {
   function handleCreated(room: Room, password: string): void {
     options.createOpen.value = false
     options.rooms.value = [...options.rooms.value, room]
-    if (password) storageSet(window.sessionStorage, passwordKey(room.id), password)
+    if (password) saveRoomPassword(room.id, password, options.rememberPasswords())
     selectRoom(room)
     options.password.value = password
     options.showSuccess('聊天室已创建')
@@ -81,7 +80,7 @@ export function useRoomActions(options: RoomActionOptions) {
     options.rooms.value = options.rooms.value.map((room) => (room.id === result.room.id ? result.room : room))
     options.selectedRoom.value = result.room
     options.password.value = result.password
-    storageSet(window.sessionStorage, passwordKey(result.room.id), result.password)
+    saveRoomPassword(result.room.id, result.password, options.rememberPasswords())
     options.manageOpen.value = false
     if (result.passwordChanged) {
       selectRoom(result.room, hadSession)
@@ -93,7 +92,7 @@ export function useRoomActions(options: RoomActionOptions) {
 
   async function handleDeleted(roomId: string): Promise<void> {
     options.manageOpen.value = false
-    storageSet(window.sessionStorage, passwordKey(roomId), '')
+    clearRoomPassword(roomId)
     clearSelection()
     await Promise.all([options.refreshRooms(), options.refreshConversations()])
     options.showSuccess('聊天室已删除')

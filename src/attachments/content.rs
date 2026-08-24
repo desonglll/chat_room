@@ -361,7 +361,10 @@ impl AppState {
                     "SELECT EXISTS (\
                        SELECT 1 FROM attachments a JOIN messages m ON m.attachment_id = a.id \
                        WHERE COALESCE(a.storage_key, CAST(a.id AS TEXT)) = $1 \
-                       AND m.recalled_at IS NULL\
+                       AND m.recalled_at IS NULL \
+                       UNION ALL \
+                       SELECT 1 FROM attachments a JOIN favorites f ON f.attachment_id = a.id \
+                       WHERE COALESCE(a.storage_key, CAST(a.id AS TEXT)) = $1\
                      )",
                 )
                 .bind(&group_key)

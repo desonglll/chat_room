@@ -215,6 +215,10 @@ pub async fn update_me(
     headers: HeaderMap,
     Json(request): Json<UpdateProfileRequest>,
 ) -> Result<Json<User>, StatusCode> {
+    let replaces_image = request
+        .avatar_emoji
+        .as_ref()
+        .is_some_and(|avatar| !avatar.trim().starts_with("/api/users/"));
     let token = bearer_token(&headers)?;
     let current = state
         .session_user(token)
@@ -229,7 +233,9 @@ pub async fn update_me(
         .as_deref()
         .unwrap_or(&current.avatar_emoji)
         .trim();
-    if avatar_emoji.chars().count() > 8 || avatar_emoji.chars().any(char::is_control) {
+    let valid_avatar = avatar_emoji == current.avatar_emoji
+        || (avatar_emoji.chars().count() <= 8 && !avatar_emoji.chars().any(char::is_control));
+    if !valid_avatar {
         return Err(StatusCode::BAD_REQUEST);
     }
     let display_name = request
@@ -266,6 +272,21 @@ pub async fn update_me(
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    if replaces_image {
+        if let Some(storage_key) =
+            state
+                .delete_user_avatar_file(current.id)
+                .await
+                .map_err(|error| {
+                    tracing::error!("remove avatar metadata failed: {error}");
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?
+        {
+            if let Err(error) = state.attachment_store().remove(&storage_key).await {
+                tracing::warn!("remove avatar file failed: {error:#}");
+            }
+        }
+    }
     state.publish_member_profile(&updated).await;
     Ok(Json(updated))
 }
@@ -374,10 +395,37 @@ pub async fn delete_account(
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
     }
+    let avatar = state.avatar_file(current.id).await.map_err(|error| {
+        tracing::error!("load avatar before account deletion failed: {error}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let favorite_attachment_ids =
+        state
+            .favorite_attachment_ids(current.id)
+            .await
+            .map_err(|error| {
+                tracing::error!(
+                    "load favorite attachments before account deletion failed: {error}"
+                );
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
     let direct_room_ids = state.delete_user(current.id).await.map_err(|error| {
         tracing::error!("delete account failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+    if let Some(avatar) = avatar {
+        if let Err(error) = state.attachment_store().remove(&avatar.storage_key).await {
+            tracing::warn!("remove deleted account avatar failed: {error:#}");
+        }
+    }
+    for attachment_id in favorite_attachment_ids {
+        if let Err(error) = state
+            .recompute_attachment_orphan_status(attachment_id)
+            .await
+        {
+            tracing::warn!(%attachment_id, "recompute deleted favorite attachment failed: {error}");
+        }
+    }
     for room_id in direct_room_ids {
         state
             .remove_cached_room(room_id, "direct conversation closed")

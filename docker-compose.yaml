@@ -17,6 +17,19 @@ services:
       retries: 10
       start_period: 5s
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
   chatroom:
     image: ${CHAT_ROOM_IMAGE:-chatroom:local}
     build:
@@ -27,9 +40,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       CHAT_ROOM_ADMIN_USERNAMES: ${CHAT_ROOM_ADMIN_USERNAMES:-}
       CHAT_ROOM_DATABASE_URL: postgresql://${POSTGRES_USER:-chatroom}:${POSTGRES_PASSWORD:-chatroom}@postgres:5432/${POSTGRES_DB:-chatroom}
+      CHAT_ROOM_REDIS_URL: ${CHAT_ROOM_REDIS_URL:-redis://redis:6379/}
       RUST_LOG: ${RUST_LOG:-chat_room=info,tower_http=info}
     ports:
       - "${CHAT_ROOM_PORT:-3000}:3000"
@@ -46,3 +62,4 @@ services:
 volumes:
   attachment_data:
   postgres_data:
+  redis_data:
