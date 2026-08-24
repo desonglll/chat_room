@@ -63,6 +63,7 @@ jobs:
       - name: Check React web
         working-directory: web2
         run: |
+          bun run test
           bun run lint
           bun run build
 
@@ -78,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [backend, frontend]
+        target: [backend, frontend-react, frontend-vue]
     permissions:
       contents: read
       packages: write

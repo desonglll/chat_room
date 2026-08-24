@@ -23,7 +23,7 @@ RUN --mount=type=cache,id=chatroom-cargo-registry,target=/usr/local/cargo/regist
     cargo build --locked --release --bin server --features api-only && \
     cp target/release/server /tmp/chat-room
 
-FROM oven/bun:${BUN_VERSION} AS frontend-builder
+FROM oven/bun:${BUN_VERSION} AS frontend-react-builder
 
 WORKDIR /app
 COPY web2/package.json web2/bun.lock ./
@@ -35,14 +35,36 @@ COPY web2/public ./public
 COPY web2/src ./src
 RUN bun run build
 
-FROM nginx:1.29-alpine AS frontend
+FROM oven/bun:${BUN_VERSION} AS frontend-vue-builder
+
+WORKDIR /app
+COPY web/package.json web/bun.lock ./
+RUN --mount=type=cache,id=chatroom-bun-vue,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
+
+COPY web/index.html web/tsconfig.json web/vite.config.ts ./
+COPY web/public ./public
+COPY web/src ./src
+RUN bun run build
+
+FROM nginx:1.29-alpine AS frontend-base
 
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
     CMD wget --quiet --output-document=/dev/null http://127.0.0.1/healthz || exit 1
+
+FROM frontend-base AS frontend-react
+
+COPY --from=frontend-react-builder /app/dist /usr/share/nginx/html
+
+FROM frontend-base AS frontend-vue
+
+COPY --from=frontend-vue-builder /app/dist /usr/share/nginx/html
+
+# Keep the former target available for existing direct Docker builds.
+FROM frontend-react AS frontend
 
 FROM debian:bookworm-slim AS backend
 

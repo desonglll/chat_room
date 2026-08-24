@@ -2,12 +2,13 @@
 
 ## Architecture
 
-The Compose stack runs three services on one private bridge network while
-building only two application images:
+The Compose stack runs three services on one private bridge network. It runs
+the backend plus one selected frontend image; React and Vue are built and
+published as separate frontend images:
 
 | Service | Image | Purpose | Host port |
 | --- | --- | --- | --- |
-| `frontend` | `chatroom-frontend` | Serves the React application and proxies HTTP/WebSocket traffic | `3000` |
+| `frontend` | `chatroom-frontend-react` or `chatroom-frontend-vue` | Serves the selected application and proxies HTTP/WebSocket traffic | `3000` |
 | `backend` | `chatroom-backend` | Runs the Rust API and PostgreSQL migrations | None |
 | `postgres` | `postgres:17` | Stores the existing application database | None |
 
@@ -49,7 +50,8 @@ Do not copy into a volume that already contains a PostgreSQL database.
 
 ## Run locally
 
-Copy `.env.example` to `.env` when you need to change the defaults, then build
+Copy `.env.example` to `.env` when you need to change the defaults. Select one
+frontend with `CHAT_ROOM_FRONTEND=react` or `CHAT_ROOM_FRONTEND=vue`, then build
 and start the stack:
 
 ```sh
@@ -57,19 +59,36 @@ docker compose up --build -d
 docker compose ps
 ```
 
+To build both frontend images locally, run the builds separately. Each command
+creates its own image tag and does not change the database volume:
+
+```sh
+CHAT_ROOM_FRONTEND=react docker compose build frontend
+CHAT_ROOM_FRONTEND=vue docker compose build frontend
+```
+
+Switch the running frontend by changing `CHAT_ROOM_FRONTEND` in `.env` and
+running `docker compose up -d` again. The backend and PostgreSQL services remain
+the same.
+
 ChatRoom is available at <http://localhost:3000>. Compose waits for PostgreSQL
 and the backend health check before starting the frontend. Database records stay
 in `postgres_data`; uploaded files stay in `attachment_data`.
 
 ## Use published images
 
-Pushes to `master` and `v*` tags publish separate backend and frontend images
-to GitHub Container Registry. Set both variables in `.env`:
+Pushes to `master` and `v*` tags publish the backend, React frontend, and Vue
+frontend images to GitHub Container Registry. Select one frontend and set its
+published image in `.env`:
 
 ```dotenv
 CHAT_ROOM_BACKEND_IMAGE=ghcr.io/desonglll/chat_room-backend:latest
-CHAT_ROOM_FRONTEND_IMAGE=ghcr.io/desonglll/chat_room-frontend:latest
+CHAT_ROOM_FRONTEND=react
+CHAT_ROOM_FRONTEND_IMAGE=ghcr.io/desonglll/chat_room-frontend-react:latest
 ```
+
+For Vue, use `CHAT_ROOM_FRONTEND=vue` and
+`ghcr.io/desonglll/chat_room-frontend-vue:latest`.
 
 Then pull and start without a local rebuild:
 

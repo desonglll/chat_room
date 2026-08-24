@@ -49,11 +49,11 @@ services:
       - chatroom
 
   frontend:
-    image: ${CHAT_ROOM_FRONTEND_IMAGE:-chatroom-frontend:local}
+    image: ${CHAT_ROOM_FRONTEND_IMAGE:-chatroom-frontend-${CHAT_ROOM_FRONTEND:-react}:local}
     build:
       context: .
       dockerfile: Dockerfile
-      target: frontend
+      target: frontend-${CHAT_ROOM_FRONTEND:-react}
     restart: unless-stopped
     init: true
     depends_on:

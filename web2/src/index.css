@@ -38,6 +38,10 @@ textarea {
   min-height: 560px;
 }
 
+.app-shell.ant-layout {
+  flex-direction: row;
+}
+
 .workspace-surface {
   height: 100%;
   overflow: hidden;
