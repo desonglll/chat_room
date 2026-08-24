@@ -10,6 +10,7 @@ ENV CARGO_HTTP_TIMEOUT=600 \
     CARGO_NET_RETRY=10 \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
+COPY .cargo/config.toml /usr/local/cargo/config.toml
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY migrations ./migrations
 COPY migrations-postgres ./migrations-postgres

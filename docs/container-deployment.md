@@ -24,6 +24,9 @@ docker compose ps
 ChatRoom is available at <http://localhost:3000>. Compose waits for the backend
 health check before starting the frontend.
 
+Cargo downloads use the repository's `.cargo/config.toml` and its rsproxy
+sparse registry configuration during backend image builds.
+
 The stack keeps the SQLite database in `backend_data` and uploaded files in
 `attachment_data`. Neither the backend port nor these volumes are exposed by
 the frontend container.
