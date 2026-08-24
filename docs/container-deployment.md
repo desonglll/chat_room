@@ -1,55 +1,89 @@
 # Container deployment
 
+## Architecture
+
+The Compose stack runs three services on one private bridge network while
+building only two application images:
+
+| Service | Image | Purpose | Host port |
+| --- | --- | --- | --- |
+| `frontend` | `chatroom-frontend` | Serves the React application and proxies HTTP/WebSocket traffic | `3000` |
+| `backend` | `chatroom-backend` | Runs the Rust API and PostgreSQL migrations | None |
+| `postgres` | `postgres:17` | Stores the existing application database | None |
+
+Nginx forwards `/api`, `/api-docs`, and `/ws` to `backend:3000`. The backend
+connects to `postgres:5432` with the same `CHAT_ROOM_DATABASE_URL` used by the
+previous single-image application service.
+
+## Database compatibility
+
+The PostgreSQL volume defaults to the stable name `chatroom_postgres_data`,
+which is the volume created by the previous Compose file with `name: chatroom`.
+An existing named volume is reused in place; the backend applies only pending
+`migrations-postgres` migrations.
+
+The defaults `POSTGRES_USER=postgres`, `POSTGRES_PASSWORD=postgres`, and
+`POSTGRES_DB=chatroom` match the legacy local stack. An initialized PostgreSQL
+volume does not recreate users when these variables change, so deployments with
+custom legacy credentials must keep the same values in `.env`.
+
+To use a differently named existing volume, set it in `.env`:
+
+```dotenv
+POSTGRES_VOLUME_NAME=existing_postgres_volume
+```
+
+Older Compose versions may have created an anonymous PostgreSQL volume. Stop
+PostgreSQL before copying it once into the stable volume, and keep the source
+volume until the migrated stack has been verified:
+
+```sh
+docker volume create chatroom_postgres_data
+docker run --rm --user root --entrypoint cp \
+  --mount type=volume,src=<legacy-volume>,dst=/from,readonly \
+  --mount type=volume,src=chatroom_postgres_data,dst=/to \
+  postgres:17 -a /from/. /to/
+```
+
+Do not copy into a volume that already contains a PostgreSQL database.
+
 ## Run locally
 
-Copy `.env.example` to `.env` when you need to change the defaults, then start
-the application and PostgreSQL:
+Copy `.env.example` to `.env` when you need to change the defaults, then build
+and start the stack:
 
 ```sh
 docker compose up --build -d
 docker compose ps
 ```
 
-ChatRoom is available at <http://localhost:3000>. The application waits for
-PostgreSQL to become healthy and applies `migrations-postgres` automatically at
-startup.
+ChatRoom is available at <http://localhost:3000>. Compose waits for PostgreSQL
+and the backend health check before starting the frontend. Database records stay
+in `postgres_data`; uploaded files stay in `attachment_data`.
 
-The Compose stack keeps database records in `postgres_data` and uploaded files
-in `attachment_data`. PostgreSQL is only reachable from the internal Compose
-network. Use `docker compose exec postgres psql -U chatroom -d chatroom` for
-local database access.
+## Use published images
 
-For non-local deployments, set a strong `POSTGRES_PASSWORD`. If it contains URL
-reserved characters, percent-encode them because the same value is placed in
-`CHAT_ROOM_DATABASE_URL`.
-
-## Use a published image
-
-The GitHub Actions workflow tests Rust and Vue changes on pull requests. Pushes
-to `master` and `v*` tags also publish the image to GitHub Container Registry.
-Set this in `.env` to use it instead of the local image name:
+Pushes to `master` and `v*` tags publish separate backend and frontend images
+to GitHub Container Registry. Set both variables in `.env`:
 
 ```dotenv
-CHAT_ROOM_IMAGE=ghcr.io/desonglll/chat_room:latest
+CHAT_ROOM_BACKEND_IMAGE=ghcr.io/desonglll/chat_room-backend:latest
+CHAT_ROOM_FRONTEND_IMAGE=ghcr.io/desonglll/chat_room-frontend:latest
 ```
 
-Then pull and start the services without a local rebuild:
+Then pull and start without a local rebuild:
 
 ```sh
-docker compose pull chatroom
+docker compose pull backend frontend
 docker compose up -d --no-build
 ```
-
-Published tags include `latest` for `master`, the branch or version tag, and a
-`sha-<commit>` tag. Private packages require a `docker login ghcr.io` with
-`read:packages` permission before pulling.
 
 ## Operations
 
 Inspect logs and health status with:
 
 ```sh
-docker compose logs -f chatroom
+docker compose logs -f frontend backend postgres
 docker compose ps
 ```
 
@@ -59,6 +93,5 @@ Stop containers without deleting stored data:
 docker compose down
 ```
 
-Back up both named volumes before upgrades. `docker compose down --volumes`
-deletes the PostgreSQL database and uploaded attachments and should not be used
-for a normal shutdown.
+Back up `postgres_data` and `attachment_data` before upgrades. Running
+`docker compose down --volumes` deletes both and is not a normal shutdown.

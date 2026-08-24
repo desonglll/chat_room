@@ -2,12 +2,12 @@ name: chatroom
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-chatroom}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatroom}
-      POSTGRES_USER: ${POSTGRES_USER:-chatroom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,12 +16,15 @@ services:
       timeout: 5s
       retries: 10
       start_period: 5s
+    networks:
+      - chatroom
 
-  chatroom:
-    image: ${CHAT_ROOM_IMAGE:-chatroom:local}
+  backend:
+    image: ${CHAT_ROOM_BACKEND_IMAGE:-chatroom-backend:local}
     build:
       context: .
       dockerfile: Dockerfile
+      target: backend
     restart: unless-stopped
     init: true
     depends_on:
@@ -29,10 +32,10 @@ services:
         condition: service_healthy
     environment:
       CHAT_ROOM_ADMIN_USERNAMES: ${CHAT_ROOM_ADMIN_USERNAMES:-}
-      CHAT_ROOM_DATABASE_URL: postgresql://${POSTGRES_USER:-chatroom}:${POSTGRES_PASSWORD:-chatroom}@postgres:5432/${POSTGRES_DB:-chatroom}
+      CHAT_ROOM_DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-chatroom}
       RUST_LOG: ${RUST_LOG:-chat_room=info,tower_http=info}
-    ports:
-      - "${CHAT_ROOM_PORT:-3000}:3000"
+    expose:
+      - "3000"
     volumes:
       - attachment_data:/app/chat_attachments
     read_only: true
@@ -42,7 +45,37 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    networks:
+      - chatroom
+
+  frontend:
+    image: ${CHAT_ROOM_FRONTEND_IMAGE:-chatroom-frontend:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    restart: unless-stopped
+    init: true
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${CHAT_ROOM_PORT:-3000}:80"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=64m
+      - /var/run:size=1m
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - chatroom
+
+networks:
+  chatroom:
+    driver: bridge
 
 volumes:
   attachment_data:
   postgres_data:
+    name: ${POSTGRES_VOLUME_NAME:-chatroom_postgres_data}
