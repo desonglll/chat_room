@@ -282,6 +282,7 @@ onBeforeUnmount(() => {
       :authenticated="authenticated"
       :members="members"
       :current-user-id="currentUserId"
+      :token="token"
       @back="emit('back')"
       @manage="emit('manage')"
       @leave="emit('leave')"

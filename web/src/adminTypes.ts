@@ -54,6 +54,11 @@ export interface AdminSystemLockStatus {
   locked: boolean
 }
 
+export interface AdminRoomLockStatus {
+  room_id: string
+  locked: boolean
+}
+
 export interface AdminPurgeResult {
   attachment_objects_deleted: number
   attachment_bytes_deleted: number

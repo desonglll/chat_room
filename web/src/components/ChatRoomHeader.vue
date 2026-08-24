@@ -17,6 +17,7 @@ import Menu from 'primevue/menu'
 import Popover from 'primevue/popover'
 import { avatarColor } from '../avatarColor'
 import type { ChatStatus, Room, RoomMember, UserSummary } from '../types'
+import AdminRoomLockButton from './AdminRoomLockButton.vue'
 import IconSprite from './IconSprite.vue'
 
 const props = defineProps<{
@@ -30,6 +31,7 @@ const props = defineProps<{
   authenticated: boolean
   members: RoomMember[]
   currentUserId: string
+  token: string
 }>()
 
 const emit = defineEmits<{
@@ -221,6 +223,7 @@ async function copyRoomId(): Promise<void> {
           <p v-else class="py-6 text-center text-sm text-muted-color">暂无在线成员</p>
         </div>
       </Popover>
+      <AdminRoomLockButton :room-id="room.id" :token="token" />
       <Button
         v-if="kind === 'group'"
         class="cr-header-action cr-header-secondary"

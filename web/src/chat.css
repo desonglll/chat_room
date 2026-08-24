@@ -54,6 +54,18 @@
   color: var(--cr-primary);
 }
 
+.cr-header-action.is-room-locked {
+  border-color: color-mix(in srgb, var(--cr-danger) 30%, var(--cr-border));
+  background: color-mix(in srgb, var(--cr-danger) 8%, var(--cr-surface));
+  color: var(--cr-danger);
+}
+
+.cr-header-action.is-room-locked:hover {
+  border-color: color-mix(in srgb, var(--cr-danger) 44%, var(--cr-border));
+  background: color-mix(in srgb, var(--cr-danger) 13%, var(--cr-surface));
+  color: var(--cr-danger);
+}
+
 .cr-message-list {
   min-height: 0;
   padding: 1.25rem clamp(0.75rem, 2vw, 1.5rem) 2rem;

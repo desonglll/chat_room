@@ -84,7 +84,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             return;
         }
     };
-    if reject_locked_auth(&state, &mut sink).await {
+    if reject_locked_auth(&state, room_id, &mut sink).await {
         return;
     }
     let username = user.username.clone();
@@ -430,7 +430,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                     }
                 },
                 _ = heartbeat.tick() => {
-                    if close_if_locked(&forwarding_state, &mut sink).await {
+                    if close_if_locked(&forwarding_state, room_id, &mut sink).await {
                         return;
                     }
                     if sink.send(Message::Ping(Vec::new())).await.is_err() {

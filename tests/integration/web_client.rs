@@ -49,11 +49,10 @@ async fn web_client_is_only_served_when_enabled() {
         admin_dashboard.headers()[reqwest::header::CONTENT_TYPE],
         "text/javascript; charset=utf-8"
     );
-    assert!(admin_dashboard
-        .text()
-        .await
-        .unwrap()
-        .contains("/api/admin/overview"));
+    let admin_dashboard = admin_dashboard.text().await.unwrap();
+    assert!(
+        script.contains("/api/admin/overview") || admin_dashboard.contains("/api/admin/overview")
+    );
 
     let lazy_dialog = reqwest::get(format!("{}/assets/AuthDialog.js", web))
         .await

@@ -88,6 +88,22 @@ async fn set_lock(client: &Client, base: &str, token: &str, locked: bool) -> req
         .unwrap()
 }
 
+async fn set_room_lock(
+    client: &Client,
+    base: &str,
+    token: &str,
+    room_id: &str,
+    locked: bool,
+) -> reqwest::Response {
+    client
+        .put(format!("{base}/api/admin/room-locks/{room_id}"))
+        .bearer_auth(token)
+        .json(&serde_json::json!({ "locked": locked }))
+        .send()
+        .await
+        .unwrap()
+}
+
 #[tokio::test]
 async fn administrators_can_lock_and_unlock_every_chat_room() {
     let server = start().await;
@@ -195,5 +211,125 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
         .unwrap();
     assert_eq!(unlocked["locked"], false);
     let (_, restored) = open_room(&server.base, room_id, &regular).await;
+    assert_eq!(restored["type"], "auth_ok");
+}
+
+#[tokio::test]
+async fn administrators_can_lock_one_room_without_affecting_others() {
+    let server = start().await;
+    let client = Client::new();
+    let admin = session_token(&server.base, "ops-admin").await;
+    let regular = session_token(&server.base, "room-lock-regular").await;
+    let visitor = session_token(&server.base, "room-lock-visitor").await;
+    let first: serde_json::Value = client
+        .post(format!("{}/api/rooms", server.base))
+        .bearer_auth(&regular)
+        .json(&serde_json::json!({ "name": "locked-room", "password": "" }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let second: serde_json::Value = client
+        .post(format!("{}/api/rooms", server.base))
+        .bearer_auth(&regular)
+        .json(&serde_json::json!({ "name": "open-room", "password": "" }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let first_id = first["id"].as_str().unwrap();
+    let second_id = second["id"].as_str().unwrap();
+    let (mut first_socket, first_auth) = open_room(&server.base, first_id, &regular).await;
+    let (_, second_auth) = open_room(&server.base, second_id, &regular).await;
+    assert_eq!(first_auth["type"], "auth_ok");
+    assert_eq!(second_auth["type"], "auth_ok");
+
+    assert_eq!(
+        client
+            .get(format!("{}/api/admin/room-locks/{first_id}", server.base))
+            .bearer_auth(&regular)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::FORBIDDEN
+    );
+    let initial: serde_json::Value = client
+        .get(format!("{}/api/admin/room-locks/{first_id}", server.base))
+        .bearer_auth(&admin)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(initial["locked"], false);
+
+    let locked: serde_json::Value = set_room_lock(&client, &server.base, &admin, first_id, true)
+        .await
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(locked["room_id"], first_id);
+    assert_eq!(locked["locked"], true);
+    assert_eq!(
+        next_type(&mut first_socket, "system").await["content"],
+        "room locked"
+    );
+
+    let (_, rejected) = open_room(&server.base, first_id, &regular).await;
+    assert_eq!(rejected["type"], "auth_fail");
+    assert_eq!(rejected["reason"], "room locked");
+    let (_, unaffected) = open_room(&server.base, second_id, &regular).await;
+    assert_eq!(unaffected["type"], "auth_ok");
+    assert_eq!(
+        client
+            .post(format!(
+                "{}/api/rooms/{first_id}/join-requests",
+                server.base
+            ))
+            .bearer_auth(&visitor)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::LOCKED
+    );
+    assert!(client
+        .post(format!(
+            "{}/api/rooms/{second_id}/join-requests",
+            server.base
+        ))
+        .bearer_auth(&visitor)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .is_success());
+    assert_eq!(
+        client
+            .post(format!("{}/api/rooms", server.base))
+            .bearer_auth(&regular)
+            .json(&serde_json::json!({ "name": "still-open", "password": "" }))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::CREATED
+    );
+
+    assert_eq!(
+        set_room_lock(&client, &server.base, &admin, first_id, false)
+            .await
+            .status(),
+        StatusCode::OK
+    );
+    let (_, restored) = open_room(&server.base, first_id, &regular).await;
     assert_eq!(restored["type"], "auth_ok");
 }

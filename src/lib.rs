@@ -88,6 +88,8 @@ use crate::state::AppState;
         admin_metrics::overview,
         admin_metrics::purge,
         admin_system_lock::update,
+        admin_system_lock::room_status,
+        admin_system_lock::update_room,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -132,6 +134,7 @@ use crate::state::AppState;
         admin_metrics::PurgeResult,
         admin_system_lock::SystemLockStatus,
         admin_system_lock::UpdateSystemLockRequest,
+        admin_system_lock::RoomLockStatus,
     ))
 )]
 pub struct ApiDoc;
@@ -292,6 +295,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/admin/chat-lock",
             axum::routing::put(admin_system_lock::update),
+        )
+        .route(
+            "/api/admin/room-locks/:room_id",
+            get(admin_system_lock::room_status).put(admin_system_lock::update_room),
         )
         .route("/ws/account", get(account_ws::account_ws_handler))
         .route("/ws/:room_id", get(ws::ws_handler))

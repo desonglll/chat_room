@@ -29,6 +29,7 @@ export const AUTH_ERRORS: Record<string, string> = {
   'membership required': '请先申请加入聊天室',
   'membership pending': '加入申请正在等待管理员审核',
   'system locked': '系统已锁定所有聊天室，解锁后才能进入',
+  'room locked': '该会话已被管理员锁定，解锁后才能进入',
   'invalid json': '认证请求无效',
 }
 
@@ -42,6 +43,7 @@ export function readableSystemMessage(content: string): string {
   if (content === 'room deleted') return '聊天室已被删除'
   if (content === 'room password changed') return '聊天室密码已更改，请重新加入'
   if (content === 'system locked') return '系统已锁定所有聊天室，当前连接已关闭'
+  if (content === 'room locked') return '该会话已被管理员锁定，当前连接已关闭'
   if (content === 'message history is temporarily unavailable') return '暂时无法读取历史消息'
   const failed = content.match(/^message from (.*) was not saved or broadcast$/)
   if (failed) return `${failed[1]} 的消息保存失败`

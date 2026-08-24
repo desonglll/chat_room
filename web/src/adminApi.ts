@@ -1,4 +1,4 @@
-import type { AdminOverview, AdminPurgeResult, AdminSystemLockStatus } from './adminTypes'
+import type { AdminOverview, AdminPurgeResult, AdminRoomLockStatus, AdminSystemLockStatus } from './adminTypes'
 
 export class AdminApiError extends Error {
   constructor(public readonly status: number) {
@@ -31,4 +31,14 @@ export async function purgeAdminRetention(token: string): Promise<AdminPurgeResu
 
 export async function setAdminChatLock(locked: boolean, token: string): Promise<AdminSystemLockStatus> {
   return (await adminRequest('/api/admin/chat-lock', token, 'PUT', { locked })).json() as Promise<AdminSystemLockStatus>
+}
+
+export async function getAdminRoomLock(roomId: string, token: string): Promise<AdminRoomLockStatus> {
+  return (await adminRequest(`/api/admin/room-locks/${roomId}`, token)).json() as Promise<AdminRoomLockStatus>
+}
+
+export async function setAdminRoomLock(roomId: string, locked: boolean, token: string): Promise<AdminRoomLockStatus> {
+  return (
+    await adminRequest(`/api/admin/room-locks/${roomId}`, token, 'PUT', { locked })
+  ).json() as Promise<AdminRoomLockStatus>
 }

@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 
-use crate::admin_system_lock::require_chat_rooms_unlocked;
+use crate::admin_system_lock::{require_chat_rooms_unlocked, require_room_unlocked};
 use crate::conversations::models::ConversationSummary;
 use crate::social::models::FriendRequestPayload;
 use crate::state::SharedState;
@@ -45,6 +45,7 @@ pub async fn start_direct_chat(
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         })?;
+    require_room_unlocked(&state, room_id).await?;
     state
         .conversation_summary(user.id, room_id)
         .await
