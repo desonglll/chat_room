@@ -104,6 +104,7 @@ export async function startDirectChat(userId: string, token: string): Promise<Co
     body: JSON.stringify({ user_id: userId }),
   })
   if (response.status === 409) throw new Error('成为好友后才能开始私聊')
+  if (response.status === 423) throw new Error('系统已锁定聊天室，解锁后才能开始私聊')
   if (!response.ok) throw new Error(`开始私聊失败：${response.status}`)
   return response.json() as Promise<ConversationSummary>
 }

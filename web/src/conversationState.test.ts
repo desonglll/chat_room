@@ -6,6 +6,7 @@ import {
   conversationDisplayTitle,
   conversationToRoom,
   removeConversation,
+  shouldRevealConversationPreview,
   sortConversations,
 } from './conversationState'
 import type { AccountMessageEvent, ConversationSummary } from './types'
@@ -30,6 +31,13 @@ function conversation(overrides: Partial<ConversationSummary> = {}): Conversatio
 }
 
 describe('conversation state', () => {
+  it('reveals message previews only while a chat is actively selected', () => {
+    expect(shouldRevealConversationPreview('chat', 'room-1')).toBe(true)
+    expect(shouldRevealConversationPreview('chat', undefined)).toBe(false)
+    expect(shouldRevealConversationPreview('contacts', 'room-1')).toBe(false)
+    expect(shouldRevealConversationPreview('settings', 'room-1')).toBe(false)
+  })
+
   it('sorts the most recently active conversation first without mutating input', () => {
     const older = conversation({ room_id: 'older' })
     const newer = conversation({ room_id: 'newer', last_activity_at: '2026-08-19T09:00:00Z' })

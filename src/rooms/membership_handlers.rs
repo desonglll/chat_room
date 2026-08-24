@@ -7,6 +7,7 @@ use axum::{
 };
 use uuid::Uuid;
 
+use crate::admin_system_lock::require_chat_rooms_unlocked;
 use crate::handlers::authorize_room;
 use crate::models::{
     ChatMessage, InviteMemberRequest, JoinRoomRequest, RoomMembership, UpdateMembershipRequest,
@@ -92,6 +93,7 @@ pub async fn request_join(
     Json(request): Json<JoinRoomRequest>,
 ) -> Result<(StatusCode, Json<RoomMembership>), StatusCode> {
     let user = session_user(&state, &headers).await?;
+    require_chat_rooms_unlocked(&state).await?;
     reject_direct_room(&state, room_id).await?;
     let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     if !authorize_room(&room, request.password.as_deref()) {

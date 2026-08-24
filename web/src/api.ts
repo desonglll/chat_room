@@ -162,6 +162,7 @@ export async function createRoom(
     }),
   })
   if (response.status === 400) throw new Error('房间名称或密码不符合要求')
+  if (response.status === 423) throw new Error('系统已锁定聊天室，暂时无法新建')
   if (response.status === 409) throw new Error('房间名称已存在')
   if (!response.ok) throw new Error(`创建房间失败：${response.status}`)
   return response.json() as Promise<Room>
@@ -265,6 +266,7 @@ export async function requestRoomJoin(roomId: string, token: string, password: s
     body: JSON.stringify({ password: password || null }),
   })
   if (response.status === 401) throw new Error('房间密码错误或登录已过期')
+  if (response.status === 423) throw new Error('系统已锁定聊天室，解锁后才能进入')
   if (!response.ok) throw new Error(`加入申请失败：${response.status}`)
   return response.json() as Promise<RoomMembership>
 }

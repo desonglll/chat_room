@@ -10,7 +10,7 @@ import Menu from 'primevue/menu'
 import Skeleton from 'primevue/skeleton'
 import type { MenuItem } from 'primevue/menuitem'
 import { useSidebarWidth } from '../composables/useSidebarWidth'
-import { conversationDisplayTitle } from '../conversationState'
+import { conversationDisplayTitle, shouldRevealConversationPreview } from '../conversationState'
 import type { ConversationSummary, Room, User } from '../types'
 import ConversationAliasDialog from './ConversationAliasDialog.vue'
 import ConversationRow from './ConversationRow.vue'
@@ -56,6 +56,7 @@ const visibleConversations = computed(() => {
   const needle = query.value.trim().toLowerCase()
   return props.conversations.filter((item) => !needle || `${item.alias} ${item.title}`.toLowerCase().includes(needle))
 })
+const revealPreview = computed(() => shouldRevealConversationPreview(props.activeSection, props.selectedId))
 const contextMenu = ref()
 const contextItems = ref<MenuItem[]>([])
 const aliasConversation = ref<ConversationSummary | null>(null)
@@ -211,7 +212,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
                 :conversation="conversation"
                 :selected="conversation.room_id === selectedId"
                 :collapsed="false"
-                :reveal-preview="true"
+                :reveal-preview="revealPreview"
               />
             </button>
             <button

@@ -145,6 +145,7 @@ pub struct AdminOverview {
     websocket_connections: u64,
     orphan_retention_hours: i64,
     deleted_room_retention_days: i64,
+    chat_rooms_locked: bool,
     runtime: RuntimeSnapshot,
     totals: AdminTotals,
     storage: StorageMetrics,
@@ -172,7 +173,7 @@ struct OrphanGroup {
     size_bytes: i64,
 }
 
-async fn require_admin(state: &AppState, headers: &HeaderMap) -> Result<(), StatusCode> {
+pub(crate) async fn require_admin(state: &AppState, headers: &HeaderMap) -> Result<(), StatusCode> {
     let token = bearer_token(headers)?;
     let user = state
         .session_user(token)
@@ -262,6 +263,7 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
         .await
     })?;
     let (online_users, websocket_connections) = state.online_counts().await;
+    let chat_rooms_locked = state.chat_rooms_locked().await?;
     Ok(AdminOverview {
         generated_at: now,
         database_backend: state.database_backend().to_string(),
@@ -274,6 +276,7 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
         websocket_connections,
         orphan_retention_hours: state.orphan_retention_hours(),
         deleted_room_retention_days: state.deleted_room_retention_days(),
+        chat_rooms_locked,
         runtime: state.runtime_metrics().snapshot(),
         totals,
         storage,

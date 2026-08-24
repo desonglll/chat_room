@@ -97,6 +97,7 @@ async fn overview_requires_allowlisted_authenticated_account() {
     let overview: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(overview["database_backend"], "sqlite");
     assert_eq!(overview["attachment_backend"], "local");
+    assert_eq!(overview["chat_rooms_locked"], false);
     assert_eq!(overview["totals"]["users"], 2);
     assert_eq!(overview["totals"]["active_rooms"], 1);
     assert!(overview["runtime"]["requests"].as_u64().unwrap() >= 2);

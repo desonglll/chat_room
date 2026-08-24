@@ -43,10 +43,15 @@ export interface AdminOverview {
   websocket_connections: number
   orphan_retention_hours: number
   deleted_room_retention_days: number
+  chat_rooms_locked: boolean
   runtime: AdminRuntimeMetrics
   totals: AdminTotals
   storage: AdminStorageMetrics
   top_rooms: AdminTopRoom[]
+}
+
+export interface AdminSystemLockStatus {
+  locked: boolean
 }
 
 export interface AdminPurgeResult {

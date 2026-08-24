@@ -4,6 +4,7 @@ use axum::{
     Json,
 };
 
+use crate::admin_system_lock::require_chat_rooms_unlocked;
 use crate::conversations::models::ConversationSummary;
 use crate::social::models::FriendRequestPayload;
 use crate::state::SharedState;
@@ -30,6 +31,7 @@ pub async fn start_direct_chat(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    require_chat_rooms_unlocked(&state).await?;
     if user.id == payload.user_id {
         return Err(StatusCode::BAD_REQUEST);
     }

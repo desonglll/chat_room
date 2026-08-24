@@ -10,6 +10,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+use crate::admin_system_lock::require_chat_rooms_unlocked;
 use crate::message_store::MessageCursor;
 use crate::models::{CreateRoomRequest, Room, StoredMessage, UpdateRoomRequest};
 use crate::state::{with_pool, SharedState};
@@ -66,6 +67,7 @@ pub async fn create_room(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    require_chat_rooms_unlocked(&state).await?;
     let name = req.name.trim().to_string();
     if !valid_room_name(&name) {
         return Err(StatusCode::BAD_REQUEST);

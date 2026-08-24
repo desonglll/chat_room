@@ -17,6 +17,7 @@ use uuid::Uuid;
 use crate::message_store::MessageCursor;
 use crate::models::ChatMessage;
 use crate::realtime::protocol::{advance_message_cursor, stored_message_to_chat};
+use crate::realtime::system_lock::{close_if_locked, reject_locked_auth};
 use crate::state::{RoomEvent, SharedState};
 use crate::ws_auth::authenticate;
 use crate::ws_inbound::handle_client_message;
@@ -83,6 +84,9 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             return;
         }
     };
+    if reject_locked_auth(&state, &mut sink).await {
+        return;
+    }
     let username = user.username.clone();
     let membership = match state.membership_identity(room_id, user.id).await {
         Ok(Some((status, _))) if status == "active" => None,
@@ -426,6 +430,9 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                     }
                 },
                 _ = heartbeat.tick() => {
+                    if close_if_locked(&forwarding_state, &mut sink).await {
+                        return;
+                    }
                     if sink.send(Message::Ping(Vec::new())).await.is_err() {
                         break;
                     }
@@ -475,7 +482,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
     }
 }
 
-async fn send_json(
+pub(super) async fn send_json(
     sink: &mut futures_util::stream::SplitSink<WebSocket, Message>,
     message: &ChatMessage,
 ) -> Result<(), axum::Error> {

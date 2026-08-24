@@ -19,7 +19,7 @@ pub mod storage;
 pub mod web;
 
 pub use accounts::{account_ws, user_handlers, users};
-pub use admin::metrics as admin_metrics;
+pub use admin::{metrics as admin_metrics, system_lock as admin_system_lock};
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
     file_handlers, handlers as attachment_handlers, storage as attachment_storage,
@@ -87,6 +87,7 @@ use crate::state::AppState;
         ai_handlers::suggest,
         admin_metrics::overview,
         admin_metrics::purge,
+        admin_system_lock::update,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -129,6 +130,8 @@ use crate::state::AppState;
         conversations::models::UpdateConversationAliasRequest,
         admin_metrics::AdminOverview,
         admin_metrics::PurgeResult,
+        admin_system_lock::SystemLockStatus,
+        admin_system_lock::UpdateSystemLockRequest,
     ))
 )]
 pub struct ApiDoc;
@@ -285,6 +288,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/admin/maintenance/purge",
             axum::routing::post(admin_metrics::purge),
+        )
+        .route(
+            "/api/admin/chat-lock",
+            axum::routing::put(admin_system_lock::update),
         )
         .route("/ws/account", get(account_ws::account_ws_handler))
         .route("/ws/:room_id", get(ws::ws_handler))

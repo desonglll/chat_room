@@ -329,6 +329,14 @@ impl AppState {
         }
     }
 
+    pub async fn disconnect_all_chat_rooms(&self, reason: &str) {
+        for room in self.channels.read().await.values() {
+            let _ = room.tx.send(RoomEvent::Disconnect {
+                reason: reason.to_string(),
+            });
+        }
+    }
+
     /// Refresh a connected account in every room and publish the new member snapshots.
     pub async fn publish_member_profile(&self, user: &User) {
         let snapshots = {

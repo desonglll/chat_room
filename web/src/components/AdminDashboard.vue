@@ -25,6 +25,7 @@ import ToggleSwitch from 'primevue/toggleswitch'
 import { AdminApiError, getAdminOverview, purgeAdminRetention } from '../adminApi'
 import type { AdminOverview, AdminPurgeResult } from '../adminTypes'
 import { storageGet } from '../browserStorage'
+import AdminSystemLockPanel from './AdminSystemLockPanel.vue'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const REFRESH_INTERVAL_MS = 15_000
@@ -195,6 +196,13 @@ onBeforeUnmount(() => window.clearInterval(timer))
           >
           <span class="ml-auto">更新于 {{ formatTime(overview.generated_at) }}</span>
         </section>
+
+        <AdminSystemLockPanel
+          :locked="overview.chat_rooms_locked"
+          :token="token"
+          @updated="overview.chat_rooms_locked = $event"
+          @error="error = $event"
+        />
 
         <section aria-labelledby="overview-heading">
           <h2 id="overview-heading" class="mb-3 text-sm font-semibold">实时概览</h2>

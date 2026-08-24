@@ -108,3 +108,7 @@ export function conversationPreview(conversation: ConversationSummary, revealCon
 export function conversationAttentionCount(conversation: ConversationSummary): number {
   return conversation.unread_count + conversation.pending_join_requests
 }
+
+export function shouldRevealConversationPreview(activeSection: string, selectedId?: string): boolean {
+  return activeSection === 'chat' && Boolean(selectedId)
+}
