@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tailwindcss-primeui';
 @import './tokens.css';
+@import './workspace.css';
 
 @keyframes message-incoming {
   from {
@@ -34,10 +35,10 @@
 @keyframes message-highlight {
   0%,
   100% {
-    background-color: transparent;
+    opacity: 0;
   }
   35% {
-    background-color: color-mix(in srgb, var(--p-primary-color) 14%, transparent);
+    opacity: 1;
   }
 }
 
@@ -50,19 +51,31 @@
 }
 
 .motion-system {
-  animation: message-system 0.14s ease-out;
+  animation: message-system 0.14s var(--cr-ease-out);
 }
 
 .message-highlight {
-  animation: message-highlight 0.9s ease-out;
+  position: relative;
+  isolation: isolate;
+}
+
+.message-highlight::before {
+  position: absolute;
+  inset: -0.25rem;
+  z-index: -1;
+  border-radius: var(--cr-radius-lg);
+  background: color-mix(in srgb, var(--cr-primary) 12%, transparent);
+  content: '';
+  animation: message-highlight 0.8s var(--cr-ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .motion-incoming,
   .motion-outgoing,
   .motion-system,
-  .message-highlight {
+  .message-highlight::before {
     animation: none;
+    opacity: 0;
   }
 }
 /* Redirect Tailwind's shadow/radius/ease scale onto the brand token system —
@@ -164,7 +177,7 @@
 
   .cr-bubble-outgoing {
     background: var(--cr-bubble-outgoing);
-    color: var(--cr-text);
+    color: var(--cr-bubble-outgoing-text);
   }
 }
 
@@ -180,12 +193,11 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
-/* Unified spring-based press feedback for every PrimeVue button/toggle in the
-   app — one rule instead of hand-tuning each component's hover/active state. */
+/* Unified press feedback for every PrimeVue button/toggle in the app. */
 .p-button,
 .p-togglebutton {
   transition:
-    transform var(--cr-motion-fast) var(--cr-ease-spring),
+    transform var(--cr-motion-fast) var(--cr-ease-out),
     background var(--cr-motion-normal) var(--cr-ease-out),
     box-shadow var(--cr-motion-normal) var(--cr-ease-out),
     border-color var(--cr-motion-normal) var(--cr-ease-out);
@@ -225,19 +237,12 @@
 
 .room-switch-enter-active,
 .room-switch-leave-active {
-  transition:
-    opacity var(--cr-motion-normal) var(--cr-ease-out),
-    transform var(--cr-motion-normal) var(--cr-ease-out);
+  transition: opacity var(--cr-motion-fast) var(--cr-ease-out);
 }
 
-.room-switch-enter-from {
-  opacity: 0;
-  transform: translateX(8px);
-}
-
+.room-switch-enter-from,
 .room-switch-leave-to {
   opacity: 0;
-  transform: translateX(-4px);
 }
 
 @media (prefers-reduced-motion: reduce) {

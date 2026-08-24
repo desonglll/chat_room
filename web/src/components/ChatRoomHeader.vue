@@ -97,7 +97,7 @@ async function copyRoomId(): Promise<void> {
 
 <template>
   <header
-    class="flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b border-surface-200 bg-surface-0 px-3 pt-[env(safe-area-inset-top)] sm:px-4 md:h-16 md:pt-0"
+    class="cr-chat-header flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b px-3 pt-[env(safe-area-inset-top)] sm:px-5 md:h-19 md:pt-0"
   >
     <div class="flex min-w-0 items-center gap-2 sm:gap-3">
       <Button
@@ -114,7 +114,7 @@ async function copyRoomId(): Promise<void> {
       <button
         v-if="kind === 'direct' && peer"
         type="button"
-        class="shrink-0 rounded-full outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
+        class="cr-profile-trigger shrink-0 rounded-full outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
         aria-label="查看对方资料"
         @click="emit('viewProfile', peer.id)"
       >
@@ -138,7 +138,7 @@ async function copyRoomId(): Promise<void> {
           <button
             v-if="kind === 'direct' && peer"
             type="button"
-            class="min-w-0 flex-1 truncate rounded-sm text-left text-[15px] font-semibold text-surface-900 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"
+            class="cr-chat-header-title min-w-0 flex-1 truncate rounded-sm text-left text-base font-semibold text-surface-900 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"
             :title="room.description || undefined"
             @click="emit('viewProfile', peer.id)"
           >
@@ -146,13 +146,14 @@ async function copyRoomId(): Promise<void> {
           </button>
           <strong
             v-else
-            class="min-w-0 flex-1 truncate text-[15px] font-semibold text-surface-900"
+            class="cr-chat-header-title min-w-0 flex-1 truncate text-base font-semibold text-surface-900"
             :title="room.description || undefined"
           >
             {{ room.name }}
           </strong>
           <Button
             v-if="kind === 'group'"
+            class="cr-copy-room-id"
             text
             rounded
             severity="secondary"
@@ -183,7 +184,7 @@ async function copyRoomId(): Promise<void> {
       </div>
     </div>
 
-    <div class="flex shrink-0 items-center gap-1">
+    <div class="cr-chat-actions flex shrink-0 items-center gap-1">
       <Popover v-if="kind === 'group'" ref="memberPopover">
         <div class="w-60">
           <div class="mb-2 flex items-center justify-between border-b border-surface-200 pb-3">

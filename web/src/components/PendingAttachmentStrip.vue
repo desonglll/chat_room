@@ -22,7 +22,7 @@ const emit = defineEmits<{ remove: [id: number] }>()
     aria-label="待发送附件"
     enter-active-class="transition duration-200 ease-out"
     enter-from-class="translate-y-1 opacity-0"
-    leave-active-class="transition duration-150 ease-in"
+    leave-active-class="transition duration-150 ease-out"
     leave-to-class="scale-95 opacity-0"
   >
     <div

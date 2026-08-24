@@ -332,7 +332,7 @@ function handleForwarded(): void {
   <RouterView v-if="route.name === 'admin'" />
   <div
     v-else
-    class="cr-canvas-ambient relative grid h-dvh w-full overflow-hidden transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none md:[grid-template-columns:var(--sidebar-cols)]"
+    class="cr-app-shell cr-canvas-ambient relative grid h-dvh w-full overflow-hidden md:[grid-template-columns:var(--sidebar-cols)]"
     :style="{
       '--sidebar-cols': sidebarCollapsed ? '72px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
     }"

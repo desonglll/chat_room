@@ -100,13 +100,12 @@ function handleResizeKeydown(event: KeyboardEvent): void {
 
 <template>
   <aside
-    class="absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border-r border-surface-200 bg-surface-0 transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
-    :class="[
+    class="cr-sidebar absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col border-r transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    :class="
       visible
         ? 'visible translate-x-0 opacity-100'
-        : 'invisible pointer-events-none -translate-x-4 opacity-0 md:pointer-events-auto',
-      resizing ? '' : 'md:transition-[width] md:duration-200 md:ease-out',
-    ]"
+        : 'invisible pointer-events-none -translate-x-4 opacity-0 md:pointer-events-auto'
+    "
   >
     <div
       v-if="refreshing && !loading"
@@ -115,7 +114,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
       <span class="room-sync-progress block h-full w-1/3 bg-primary" />
     </div>
     <header
-      class="flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-2 border-b border-surface-200 px-3 pt-[env(safe-area-inset-top)] md:h-16 md:pt-0"
+      class="cr-sidebar-header flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center justify-between gap-2 border-b px-3 pt-[env(safe-area-inset-top)] md:h-19 md:pt-0"
       :class="{ 'md:justify-center md:px-2': collapsed }"
     >
       <div class="flex min-w-0 items-center gap-3" :class="{ 'md:hidden': collapsed }">
@@ -165,7 +164,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
       </div>
     </header>
 
-    <div v-if="!collapsed" class="shrink-0 px-3 py-2.5">
+    <div v-if="!collapsed" class="cr-sidebar-search shrink-0 px-3">
       <IconField class="w-full">
         <InputIcon class="text-surface-500"><Search :size="15" /></InputIcon>
         <InputText
@@ -176,12 +175,12 @@ function handleResizeKeydown(event: KeyboardEvent): void {
           variant="filled"
           fluid
           aria-label="搜索会话"
-          class="h-10 rounded-lg! border-transparent! bg-surface-100! pl-9! text-sm hover:bg-surface-100! focus:border-primary! focus:bg-surface-0!"
+          class="h-10 rounded-lg! pl-9! text-sm"
         />
       </IconField>
     </div>
     <nav
-      class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2 pt-0.5"
+      class="cr-conversation-list flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2 pt-0.5"
       aria-label="会话列表"
       data-testid="conversation-list"
     >
@@ -217,11 +216,9 @@ function handleResizeKeydown(event: KeyboardEvent): void {
           v-for="conversation in visibleConversations"
           :key="conversation.room_id"
           type="button"
-          class="mb-0.5 flex h-[68px] w-full shrink-0 touch-manipulation items-center gap-3 rounded-lg px-2.5 text-left outline-none transition-[background-color,color,box-shadow,transform] duration-150 [contain-intrinsic-size:68px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset active:scale-[0.99] motion-reduce:transition-none"
+          class="cr-conversation-row mb-1 flex h-[68px] w-full shrink-0 touch-manipulation items-center gap-3 px-2.5 text-left outline-none [contain-intrinsic-size:68px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset active:scale-[0.99] motion-reduce:transition-none"
           :class="[
-            conversation.room_id === selectedId
-              ? 'bg-primary text-white shadow-sm'
-              : 'text-surface-900 hover:bg-surface-100',
+            conversation.room_id === selectedId ? 'cr-conversation-row--active' : 'cr-conversation-row--idle',
             collapsed ? 'md:justify-center md:px-1' : '',
           ]"
           :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
@@ -249,7 +246,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
     <button
       v-if="user"
       type="button"
-      class="relative flex h-13 shrink-0 touch-manipulation items-center gap-3 border-t border-surface-200 px-4 text-sm outline-none transition-colors hover:bg-surface-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+      class="cr-sidebar-contact relative flex h-13 shrink-0 touch-manipulation items-center gap-3 border-t px-4 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
       :class="{ 'md:justify-center md:px-2': collapsed }"
       @click="emit('contacts')"
     >
@@ -262,7 +259,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
       />
     </button>
     <footer
-      class="flex min-h-14 shrink-0 items-center gap-1 border-t border-surface-200 bg-surface-50 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
+      class="cr-sidebar-footer flex min-h-14 shrink-0 items-center gap-1 border-t px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
       :class="{ 'md:flex-col md:px-2': collapsed }"
     >
       <template v-if="user">

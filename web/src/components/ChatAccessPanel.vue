@@ -51,15 +51,11 @@ function handleJoin(): void {
   </section>
 
   <section v-else-if="!room" class="cr-chat-empty min-h-0 flex-1">
-    <img
-      src="/brand/echo-gate.svg"
-      alt=""
-      width="40"
-      height="40"
-      class="empty-mark size-10 grayscale"
-      aria-hidden="true"
-    />
-    <span class="sr-only">未选择会话</span>
+    <div class="cr-empty-state">
+      <img src="/brand/echo-gate.svg" alt="" width="72" height="72" class="empty-mark" aria-hidden="true" />
+      <small>ECHO GATE</small>
+      <h2>选择一段会话</h2>
+    </div>
   </section>
 
   <section v-else class="fade-in flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
@@ -141,18 +137,60 @@ function handleJoin(): void {
 }
 
 .fade-in {
-  animation: fade-in 0.18s ease-out;
+  animation: fade-in 0.18s var(--cr-ease-out);
 }
 
 .cr-chat-empty {
+  position: relative;
   display: grid;
+  overflow: hidden;
   place-items: center;
-  background: var(--cr-chat-canvas);
-  box-shadow: inset 1px 0 color-mix(in srgb, var(--cr-border) 45%, transparent);
+  background: transparent;
+}
+
+.cr-chat-empty::before {
+  position: absolute;
+  width: min(34vw, 24rem);
+  aspect-ratio: 0.78;
+  border: 1px solid color-mix(in srgb, var(--cr-primary) 9%, transparent);
+  border-radius: var(--cr-radius-lg);
+  content: '';
+  box-shadow:
+    0 0 0 3.5rem color-mix(in srgb, var(--cr-primary) 2.5%, transparent),
+    0 0 0 7rem color-mix(in srgb, var(--cr-primary) 1.8%, transparent);
+}
+
+.cr-empty-state {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  color: var(--cr-text);
+  text-align: center;
+}
+
+.cr-empty-state img {
+  width: 4.5rem;
+  height: 4.5rem;
+  filter: drop-shadow(0 12px 22px rgba(23, 37, 33, 0.15));
+}
+
+.cr-empty-state small {
+  margin-top: 1.25rem;
+  color: var(--cr-primary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.cr-empty-state h2 {
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-wrap: balance;
 }
 
 .empty-mark {
-  opacity: 0.1;
   animation: empty-mark-in 0.24s var(--cr-ease-out);
 }
 
@@ -167,6 +205,12 @@ function handleJoin(): void {
   .fade-in,
   .empty-mark {
     animation: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .cr-chat-empty::before {
+    width: min(56vw, 15rem);
   }
 }
 </style>

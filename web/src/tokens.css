@@ -23,33 +23,42 @@
   --cr-sun-100: #fff2ce;
   --cr-sun-500: #f4b942;
   --cr-sun-800: #8a5b00;
-  --cr-ink: #182533;
-  --cr-paper: #e9edef;
+  --cr-ink: #172521;
+  --cr-paper: #e8ebe6;
   --cr-white: #fff;
   --cr-mist-100: #f4f6f8;
   --cr-mist-200: #dfe5e9;
   --cr-mist-300: #c7d1d8;
-  --cr-muted: #708499;
+  --cr-muted: #687870;
 
   --cr-canvas: var(--cr-paper);
   --cr-surface: var(--cr-white);
-  --cr-surface-subtle: var(--cr-mist-100);
+  --cr-surface-subtle: #f5f6f2;
   --cr-surface-raised: var(--cr-white);
-  --cr-border: var(--cr-mist-200);
+  --cr-border: #dce2dc;
   --cr-border-subtle: color-mix(in srgb, var(--cr-mist-200) 60%, transparent);
   --cr-text: var(--cr-ink);
   --cr-text-muted: var(--cr-muted);
-  --cr-primary: var(--cr-blue-700);
-  --cr-primary-hover: var(--cr-blue-800);
-  --cr-primary-soft: var(--cr-blue-100);
+  --cr-primary: #0d7563;
+  --cr-primary-hover: #095b4f;
+  --cr-primary-soft: #dcf2e9;
   --cr-accent: var(--cr-coral-500);
   --cr-warning: var(--cr-sun-800);
   --cr-danger: var(--cr-coral-700);
   --cr-success: var(--cr-jade-800);
   --cr-flash: var(--cr-sun-100);
-  --cr-chat-canvas: #e7ebee;
+  --cr-chat-canvas: #edf0eb;
   --cr-bubble-incoming: #fff;
-  --cr-bubble-outgoing: #e4f2fb;
+  --cr-bubble-outgoing: #0d7563;
+  --cr-bubble-outgoing-text: #f7fffc;
+  --cr-sidebar-bg: #122b29;
+  --cr-sidebar-bg-raised: #193632;
+  --cr-sidebar-border: rgba(231, 245, 239, 0.1);
+  --cr-sidebar-text: #f2faf7;
+  --cr-sidebar-muted: #9db8b0;
+  --cr-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --cr-sidebar-active: #e6f4ee;
+  --cr-sidebar-active-text: #17312c;
 
   --cr-font-sans: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --cr-text-caption: 0.75rem;
@@ -59,7 +68,7 @@
   --cr-text-title-sm: 1.25rem;
   --cr-text-title: 1.75rem;
   --cr-text-display: 2.5rem;
-  --cr-tracking-tight: -0.01em;
+  --cr-tracking-tight: 0;
 
   --cr-space-1: 0.25rem;
   --cr-space-2: 0.5rem;
@@ -82,27 +91,27 @@
   --cr-touch: 2.75rem;
   --cr-sidebar: 21.25rem;
 
-  /* Motion: spring is the default for interactive feedback (hover/press/pop-in);
-     ease-out stays for larger, one-directional transitions (page/panel swaps). */
+  /* Motion stays fast and interruptible for a high-frequency workspace. */
   --cr-motion-fast: 120ms;
-  --cr-motion-normal: 200ms;
-  --cr-motion-slow: 320ms;
-  --cr-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --cr-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --cr-motion-normal: 180ms;
+  --cr-motion-slow: 260ms;
+  --cr-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --cr-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --cr-ease-spring: var(--cr-ease-out);
 
   /* Layered, brand-tinted shadows (ink-based, not pure black) — depth reads as
      soft light falloff rather than a hard drop shadow. */
-  --cr-shadow-xs: 0 1px 1px rgba(24, 37, 51, 0.05);
-  --cr-shadow-sm: 0 1px 2px rgba(24, 37, 51, 0.08);
-  --cr-shadow-md: 0 4px 12px rgba(24, 37, 51, 0.1);
-  --cr-shadow-lg: 0 8px 24px rgba(24, 37, 51, 0.12);
-  --cr-shadow-xl: 0 16px 36px rgba(24, 37, 51, 0.16);
+  --cr-shadow-xs: 0 1px 2px rgba(23, 37, 33, 0.06);
+  --cr-shadow-sm: 0 2px 6px rgba(23, 37, 33, 0.08);
+  --cr-shadow-md: 0 8px 20px rgba(23, 37, 33, 0.1);
+  --cr-shadow-lg: 0 16px 38px rgba(23, 37, 33, 0.13);
+  --cr-shadow-xl: 0 24px 56px rgba(23, 37, 33, 0.17);
 
   /* Glass surfaces for floating chrome: dialogs' mask, popovers, composer strips. */
   --cr-glass-bg: rgba(255, 255, 255, 0.96);
   --cr-glass-border: var(--cr-border);
   --cr-glass-blur: 12px;
-  --cr-mask-bg: rgba(24, 37, 51, 0.32);
+  --cr-mask-bg: rgba(16, 37, 32, 0.38);
 }
 
 [data-theme='dark'] {
@@ -128,7 +137,16 @@
   --cr-flash: color-mix(in srgb, var(--cr-sun-500) 30%, var(--cr-surface));
   --cr-chat-canvas: #101922;
   --cr-bubble-incoming: #182533;
-  --cr-bubble-outgoing: #2b5278;
+  --cr-bubble-outgoing: #245f55;
+  --cr-bubble-outgoing-text: #f7fffc;
+  --cr-sidebar-bg: #0b1716;
+  --cr-sidebar-bg-raised: #122421;
+  --cr-sidebar-border: rgba(231, 245, 239, 0.08);
+  --cr-sidebar-text: #f2faf7;
+  --cr-sidebar-muted: #90aaa2;
+  --cr-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --cr-sidebar-active: #d7eee5;
+  --cr-sidebar-active-text: #102820;
 
   /* Dark surfaces need real black falloff, not brand-tinted ink, to still read
      as depth against an already-dark canvas. */

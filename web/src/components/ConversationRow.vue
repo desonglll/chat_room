@@ -24,7 +24,7 @@ function formatActivity(value: string): string {
 
 <template>
   <span
-    class="relative grid size-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white"
+    class="cr-conversation-avatar relative grid size-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white"
     :style="{
       backgroundColor: avatarColor(
         conversation.kind === 'direct' ? conversation.peer?.id || conversation.room_id : conversation.room_id,
@@ -76,7 +76,7 @@ function formatActivity(value: string): string {
       </small>
       <span
         v-if="conversationAttentionCount(conversation) > 0"
-        class="grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[10px] font-semibold leading-5"
+        class="cr-unread-badge grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[10px] font-semibold leading-5"
         :class="selected ? 'bg-white text-primary-700' : 'bg-primary text-white'"
       >
         {{ conversationAttentionCount(conversation) > 99 ? '99+' : conversationAttentionCount(conversation) }}

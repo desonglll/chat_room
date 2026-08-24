@@ -14,7 +14,7 @@ export function useTheme(theme: Ref<ThemePreference>): void {
     document.documentElement.style.colorScheme = resolved
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', resolved === 'dark' ? '#17212b' : '#ffffff')
+      ?.setAttribute('content', resolved === 'dark' ? '#0b1716' : '#122b29')
   }
 
   media.addEventListener('change', apply)

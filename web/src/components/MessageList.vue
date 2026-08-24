@@ -272,10 +272,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative min-h-0 flex-1">
+  <div class="cr-message-viewport relative min-h-0 flex-1">
     <div
       ref="messageList"
-      class="h-full overscroll-contain overflow-y-auto px-3 py-4 transition-opacity duration-100 [scrollbar-gutter:stable] motion-reduce:transition-none sm:px-5"
+      class="cr-message-list h-full overscroll-contain overflow-y-auto px-3 py-4 transition-opacity duration-100 [scrollbar-gutter:stable] motion-reduce:transition-none sm:px-5"
       :class="viewportReady ? 'visible opacity-100' : 'invisible opacity-0'"
       data-testid="message-list"
       aria-live="polite"
@@ -305,7 +305,7 @@ onBeforeUnmount(() => {
         />
         <div
           v-else
-          class="group mx-auto flex w-full max-w-4xl items-start gap-2 rounded-md transition-colors duration-200"
+          class="cr-message-row group mx-auto flex w-full max-w-4xl items-start gap-2 rounded-md transition-colors duration-200"
           :class="[
             message.sender_id === currentUserId ? 'flex-row-reverse justify-start' : 'justify-start',
             highlightedId === message.message_id ? 'message-highlight' : '',
@@ -467,13 +467,13 @@ onBeforeUnmount(() => {
     <Transition
       enter-active-class="transition duration-200 ease-out motion-reduce:transition-none"
       enter-from-class="translate-y-2 opacity-0"
-      leave-active-class="transition duration-150 ease-in motion-reduce:transition-none"
+      leave-active-class="transition duration-150 ease-out motion-reduce:transition-none"
       leave-to-class="translate-y-2 opacity-0"
     >
       <button
         v-if="awayFromBottom"
         type="button"
-        class="absolute bottom-3 left-1/2 z-10 flex min-h-10 -translate-x-1/2 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg outline-none transition-[transform,box-shadow,background-color] hover:-translate-y-0.5 hover:bg-primary-50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none"
+        class="cr-scroll-latest absolute bottom-3 left-1/2 z-10 flex min-h-10 -translate-x-1/2 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full border border-primary-200 bg-surface-0 px-3 py-2 text-xs font-semibold text-primary shadow-lg outline-none hover:bg-primary-50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none"
         @click="scrollToBottom"
       >
         <ChevronDown :size="15" aria-hidden="true" />

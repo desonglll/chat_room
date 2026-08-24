@@ -374,7 +374,7 @@
   opacity: 0;
 }
 .disguise-fade-leave-active {
-  transition: opacity 90ms ease-in;
+  transition: opacity 90ms ease-out;
 }
 .disguise-fade-leave-to {
   opacity: 0;

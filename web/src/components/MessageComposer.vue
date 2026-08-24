@@ -346,7 +346,7 @@ defineExpose({ addFiles, focus })
 
 <template>
   <form
-    class="shrink-0 border-t border-surface-200 bg-surface-0 pb-[env(safe-area-inset-bottom)] md:pb-0"
+    class="cr-composer shrink-0 pb-[env(safe-area-inset-bottom)] md:pb-0"
     data-testid="chat-form"
     @submit.prevent="submitMessage"
   >
@@ -358,7 +358,7 @@ defineExpose({ addFiles, focus })
     />
     <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
 
-    <div class="flex items-center gap-1 px-3 py-2.5 sm:px-5">
+    <div class="cr-composer-inner flex items-center gap-1">
       <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles" />
       <Button
         v-if="!editingTo"
@@ -418,7 +418,7 @@ defineExpose({ addFiles, focus })
           auto-resize
           :disabled="disabled"
           placeholder="输入消息…"
-          class="max-h-32 min-h-10 w-full overflow-y-auto! [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          class="cr-composer-input max-h-32 min-h-10 w-full overflow-y-auto! [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           @paste="onPaste"
           @compositionstart="onCompositionStart"
           @compositionend="onCompositionEnd"

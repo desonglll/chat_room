@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="cr-chat-canvas absolute inset-0 flex min-h-0 min-w-0 flex-col transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
+    class="cr-chat-panel cr-chat-canvas absolute inset-0 flex min-h-0 min-w-0 flex-col transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
     :class="[
       visible
         ? 'visible translate-x-0 opacity-100'
@@ -307,7 +307,7 @@ onBeforeUnmount(() => {
 
     <section
       v-else
-      class="relative flex min-h-0 flex-1 flex-col"
+      class="cr-conversation-stage relative flex min-h-0 flex-1 flex-col"
       @dragenter.prevent="handleDragEnter"
       @dragover.prevent
       @dragleave="handleDragLeave"
@@ -316,7 +316,7 @@ onBeforeUnmount(() => {
       <Transition
         enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
         enter-from-class="opacity-0"
-        leave-active-class="transition duration-100 ease-in motion-reduce:transition-none"
+        leave-active-class="transition duration-100 ease-out motion-reduce:transition-none"
         leave-to-class="opacity-0"
       >
         <div
@@ -472,7 +472,7 @@ onBeforeUnmount(() => {
 }
 
 .animate-poke-shake {
-  animation: poke-shake 0.6s ease-in-out;
+  animation: poke-shake 0.28s var(--cr-ease-in-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
