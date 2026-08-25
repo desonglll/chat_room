@@ -428,7 +428,10 @@ impl AppState {
 pub type SharedState = Arc<AppState>;
 
 fn ai_assistant_for(config: &AppConfig) -> Option<AiAssistant> {
-    config.ai.enabled.then(|| AiAssistant::new(&config.ai))
+    config
+        .ai
+        .resolved_api_key()
+        .map(|api_key| AiAssistant::new(&config.ai, api_key))
 }
 
 fn gc_age(config: &AppConfig) -> Duration {

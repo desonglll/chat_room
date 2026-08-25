@@ -49,5 +49,10 @@ export function usePreferencesController(options: PreferenceOptions) {
     options.showSuccess('个人资料已保存')
   }
 
-  return { open, profileUpdated, save, saving }
+  function setRememberRoomPasswords(remember: boolean): void {
+    options.preferences.value.rememberRoomPasswords = remember
+    storePreferences(options.preferences.value)
+  }
+
+  return { open, profileUpdated, save, saving, setRememberRoomPasswords }
 }

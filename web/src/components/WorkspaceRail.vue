@@ -6,6 +6,7 @@ import {
   LogOut,
   MessageCircle,
   Bookmark,
+  Bot,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   chat: []
   contacts: []
   favorites: []
+  assistant: []
   discover: []
   create: []
   authenticate: []
@@ -46,6 +48,11 @@ function openFavorites(): void {
   if (props.user) emit('favorites')
   else emit('authenticate')
 }
+
+function openAssistant(): void {
+  if (props.user) emit('assistant')
+  else emit('authenticate')
+}
 </script>
 
 <template>
@@ -55,6 +62,18 @@ function openFavorites(): void {
     </button>
 
     <div class="cr-rail-primary">
+      <button
+        type="button"
+        class="cr-rail-action"
+        :class="{ 'cr-rail-action--active': activeSection === 'assistant' }"
+        :aria-current="activeSection === 'assistant' ? 'page' : undefined"
+        aria-label="AI 助手"
+        title="AI 助手"
+        @click="openAssistant"
+      >
+        <Bot :size="20" aria-hidden="true" />
+        <span>AI</span>
+      </button>
       <button
         type="button"
         class="cr-rail-action"

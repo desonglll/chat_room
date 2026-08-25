@@ -27,6 +27,7 @@ const props = defineProps<{
   participants: RoomMember[]
   roomId: string
   token: string
+  password: string
   aiEnabled: boolean
   disabled: boolean
 }>()
@@ -275,7 +276,7 @@ async function openAiAssistant(): Promise<void> {
   aiRemaining.value = []
   aiLoading.value = true
   try {
-    const result = await getAiSuggestions(props.roomId, props.token)
+    const result = await getAiSuggestions(props.roomId, props.token, props.password)
     aiSummary.value = result.summary
     const [first, ...rest] = result.suggestions
     aiRemaining.value = rest

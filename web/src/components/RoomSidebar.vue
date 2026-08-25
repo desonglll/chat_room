@@ -38,6 +38,7 @@ const emit = defineEmits<{
   discover: []
   contacts: []
   favorites: []
+  assistant: []
   chat: []
   authenticate: []
   logout: []
@@ -114,6 +115,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
       @chat="emit('chat')"
       @contacts="emit('contacts')"
       @favorites="emit('favorites')"
+      @assistant="emit('assistant')"
       @discover="emit('discover')"
       @create="emit('create')"
       @authenticate="emit('authenticate')"

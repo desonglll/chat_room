@@ -9,6 +9,7 @@ import MessageSelectionBar from './MessageSelectionBar.vue'
 import RoomConnectingView from './RoomConnectingView.vue'
 import UploadStatusPanel from './UploadStatusPanel.vue'
 import { shouldFocusComposer } from '../composer'
+import { useMessageDeepLink } from '../composables/useMessageDeepLink'
 import { resolveRoomViewState } from '../roomViewState'
 import type {
   Attachment,
@@ -22,6 +23,7 @@ import type {
   Room,
   RoomMember,
   SendShortcut,
+  SocialUser,
   TypingDraft,
   User,
 } from '../types'
@@ -36,6 +38,9 @@ const props = defineProps<{
   conversation: ConversationSummary | null
   user: User | null
   password: string
+  rememberRoomPasswords: boolean
+  contact: SocialUser | null
+  setFriendRemark: (userId: string, remark: string) => Promise<void>
   token: string
   status: ChatStatus
   statusLabel: string
@@ -43,6 +48,7 @@ const props = defineProps<{
   historyReady: boolean
   error: string
   messages: DisplayMessage[]
+  favoriteMessageIds: string[]
   members: RoomMember[]
   participants: RoomMember[]
   readReceipts: ReadReceipt[]
@@ -91,6 +97,7 @@ const emit = defineEmits<{
   removeFriend: []
   blockUser: []
   'update:password': [password: string]
+  'update:rememberRoomPasswords': [remember: boolean]
 }>()
 
 const replyingTo = ref<BroadcastMessage | null>(null)
@@ -212,11 +219,17 @@ function favoriteSelected(): void {
   closeSelection()
 }
 
-async function locateMessage(messageId: string): Promise<void> {
+async function locateMessage(messageId: string): Promise<boolean> {
   filesOpen.value = false
   await nextTick()
-  await messageListRef.value?.scrollToMessage(messageId)
+  return (await messageListRef.value?.scrollToMessage(messageId)) || false
 }
+
+useMessageDeepLink(
+  () => props.room?.id || '',
+  () => viewState.value === 'conversation' && props.historyReady,
+  locateMessage,
+)
 
 function isEditableTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null
@@ -303,6 +316,7 @@ onBeforeUnmount(() => {
       :room="room"
       :user="user"
       :password="password"
+      :remember-room-passwords="rememberRoomPasswords"
       :status="status"
       :error="error"
       :loading="loading"
@@ -310,6 +324,7 @@ onBeforeUnmount(() => {
       @request-join="emit('requestJoin')"
       @authenticate="emit('authenticate')"
       @update:password="emit('update:password', $event)"
+      @update:remember-room-passwords="emit('update:rememberRoomPasswords', $event)"
     />
 
     <RoomConnectingView v-else-if="viewState === 'connecting'" />
@@ -344,6 +359,7 @@ onBeforeUnmount(() => {
         :direct="conversation?.kind === 'direct'"
         :unread-count="room?.unread_count || 0"
         :messages="messages"
+        :favorite-message-ids="favoriteMessageIds"
         :read-receipts="readReceipts"
         :participants="participants"
         :current-user-id="currentUserId"
@@ -412,6 +428,7 @@ onBeforeUnmount(() => {
           :participants="participants"
           :room-id="room?.id || ''"
           :token="token"
+          :password="password"
           :ai-enabled="aiEnabled"
           :disabled="!authenticated"
           @cancel-reply="replyingTo = null"
@@ -442,38 +459,11 @@ onBeforeUnmount(() => {
       :token="token"
       :room-id="conversation?.kind === 'direct' ? undefined : room?.id"
       :current-user-id="currentUserId"
+      :contact="contact"
+      :set-remark="setFriendRemark"
       @close="viewProfileUserId = ''"
+      @remove-friend="emit('removeFriend')"
+      @block-user="emit('blockUser')"
     />
   </main>
 </template>
-
-<style scoped>
-@keyframes poke-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-8px);
-  }
-  40% {
-    transform: translateX(7px);
-  }
-  60% {
-    transform: translateX(-5px);
-  }
-  80% {
-    transform: translateX(3px);
-  }
-}
-
-.animate-poke-shake {
-  animation: poke-shake 0.28s var(--cr-ease-in-out);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-poke-shake {
-    animation: none;
-  }
-}
-</style>

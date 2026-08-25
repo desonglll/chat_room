@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowLeft, Bookmark, FileVideo, Forward, MessageSquareText, Plus, Trash2 } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { ArrowLeft, Bookmark, File, Forward, LocateFixed, MessageSquareText, Plus, Trash2 } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
@@ -10,6 +11,7 @@ import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
 import Textarea from 'primevue/textarea'
 import type { FavoriteForwardResult, FavoriteItem, Room } from '../types'
+import { favoriteKindLabel, matchesFavoriteFilter, type FavoriteFilter } from '../favoriteView'
 import MessageAttachment from './MessageAttachment.vue'
 
 const props = defineProps<{
@@ -22,7 +24,8 @@ const props = defineProps<{
   forward: (id: string, roomIds: string[]) => Promise<FavoriteForwardResult[]>
 }>()
 const emit = defineEmits<{ back: []; changed: []; success: [message: string]; error: [message: string] }>()
-const filter = ref<'all' | 'video' | 'message' | 'manual'>('all')
+const router = useRouter()
+const filter = ref<FavoriteFilter>('all')
 const createOpen = ref(false)
 const forwardItem = ref<FavoriteItem | null>(null)
 const title = ref('')
@@ -31,23 +34,24 @@ const selectedRoomIds = ref<string[]>([])
 const busy = ref(false)
 const filters = [
   { label: '全部', value: 'all' },
-  { label: '视频', value: 'video' },
+  { label: '文件', value: 'file' },
   { label: '对话', value: 'message' },
   { label: '手动', value: 'manual' },
 ]
-const visibleItems = computed(() =>
-  filter.value === 'all' ? props.items : props.items.filter((item) => item.kind === filter.value),
-)
+const visibleItems = computed(() => props.items.filter((item) => matchesFavoriteFilter(item, filter.value)))
 const targetRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
-
-function kindLabel(item: FavoriteItem): string {
-  if (item.kind === 'video') return '视频'
-  if (item.kind === 'manual') return '手动收藏'
-  return '对话'
-}
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function openSource(item: FavoriteItem): void {
+  if (!item.source_room_id || !item.source_message_id) return
+  void router.push({
+    name: 'room',
+    params: { id: item.source_room_id },
+    query: { message: item.source_message_id },
+  })
 }
 
 function previewAttachment(url: string): void {
@@ -145,16 +149,16 @@ async function submitForward(): Promise<void> {
           <article class="min-w-0">
             <div class="flex min-w-0 items-start gap-3">
               <span class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-md bg-surface-100 text-surface-600">
-                <FileVideo v-if="item.kind === 'video'" :size="18" />
+                <File v-if="item.attachment" :size="18" />
                 <MessageSquareText v-else :size="18" />
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <h2 class="break-words text-sm font-semibold text-surface-900">
-                    {{ item.title || item.source_sender || kindLabel(item) }}
+                    {{ item.title || item.source_sender || favoriteKindLabel(item) }}
                   </h2>
                   <span class="text-[11px] text-muted-color"
-                    >{{ kindLabel(item) }} · {{ formatDate(item.created_at) }}</span
+                    >{{ favoriteKindLabel(item) }} · {{ formatDate(item.created_at) }}</span
                   >
                 </div>
                 <p v-if="item.source_room_name" class="mt-1 text-xs text-muted-color">
@@ -171,6 +175,17 @@ async function submitForward(): Promise<void> {
                 </p>
               </div>
               <div class="flex shrink-0 gap-1">
+                <Button
+                  v-if="item.source_room_id && item.source_message_id"
+                  text
+                  rounded
+                  severity="secondary"
+                  aria-label="回到原消息"
+                  title="回到原消息"
+                  @click="openSource(item)"
+                >
+                  <LocateFixed :size="17" />
+                </Button>
                 <Button text rounded severity="secondary" aria-label="转发收藏" title="转发" @click="openForward(item)">
                   <Forward :size="17" />
                 </Button>

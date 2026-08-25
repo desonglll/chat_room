@@ -191,6 +191,11 @@
   color: var(--cr-text);
 }
 
+.cr-message-inline-action--active {
+  background: color-mix(in srgb, var(--cr-primary) 12%, transparent);
+  color: var(--cr-primary);
+}
+
 .cr-read-receipt,
 .cr-delivery-state {
   min-height: 1rem;
@@ -211,6 +216,35 @@
   background: var(--cr-surface);
   color: var(--cr-ink-soft);
   box-shadow: var(--cr-shadow-float);
+}
+
+@keyframes poke-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(7px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.animate-poke-shake {
+  animation: poke-shake 0.28s var(--cr-ease-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-poke-shake {
+    animation: none;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

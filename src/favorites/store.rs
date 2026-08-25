@@ -7,13 +7,19 @@ use crate::models::{Attachment, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
 const FAVORITE_SELECT: &str = "SELECT favorites.id, favorites.kind, favorites.title, \
-    favorites.content, favorites.source_message_id, favorites.source_sender, \
+    favorites.content, favorites.source_message_id, \
+    CASE WHEN source_membership.user_id IS NULL THEN NULL ELSE source_message.room_id END AS source_room_id, \
+    favorites.source_sender, \
     favorites.source_room_name, favorites.created_at, favorites.updated_at, \
     attachments.id AS attachment_id, attachments.access_key AS attachment_access_key, \
     attachments.file_name AS attachment_file_name, attachments.mime_type AS attachment_mime_type, \
     attachments.size_bytes AS attachment_size_bytes, \
     attachments.is_sensitive AS attachment_is_sensitive FROM favorites \
-    LEFT JOIN attachments ON attachments.id = favorites.attachment_id";
+    LEFT JOIN attachments ON attachments.id = favorites.attachment_id \
+    LEFT JOIN messages AS source_message ON source_message.id = favorites.source_message_id \
+    LEFT JOIN rooms AS source_room ON source_room.id = source_message.room_id AND source_room.deleted_at IS NULL \
+    LEFT JOIN room_memberships AS source_membership ON source_membership.room_id = source_room.id \
+      AND source_membership.user_id = favorites.user_id AND source_membership.status = 'active'";
 
 #[derive(FromRow)]
 struct FavoriteRow {
@@ -22,6 +28,7 @@ struct FavoriteRow {
     title: String,
     content: String,
     source_message_id: Option<Uuid>,
+    source_room_id: Option<Uuid>,
     source_sender: String,
     source_room_name: String,
     created_at: DateTime<Utc>,
@@ -52,6 +59,7 @@ impl FavoriteRow {
             title: self.title,
             content: self.content,
             source_message_id: self.source_message_id,
+            source_room_id: self.source_room_id,
             source_sender: self.source_sender,
             source_room_name: self.source_room_name,
             attachment,

@@ -40,6 +40,7 @@
 }
 
 .cr-composer-input {
+  display: block;
   border: 0 !important;
   background: transparent !important;
   color: var(--cr-text) !important;

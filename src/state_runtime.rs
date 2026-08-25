@@ -5,9 +5,9 @@ use std::time::Duration;
 use sqlx::{PgPool, SqlitePool};
 
 use crate::{
-    admin_metrics::RuntimeMetrics, ai::AiAssistant, attachment_content::ContentHashLocks,
-    attachment_storage::AttachmentStore, attachments::upload_hashes::UploadHashTracker,
-    state::AppState, storage,
+    admin_metrics::RuntimeMetrics, ai::AiAssistant, ai::AiRuntimeStatus,
+    attachment_content::ContentHashLocks, attachment_storage::AttachmentStore,
+    attachments::upload_hashes::UploadHashTracker, state::AppState, storage,
 };
 
 impl AppState {
@@ -39,12 +39,26 @@ impl AppState {
         self.ai_assistant.is_some()
     }
 
+    pub fn ai_status(&self) -> AiRuntimeStatus {
+        if self.ai_assistant.is_some() {
+            AiRuntimeStatus::Ready
+        } else if self.config.ai.enabled {
+            AiRuntimeStatus::MissingCredentials
+        } else {
+            AiRuntimeStatus::Disabled
+        }
+    }
+
     pub(crate) fn ai_assistant(&self) -> Option<&AiAssistant> {
         self.ai_assistant.as_ref()
     }
 
     pub(crate) fn ai_max_context_messages(&self) -> usize {
         self.config.ai.max_context_messages
+    }
+
+    pub(crate) fn ai_analysis_context_messages(&self) -> usize {
+        self.config.ai.analysis_context_messages.min(500)
     }
 
     pub(crate) fn ai_suggest_cooldown(&self) -> Duration {

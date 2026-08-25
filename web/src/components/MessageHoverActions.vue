@@ -2,7 +2,7 @@
 import { Bookmark, CornerUpLeft, Forward } from 'lucide-vue-next'
 import MessageReactionPicker from './MessageReactionPicker.vue'
 
-defineProps<{ enabled: boolean }>()
+defineProps<{ enabled: boolean; favorited: boolean }>()
 const emit = defineEmits<{
   reaction: [emoji: string]
   reply: []
@@ -20,8 +20,16 @@ const emit = defineEmits<{
     <button type="button" class="cr-message-inline-action" aria-label="转发消息" title="转发" @click="emit('forward')">
       <Forward :size="14" aria-hidden="true" />
     </button>
-    <button type="button" class="cr-message-inline-action" aria-label="收藏消息" title="收藏" @click="emit('favorite')">
-      <Bookmark :size="14" aria-hidden="true" />
+    <button
+      type="button"
+      class="cr-message-inline-action"
+      :class="{ 'cr-message-inline-action--active': favorited }"
+      :aria-label="favorited ? '取消收藏' : '收藏消息'"
+      :title="favorited ? '取消收藏' : '收藏'"
+      :aria-pressed="favorited"
+      @click="emit('favorite')"
+    >
+      <Bookmark :size="14" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
     </button>
   </div>
 </template>

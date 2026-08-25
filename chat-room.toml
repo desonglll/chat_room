@@ -36,8 +36,7 @@ max_connections = 10
 # The magic-wand button: summarizes a room's recent messages and suggests
 # replies. Disabled by default. `api_key_env` should normally be the name of
 # an environment variable holding the key, e.g. export CHAT_ROOM_AI_API_KEY=sk-...
-# — but if no environment variable by that name is set, the value is used
-# as the literal API key instead (so it can be pasted directly here too).
+# The server reports AI as unavailable until this environment variable exists.
 enabled = true
 # "openai" or "anthropic". The actual provider used for the request is
 # inferred from `model`'s name prefix (e.g. "gpt-*" vs "claude-*") by the
@@ -45,8 +44,12 @@ enabled = true
 provider = "openai"
 api_key_env = "CHAT_ROOM_AI_API_KEY"
 model = "deepseek-ai/DeepSeek-V4-Flash"
-base_url = "https://api.siliconflow.cn"
+base_url = "https://api.siliconflow.cn/v1"
 max_context_messages = 30
+# The independent AI workspace can inspect a wider, still bounded window.
+analysis_context_messages = 120
+# Long-context requests can take longer than short suggestions on hosted models.
+request_timeout_secs = 60
 # Per-user cooldown between AI suggestion requests in the same room.
 suggest_cooldown_secs = 10
 

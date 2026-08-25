@@ -10,6 +10,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/discover', name: 'discover', component: Empty },
   { path: '/contacts', name: 'contacts', component: Empty },
   { path: '/favorites', name: 'favorites', component: Empty },
+  { path: '/assistant', name: 'assistant', component: Empty },
   { path: '/profile', name: 'profile', component: Empty },
   { path: '/settings', name: 'settings', component: Empty },
   { path: '/admin', name: 'admin', component: AdminDashboard },

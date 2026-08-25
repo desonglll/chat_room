@@ -82,14 +82,29 @@ export interface AuthSession {
   expires_at: string
 }
 
+export type AiRuntimeStatus = 'disabled' | 'missing_credentials' | 'ready'
+
 export interface PublicConfig {
   max_upload_bytes: number
   ai_enabled: boolean
+  ai_status: AiRuntimeStatus
 }
 
 export interface AiSuggestions {
   summary: string
   suggestions: string[]
+}
+
+export interface AiConversationTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface AiConversationResponse {
+  room_id: string
+  answer: string
+  context_message_count: number
+  context_format: string
 }
 
 export interface Attachment {
@@ -107,6 +122,7 @@ export interface FavoriteItem {
   title: string
   content: string
   source_message_id: string | null
+  source_room_id: string | null
   source_sender: string
   source_room_name: string
   attachment: Attachment | null

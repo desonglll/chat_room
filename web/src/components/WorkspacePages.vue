@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { defineAsyncComponent, type Ref } from 'vue'
-import type { FavoriteForwardResult, FavoriteItem, FriendRequest, Room, SocialUser, User } from '../types'
+import type {
+  AiRuntimeStatus,
+  FavoriteForwardResult,
+  FavoriteItem,
+  FriendRequest,
+  Room,
+  SocialUser,
+  User,
+} from '../types'
 
 const ContactsPage = defineAsyncComponent(() => import('./ContactsPage.vue'))
 const DiscoverRooms = defineAsyncComponent(() => import('./DiscoverRooms.vue'))
 const FavoritesPage = defineAsyncComponent(() => import('./FavoritesPage.vue'))
+const AiAssistantPage = defineAsyncComponent(() => import('./AiAssistantPage.vue'))
 const ProfilePage = defineAsyncComponent(() => import('./ProfilePage.vue'))
 const SettingsPage = defineAsyncComponent(() => import('./SettingsPage.vue'))
 
@@ -40,6 +49,8 @@ defineProps<{
   blockUser: (userId: string) => Promise<void>
   favorites: FavoritesController
   rooms: Room[]
+  aiStatus: AiRuntimeStatus
+  rememberRoomPasswords: boolean
   discoverLoading: boolean
   discoverJoiningId: string
   discoverError: string
@@ -106,6 +117,15 @@ const emit = defineEmits<{
     @back="emit('back')"
     @changed="emit('conversationsChanged')"
     @success="emit('success', $event)"
+    @error="emit('error', $event)"
+  />
+  <AiAssistantPage
+    v-else-if="activePage === 'assistant' && user"
+    :token="token"
+    :rooms="rooms"
+    :ai-status="aiStatus"
+    :remember-room-passwords="rememberRoomPasswords"
+    @back="emit('back')"
     @error="emit('error', $event)"
   />
   <DiscoverRooms

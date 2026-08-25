@@ -5,11 +5,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::{
+    ai::{AiConfig, AiRuntimeStatus},
+    state::SharedState,
+};
 use anyhow::{bail, Context, Result};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
-
-use crate::state::SharedState;
 
 pub const DEFAULT_MAX_UPLOAD_MIB: u64 = 512;
 const BYTES_PER_MIB: u64 = 1024 * 1024;
@@ -134,38 +136,6 @@ impl Default for OssConfig {
             access_key_id: String::new(),
             access_key_secret: String::new(),
             root: "/".into(),
-        }
-    }
-}
-
-/// AI "magic button" (summarize + suggest replies). Disabled unless explicitly
-/// turned on. The API key itself is never stored in TOML or exposed to the
-/// client — only the *name* of the environment variable holding it.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(default)]
-pub struct AiConfig {
-    pub enabled: bool,
-    /// "openai" or "anthropic" — validated, but dispatch itself is inferred by
-    /// the `genai` crate from `model`'s name prefix (e.g. "gpt-*", "claude-*").
-    pub provider: String,
-    pub api_key_env: String,
-    pub model: String,
-    pub base_url: Option<String>,
-    pub max_context_messages: usize,
-    /// Per-user cooldown between AI suggestion requests in the same room.
-    pub suggest_cooldown_secs: u64,
-}
-
-impl Default for AiConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            provider: "openai".into(),
-            api_key_env: String::new(),
-            model: String::new(),
-            base_url: None,
-            max_context_messages: 30,
-            suggest_cooldown_secs: 10,
         }
     }
 }
@@ -333,11 +303,14 @@ impl AppConfig {
             if self.ai.model.trim().is_empty() {
                 bail!("ai.model is required when ai.enabled is true");
             }
-            // Not validated here: whether `api_key_env` resolves to a set
-            // environment variable. It may instead be the literal API key
-            // (see AiAssistant::new), so an unresolved name isn't an error —
-            // and a hard/soft key check shouldn't block the whole server
-            // from starting over an AI misconfiguration.
+            if self.ai.max_context_messages == 0 || self.ai.analysis_context_messages == 0 {
+                bail!("AI context message limits must be greater than zero");
+            }
+            if self.ai.request_timeout_secs == 0 || self.ai.request_timeout_secs > 300 {
+                bail!("ai.request_timeout_secs must be between 1 and 300");
+            }
+            // Credential availability is reported at runtime so an optional
+            // AI misconfiguration does not prevent the chat server starting.
         }
         self.max_upload_bytes()?;
         self.chunk_size_bytes()?;
@@ -367,12 +340,14 @@ impl AppConfig {
 pub struct PublicConfig {
     max_upload_bytes: usize,
     ai_enabled: bool,
+    ai_status: AiRuntimeStatus,
 }
 
 pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfig> {
     Json(PublicConfig {
         max_upload_bytes: state.max_upload_bytes(),
         ai_enabled: state.ai_enabled(),
+        ai_status: state.ai_status(),
     })
 }
 
@@ -408,6 +383,7 @@ mod tests {
         assert_eq!(config.auth.session_lifetime_days, 30);
         assert!(config.admin.usernames.is_empty());
         assert_eq!(config.admin.orphan_retention_hours, 168);
+        assert_eq!(config.ai.request_timeout_secs, 60);
         assert_eq!(config.ai.suggest_cooldown_secs, 10);
         assert_eq!(config.uploads.chunk_size_mib, 8);
         assert_eq!(config.uploads.abandoned_upload_gc_hours, 24);
@@ -450,16 +426,27 @@ mod tests {
     }
 
     #[test]
-    fn ai_config_does_not_require_a_resolvable_env_var_at_load_time() {
-        // api_key_env may be a literal key pasted straight into the TOML rather
-        // than an environment variable name (see AiAssistant::new) — startup
-        // must not depend on that name coincidentally being set as a real
-        // env var, since a misconfigured AI section shouldn't crash the server.
+    fn ai_config_can_start_without_credentials_but_is_not_ready() {
         let config: AppConfig = toml::from_str(
-            "[ai]\nenabled = true\nprovider = 'openai'\napi_key_env = 'sk-not-a-real-env-var-name'\nmodel = 'gpt-4o-mini'",
+            "[ai]\nenabled = true\nprovider = 'openai'\napi_key_env = 'CHAT_ROOM_TEST_MISSING_AI_KEY'\nmodel = 'gpt-4o-mini'",
         )
         .unwrap();
-        assert!(config.validate().is_ok());
+        assert!(config.clone().validate().is_ok());
+        assert_eq!(
+            config.ai.runtime_status_with(|_| None),
+            AiRuntimeStatus::MissingCredentials
+        );
+
+        let ready: AppConfig = toml::from_str(
+            "[ai]\nenabled = true\nprovider = 'openai'\napi_key_env = 'CHAT_ROOM_AI_API_KEY'\nmodel = 'gpt-4o-mini'",
+        )
+        .unwrap();
+        assert_eq!(
+            ready.ai.runtime_status_with(
+                |name| (name == "CHAT_ROOM_AI_API_KEY").then(|| "secret".into())
+            ),
+            AiRuntimeStatus::Ready
+        );
 
         let missing_model: AppConfig = toml::from_str(
             "[ai]\nenabled = true\nprovider = 'openai'\napi_key_env = 'X'\nmodel = ''",

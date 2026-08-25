@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import {
   createFavorite as createFavoriteRequest,
   deleteFavorite as deleteFavoriteRequest,
@@ -12,6 +12,9 @@ export function useFavorites(token: Ref<string>) {
   const items = ref<FavoriteItem[]>([])
   const loading = ref(false)
   const error = ref('')
+  const messageIds = computed(() =>
+    items.value.flatMap((item) => (item.source_message_id ? [item.source_message_id] : [])),
+  )
 
   async function refresh(): Promise<void> {
     const activeToken = token.value
@@ -48,7 +51,34 @@ export function useFavorites(token: Ref<string>) {
     items.value = items.value.filter((item) => item.id !== id)
   }
 
+  async function toggleMessage(messageId: string): Promise<boolean> {
+    const existing = items.value.find((item) => item.source_message_id === messageId)
+    if (existing) {
+      await remove(existing.id)
+      return false
+    }
+    await addMessages([messageId])
+    return true
+  }
+
+  async function updateMessages(messageIds: string[]): Promise<{ active: boolean; count: number }> {
+    if (messageIds.length === 1) return { active: await toggleMessage(messageIds[0]), count: 1 }
+    return { active: true, count: (await addMessages(messageIds)).length }
+  }
+
   const forward = (id: string, targetRoomIds: string[]) => forwardFavoriteRequest(id, targetRoomIds, token.value)
   watch(token, () => void refresh(), { immediate: true })
-  return { items, loading, error, refresh, create, addMessages, remove, forward }
+  return {
+    items,
+    messageIds,
+    loading,
+    error,
+    refresh,
+    create,
+    addMessages,
+    toggleMessage,
+    updateMessages,
+    remove,
+    forward,
+  }
 }

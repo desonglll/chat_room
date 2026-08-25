@@ -14,6 +14,7 @@ import { useAttachmentDownloads } from './composables/useAttachmentDownloads'
 import { useChatSocket } from './composables/useChatSocket'
 import { useContacts } from './composables/useContacts'
 import { useFavorites } from './composables/useFavorites'
+import { useFavoriteMessageActions } from './composables/useFavoriteMessageActions'
 import { useConversations } from './composables/useConversations'
 import { useUnreadSocket } from './composables/useUnreadSocket'
 import { useAppPages } from './composables/useAppPages'
@@ -32,7 +33,6 @@ import { clearRoomPassword } from './roomPasswordVault'
 import { startDirectChat } from './socialApi'
 import type { ConversationSummary, Room } from './types'
 
-const SIDEBAR_COLLAPSED_KEY = 'chat-room.sidebar-collapsed'
 const route = useRoute()
 const router = useRouter()
 const roomPassword = ref('')
@@ -43,7 +43,7 @@ const forwardOpen = ref(false)
 const forwardMessageIds = ref<string[]>([])
 const authOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
-const sidebarCollapsed = ref(storageGet(window.localStorage, SIDEBAR_COLLAPSED_KEY) === 'true')
+const sidebarCollapsed = ref(storageGet(window.localStorage, 'chat-room.sidebar-collapsed') === 'true')
 const preferences = ref(loadPreferences())
 const privacyLockScreen = ref<{ lock: () => void } | null>(null)
 useTheme(computed(() => preferences.value.theme))
@@ -51,6 +51,7 @@ const sidebarWidth = ref(360)
 const toast = useToast()
 const {
   aiEnabled,
+  aiStatus,
   currentUser,
   handleAccountDeleted,
   handleAuthenticated,
@@ -82,8 +83,12 @@ const selectedId = computed(() => selectedRoom.value?.id)
 const conversationState = useConversations(sessionToken, selectedId)
 const contacts = useContacts(sessionToken)
 const favorites = useFavorites(sessionToken)
+const favoriteMessages = useFavoriteMessageActions(favorites)
 const selectedConversation = computed(
   () => conversationState.conversations.value.find((item) => item.room_id === selectedId.value) || null,
+)
+const selectedContact = computed(
+  () => contacts.friends.value.find((item) => item.id === selectedConversation.value?.peer?.id) || null,
 )
 const forwardRooms = computed(() => conversationState.conversations.value.map(conversationToRoom))
 const {
@@ -268,7 +273,12 @@ async function refreshWorkspace(): Promise<void> {
 
 function toggleSidebar(): void {
   sidebarCollapsed.value = !sidebarCollapsed.value
-  storageSet(window.localStorage, SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed.value))
+  storageSet(window.localStorage, 'chat-room.sidebar-collapsed', String(sidebarCollapsed.value))
+}
+
+function openAssistant(): void {
+  activePage.value = 'assistant'
+  mobileView.value = 'chat'
 }
 
 const selectRoom = (room: Room, autoConnect = false) => roomActions.selectRoom(room, autoConnect)
@@ -285,6 +295,10 @@ async function changeDirectAccess(userId: string, action: (id: string) => Promis
   await conversationState.refresh()
 }
 
+async function setSelectedFriendRemark(userId: string, remark: string): Promise<void> {
+  await contacts.setRemark(userId, remark)
+  await conversationState.refresh()
+}
 function changeSelectedDirectAccess(action: (id: string) => Promise<void>): void {
   const userId = selectedConversation.value?.peer?.id
   if (userId) void changeDirectAccess(userId, action)
@@ -305,7 +319,7 @@ watch([routeRoomId, conversationState.conversations], ([id]) => {
     return
   }
   const room = rooms.value.find((item) => item.id === id)
-  if (room) selectRoom(room, false)
+  if (room) selectRoom(room, typeof route.query.message === 'string')
   else {
     const conversation = conversationState.conversations.value.find((item) => item.room_id === id)
     if (conversation) selectConversation(conversation)
@@ -335,15 +349,6 @@ function handleForwarded(): void {
   forwardOpen.value = false
   showToast('已转发')
   void conversationState.refresh()
-}
-
-async function favoriteMessages(messageIds: string[]): Promise<void> {
-  try {
-    const added = await favorites.addMessages(messageIds)
-    showToast(added.length === 1 ? '已收藏' : `已收藏 ${added.length} 条消息`)
-  } catch (caught) {
-    toast.add({ severity: 'error', summary: caught instanceof Error ? caught.message : '收藏失败', life: 3200 })
-  }
 }
 </script>
 
@@ -380,6 +385,7 @@ async function favoriteMessages(messageIds: string[]): Promise<void> {
       @discover="openDiscover"
       @contacts="openContacts"
       @favorites="openFavorites"
+      @assistant="openAssistant"
       @chat="returnToChat"
       @authenticate="authOpen = true"
       @logout="handleLogout"
@@ -393,7 +399,7 @@ async function favoriteMessages(messageIds: string[]): Promise<void> {
     />
     <!-- prettier-ignore -->
     <WorkspacePages v-if="activePage === 'discover' || (activePage !== 'chat' && currentUser)"
-      :active-page="activePage" :user="currentUser" :token="sessionToken" :contacts="contacts" :favorites="favorites"
+      :active-page="activePage" :user="currentUser" :token="sessionToken" :contacts="contacts" :favorites="favorites" :ai-status="aiStatus" :remember-room-passwords="preferences.rememberRoomPasswords"
       :rooms="forwardRooms" :discover-loading="showColdSkeleton" :discover-joining-id="discoverJoiningId" :discover-error="discoverError"
       :start-chat="openDirectConversation" :remove-friend="(id) => changeDirectAccess(id, contacts.remove)" :block-user="(id) => changeDirectAccess(id, contacts.block)" :join-room="joinDiscoveredRoom"
       @back="returnToChat" @preferences="preferenceController.open.value = true" @deleted="handleAccountDeleted" @updated="preferenceController.profileUpdated"
@@ -403,8 +409,11 @@ async function favoriteMessages(messageIds: string[]): Promise<void> {
         :key="selectedRoom?.id || 'empty-room'"
         :room="selectedRoom"
         :conversation="selectedConversation"
+        :contact="selectedContact"
+        :set-friend-remark="setSelectedFriendRemark"
         :user="currentUser"
         :password="roomPassword"
+        :remember-room-passwords="preferences.rememberRoomPasswords"
         :token="sessionToken"
         :status="chat.status.value"
         :status-label="chat.statusLabel.value"
@@ -412,6 +421,7 @@ async function favoriteMessages(messageIds: string[]): Promise<void> {
         :history-ready="chat.historyReady.value"
         :error="chat.error.value"
         :messages="chat.messages.value"
+        :favorite-message-ids="favorites.messageIds.value"
         :members="chat.members.value"
         :participants="chat.participants.value"
         :read-receipts="chat.readReceipts.value"
@@ -449,6 +459,7 @@ async function favoriteMessages(messageIds: string[]): Promise<void> {
         @download="handleDownload"
         @cancel-download="cancelDownload"
         @update:password="roomPassword = $event"
+        @update:remember-room-passwords="preferenceController.setRememberRoomPasswords"
         @forward="openForward"
         @favorite="favoriteMessages"
         @poke="chat.poke"

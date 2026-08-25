@@ -4,7 +4,7 @@ import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, listRooms, l
 import { storageGet, storageSet } from '../browserStorage'
 import { clearBootstrapSnapshot, readBootstrapSnapshot, writeBootstrapSnapshot } from '../bootstrapSnapshot'
 import { useDelayedVisibility } from './useDelayedVisibility'
-import type { AuthSession, Room, User } from '../types'
+import type { AiRuntimeStatus, AuthSession, Room, User } from '../types'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 
@@ -40,6 +40,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   const networkError = ref('')
   const maxUploadBytes = ref(DEFAULT_MAX_UPLOAD_BYTES)
   const aiEnabled = ref(false)
+  const aiStatus = ref<AiRuntimeStatus>('disabled')
   let restoreAttempted = false
 
   function restoreCachedSelection(): void {
@@ -83,9 +84,11 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
         maxUploadBytes.value = config.max_upload_bytes
       }
       aiEnabled.value = Boolean(config.ai_enabled)
+      aiStatus.value = config.ai_status
     } catch {
       maxUploadBytes.value = DEFAULT_MAX_UPLOAD_BYTES
       aiEnabled.value = false
+      aiStatus.value = 'disabled'
     }
   }
 
@@ -157,6 +160,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
 
   return {
     aiEnabled,
+    aiStatus,
     currentUser,
     handleAccountDeleted,
     handleAuthenticated,

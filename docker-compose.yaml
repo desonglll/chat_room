@@ -44,6 +44,7 @@ services:
         condition: service_healthy
     environment:
       CHAT_ROOM_ADMIN_USERNAMES: ${CHAT_ROOM_ADMIN_USERNAMES:-}
+      CHAT_ROOM_AI_API_KEY: ${CHAT_ROOM_AI_API_KEY:-}
       CHAT_ROOM_DATABASE_URL: postgresql://${POSTGRES_USER:-chatroom}:${POSTGRES_PASSWORD:-chatroom}@postgres:5432/${POSTGRES_DB:-chatroom}
       CHAT_ROOM_REDIS_URL: ${CHAT_ROOM_REDIS_URL:-redis://redis:6379/}
       RUST_LOG: ${RUST_LOG:-chat_room=info,tower_http=info}

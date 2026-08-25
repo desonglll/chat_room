@@ -96,6 +96,7 @@ use crate::state::AppState;
         favorites::handlers::delete_favorite,
         favorites::handlers::forward_favorite,
         ai_handlers::suggest,
+        ai_handlers::analyze_conversation,
         admin_metrics::overview,
         admin_metrics::purge,
         admin_system_lock::update,
@@ -104,6 +105,9 @@ use crate::state::AppState;
     ),
     components(schemas(
         ai::AiSuggestions,
+        ai::AiConversationTurn,
+        ai::AiConversationRequest,
+        ai::AiConversationResponse,
         models::Room,
         models::CreateRoomRequest,
         models::UpdateRoomRequest,
@@ -191,6 +195,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/rooms/:id/ai/suggest",
             axum::routing::post(ai_handlers::suggest),
+        )
+        .route(
+            "/api/ai/conversations/:id/query",
+            axum::routing::post(ai_handlers::analyze_conversation),
         )
         .route(
             "/api/rooms/:id/members/me",

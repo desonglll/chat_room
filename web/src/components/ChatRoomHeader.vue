@@ -118,6 +118,8 @@ async function copyRoomId(): Promise<void> {
         type="button"
         class="cr-profile-trigger cr-chat-avatar shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         aria-label="查看对方资料"
+        title="查看对方资料"
+        aria-haspopup="dialog"
         @click="emit('viewProfile', peer.id)"
       >
         <AppAvatar

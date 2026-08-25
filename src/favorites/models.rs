@@ -12,6 +12,7 @@ pub struct FavoriteItem {
     pub title: String,
     pub content: String,
     pub source_message_id: Option<Uuid>,
+    pub source_room_id: Option<Uuid>,
     pub source_sender: String,
     pub source_room_name: String,
     pub attachment: Option<Attachment>,

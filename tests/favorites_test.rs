@@ -124,6 +124,7 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
     assert_eq!(favorites.len(), 1);
     assert_eq!(favorites[0]["kind"], "video");
     assert_eq!(favorites[0]["content"], "值得保存的视频");
+    assert_eq!(favorites[0]["source_room_id"], source_room.to_string());
     let video_favorite_id = favorites[0]["id"].as_str().unwrap();
 
     let duplicate: Vec<serde_json::Value> = client
@@ -151,6 +152,20 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
         .unwrap();
     assert_eq!(preserved.status(), StatusCode::OK);
     assert_eq!(preserved.bytes().await.unwrap().as_ref(), video_bytes);
+
+    let recalled_favorites: Vec<serde_json::Value> = client
+        .get(format!("{}/api/favorites", server.base))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        recalled_favorites[0]["source_room_id"],
+        source_room.to_string()
+    );
 
     let manual: serde_json::Value = client
         .post(format!("{}/api/favorites", server.base))

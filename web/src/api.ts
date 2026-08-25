@@ -373,11 +373,14 @@ export async function listRoomMessages(
   return response.json() as Promise<StoredMessage[]>
 }
 
-export async function getAiSuggestions(roomId: string, token: string): Promise<AiSuggestions> {
+export async function getAiSuggestions(roomId: string, token: string, password = ''): Promise<AiSuggestions> {
+  const headers = authHeaders(token)
+  if (password) headers['x-room-password'] = password
   const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/ai/suggest`, {
     method: 'POST',
-    headers: authHeaders(token),
+    headers,
   })
+  if (response.status === 401) throw new Error('登录已过期或聊天室密码错误')
   if (response.status === 403) throw new Error('你没有在此聊天室发言的权限')
   if (response.status === 429) throw new Error('请求过于频繁，请稍后再试')
   if (response.status === 503) throw new Error('AI 助手当前不可用')

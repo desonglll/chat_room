@@ -27,6 +27,7 @@ const props = defineProps<{
   historyReady: boolean
   selecting: boolean
   selectedMessageIds: string[]
+  favoriteMessageIds: string[]
   loadingOlder: boolean
   hasMoreHistory: boolean
   ensureMessage: (messageId: string) => Promise<boolean>
@@ -78,7 +79,10 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
     items.push({ label: '回复', command: () => emit('reply', message) })
     if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
     items.push({ label: '转发', command: () => emit('forward', message) })
-    items.push({ label: '收藏', command: () => emit('favorite', message) })
+    items.push({
+      label: props.favoriteMessageIds.includes(message.message_id) ? '取消收藏' : '收藏',
+      command: () => emit('favorite', message),
+    })
   }
   if (isOwn && message.content && !message.recalled_at) {
     items.push({ label: '编辑', command: () => emit('edit', message) })
@@ -250,19 +254,20 @@ function findMessage(messageId: string): HTMLElement | undefined {
   )
 }
 
-async function scrollToMessage(messageId: string): Promise<void> {
+async function scrollToMessage(messageId: string): Promise<boolean> {
   let target = findMessage(messageId)
   if (!target && (await props.ensureMessage(messageId))) {
     await nextTick()
     target = findMessage(messageId)
   }
-  if (!target) return
+  if (!target) return false
   target.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'center' })
   highlightedId.value = messageId
   window.clearTimeout(highlightTimer)
   highlightTimer = window.setTimeout(() => {
     highlightedId.value = ''
   }, 1400)
+  return true
 }
 
 defineExpose({ scrollToMessage })
@@ -418,6 +423,7 @@ onBeforeUnmount(() => {
             </p>
             <MessageHoverActions
               :enabled="!message.recalled_at && !selecting && isSettled(message)"
+              :favorited="favoriteMessageIds.includes(message.message_id)"
               @reaction="toggleReaction(message, $event)"
               @reply="emit('reply', message)"
               @forward="emit('forward', message)"

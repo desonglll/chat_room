@@ -4,6 +4,7 @@ import { DoorOpen, LogIn, UserRound } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
+import ToggleSwitch from 'primevue/toggleswitch'
 import ScopedPasswordField from './ScopedPasswordField.vue'
 import type { ChatStatus, Room, User } from '../types'
 
@@ -11,6 +12,7 @@ const props = defineProps<{
   room: Room | null
   user: User | null
   password: string
+  rememberRoomPasswords: boolean
   status: ChatStatus
   error: string
   loading: boolean
@@ -21,11 +23,16 @@ const emit = defineEmits<{
   requestJoin: []
   authenticate: []
   'update:password': [password: string]
+  'update:rememberRoomPasswords': [remember: boolean]
 }>()
 
 const passwordModel = computed({
   get: () => props.password,
   set: (value: string) => emit('update:password', value),
+})
+const rememberPasswordModel = computed({
+  get: () => props.rememberRoomPasswords,
+  set: (value: boolean) => emit('update:rememberRoomPasswords', value),
 })
 
 function handleJoin(): void {
@@ -93,7 +100,7 @@ function handleJoin(): void {
         >
       </div>
 
-      <div v-if="room.has_password" class="mt-5 flex flex-col gap-2">
+      <div v-if="room.has_password" class="mt-5 flex flex-col gap-3">
         <label for="joinPassword" class="text-sm font-medium">聊天室访问密码</label>
         <ScopedPasswordField
           v-model="passwordModel"
@@ -101,6 +108,10 @@ function handleJoin(): void {
           name="room-access-password"
           scope="room-access"
         />
+        <label class="flex min-h-10 cursor-pointer items-center justify-between gap-4 text-sm">
+          <span>切换会话时记住密码</span>
+          <ToggleSwitch v-model="rememberPasswordModel" aria-label="切换会话时记住聊天室密码" />
+        </label>
       </div>
 
       <Message v-if="room.membership_status === 'pending'" severity="info" size="small" :closable="false" class="mt-4">
