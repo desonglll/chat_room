@@ -214,7 +214,9 @@ relational database for active membership and current recall state before the
 best `top_k` messages are sent to the model as LangChain `Document` values.
 Each injected result has a stable `S1`, `S2`, ... source label, message ID,
 sender, timestamp, and relevance score; answers are instructed to cite those
-labels when relying on retrieved evidence.
+labels when relying on retrieved evidence. The answer stores the matching source
+metadata and shows a source list whose entries deep-link to the original room
+message.
 The migration backfills every existing non-recalled text message into the
 outbox, so after the queue reaches zero every room message is eligible for RAG.
 The answer footer displays recent transcript messages separately from full-room

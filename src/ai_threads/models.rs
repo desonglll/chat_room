@@ -1,7 +1,18 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::types::Json;
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize, ToSchema)]
+pub struct AiCitationSource {
+    pub label: String,
+    pub room_id: Uuid,
+    pub message_id: Uuid,
+    pub sender: String,
+    pub sent_at: DateTime<Utc>,
+    pub excerpt: String,
+}
 
 #[derive(Debug, Clone, Serialize, ToSchema, sqlx::FromRow)]
 pub struct AiThread {
@@ -23,6 +34,8 @@ pub struct AiThreadMessage {
     pub room_id: Option<Uuid>,
     pub context_message_count: Option<i64>,
     pub retrieved_message_count: Option<i64>,
+    #[schema(value_type = Vec<AiCitationSource>)]
+    pub sources: Json<Vec<AiCitationSource>>,
     pub status: String,
     pub revision: i64,
     pub created_at: DateTime<Utc>,

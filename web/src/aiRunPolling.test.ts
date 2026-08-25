@@ -11,6 +11,7 @@ function assistant(status: AiThreadMessage['status'], content: string): AiThread
     room_id: null,
     context_message_count: null,
     retrieved_message_count: null,
+    sources: [],
     status,
     revision: content.length,
     created_at: '2026-08-25T00:00:00Z',
