@@ -47,12 +47,27 @@ api_key_env = "CHAT_ROOM_AI_API_KEY"
 model = ""
 fast_model = ""
 base_url = ""
+standard_extra_body = { temperature = 0.2 }
+reasoning_extra_body = { reasoning_effort = "high" }
 max_context_messages = 30
 analysis_context_messages = 120
 request_timeout_secs = 60
 stream_idle_timeout_secs = 30
 stream_total_timeout_secs = 300
 suggest_cooldown_secs = 10
+
+[vector_store]
+enabled = false
+url = "http://127.0.0.1:6333"
+collection = "chat_messages"
+api_key_env = ""
+dimensions = 1024
+top_k = 6
+score_threshold = 0.35
+embedding_base_url = ""
+embedding_model = ""
+embedding_api_key_env = "CHAT_ROOM_AI_API_KEY"
+worker_interval_ms = 500
 
 [admin]
 usernames = []
@@ -120,15 +135,34 @@ fair admission queue provides overload control.
 provider key; it is not the key itself. The public configuration endpoint
 reports `ready` only when AI is enabled and that environment variable is
 present in the server process. `fast_model` is optional. When an AI session's
-deep-thinking switch is off, the server uses `fast_model` when configured;
-otherwise SiliconFlow-compatible endpoints receive `enable_thinking=false`
-with the main model. Other providers continue with the configured model.
+deep-thinking switch is off, the server uses `fast_model` when configured.
+`provider = "openai"` accepts any OpenAI-compatible endpoint.
+`standard_extra_body` and `reasoning_extra_body` are optional objects forwarded
+exactly for each mode; no vendor fields are inferred from `base_url`.
 
 Streaming has independent limits. `request_timeout_secs` bounds the initial
 provider connection, `stream_idle_timeout_secs` is reset by every valid
 reasoning or content event, and `stream_total_timeout_secs` is the hard upper
-bound for one response. The browser receives a coarse reasoning status but not
-the model's private reasoning text.
+bound for one response. AI Runs and placeholder messages are persisted before
+execution, so closing or refreshing the browser does not cancel an answer.
+When Redis is enabled and reachable, live answer revisions are kept there and
+overlaid by the message API; completion writes the terminal answer to
+PostgreSQL (or SQLite in SQLite deployments) and removes the Redis key. Redis
+errors fall back to relational-database revisions instead of aborting the Run.
+
+The vector store is strictly opt-in. With `vector_store.enabled = false`, the
+server does not connect to Qdrant or the embeddings endpoint. When enabled,
+`dimensions` must exactly match `embedding_model`. Message insert, edit, recall,
+and delete operations write a transactional outbox; a background worker updates
+Qdrant and retries failures. Retrieval is filtered to the one room attached to
+the AI session, then every hit is rechecked in the relational database for
+active membership and current recall state before it is sent to the model.
+
+The Compose stack exposes Qdrant REST and gRPC on loopback ports 6333 and 6334
+by default and stores its data in `qdrant_data`. Containers use
+`CHAT_ROOM_VECTOR_URL=http://qdrant:6333`; override the host ports with
+`QDRANT_HTTP_PORT` and `QDRANT_GRPC_PORT`. Configure an API key and TLS before
+making Qdrant reachable beyond the local host.
 
 ## Complete PostgreSQL backup and restore
 

@@ -14,29 +14,6 @@ pub enum AiStreamItem {
 pub type AiTextStream = Pin<Box<dyn Stream<Item = anyhow::Result<AiStreamItem>> + Send>>;
 
 impl AiAssistant {
-    pub async fn answer(
-        &self,
-        toon_context: Option<&str>,
-        history: &[AiConversationTurn],
-        question: &str,
-        thinking_enabled: bool,
-    ) -> anyhow::Result<String> {
-        let mut stream = self
-            .answer_stream(toon_context, history, question, thinking_enabled)
-            .await?;
-        let mut answer = String::new();
-        while let Some(item) = stream.next().await {
-            if let AiStreamItem::Content(chunk) = item? {
-                answer.push_str(&chunk);
-            }
-        }
-        let answer = answer.trim();
-        if answer.is_empty() {
-            anyhow::bail!("AI response had no text content");
-        }
-        Ok(answer.to_owned())
-    }
-
     pub async fn answer_stream(
         &self,
         toon_context: Option<&str>,

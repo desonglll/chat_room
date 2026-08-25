@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -16,6 +17,7 @@ use crate::attachment_storage::{self, AttachmentStore};
 use crate::attachments::upload_hashes::UploadHashTracker;
 use crate::cache::RedisCache;
 use crate::config::AppConfig;
+use crate::knowledge::MessageIndex;
 use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
@@ -79,6 +81,9 @@ pub struct AppState {
     pub(crate) config: AppConfig,
     pub(crate) redis_cache: Option<RedisCache>,
     pub(crate) work_queue: WorkQueue,
+    pub(crate) ai_run_dispatcher_started: AtomicBool,
+    pub(crate) message_index: Option<MessageIndex>,
+    pub(crate) message_index_worker_started: AtomicBool,
 }
 
 impl AppState {
@@ -174,6 +179,9 @@ impl AppState {
         } else {
             None
         };
+        let message_index = MessageIndex::connect(&config.vector_store)
+            .await
+            .context("initialize vector message index")?;
 
         let mut rooms = HashMap::with_capacity(loaded.len());
         let mut channels = HashMap::with_capacity(loaded.len());
@@ -199,6 +207,9 @@ impl AppState {
             config,
             redis_cache,
             work_queue,
+            ai_run_dispatcher_started: AtomicBool::new(false),
+            message_index,
+            message_index_worker_started: AtomicBool::new(false),
         };
         state.backfill_attachment_content_hashes().await?;
         Ok(state)

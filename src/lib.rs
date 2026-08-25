@@ -12,6 +12,7 @@ pub mod config;
 pub mod conversations;
 pub mod direct_conversations;
 pub mod favorites;
+pub mod knowledge;
 pub mod messages;
 pub mod models;
 pub mod realtime;
@@ -102,14 +103,13 @@ use crate::state::AppState;
         favorites::handlers::add_collaborator,
         favorites::handlers::remove_collaborator,
         ai_handlers::suggest,
-        ai_handlers::analyze_conversation,
-        ai_handlers::analyze_conversation_stream,
         ai_threads::handlers::list_threads,
         ai_threads::handlers::create_thread,
         ai_threads::handlers::update_thread,
         ai_threads::handlers::delete_thread,
         ai_threads::handlers::list_messages,
-        ai_threads::query::query_thread_stream,
+        ai_threads::runs::create_run,
+        ai_threads::runs::get_run,
         admin_metrics::overview,
         admin_metrics::purge,
         admin_system_lock::update,
@@ -119,13 +119,12 @@ use crate::state::AppState;
     components(schemas(
         ai::AiSuggestions,
         ai::AiConversationTurn,
-        ai::AiConversationRequest,
-        ai::AiConversationResponse,
         ai_threads::AiThread,
         ai_threads::AiThreadMessage,
         ai_threads::CreateAiThreadRequest,
         ai_threads::UpdateAiThreadRequest,
-        ai_threads::QueryAiThreadRequest,
+        ai_threads::CreateAiRunRequest,
+        ai_threads::AiRun,
         models::Room,
         models::CreateRoomRequest,
         models::UpdateRoomRequest,
@@ -195,6 +194,8 @@ pub fn build_app(state: Arc<AppState>) -> Router {
 
 /// Build the axum router and optionally serve the embedded browser client.
 pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
+    ai_threads::runs::ensure_dispatcher(state.clone());
+    knowledge::ensure_worker(state.clone());
     let multipart_body_limit = state
         .max_upload_bytes()
         .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);
@@ -218,14 +219,6 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             axum::routing::post(ai_handlers::suggest),
         )
         .route(
-            "/api/ai/conversations/:id/query",
-            axum::routing::post(ai_handlers::analyze_conversation),
-        )
-        .route(
-            "/api/ai/conversations/:id/query/stream",
-            axum::routing::post(ai_handlers::analyze_conversation_stream),
-        )
-        .route(
             "/api/ai/threads",
             get(ai_threads::handlers::list_threads).post(ai_threads::handlers::create_thread),
         )
@@ -239,9 +232,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             get(ai_threads::handlers::list_messages),
         )
         .route(
-            "/api/ai/threads/:id/query/stream",
-            axum::routing::post(ai_threads::query_thread_stream),
+            "/api/ai/threads/:id/runs",
+            axum::routing::post(ai_threads::runs::create_run),
         )
+        .route("/api/ai/runs/:id", get(ai_threads::runs::get_run))
         .route(
             "/api/rooms/:id/members/me",
             axum::routing::delete(membership_handlers::leave_room)

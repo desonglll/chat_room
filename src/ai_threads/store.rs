@@ -118,11 +118,13 @@ impl AppState {
         if self.ai_thread(user_id, thread_id).await?.is_none() {
             return Ok(None);
         }
-        let messages = with_pool!(self, |pool| {
+        let mut messages: Vec<AiThreadMessage> = with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT id, thread_id, role, content, room_id, context_message_count, created_at \
+                "SELECT id, thread_id, role, content, room_id, context_message_count, status, \
+                   revision, created_at, updated_at \
                  FROM (SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   created_at FROM ai_thread_messages WHERE thread_id = $1 \
+                   status, revision, created_at, COALESCE(updated_at, created_at) AS updated_at \
+                   FROM ai_thread_messages WHERE thread_id = $1 \
                    ORDER BY created_at DESC, id DESC LIMIT $2) AS recent \
                  ORDER BY created_at ASC, id ASC",
             )
@@ -131,6 +133,27 @@ impl AppState {
             .fetch_all(pool)
             .await
         })?;
+        if let Some(cache) = self.redis_cache() {
+            for message in messages.iter_mut().filter(|message| {
+                message.role == "assistant"
+                    && matches!(message.status.as_str(), "pending" | "streaming")
+            }) {
+                match cache.ai_answer(message.id).await {
+                    Ok(Some(answer)) => {
+                        message.content = answer.content;
+                        message.context_message_count = Some(answer.context_message_count);
+                        message.status = "streaming".into();
+                        message.revision = answer.revision;
+                        message.updated_at = answer.updated_at;
+                    }
+                    Ok(None) => {}
+                    Err(error) => tracing::warn!(
+                        message_id = %message.id,
+                        "read live AI answer from Redis failed: {error:#}"
+                    ),
+                }
+            }
+        }
         Ok(Some(messages))
     }
 
@@ -148,8 +171,8 @@ impl AppState {
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO ai_thread_messages \
-                 (id, thread_id, role, content, room_id, context_message_count, created_at) \
-                 SELECT $1, $2, $3, $4, $5, $6, $7 FROM ai_threads \
+                 (id, thread_id, role, content, room_id, context_message_count, status, revision, created_at, updated_at) \
+                 SELECT $1, $2, $3, $4, $5, $6, 'completed', 0, $7, $7 FROM ai_threads \
                  WHERE id = $2 AND user_id = $8",
             )
             .bind(id)
@@ -177,7 +200,8 @@ impl AppState {
         })?;
         with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT id, thread_id, role, content, room_id, context_message_count, created_at \
+                "SELECT id, thread_id, role, content, room_id, context_message_count, status, \
+                   revision, created_at, COALESCE(updated_at, created_at) AS updated_at \
                  FROM ai_thread_messages WHERE id = $1",
             )
             .bind(id)

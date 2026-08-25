@@ -3,6 +3,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use redis::aio::ConnectionManager;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::config::RedisConfig;
@@ -23,6 +24,14 @@ pub(crate) enum MessageCacheLookup {
 }
 
 pub(crate) struct MessageCacheTicket(String);
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct CachedAiAnswer {
+    pub content: String,
+    pub context_message_count: i64,
+    pub revision: i64,
+    pub updated_at: DateTime<Utc>,
+}
 
 impl RedisCache {
     pub async fn connect(config: &RedisConfig) -> Result<Self> {
@@ -253,6 +262,58 @@ impl RedisCache {
         .context("invalidate cached message history")
     }
 
+    pub async fn ai_answer(&self, message_id: Uuid) -> Result<Option<CachedAiAnswer>> {
+        let mut connection = self.manager.clone();
+        let value = tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("GET")
+                .arg(self.ai_answer_key(message_id))
+                .query_async::<Option<String>>(&mut connection),
+        )
+        .await
+        .context("Redis AI answer GET timed out")?
+        .context("read cached AI answer")?;
+        value
+            .map(|json| serde_json::from_str(&json).context("decode cached AI answer"))
+            .transpose()
+    }
+
+    pub async fn set_ai_answer(
+        &self,
+        message_id: Uuid,
+        answer: &CachedAiAnswer,
+        ttl_secs: u64,
+    ) -> Result<()> {
+        let json = serde_json::to_string(answer).context("encode cached AI answer")?;
+        let mut connection = self.manager.clone();
+        tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("SET")
+                .arg(self.ai_answer_key(message_id))
+                .arg(json)
+                .arg("EX")
+                .arg(ttl_secs.max(60))
+                .query_async::<()>(&mut connection),
+        )
+        .await
+        .context("Redis AI answer SET timed out")?
+        .context("cache AI answer")
+    }
+
+    pub async fn delete_ai_answer(&self, message_id: Uuid) -> Result<()> {
+        let mut connection = self.manager.clone();
+        tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("DEL")
+                .arg(self.ai_answer_key(message_id))
+                .query_async::<usize>(&mut connection),
+        )
+        .await
+        .context("Redis AI answer DEL timed out")?
+        .context("delete cached AI answer")?;
+        Ok(())
+    }
+
     async fn message_version(&self, room_id: Uuid) -> Result<u64> {
         let mut connection = self.manager.clone();
         tokio::time::timeout(
@@ -279,6 +340,10 @@ impl RedisCache {
         format!("{}:messages:{room_id}:version", self.key_prefix)
     }
 
+    fn ai_answer_key(&self, message_id: Uuid) -> String {
+        format!("{}:ai-answer:{message_id}", self.key_prefix)
+    }
+
     fn message_history_key(
         &self,
         room_id: Uuid,
@@ -297,5 +362,38 @@ impl RedisCache {
             "{}:messages:{room_id}:v{version}:{viewer}:{limit}:{through}",
             self.key_prefix
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn live_ai_answers_expire_from_redis_after_persistence() {
+        let config = RedisConfig {
+            enabled: true,
+            key_prefix: format!("chat-room-test:{}", Uuid::new_v4()),
+            ..RedisConfig::default()
+        };
+        let Ok(cache) = RedisCache::connect(&config).await else {
+            eprintln!("skipping Redis AI answer lifecycle test: Redis is unavailable");
+            return;
+        };
+        let message_id = Uuid::new_v4();
+        let answer = CachedAiAnswer {
+            content: "partial answer".into(),
+            context_message_count: 3,
+            revision: 2,
+            updated_at: Utc::now(),
+        };
+
+        cache.set_ai_answer(message_id, &answer, 60).await.unwrap();
+        let cached = cache.ai_answer(message_id).await.unwrap().unwrap();
+        assert_eq!(cached.content, "partial answer");
+        assert_eq!(cached.revision, 2);
+
+        cache.delete_ai_answer(message_id).await.unwrap();
+        assert!(cache.ai_answer(message_id).await.unwrap().is_none());
     }
 }

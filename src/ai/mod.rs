@@ -16,7 +16,6 @@ use genai::{Client, ModelIden, ServiceTarget};
 use serde::{Deserialize, Serialize};
 use toon_format::encode_default;
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AiSuggestions {
@@ -40,21 +39,6 @@ pub struct AiConversationTurn {
     pub content: String,
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct AiConversationRequest {
-    pub question: String,
-    #[serde(default)]
-    pub history: Vec<AiConversationTurn>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct AiConversationResponse {
-    pub room_id: Uuid,
-    pub answer: String,
-    pub context_message_count: usize,
-    pub context_format: String,
-}
-
 #[derive(Serialize)]
 struct ToonConversation<'a> {
     room: &'a str,
@@ -69,7 +53,8 @@ pub struct AiAssistant {
     pub(super) request_timeout: std::time::Duration,
     pub(super) stream_idle_timeout: std::time::Duration,
     pub(super) stream_total_timeout: std::time::Duration,
-    siliconflow_reasoning: bool,
+    standard_extra_body: Option<serde_json::Value>,
+    reasoning_extra_body: Option<serde_json::Value>,
 }
 
 impl AiAssistant {
@@ -82,10 +67,6 @@ impl AiAssistant {
             .base_url
             .as_deref()
             .map(|url| format!("{}/", url.trim_end_matches('/')));
-        let siliconflow_reasoning = base_url
-            .as_deref()
-            .is_some_and(|url| url.contains("siliconflow.cn"));
-
         // A ServiceTargetResolver (rather than a plain AuthResolver) lets us
         // also override the endpoint when `base_url` is set, e.g. for a
         // self-hosted or proxied OpenAI-compatible API.
@@ -121,7 +102,8 @@ impl AiAssistant {
             request_timeout: std::time::Duration::from_secs(config.request_timeout_secs),
             stream_idle_timeout: std::time::Duration::from_secs(config.stream_idle_timeout_secs),
             stream_total_timeout: std::time::Duration::from_secs(config.stream_total_timeout_secs),
-            siliconflow_reasoning,
+            standard_extra_body: config.standard_extra_body.clone(),
+            reasoning_extra_body: config.reasoning_extra_body.clone(),
         }
     }
 
@@ -184,11 +166,12 @@ impl AiAssistant {
     }
 
     pub(super) fn chat_options(&self, thinking_enabled: bool) -> Option<ChatOptions> {
-        self.siliconflow_reasoning.then(|| {
-            ChatOptions::default().with_extra_body(serde_json::json!({
-                "enable_thinking": thinking_enabled
-            }))
-        })
+        let extra_body = if thinking_enabled {
+            self.reasoning_extra_body.as_ref()
+        } else {
+            self.standard_extra_body.as_ref()
+        }?;
+        Some(ChatOptions::default().with_extra_body(extra_body.clone()))
     }
 }
 
@@ -335,13 +318,14 @@ mod tests {
                 provider: "openai".into(),
                 model: "gpt-test".into(),
                 base_url: Some(format!("http://{address}/v1")),
+                standard_extra_body: Some(serde_json::json!({
+                    "vendor_option": "fast"
+                })),
                 request_timeout_secs: 5,
                 ..AiConfig::default()
             },
             "test-key".into(),
         );
-        let mut assistant = assistant;
-        assistant.siliconflow_reasoning = true;
 
         let mut stream = assistant
             .answer_stream(Some("room: test"), &[], "总结", false)
@@ -358,7 +342,7 @@ mod tests {
 
         assert!(reasoning_seen);
         assert_eq!(chunks, ["你", "好"]);
-        assert_eq!(requests.lock().unwrap()[0]["enable_thinking"], false);
+        assert_eq!(requests.lock().unwrap()[0]["vendor_option"], "fast");
         server.abort();
     }
 }

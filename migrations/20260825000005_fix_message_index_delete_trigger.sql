@@ -1,0 +1,1 @@
+-- PostgreSQL-only trigger repair; SQLite's trigger body needs no replacement.

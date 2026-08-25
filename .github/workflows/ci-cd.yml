@@ -21,6 +21,16 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     permissions:
       contents: read
     steps:
@@ -36,6 +46,9 @@ jobs:
         run: |
           rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt
           rustup default "$RUST_VERSION"
+
+      - name: Install cargo-nextest
+        run: cargo install cargo-nextest --locked --version 0.9.140
 
       - name: Install web dependencies
         working-directory: web
@@ -57,7 +70,7 @@ jobs:
         run: bun test
 
       - name: Run Rust tests
-        run: cargo test --locked --all-targets
+        run: cargo nextest run --locked --all-targets
 
   image:
     name: Build container image

@@ -1,13 +1,5 @@
-import { assertAiResponse, createSseParser } from './assistantApi'
-import type { AiThread, AiThreadMessage } from './types'
-
-export interface AiThreadStreamMeta {
-  thread_id: string
-  title: string
-  room_id: string | null
-  context_message_count: number
-  context_format: string | null
-}
+import { assertAiResponse } from './assistantApi'
+import type { AiRun, AiThread, AiThreadMessage } from './types'
 
 export interface UpdateAiThreadPayload {
   title?: string
@@ -71,59 +63,19 @@ export async function listAiThreadMessages(token: string, threadId: string): Pro
   return response.json() as Promise<AiThreadMessage[]>
 }
 
-export async function streamAiThread(
+export async function createAiRun(
   token: string,
   threadId: string,
   question: string,
   roomId: string | null,
   password: string,
-  onDelta: (content: string) => void,
-  onStatus: (phase: string) => void,
-): Promise<AiThreadStreamMeta> {
-  const response = await fetch(`/api/ai/threads/${encodeURIComponent(threadId)}/query/stream`, {
+  clientRequestId: string,
+): Promise<AiRun> {
+  const response = await fetch(`/api/ai/threads/${encodeURIComponent(threadId)}/runs`, {
     method: 'POST',
     headers: headers(token, password),
-    body: JSON.stringify({ question, room_id: roomId }),
+    body: JSON.stringify({ question, room_id: roomId, client_request_id: clientRequestId }),
   })
   assertAiResponse(response)
-  if (!response.body) throw new Error('当前浏览器无法接收 AI 流式响应')
-
-  let meta: AiThreadStreamMeta | null = null
-  let completed = false
-  let streamError = ''
-  const parser = createSseParser(({ event, data }) => {
-    if (event === 'meta') meta = parseData<AiThreadStreamMeta>(data)
-    if (event === 'status') onStatus(parseData<{ phase: string }>(data).phase)
-    if (event === 'delta') onDelta(parseData<{ content: string }>(data).content)
-    if (event === 'done') completed = true
-    if (event === 'error') streamError = parseData<{ message: string }>(data).message
-  })
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      parser.push(decoder.decode(value, { stream: true }))
-      if (completed || streamError) {
-        await reader.cancel()
-        break
-      }
-    }
-    parser.push(decoder.decode())
-    parser.finish()
-  } finally {
-    reader.releaseLock()
-  }
-  if (streamError) throw new Error(streamError)
-  if (!completed || !meta) throw new Error('AI 流式响应意外中断')
-  return meta
-}
-
-function parseData<T>(data: string): T {
-  try {
-    return JSON.parse(data) as T
-  } catch {
-    throw new Error('AI 流式响应格式无效')
-  }
+  return response.json() as Promise<AiRun>
 }

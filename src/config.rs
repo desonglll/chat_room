@@ -14,8 +14,10 @@ use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 mod performance;
+mod vector_store;
 
 pub use performance::{RedisConfig, WorkQueueConfig};
+pub use vector_store::VectorStoreConfig;
 
 pub const DEFAULT_MAX_UPLOAD_MIB: u64 = 512;
 const BYTES_PER_MIB: u64 = 1024 * 1024;
@@ -32,6 +34,7 @@ pub struct AppConfig {
     pub admin: AdminConfig,
     pub redis: RedisConfig,
     pub work_queue: WorkQueueConfig,
+    pub vector_store: VectorStoreConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -202,6 +205,9 @@ impl AppConfig {
             config.redis.enabled = !url.trim().is_empty();
             config.redis.url = url;
         }
+        if let Ok(url) = std::env::var("CHAT_ROOM_VECTOR_URL") {
+            config.vector_store.url = url;
+        }
         config.validate()
     }
 
@@ -268,6 +274,14 @@ impl AppConfig {
         if self.work_queue.wait_timeout_secs == 0 || self.work_queue.wait_timeout_secs > 300 {
             bail!("work_queue.wait_timeout_secs must be between 1 and 300");
         }
+        for (name, body) in [
+            ("ai.standard_extra_body", &self.ai.standard_extra_body),
+            ("ai.reasoning_extra_body", &self.ai.reasoning_extra_body),
+        ] {
+            if body.as_ref().is_some_and(|value| !value.is_object()) {
+                bail!("{name} must be a JSON/TOML object");
+            }
+        }
         if self
             .admin
             .usernames
@@ -311,6 +325,34 @@ impl AppConfig {
             }
             // Credential availability is reported at runtime so an optional
             // AI misconfiguration does not prevent the chat server starting.
+        }
+        if self.vector_store.enabled {
+            if self.vector_store.url.trim().is_empty()
+                || self.vector_store.collection.trim().is_empty()
+                || self.vector_store.embedding_base_url.trim().is_empty()
+                || self.vector_store.embedding_model.trim().is_empty()
+            {
+                bail!("vector_store requires url, collection, embedding_base_url, and embedding_model when enabled");
+            }
+            if self.vector_store.dimensions == 0 || self.vector_store.dimensions > 65_536 {
+                bail!("vector_store.dimensions must be between 1 and 65536");
+            }
+            if self.vector_store.top_k == 0 || self.vector_store.top_k > 50 {
+                bail!("vector_store.top_k must be between 1 and 50");
+            }
+            if !(0.0..=1.0).contains(&self.vector_store.score_threshold) {
+                bail!("vector_store.score_threshold must be between 0 and 1");
+            }
+            if self.vector_store.worker_interval_ms == 0 {
+                bail!("vector_store.worker_interval_ms must be greater than zero");
+            }
+            if !self.vector_store.collection.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
+            }) {
+                bail!(
+                    "vector_store.collection may contain only ASCII letters, numbers, '_' and '-'"
+                );
+            }
         }
         self.max_upload_bytes()?;
         self.chunk_size_bytes()?;
@@ -475,5 +517,24 @@ mod tests {
         )
         .unwrap();
         assert!(bad_provider.validate().is_err());
+    }
+
+    #[test]
+    fn vector_store_is_opt_in_and_requires_a_complete_embedding_profile() {
+        let default = AppConfig::default();
+        assert!(!default.vector_store.enabled);
+        assert!(default.validate().is_ok());
+
+        let incomplete: AppConfig = toml::from_str(
+            "[vector_store]\nenabled = true\nurl = 'http://qdrant:6333'\ndimensions = 1024",
+        )
+        .unwrap();
+        assert!(incomplete.validate().is_err());
+
+        let complete: AppConfig = toml::from_str(
+            "[vector_store]\nenabled = true\nurl = 'http://qdrant:6333'\ncollection = 'messages'\ndimensions = 1024\nembedding_base_url = 'https://ai.example/v1'\nembedding_model = 'embed-v1'\nembedding_api_key_env = 'EMBEDDING_KEY'",
+        )
+        .unwrap();
+        assert!(complete.validate().is_ok());
     }
 }

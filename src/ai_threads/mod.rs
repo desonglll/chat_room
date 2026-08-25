@@ -1,9 +1,10 @@
 pub mod handlers;
 pub mod models;
-pub mod query;
+mod run_store;
+pub mod runs;
 mod store;
 
 pub use models::{
-    AiThread, AiThreadMessage, CreateAiThreadRequest, QueryAiThreadRequest, UpdateAiThreadRequest,
+    AiRun, AiThread, AiThreadMessage, CreateAiRunRequest, CreateAiThreadRequest,
+    UpdateAiThreadRequest,
 };
-pub use query::query_thread_stream;

@@ -7,7 +7,8 @@ use sqlx::{PgPool, SqlitePool};
 use crate::{
     admin_metrics::RuntimeMetrics, ai::AiAssistant, ai::AiRuntimeStatus,
     attachment_content::ContentHashLocks, attachment_storage::AttachmentStore,
-    attachments::upload_hashes::UploadHashTracker, state::AppState, storage,
+    attachments::upload_hashes::UploadHashTracker, knowledge::MessageIndex, state::AppState,
+    storage,
 };
 
 impl AppState {
@@ -53,6 +54,10 @@ impl AppState {
         self.ai_assistant.as_ref()
     }
 
+    pub(crate) fn message_index(&self) -> Option<&MessageIndex> {
+        self.message_index.as_ref()
+    }
+
     pub(crate) fn ai_max_context_messages(&self) -> usize {
         self.config.ai.max_context_messages
     }
@@ -63,6 +68,10 @@ impl AppState {
 
     pub(crate) fn ai_suggest_cooldown(&self) -> Duration {
         Duration::from_secs(self.config.ai.suggest_cooldown_secs)
+    }
+
+    pub(crate) fn ai_answer_cache_ttl_secs(&self) -> u64 {
+        self.config.ai.stream_total_timeout_secs.saturating_add(300)
     }
 
     pub(crate) fn realtime_config(&self) -> &crate::config::RealtimeConfig {

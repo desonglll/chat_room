@@ -95,18 +95,6 @@ export interface AiSuggestions {
   suggestions: string[]
 }
 
-export interface AiConversationTurn {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-export interface AiConversationResponse {
-  room_id: string
-  answer: string
-  context_message_count: number
-  context_format: string
-}
-
 export interface AiThread {
   id: string
   user_id: string
@@ -124,7 +112,24 @@ export interface AiThreadMessage {
   content: string
   room_id: string | null
   context_message_count: number | null
+  status: 'pending' | 'streaming' | 'completed' | 'failed'
+  revision: number
   created_at: string
+  updated_at: string
+}
+
+export interface AiRun {
+  id: string
+  thread_id: string
+  user_message_id: string
+  assistant_message_id: string
+  client_request_id: string
+  room_id: string | null
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  context_message_count: number | null
+  error_message: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Attachment {

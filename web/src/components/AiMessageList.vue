@@ -54,12 +54,16 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
         >
           <p v-if="message.role === 'user'" class="whitespace-pre-wrap break-words">{{ message.content }}</p>
           <MarkdownContent v-else-if="message.content" :content="message.content" />
-          <div v-else-if="message.streaming" class="flex min-h-6 items-center gap-2 text-muted-color">
+          <div
+            v-else-if="message.status === 'pending' || message.status === 'streaming'"
+            class="flex min-h-6 items-center gap-2 text-muted-color"
+          >
             <span
               class="size-3.5 animate-spin rounded-full border-2 border-surface-300 border-t-primary motion-reduce:animate-none"
             />
-            {{ message.phase === 'reasoning' ? '正在思考' : '正在连接' }}
+            {{ message.status === 'streaming' ? '正在回答' : '正在连接' }}
           </div>
+          <p v-else-if="message.status === 'failed'" class="text-sm text-red-600">AI 请求失败，请稍后重试</p>
           <p
             v-if="message.role === 'assistant' && (roomTitle || message.context_message_count)"
             class="mt-2 text-[10px] text-muted-color"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { Hash, Send } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
@@ -9,7 +9,7 @@ import {
   deleteAiThread,
   listAiThreadMessages,
   listAiThreads,
-  streamAiThread,
+  createAiRun,
   updateAiThread,
 } from '../aiThreadApi'
 import {
@@ -21,9 +21,9 @@ import {
   type MentionableConversation,
 } from '../assistantMentions'
 import type { AiUiMessage } from '../aiUi'
+import { hasActiveAiMessage, pollAiThreadMessages } from '../aiRunPolling'
 import { createRandomUuid } from '../randomUuid'
 import { readRoomPassword } from '../roomPasswordVault'
-import { createTextFrameBatch } from '../textFrameBatch'
 import type { AiRuntimeStatus, AiThread, Room } from '../types'
 import AiAssistantHeader from './AiAssistantHeader.vue'
 import AiAssistantToolbar from './AiAssistantToolbar.vue'
@@ -51,6 +51,7 @@ const messageList = ref<{ scrollToLatest: (smooth?: boolean) => Promise<void>; s
 )
 const mentionRange = ref<ConversationMentionRange | null>(null)
 const mentionIndex = ref(0)
+let pollGeneration = 0
 
 const availableRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
 const mentionableRooms = computed(() => availableRooms.value.map((room) => ({ roomId: room.id, title: room.name })))
@@ -105,17 +106,41 @@ async function createSession(): Promise<AiThread | null> {
 }
 
 async function selectSession(threadId: string): Promise<void> {
-  if (loading.value || threadId === activeThreadId.value) return
+  if (threadId === activeThreadId.value) return
+  const generation = ++pollGeneration
   activeThreadId.value = threadId
   loadingThreads.value = true
   try {
     messages.value = await listAiThreadMessages(props.token, threadId)
+    loading.value = hasActiveAiMessage(messages.value)
     syncRoomPassword()
     await messageList.value?.scrollToLatest()
+    if (loading.value) void followPersistedRun(threadId, generation)
   } catch (caught) {
     report(caught, '加载 AI 对话消息失败')
   } finally {
     loadingThreads.value = false
+  }
+}
+
+async function followPersistedRun(threadId: string, generation: number): Promise<void> {
+  try {
+    await pollAiThreadMessages(
+      () => listAiThreadMessages(props.token, threadId),
+      (persisted) => {
+        if (generation !== pollGeneration || activeThreadId.value !== threadId) return
+        messages.value = persisted
+        messageList.value?.scrollToLatestSoon()
+      },
+      { isCurrent: () => generation === pollGeneration && activeThreadId.value === threadId },
+    )
+  } catch (caught) {
+    if (generation === pollGeneration) report(caught, '读取 AI 回答失败')
+  } finally {
+    if (generation !== pollGeneration) return
+    loading.value = false
+    threads.value = await listAiThreads(props.token).catch(() => threads.value)
+    await messageList.value?.scrollToLatest()
   }
 }
 
@@ -231,73 +256,33 @@ async function submit(quickQuestion = ''): Promise<void> {
   }
   const session = await ensureSession()
   if (!session) return
-  const now = new Date().toISOString()
-  messages.value.push({
-    id: createRandomUuid(),
-    thread_id: session.id,
-    role: 'user',
-    content: parsed.question,
-    room_id: room?.id || null,
-    context_message_count: null,
-    created_at: now,
-  })
-  const assistantMessage = reactive<AiUiMessage>({
-    id: createRandomUuid(),
-    thread_id: session.id,
-    role: 'assistant',
-    content: '',
-    room_id: room?.id || null,
-    context_message_count: null,
-    created_at: now,
-    streaming: true,
-    phase: 'connecting',
-  })
-  messages.value.push(assistantMessage)
   prompt.value = ''
   mentionRange.value = null
   loading.value = true
-  const deltaBatch = createTextFrameBatch((content) => {
-    assistantMessage.content += content
-    messageList.value?.scrollToLatestSoon()
-  })
-  await messageList.value?.scrollToLatest(true)
   try {
-    const meta = await streamAiThread(
+    await createAiRun(
       props.token,
       session.id,
       parsed.question,
       room?.id || null,
       room?.has_password ? roomPassword.value : '',
-      (content) => {
-        assistantMessage.phase = 'answering'
-        deltaBatch.push(content)
-      },
-      (phase) => {
-        if (phase === 'reasoning') assistantMessage.phase = 'reasoning'
-      },
+      createRandomUuid(),
     )
-    deltaBatch.flush()
-    assistantMessage.context_message_count = meta.context_message_count || null
-    replaceThread({
-      ...session,
-      title: meta.title,
-      room_id: meta.room_id,
-      updated_at: new Date().toISOString(),
-    })
-  } catch (caught) {
-    deltaBatch.flush()
-    if (!assistantMessage.content)
-      messages.value = messages.value.filter((message) => message.id !== assistantMessage.id)
-    report(caught, 'AI 请求失败')
-  } finally {
-    assistantMessage.streaming = false
-    loading.value = false
+    const generation = ++pollGeneration
+    messages.value = await listAiThreadMessages(props.token, session.id)
     threads.value = await listAiThreads(props.token).catch(() => threads.value)
-    await messageList.value?.scrollToLatest()
+    await messageList.value?.scrollToLatest(true)
+    void followPersistedRun(session.id, generation)
+  } catch (caught) {
+    loading.value = false
+    report(caught, 'AI 请求失败')
   }
 }
 
 onMounted(loadSessions)
+onUnmounted(() => {
+  pollGeneration += 1
+})
 </script>
 
 <template>
