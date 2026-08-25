@@ -301,6 +301,14 @@ impl AppConfig {
             if self.ai.request_timeout_secs == 0 || self.ai.request_timeout_secs > 300 {
                 bail!("ai.request_timeout_secs must be between 1 and 300");
             }
+            if self.ai.stream_idle_timeout_secs == 0 || self.ai.stream_idle_timeout_secs > 300 {
+                bail!("ai.stream_idle_timeout_secs must be between 1 and 300");
+            }
+            if self.ai.stream_total_timeout_secs < self.ai.stream_idle_timeout_secs
+                || self.ai.stream_total_timeout_secs > 1800
+            {
+                bail!("ai.stream_total_timeout_secs must be between the idle timeout and 1800");
+            }
             // Credential availability is reported at runtime so an optional
             // AI misconfiguration does not prevent the chat server starting.
         }
@@ -376,6 +384,8 @@ mod tests {
         assert!(config.admin.usernames.is_empty());
         assert_eq!(config.admin.orphan_retention_hours, 168);
         assert_eq!(config.ai.request_timeout_secs, 60);
+        assert_eq!(config.ai.stream_idle_timeout_secs, 30);
+        assert_eq!(config.ai.stream_total_timeout_secs, 300);
         assert_eq!(config.ai.suggest_cooldown_secs, 10);
         assert_eq!(config.uploads.chunk_size_mib, 8);
         assert_eq!(config.uploads.abandoned_upload_gc_hours, 24);

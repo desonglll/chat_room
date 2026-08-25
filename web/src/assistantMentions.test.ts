@@ -26,6 +26,13 @@ describe('AI assistant mentions', () => {
     })
   })
 
+  test('keeps a normal AI question valid without a conversation', () => {
+    expect(parseAssistantPrompt('帮我写一份会议议程', conversations)).toEqual({
+      roomId: '',
+      question: '帮我写一份会议议程',
+    })
+  })
+
   test('opens candidates at the active @ token and filters by typed text', () => {
     const value = '请分析 @项目'
     const range = activeConversationMention(value, value.length, conversations)

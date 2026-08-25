@@ -44,12 +44,19 @@ enabled = true
 provider = "openai"
 api_key_env = "CHAT_ROOM_AI_API_KEY"
 model = "deepseek-ai/DeepSeek-V4-Flash"
+# Optional non-reasoning model used when the per-session thinking switch is off.
+# When empty, the main model receives SiliconFlow's enable_thinking=false hint.
+fast_model = ""
 base_url = "https://api.siliconflow.cn/v1"
 max_context_messages = 30
 # The independent AI workspace can inspect a wider, still bounded window.
 analysis_context_messages = 120
 # Long-context requests can take longer than short suggestions on hosted models.
 request_timeout_secs = 60
+# Any valid upstream event resets the idle deadline. The larger total deadline
+# prevents an endlessly active provider stream from occupying a connection.
+stream_idle_timeout_secs = 30
+stream_total_timeout_secs = 300
 # Per-user cooldown between AI suggestion requests in the same room.
 suggest_cooldown_secs = 10
 

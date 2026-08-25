@@ -30,4 +30,11 @@ describe('chat UI regression contracts', () => {
     expect(component).toContain(':aria-pressed="favorited"')
     expect(component).toContain(":fill=\"favorited ? 'currentColor' : 'none'\"")
   })
+
+  test('AI assistant can send over insecure HTTP without requiring a room', async () => {
+    const component = await source('components/AiAssistantPage.vue')
+    expect(component).toContain('createRandomUuid')
+    expect(component).not.toContain('crypto.randomUUID()')
+    expect(component).not.toContain("emit('error', '请先选择一个可访问的会话')")
+  })
 })

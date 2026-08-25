@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
-import { ArrowLeft, Bot, CheckCheck, Hash, ListChecks, Send, Sparkles, X } from 'lucide-vue-next'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { Hash, Send } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
-import Password from 'primevue/password'
 import Textarea from 'primevue/textarea'
-import { streamConversation } from '../assistantApi'
+import {
+  createAiThread,
+  deleteAiThread,
+  listAiThreadMessages,
+  listAiThreads,
+  streamAiThread,
+  updateAiThread,
+} from '../aiThreadApi'
 import {
   activeConversationMention,
   conversationMentionCandidates,
@@ -14,15 +20,15 @@ import {
   type ConversationMentionRange,
   type MentionableConversation,
 } from '../assistantMentions'
+import type { AiUiMessage } from '../aiUi'
+import { createRandomUuid } from '../randomUuid'
 import { readRoomPassword } from '../roomPasswordVault'
-import type { AiConversationTurn, AiRuntimeStatus, Room } from '../types'
-
-interface ThreadMessage extends AiConversationTurn {
-  id: string
-  roomTitle: string
-  contextCount?: number
-  streaming?: boolean
-}
+import { createTextFrameBatch } from '../textFrameBatch'
+import type { AiRuntimeStatus, AiThread, Room } from '../types'
+import AiAssistantHeader from './AiAssistantHeader.vue'
+import AiAssistantToolbar from './AiAssistantToolbar.vue'
+import AiMessageList from './AiMessageList.vue'
+import AiThreadSidebar from './AiThreadSidebar.vue'
 
 const props = defineProps<{
   token: string
@@ -32,34 +38,135 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ back: []; error: [message: string] }>()
 
-const selectedRoomId = ref('')
+const threads = ref<AiThread[]>([])
+const activeThreadId = ref('')
+const messages = ref<AiUiMessage[]>([])
 const roomPassword = ref('')
 const prompt = ref('')
-const thread = ref<ThreadMessage[]>([])
 const loading = ref(false)
-const threadElement = ref<HTMLElement | null>(null)
+const loadingThreads = ref(false)
 const promptInput = ref<{ $el?: HTMLTextAreaElement } | null>(null)
+const messageList = ref<{ scrollToLatest: (smooth?: boolean) => Promise<void>; scrollToLatestSoon: () => void } | null>(
+  null,
+)
 const mentionRange = ref<ConversationMentionRange | null>(null)
 const mentionIndex = ref(0)
-let pendingScrollFrame: number | null = null
+
 const availableRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
-const selectedRoom = computed(() => availableRooms.value.find((room) => room.id === selectedRoomId.value) || null)
 const mentionableRooms = computed(() => availableRooms.value.map((room) => ({ roomId: room.id, title: room.name })))
 const mentionCandidates = computed(() => conversationMentionCandidates(mentionRange.value, mentionableRooms.value))
+const activeThread = computed(() => threads.value.find((thread) => thread.id === activeThreadId.value) || null)
+const activeRoom = computed(() => availableRooms.value.find((room) => room.id === activeThread.value?.room_id) || null)
 const aiReady = computed(() => props.aiStatus === 'ready')
 
-function selectRoom(roomId: string): void {
-  if (roomId === selectedRoomId.value) return
-  selectedRoomId.value = roomId
-  thread.value = []
-  const room = availableRooms.value.find((candidate) => candidate.id === roomId)
+function report(caught: unknown, fallback: string): void {
+  emit('error', caught instanceof Error ? caught.message : fallback)
+}
+
+function replaceThread(updated: AiThread): void {
+  const index = threads.value.findIndex((thread) => thread.id === updated.id)
+  if (index === -1) threads.value.unshift(updated)
+  else threads.value[index] = updated
+}
+
+function syncRoomPassword(): void {
+  const room = activeRoom.value
   roomPassword.value = room?.has_password ? readRoomPassword(room.id, props.rememberRoomPasswords) : ''
 }
 
-function clearRoom(): void {
-  selectedRoomId.value = ''
-  roomPassword.value = ''
-  thread.value = []
+async function loadSessions(): Promise<void> {
+  loadingThreads.value = true
+  try {
+    threads.value = await listAiThreads(props.token)
+    if (threads.value.length) await selectSession(threads.value[0].id)
+  } catch (caught) {
+    report(caught, '加载 AI 对话失败')
+  } finally {
+    loadingThreads.value = false
+  }
+}
+
+async function createSession(): Promise<AiThread | null> {
+  if (loading.value || loadingThreads.value) return null
+  loadingThreads.value = true
+  try {
+    const created = await createAiThread(props.token)
+    threads.value.unshift(created)
+    activeThreadId.value = created.id
+    messages.value = []
+    roomPassword.value = ''
+    return created
+  } catch (caught) {
+    report(caught, '新建 AI 对话失败')
+    return null
+  } finally {
+    loadingThreads.value = false
+  }
+}
+
+async function selectSession(threadId: string): Promise<void> {
+  if (loading.value || threadId === activeThreadId.value) return
+  activeThreadId.value = threadId
+  loadingThreads.value = true
+  try {
+    messages.value = await listAiThreadMessages(props.token, threadId)
+    syncRoomPassword()
+    await messageList.value?.scrollToLatest()
+  } catch (caught) {
+    report(caught, '加载 AI 对话消息失败')
+  } finally {
+    loadingThreads.value = false
+  }
+}
+
+async function removeSession(thread: AiThread): Promise<void> {
+  if (loading.value || loadingThreads.value || !window.confirm(`删除 AI 对话“${thread.title}”？`)) return
+  try {
+    await deleteAiThread(props.token, thread.id)
+    threads.value = threads.value.filter((candidate) => candidate.id !== thread.id)
+    if (activeThreadId.value === thread.id) {
+      activeThreadId.value = ''
+      messages.value = []
+      if (threads.value[0]) await selectSession(threads.value[0].id)
+    }
+  } catch (caught) {
+    report(caught, '删除 AI 对话失败')
+  }
+}
+
+async function ensureSession(): Promise<AiThread | null> {
+  return activeThread.value || createSession()
+}
+
+async function attachRoom(roomId: string): Promise<void> {
+  const thread = await ensureSession()
+  if (!thread || loading.value) return
+  try {
+    replaceThread(await updateAiThread(props.token, thread.id, { room_id: roomId }))
+    syncRoomPassword()
+  } catch (caught) {
+    report(caught, '关联会话失败')
+  }
+}
+
+async function clearRoom(): Promise<void> {
+  if (!activeThread.value || loading.value) return
+  try {
+    replaceThread(await updateAiThread(props.token, activeThread.value.id, { clear_room: true }))
+    roomPassword.value = ''
+  } catch (caught) {
+    report(caught, '清除会话关联失败')
+  }
+}
+
+async function setThinking(enabled: boolean): Promise<void> {
+  const thread = await ensureSession()
+  if (!thread || loading.value) return
+  try {
+    replaceThread(await updateAiThread(props.token, thread.id, { thinking_enabled: enabled }))
+  } catch (caught) {
+    report(caught, '更新思考模式失败')
+  }
 }
 
 function updateMention(value: string, caret: number): void {
@@ -79,7 +186,7 @@ function chooseConversation(conversation: MentionableConversation): void {
   prompt.value = inserted.value
   mentionRange.value = null
   mentionIndex.value = 0
-  selectRoom(conversation.roomId)
+  void attachRoom(conversation.roomId)
   void nextTick(() => {
     const textarea = promptInput.value?.$el
     textarea?.focus()
@@ -113,98 +220,89 @@ function handlePromptKeydown(event: KeyboardEvent): void {
   }
 }
 
-function historyFor(roomId: string): AiConversationTurn[] {
-  if (roomId !== selectedRoomId.value) return []
-  return thread.value.slice(-12).map(({ role, content }) => ({ role, content }))
-}
-
-async function scrollToLatest(): Promise<void> {
-  await nextTick()
-  threadElement.value?.scrollTo({ top: threadElement.value.scrollHeight, behavior: 'smooth' })
-}
-
-function scrollToLatestSoon(): void {
-  if (pendingScrollFrame !== null) return
-  pendingScrollFrame = requestAnimationFrame(() => {
-    pendingScrollFrame = null
-    threadElement.value?.scrollTo({ top: threadElement.value.scrollHeight })
-  })
-}
-
 async function submit(quickQuestion = ''): Promise<void> {
   if (loading.value || !aiReady.value) return
-  const source = quickQuestion ? quickQuestion : prompt.value
-  const parsed = parseAssistantPrompt(source, mentionableRooms.value, selectedRoomId.value)
-  const room = availableRooms.value.find((candidate) => candidate.id === parsed.roomId)
-  if (!room) {
-    emit('error', '请先选择一个可访问的会话')
+  const parsed = parseAssistantPrompt(quickQuestion || prompt.value, mentionableRooms.value, activeRoom.value?.id || '')
+  if (!parsed.question) return
+  const room = parsed.roomId ? availableRooms.value.find((candidate) => candidate.id === parsed.roomId) : null
+  if (parsed.roomId && !room) {
+    emit('error', '引用的会话已不可访问')
     return
   }
-  if (!parsed.question) return
-  const history = historyFor(room.id)
-  if (room.id !== selectedRoomId.value) {
-    selectedRoomId.value = room.id
-    thread.value = []
-    roomPassword.value = room.has_password ? readRoomPassword(room.id, props.rememberRoomPasswords) : ''
-  }
-  thread.value.push({ id: crypto.randomUUID(), role: 'user', content: parsed.question, roomTitle: room.name })
-  const assistantMessage: ThreadMessage = {
-    id: crypto.randomUUID(),
+  const session = await ensureSession()
+  if (!session) return
+  const now = new Date().toISOString()
+  messages.value.push({
+    id: createRandomUuid(),
+    thread_id: session.id,
+    role: 'user',
+    content: parsed.question,
+    room_id: room?.id || null,
+    context_message_count: null,
+    created_at: now,
+  })
+  const assistantMessage: AiUiMessage = {
+    id: createRandomUuid(),
+    thread_id: session.id,
     role: 'assistant',
     content: '',
-    roomTitle: room.name,
+    room_id: room?.id || null,
+    context_message_count: null,
+    created_at: now,
     streaming: true,
+    phase: 'connecting',
   }
-  thread.value.push(assistantMessage)
+  messages.value.push(assistantMessage)
   prompt.value = ''
   mentionRange.value = null
   loading.value = true
-  await scrollToLatest()
+  const deltaBatch = createTextFrameBatch((content) => {
+    assistantMessage.content += content
+    messageList.value?.scrollToLatestSoon()
+  })
+  await messageList.value?.scrollToLatest(true)
   try {
-    const result = await streamConversation(
-      room.id,
-      parsed.question,
-      history,
+    const meta = await streamAiThread(
       props.token,
-      roomPassword.value,
+      session.id,
+      parsed.question,
+      room?.id || null,
+      room?.has_password ? roomPassword.value : '',
       (content) => {
-        assistantMessage.content += content
-        scrollToLatestSoon()
+        assistantMessage.phase = 'answering'
+        deltaBatch.push(content)
+      },
+      (phase) => {
+        if (phase === 'reasoning') assistantMessage.phase = 'reasoning'
       },
     )
-    assistantMessage.contextCount = result.context_message_count
+    deltaBatch.flush()
+    assistantMessage.context_message_count = meta.context_message_count || null
+    replaceThread({
+      ...session,
+      title: meta.title,
+      room_id: meta.room_id,
+      updated_at: new Date().toISOString(),
+    })
   } catch (caught) {
-    if (!assistantMessage.content) {
-      thread.value = thread.value.filter((message) => message.id !== assistantMessage.id)
-    }
-    emit('error', caught instanceof Error ? caught.message : 'AI 请求失败')
+    deltaBatch.flush()
+    if (!assistantMessage.content)
+      messages.value = messages.value.filter((message) => message.id !== assistantMessage.id)
+    report(caught, 'AI 请求失败')
   } finally {
     assistantMessage.streaming = false
     loading.value = false
-    await scrollToLatest()
+    threads.value = await listAiThreads(props.token).catch(() => threads.value)
+    await messageList.value?.scrollToLatest()
   }
 }
+
+onMounted(loadSessions)
 </script>
 
 <template>
   <main id="workspace-main" class="cr-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <header class="cr-page-header flex shrink-0 items-center gap-3 px-4 sm:px-7">
-      <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')">
-        <ArrowLeft :size="19" />
-      </Button>
-      <span class="grid size-9 shrink-0 place-items-center rounded-md bg-primary-50 text-primary">
-        <Bot :size="20" />
-      </span>
-      <div class="min-w-0 flex-1">
-        <h1 class="text-base font-semibold">AI 助手</h1>
-        <p class="mt-0.5 truncate text-xs text-muted-color">{{ selectedRoom?.name || '未选择会话' }}</p>
-      </div>
-      <span
-        class="rounded-sm px-2 py-1 text-[11px] font-medium"
-        :class="aiReady ? 'bg-green-50 text-green-700' : 'bg-surface-100 text-muted-color'"
-        >{{ aiReady ? '可用' : '不可用' }}</span
-      >
-    </header>
+    <AiAssistantHeader :title="activeThread?.title || '新对话'" :ready="aiReady" @back="emit('back')" />
 
     <Message v-if="aiStatus === 'missing_credentials'" severity="warn" :closable="false" class="m-4 sm:mx-7">
       服务端未设置 CHAT_ROOM_AI_API_KEY，配置后重启服务即可启用。
@@ -214,162 +312,88 @@ async function submit(quickQuestion = ''): Promise<void> {
     </Message>
 
     <section
-      class="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-rows-[auto_minmax(0,1fr)_auto] px-4 pb-4 sm:px-7 sm:pb-6"
+      class="grid min-h-0 flex-1 grid-rows-[10rem_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1"
     >
-      <div class="flex flex-wrap items-center gap-2 border-b border-surface-200 py-3">
-        <div
-          v-if="selectedRoom"
-          class="mr-auto flex min-h-9 items-center gap-2 rounded-md bg-surface-100 px-2.5 text-sm"
-        >
-          <Hash :size="15" class="text-primary" />
-          <span class="max-w-48 truncate">{{ selectedRoom.name }}</span>
-          <Button
-            text
-            rounded
-            severity="secondary"
-            aria-label="清除当前会话"
-            title="清除当前会话"
-            class="size-7! p-0!"
-            :disabled="loading"
-            @click="clearRoom"
-          >
-            <X :size="14" />
-          </Button>
-        </div>
-        <p v-else class="mr-auto text-xs text-muted-color">在输入框输入 @ 选择会话</p>
-        <Password
-          v-if="selectedRoom?.has_password"
-          v-model="roomPassword"
-          :feedback="false"
-          toggle-mask
-          autocomplete="off"
-          placeholder="聊天室密码"
-          input-class="w-full"
-          class="min-w-44 flex-1 sm:max-w-60"
-          :disabled="loading"
-        />
-        <Button
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!selectedRoom || !aiReady || loading"
-          @click="submit('总结这段对话')"
-        >
-          <Sparkles :size="16" /><span>总结</span>
-        </Button>
-        <Button
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!selectedRoom || !aiReady || loading"
-          @click="submit('提取对话中的待办事项')"
-        >
-          <ListChecks :size="16" /><span>待办</span>
-        </Button>
-        <Button
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!selectedRoom || !aiReady || loading"
-          @click="submit('梳理这段对话已经形成的结论')"
-        >
-          <CheckCheck :size="16" /><span>结论</span>
-        </Button>
-      </div>
+      <AiThreadSidebar
+        :threads="threads"
+        :active-id="activeThreadId"
+        :busy="loading || loadingThreads"
+        @create="createSession"
+        @select="selectSession"
+        @delete="removeSession"
+      />
 
-      <div ref="threadElement" class="min-h-0 overflow-y-auto py-5" aria-live="polite">
-        <div v-if="!thread.length" class="grid min-h-full place-items-center text-center text-muted-color">
-          <div>
-            <Bot :size="34" class="mx-auto opacity-35" />
-            <p class="mt-3 text-sm">{{ selectedRoom ? '可以开始提问' : '输入 @ 选择需要分析的会话' }}</p>
-          </div>
-        </div>
-        <ol v-else class="space-y-5">
-          <li
-            v-for="message in thread"
-            :key="message.id"
-            class="flex"
-            :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
-          >
-            <article
-              class="max-w-[min(82%,42rem)] rounded-md px-3.5 py-3 text-sm leading-6"
-              :class="
-                message.role === 'user'
-                  ? 'bg-primary text-primary-contrast'
-                  : 'border border-surface-200 bg-surface-0 text-surface-900'
-              "
-            >
-              <p v-if="message.content" class="whitespace-pre-wrap break-words">{{ message.content }}</p>
-              <div v-else-if="message.streaming" class="flex min-h-6 items-center gap-2 text-muted-color">
-                <span
-                  class="size-3.5 animate-spin rounded-full border-2 border-surface-300 border-t-primary motion-reduce:animate-none"
-                />
-                正在分析
-              </div>
-              <p class="mt-2 text-[10px] opacity-65">
-                {{ message.roomTitle
-                }}<template v-if="message.contextCount !== undefined">
-                  · {{ message.contextCount }} 条消息 · TOON</template
-                >
-              </p>
-            </article>
-          </li>
-        </ol>
-      </div>
-
-      <form class="flex items-end gap-2 border-t border-surface-200 pt-3" @submit.prevent="submit()">
-        <div class="relative min-w-0 flex-1">
-          <div
-            v-if="mentionRange"
-            class="absolute bottom-[calc(100%+0.5rem)] left-0 z-20 w-[min(24rem,100%)] overflow-hidden rounded-md border border-surface-200 bg-surface-0 shadow-lg"
-          >
-            <p class="border-b border-surface-200 px-3 py-2 text-xs font-medium text-muted-color">选择会话</p>
-            <ul v-if="mentionCandidates.length" role="listbox" class="max-h-64 overflow-y-auto p-1">
-              <li v-for="(room, index) in mentionCandidates" :key="room.roomId" role="option">
-                <button
-                  type="button"
-                  class="flex min-h-10 w-full items-center gap-2 rounded-sm px-2 text-left text-sm"
-                  :class="index === mentionIndex ? 'bg-primary-50 text-primary' : 'hover:bg-surface-100'"
-                  :aria-selected="index === mentionIndex"
-                  @mousedown.prevent="chooseConversation(room)"
-                >
-                  <Hash :size="15" class="shrink-0" />
-                  <span class="truncate">{{ room.title }}</span>
-                </button>
-              </li>
-            </ul>
-            <p v-else class="px-3 py-5 text-center text-sm text-muted-color">没有匹配的会话</p>
-          </div>
-          <Textarea
-            ref="promptInput"
-            v-model="prompt"
-            auto-resize
-            rows="2"
-            maxlength="4000"
-            fluid
-            class="max-h-32 min-h-12"
-            placeholder="输入 @ 选择会话，然后提出问题"
-            :disabled="loading || !aiReady"
-            aria-label="向 AI 助手提问"
-            aria-autocomplete="list"
-            :aria-expanded="Boolean(mentionRange)"
-            @input="handlePromptInput"
-            @click="handlePromptInput"
-            @keydown="handlePromptKeydown"
-          />
-        </div>
-        <Button
-          type="submit"
-          rounded
-          aria-label="发送给 AI 助手"
-          title="发送"
-          class="size-11! shrink-0 p-0!"
+      <div class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
+        <AiAssistantToolbar
+          v-model:password="roomPassword"
+          :room="activeRoom"
+          :thinking-enabled="activeThread?.thinking_enabled || false"
+          :ai-ready="aiReady"
           :loading="loading"
-          :disabled="!aiReady"
+          @clear-room="clearRoom"
+          @thinking="setThinking"
+          @quick="submit"
+        />
+
+        <AiMessageList ref="messageList" :messages="messages" :room-title="activeRoom?.name || ''" />
+
+        <form
+          id="ai-assistant-query-form"
+          class="mx-auto flex w-full max-w-4xl items-end gap-2 border-t border-surface-200 px-4 py-3 sm:px-7"
+          @submit.prevent="submit()"
         >
-          <Send v-if="!loading" :size="18" />
-        </Button>
-      </form>
+          <div class="relative min-w-0 flex-1">
+            <div
+              v-if="mentionRange"
+              class="absolute bottom-[calc(100%+0.5rem)] left-0 z-20 w-[min(24rem,100%)] overflow-hidden rounded-md border border-surface-200 bg-surface-0 shadow-lg"
+            >
+              <p class="border-b border-surface-200 px-3 py-2 text-xs font-medium text-muted-color">选择会话</p>
+              <ul v-if="mentionCandidates.length" role="listbox" class="max-h-64 overflow-y-auto p-1">
+                <li v-for="(room, index) in mentionCandidates" :key="room.roomId" role="option">
+                  <button
+                    type="button"
+                    class="flex min-h-10 w-full items-center gap-2 rounded-sm px-2 text-left text-sm"
+                    :class="index === mentionIndex ? 'bg-primary-50 text-primary' : 'hover:bg-surface-100'"
+                    :aria-selected="index === mentionIndex"
+                    @mousedown.prevent="chooseConversation(room)"
+                  >
+                    <Hash :size="15" class="shrink-0" /><span class="truncate">{{ room.title }}</span>
+                  </button>
+                </li>
+              </ul>
+              <p v-else class="px-3 py-5 text-center text-sm text-muted-color">没有匹配的会话</p>
+            </div>
+            <Textarea
+              ref="promptInput"
+              v-model="prompt"
+              auto-resize
+              rows="1"
+              maxlength="4000"
+              fluid
+              class="max-h-28 min-h-11 align-top"
+              placeholder="发送消息，输入 @ 引用聊天会话"
+              :disabled="loading || !aiReady"
+              aria-label="向 AI 助手提问"
+              aria-autocomplete="list"
+              :aria-expanded="Boolean(mentionRange)"
+              @input="handlePromptInput"
+              @click="handlePromptInput"
+              @keydown="handlePromptKeydown"
+            />
+          </div>
+          <Button
+            type="submit"
+            rounded
+            aria-label="发送给 AI 助手"
+            title="发送"
+            class="size-11! shrink-0 p-0!"
+            :loading="loading"
+            :disabled="!aiReady || !prompt.trim()"
+          >
+            <Send v-if="!loading" :size="18" />
+          </Button>
+        </form>
+      </div>
     </section>
   </main>
 </template>

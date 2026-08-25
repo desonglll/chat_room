@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::ai::{
     bounded_conversation_context_to_toon, AiContextMessage, AiConversationRequest,
-    AiConversationResponse, AiConversationTurn, AiSuggestions,
+    AiConversationResponse, AiConversationTurn, AiStreamItem, AiSuggestions,
 };
 use crate::handlers::authorize_room;
 use crate::models::Room;
@@ -133,9 +133,10 @@ pub async fn analyze_conversation(
     let answer = prepared
         .assistant
         .answer(
-            &prepared.toon_context,
+            Some(&prepared.toon_context),
             &prepared.history,
             &prepared.question,
+            false,
         )
         .await
         .map_err(|error| {
@@ -175,9 +176,10 @@ pub async fn analyze_conversation_stream(
     let mut provider_stream = prepared
         .assistant
         .answer_stream(
-            &prepared.toon_context,
+            Some(&prepared.toon_context),
             &prepared.history,
             &prepared.question,
+            false,
         )
         .await
         .map_err(|error| {
@@ -196,7 +198,19 @@ pub async fn analyze_conversation_stream(
         }
         while let Some(chunk) = provider_stream.next().await {
             match chunk {
-                Ok(content) => {
+                Ok(AiStreamItem::Reasoning) => {
+                    if sender
+                        .send(json_event(
+                            "status",
+                            ConversationStreamStatus { phase: "reasoning" },
+                        ))
+                        .await
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+                Ok(AiStreamItem::Content(content)) => {
                     if sender
                         .send(json_event("delta", ConversationStreamDelta { content }))
                         .await
@@ -242,6 +256,11 @@ struct PreparedConversationQuery {
     context_message_count: usize,
 }
 
+pub(crate) struct PreparedRoomContext {
+    pub toon_context: String,
+    pub context_message_count: usize,
+}
+
 async fn prepare_conversation_query(
     state: &SharedState,
     room_id: Uuid,
@@ -254,14 +273,8 @@ async fn prepare_conversation_query(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
-    let conversation = state
-        .conversation_summary(user.id, room_id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-    require_room_password(&room, headers)?;
     validate_query(&payload)?;
+    let room_context = room_context_for_user(state, user.id, room_id, headers).await?;
     let Some(assistant) = state.ai_assistant().cloned() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
@@ -271,12 +284,34 @@ async fn prepare_conversation_query(
     {
         return Err(StatusCode::TOO_MANY_REQUESTS);
     }
+    Ok(PreparedConversationQuery {
+        assistant,
+        toon_context: room_context.toon_context,
+        history: payload.history,
+        question: payload.question.trim().to_owned(),
+        context_message_count: room_context.context_message_count,
+    })
+}
+
+pub(crate) async fn room_context_for_user(
+    state: &SharedState,
+    user_id: Uuid,
+    room_id: Uuid,
+    headers: &axum::http::HeaderMap,
+) -> Result<PreparedRoomContext, StatusCode> {
+    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    let conversation = state
+        .conversation_summary(user_id, room_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+    require_room_password(&room, headers)?;
     let history = state
         .message_history(
             room.id,
             state.ai_analysis_context_messages() as i64,
             None,
-            Some(user.id),
+            Some(user_id),
         )
         .await
         .map_err(|error| {
@@ -305,11 +340,8 @@ async fn prepare_conversation_query(
         tracing::error!(%room_id, "encode AI analysis context failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok(PreparedConversationQuery {
-        assistant,
+    Ok(PreparedRoomContext {
         toon_context,
-        history: payload.history,
-        question: payload.question.trim().to_owned(),
         context_message_count: context.len(),
     })
 }
@@ -324,6 +356,11 @@ struct ConversationStreamMeta {
 #[derive(Serialize)]
 struct ConversationStreamDelta {
     content: String,
+}
+
+#[derive(Serialize)]
+struct ConversationStreamStatus {
+    phase: &'static str,
 }
 
 #[derive(Serialize)]

@@ -4,6 +4,7 @@ pub mod accounts;
 pub mod admin;
 pub mod ai;
 pub mod ai_handlers;
+pub mod ai_threads;
 pub mod attachments;
 pub mod backup;
 mod cache;
@@ -103,6 +104,12 @@ use crate::state::AppState;
         ai_handlers::suggest,
         ai_handlers::analyze_conversation,
         ai_handlers::analyze_conversation_stream,
+        ai_threads::handlers::list_threads,
+        ai_threads::handlers::create_thread,
+        ai_threads::handlers::update_thread,
+        ai_threads::handlers::delete_thread,
+        ai_threads::handlers::list_messages,
+        ai_threads::query::query_thread_stream,
         admin_metrics::overview,
         admin_metrics::purge,
         admin_system_lock::update,
@@ -114,6 +121,11 @@ use crate::state::AppState;
         ai::AiConversationTurn,
         ai::AiConversationRequest,
         ai::AiConversationResponse,
+        ai_threads::AiThread,
+        ai_threads::AiThreadMessage,
+        ai_threads::CreateAiThreadRequest,
+        ai_threads::UpdateAiThreadRequest,
+        ai_threads::QueryAiThreadRequest,
         models::Room,
         models::CreateRoomRequest,
         models::UpdateRoomRequest,
@@ -212,6 +224,23 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/ai/conversations/:id/query/stream",
             axum::routing::post(ai_handlers::analyze_conversation_stream),
+        )
+        .route(
+            "/api/ai/threads",
+            get(ai_threads::handlers::list_threads).post(ai_threads::handlers::create_thread),
+        )
+        .route(
+            "/api/ai/threads/:id",
+            axum::routing::patch(ai_threads::handlers::update_thread)
+                .delete(ai_threads::handlers::delete_thread),
+        )
+        .route(
+            "/api/ai/threads/:id/messages",
+            get(ai_threads::handlers::list_messages),
+        )
+        .route(
+            "/api/ai/threads/:id/query/stream",
+            axum::routing::post(ai_threads::query_thread_stream),
         )
         .route(
             "/api/rooms/:id/members/me",

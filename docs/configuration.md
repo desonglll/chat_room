@@ -40,6 +40,20 @@ message_concurrency = 32
 upload_concurrency = 4
 wait_timeout_secs = 30
 
+[ai]
+enabled = false
+provider = "openai"
+api_key_env = "CHAT_ROOM_AI_API_KEY"
+model = ""
+fast_model = ""
+base_url = ""
+max_context_messages = 30
+analysis_context_messages = 120
+request_timeout_secs = 60
+stream_idle_timeout_secs = 30
+stream_total_timeout_secs = 300
+suggest_cooldown_secs = 10
+
 [admin]
 usernames = []
 orphan_retention_hours = 168
@@ -101,6 +115,20 @@ create a second source of truth and a database/broker dual-write failure mode;
 large attachment payloads are also unsuitable broker messages. The database,
 staging files, and resumable session rows provide crash recovery, while the
 fair admission queue provides overload control.
+
+`ai.api_key_env` is the name of the environment variable that contains the
+provider key; it is not the key itself. The public configuration endpoint
+reports `ready` only when AI is enabled and that environment variable is
+present in the server process. `fast_model` is optional. When an AI session's
+deep-thinking switch is off, the server uses `fast_model` when configured;
+otherwise SiliconFlow-compatible endpoints receive `enable_thinking=false`
+with the main model. Other providers continue with the configured model.
+
+Streaming has independent limits. `request_timeout_secs` bounds the initial
+provider connection, `stream_idle_timeout_secs` is reset by every valid
+reasoning or content event, and `stream_total_timeout_secs` is the hard upper
+bound for one response. The browser receives a coarse reasoning status but not
+the model's private reasoning text.
 
 ## Complete PostgreSQL backup and restore
 

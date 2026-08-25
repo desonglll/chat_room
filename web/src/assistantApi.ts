@@ -127,7 +127,7 @@ function parseEventData<T>(data: string): T {
   }
 }
 
-function assertAiResponse(response: Response): void {
+export function assertAiResponse(response: Response): void {
   if (response.status === 400) throw new Error('问题内容无效或问答历史过长')
   if (response.status === 401) throw new Error('登录已过期或聊天室密码错误')
   if (response.status === 403) throw new Error('你已无法访问这个会话')

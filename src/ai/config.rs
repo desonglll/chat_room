@@ -9,10 +9,13 @@ pub struct AiConfig {
     pub provider: String,
     pub api_key_env: String,
     pub model: String,
+    pub fast_model: Option<String>,
     pub base_url: Option<String>,
     pub max_context_messages: usize,
     pub analysis_context_messages: usize,
     pub request_timeout_secs: u64,
+    pub stream_idle_timeout_secs: u64,
+    pub stream_total_timeout_secs: u64,
     pub suggest_cooldown_secs: u64,
 }
 
@@ -56,10 +59,13 @@ impl Default for AiConfig {
             provider: "openai".into(),
             api_key_env: String::new(),
             model: String::new(),
+            fast_model: None,
             base_url: None,
             max_context_messages: 30,
             analysis_context_messages: 120,
             request_timeout_secs: 60,
+            stream_idle_timeout_secs: 30,
+            stream_total_timeout_secs: 300,
             suggest_cooldown_secs: 10,
         }
     }

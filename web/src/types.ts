@@ -107,6 +107,26 @@ export interface AiConversationResponse {
   context_format: string
 }
 
+export interface AiThread {
+  id: string
+  user_id: string
+  title: string
+  room_id: string | null
+  thinking_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AiThreadMessage {
+  id: string
+  thread_id: string
+  role: 'user' | 'assistant'
+  content: string
+  room_id: string | null
+  context_message_count: number | null
+  created_at: string
+}
+
 export interface Attachment {
   id: string
   file_name: string
