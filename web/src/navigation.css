@@ -101,7 +101,8 @@
   color: var(--cr-primary);
 }
 
-.cr-rail-mobile-settings {
+.cr-rail-mobile-settings,
+.cr-rail-mobile-profile {
   display: none;
 }
 
@@ -154,12 +155,13 @@
   .cr-rail-primary {
     display: grid;
     height: 3.1rem;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(2.5rem, 1fr));
     gap: 0.25rem;
     padding: 0;
   }
 
-  .cr-rail-mobile-settings {
+  .cr-rail-mobile-settings,
+  .cr-rail-mobile-profile {
     display: flex;
   }
 

@@ -150,6 +150,24 @@ function openAssistant(): void {
         <Settings :size="20" aria-hidden="true" />
         <span>设置</span>
       </button>
+      <button
+        v-if="user"
+        type="button"
+        class="cr-rail-action cr-rail-mobile-profile"
+        :class="{ 'cr-rail-action--active': activeSection === 'profile' }"
+        :aria-current="activeSection === 'profile' ? 'page' : undefined"
+        aria-label="我的资料"
+        title="我的资料"
+        @click="emit('profile')"
+      >
+        <AppAvatar
+          :avatar="user.avatar_emoji"
+          :fallback="user.username"
+          :color-key="user.id"
+          class="size-5! text-[10px]! text-white!"
+        />
+        <span>我的</span>
+      </button>
     </div>
 
     <div class="cr-rail-account">

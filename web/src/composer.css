@@ -81,6 +81,7 @@
 @media (max-width: 767px) {
   .cr-composer {
     padding-inline: 0.625rem;
+    padding-bottom: 0.625rem;
   }
 
   .cr-composer-inner {

@@ -1,4 +1,7 @@
 .cr-page {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
   background: var(--cr-canvas);
   color: var(--cr-text);
 }
@@ -260,6 +263,15 @@
 }
 
 @media (max-width: 767px) {
+  .cr-admin-header > div {
+    height: calc(4.25rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .cr-admin-shell {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   .cr-page-header {
     min-height: calc(4rem + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
@@ -274,6 +286,25 @@
 
   .cr-contact-inspector {
     border-left: 0;
+  }
+
+  .p-dialog {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    margin: max(0.5rem, env(safe-area-inset-top)) 0.5rem max(0.5rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .p-dialog-content {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .p-dialog-header,
+  .p-dialog-content,
+  .p-dialog-footer {
+    padding-right: 1rem !important;
+    padding-left: 1rem !important;
   }
 }
 

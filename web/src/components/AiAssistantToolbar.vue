@@ -34,8 +34,10 @@ const selectableModels = computed(() =>
 </script>
 
 <template>
-  <div class="flex min-h-14 flex-wrap items-center gap-2 border-b border-surface-200 px-4 py-2 sm:px-7">
-    <div v-if="room" class="flex min-h-8 items-center gap-2 rounded-md bg-surface-100 px-2 text-sm">
+  <div
+    class="flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-surface-200 px-3 py-1.5 [scrollbar-width:none] md:min-h-14 md:flex-wrap md:overflow-visible md:px-7 md:py-2"
+  >
+    <div v-if="room" class="flex min-h-8 shrink-0 items-center gap-2 rounded-md bg-surface-100 px-2 text-sm">
       <Hash :size="15" class="text-primary" />
       <span class="max-w-44 truncate">{{ room.name }}</span>
       <Button
@@ -51,7 +53,7 @@ const selectableModels = computed(() =>
         <X :size="14" />
       </Button>
     </div>
-    <span v-else class="text-xs text-muted-color">可直接提问，输入 @ 可引用聊天会话</span>
+    <span v-else class="shrink-0 text-xs text-muted-color">可直接提问，输入 @ 可引用聊天会话</span>
     <Password
       v-if="room?.has_password"
       v-model="password"
@@ -60,7 +62,7 @@ const selectableModels = computed(() =>
       autocomplete="off"
       placeholder="聊天室密码"
       input-class="w-full"
-      class="min-w-40 sm:max-w-52"
+      class="w-44 shrink-0 sm:max-w-52"
       :input-props="{ form: 'ai-assistant-query-form' }"
       :disabled="loading"
     />
@@ -71,11 +73,11 @@ const selectableModels = computed(() =>
       option-value="id"
       option-disabled="disabled"
       aria-label="选择 AI 渠道和模型"
-      class="min-w-52 max-w-80"
+      class="w-56 shrink-0 md:min-w-52 md:max-w-80"
       :disabled="loading || !selectableModels.length"
       @update:model-value="emit('model', String($event || ''))"
     />
-    <label class="ml-auto flex min-h-8 items-center gap-2 text-xs text-muted-color">
+    <label class="flex min-h-8 shrink-0 items-center gap-2 text-xs text-muted-color md:ml-auto">
       <ToggleSwitch
         :model-value="thinkingEnabled"
         aria-label="深度思考"
@@ -88,6 +90,7 @@ const selectableModels = computed(() =>
       text
       severity="secondary"
       size="small"
+      class="shrink-0"
       :disabled="!room || !aiReady || loading"
       @click="emit('quick', '总结这段对话')"
     >
@@ -97,6 +100,7 @@ const selectableModels = computed(() =>
       text
       severity="secondary"
       size="small"
+      class="shrink-0"
       :disabled="!room || !aiReady || loading"
       @click="emit('quick', '提取对话中的待办事项')"
     >
@@ -106,6 +110,7 @@ const selectableModels = computed(() =>
       text
       severity="secondary"
       size="small"
+      class="shrink-0"
       :disabled="!room || !aiReady || loading"
       @click="emit('quick', '梳理这段对话已经形成的结论')"
     >

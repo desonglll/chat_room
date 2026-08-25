@@ -72,30 +72,30 @@ async function confirmDelete(): Promise<void> {
       </div>
     </header>
 
-    <div class="cr-page-form mx-auto w-full max-w-2xl px-5 py-8 sm:px-8">
+    <div class="cr-page-form mx-auto w-full max-w-2xl px-4 py-5 sm:px-8 sm:py-8">
       <section class="cr-setting-row cr-form-section pb-7">
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
+        <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div class="flex min-w-0 items-center gap-3">
             <Settings :size="19" class="text-primary" />
             <div>
               <strong class="block text-sm">聊天与通知偏好</strong
               ><small class="text-muted-color">快捷键、浏览器通知与消息详情</small>
             </div>
           </div>
-          <Button severity="secondary" outlined @click="emit('preferences')">打开</Button>
+          <Button class="w-full sm:w-auto" severity="secondary" outlined @click="emit('preferences')">打开</Button>
         </div>
       </section>
 
       <section class="cr-setting-row cr-form-section py-7">
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
+        <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div class="flex min-w-0 items-center gap-3">
             <Gauge :size="19" class="text-warning" />
             <div>
               <strong class="block text-sm">系统运维</strong
               ><small class="text-muted-color">服务状态与保留期维护</small>
             </div>
           </div>
-          <Button as="a" href="/admin" severity="secondary" outlined>打开</Button>
+          <Button class="w-full sm:w-auto" as="a" href="/admin" severity="secondary" outlined>打开</Button>
         </div>
       </section>
 
@@ -145,15 +145,15 @@ async function confirmDelete(): Promise<void> {
       </form>
 
       <section class="cr-setting-row pt-7">
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex gap-3">
+        <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div class="flex min-w-0 gap-3">
             <Trash2 :size="19" class="mt-0.5 text-danger" />
             <div>
               <strong class="block text-sm text-danger">注销账户</strong
               ><small class="mt-1 block text-muted-color">你创建的聊天室也会被永久删除</small>
             </div>
           </div>
-          <Button severity="danger" outlined @click="deleteOpen = true">注销</Button>
+          <Button class="w-full sm:w-auto" severity="danger" outlined @click="deleteOpen = true">注销</Button>
         </div>
       </section>
     </div>

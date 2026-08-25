@@ -124,10 +124,7 @@ function openFriendMenu(event: Event, entry: ContactEntry): void {
 </script>
 
 <template>
-  <main
-    id="workspace-main"
-    class="cr-page cr-contacts-page absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden md:relative md:inset-auto md:z-auto"
-  >
+  <main id="workspace-main" class="cr-page cr-contacts-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <header
       class="cr-page-header grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 px-3 py-2 lg:flex lg:gap-2 lg:px-4 lg:py-0"
     >

@@ -194,7 +194,7 @@ function openContextMenu(event: MouseEvent, messageId: string): void {
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200 pt-4">
-      <div class="min-w-52 flex-1">
+      <div class="min-w-0 basis-full sm:min-w-52 sm:flex-1 sm:basis-auto">
         <span class="text-xs text-muted-color">
           <template v-if="downloadProgress">
             {{ downloadProgress.stage === 'packing' ? '正在打包' : '正在下载' }} · 第

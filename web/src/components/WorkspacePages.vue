@@ -75,79 +75,81 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <ProfilePage
-    v-if="activePage === 'profile' && user"
-    :user="user"
-    :token="token"
-    @back="emit('back')"
-    @updated="emit('updated', $event)"
-  />
-  <SettingsPage
-    v-else-if="activePage === 'settings' && user"
-    :user="user"
-    :token="token"
-    @back="emit('back')"
-    @preferences="emit('preferences')"
-    @deleted="emit('deleted')"
-  />
-  <ContactsPage
-    v-else-if="activePage === 'contacts' && user"
-    :friends="contacts.friends.value"
-    :incoming="contacts.incoming.value"
-    :outgoing="contacts.outgoing.value"
-    :blocked="contacts.blocked.value"
-    :loading="contacts.loading.value"
-    :error="contacts.error.value"
-    :start-chat="startChat"
-    :respond="contacts.respond"
-    :cancel-request="contacts.cancelRequest"
-    :remove-friend="removeFriend"
-    :block-user="blockUser"
-    :unblock-user="contacts.unblock"
-    :set-remark="contacts.setRemark"
-    @back="emit('back')"
-    @new-chat="emit('newChat')"
-    @changed="emit('conversationsChanged')"
-    @error="emit('error', $event)"
-  />
-  <FavoritesPage
-    v-else-if="activePage === 'favorites' && user"
-    :items="favorites.items.value"
-    :user="user"
-    :friends="contacts.friends.value"
-    :rooms="rooms"
-    :loading="favorites.loading.value"
-    :error="favorites.error.value"
-    :create="favorites.create"
-    :update="favorites.update"
-    :remove="favorites.remove"
-    :forward="favorites.forward"
-    :list-collaborators="favorites.listCollaborators"
-    :add-collaborator="favorites.addCollaborator"
-    :remove-collaborator="favorites.removeCollaborator"
-    @back="emit('back')"
-    @changed="emit('conversationsChanged')"
-    @success="emit('success', $event)"
-    @error="emit('error', $event)"
-  />
-  <AiAssistantPage
-    v-else-if="activePage === 'assistant' && user"
-    :token="token"
-    :rooms="rooms"
-    :ai-status="aiStatus"
-    :remember-room-passwords="rememberRoomPasswords"
-    @back="emit('back')"
-    @error="emit('error', $event)"
-  />
-  <DiscoverRooms
-    v-else-if="activePage === 'discover'"
-    :rooms="rooms"
-    :user="user"
-    :loading="discoverLoading"
-    :joining-id="discoverJoiningId"
-    :error="discoverError"
-    @back="emit('back')"
-    @join="joinRoom"
-    @authenticate="emit('authenticate')"
-  />
+  <div class="cr-workspace-pages">
+    <ProfilePage
+      v-if="activePage === 'profile' && user"
+      :user="user"
+      :token="token"
+      @back="emit('back')"
+      @updated="emit('updated', $event)"
+    />
+    <SettingsPage
+      v-else-if="activePage === 'settings' && user"
+      :user="user"
+      :token="token"
+      @back="emit('back')"
+      @preferences="emit('preferences')"
+      @deleted="emit('deleted')"
+    />
+    <ContactsPage
+      v-else-if="activePage === 'contacts' && user"
+      :friends="contacts.friends.value"
+      :incoming="contacts.incoming.value"
+      :outgoing="contacts.outgoing.value"
+      :blocked="contacts.blocked.value"
+      :loading="contacts.loading.value"
+      :error="contacts.error.value"
+      :start-chat="startChat"
+      :respond="contacts.respond"
+      :cancel-request="contacts.cancelRequest"
+      :remove-friend="removeFriend"
+      :block-user="blockUser"
+      :unblock-user="contacts.unblock"
+      :set-remark="contacts.setRemark"
+      @back="emit('back')"
+      @new-chat="emit('newChat')"
+      @changed="emit('conversationsChanged')"
+      @error="emit('error', $event)"
+    />
+    <FavoritesPage
+      v-else-if="activePage === 'favorites' && user"
+      :items="favorites.items.value"
+      :user="user"
+      :friends="contacts.friends.value"
+      :rooms="rooms"
+      :loading="favorites.loading.value"
+      :error="favorites.error.value"
+      :create="favorites.create"
+      :update="favorites.update"
+      :remove="favorites.remove"
+      :forward="favorites.forward"
+      :list-collaborators="favorites.listCollaborators"
+      :add-collaborator="favorites.addCollaborator"
+      :remove-collaborator="favorites.removeCollaborator"
+      @back="emit('back')"
+      @changed="emit('conversationsChanged')"
+      @success="emit('success', $event)"
+      @error="emit('error', $event)"
+    />
+    <AiAssistantPage
+      v-else-if="activePage === 'assistant' && user"
+      :token="token"
+      :rooms="rooms"
+      :ai-status="aiStatus"
+      :remember-room-passwords="rememberRoomPasswords"
+      @back="emit('back')"
+      @error="emit('error', $event)"
+    />
+    <DiscoverRooms
+      v-else-if="activePage === 'discover'"
+      :rooms="rooms"
+      :user="user"
+      :loading="discoverLoading"
+      :joining-id="discoverJoiningId"
+      :error="discoverError"
+      @back="emit('back')"
+      @join="joinRoom"
+      @authenticate="emit('authenticate')"
+    />
+  </div>
 </template>

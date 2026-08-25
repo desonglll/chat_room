@@ -1,5 +1,12 @@
 .cr-app-shell {
+  --cr-mobile-nav-height: calc(3.75rem + env(safe-area-inset-bottom));
   background: var(--cr-canvas);
+}
+
+.cr-workspace-pages {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
 }
 
 .cr-skip-link {
@@ -261,6 +268,31 @@
 
   .cr-inbox-pane {
     grid-row: 1;
+  }
+
+  .cr-sidebar--nav-only {
+    pointer-events: none;
+  }
+
+  .cr-sidebar--nav-only .cr-inbox-pane {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .cr-sidebar--nav-only .cr-workspace-rail {
+    pointer-events: auto;
+  }
+
+  .cr-workspace-pages {
+    position: absolute;
+    inset: 0 0 var(--cr-mobile-nav-height);
+    z-index: 20;
+    overflow: hidden;
+  }
+
+  .cr-chat-panel {
+    bottom: var(--cr-mobile-nav-height);
   }
 
   .cr-inbox-header {

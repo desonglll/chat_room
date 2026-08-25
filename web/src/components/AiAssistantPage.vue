@@ -344,7 +344,7 @@ onUnmounted(() => {
     </Message>
 
     <section
-      class="grid min-h-0 flex-1 grid-rows-[10rem_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1"
+      class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1"
     >
       <AiThreadSidebar
         :threads="threads"
@@ -374,7 +374,7 @@ onUnmounted(() => {
 
         <form
           id="ai-assistant-query-form"
-          class="mx-auto flex w-full max-w-4xl items-end gap-2 border-t border-surface-200 px-4 py-3 sm:px-7"
+          class="mx-auto flex w-full max-w-4xl items-end gap-2 border-t border-surface-200 px-3 py-2 sm:px-7 sm:py-3"
           @submit.prevent="submit()"
         >
           <div class="relative min-w-0 flex-1">

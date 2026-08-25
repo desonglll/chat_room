@@ -110,15 +110,17 @@ onMounted(load)
 <template>
   <section aria-labelledby="ai-models-heading" class="mt-8 border-t border-surface-200 pt-7">
     <div class="mb-4 flex items-center justify-between gap-3">
-      <div>
+      <div class="min-w-0">
         <h2 id="ai-models-heading" class="text-sm font-semibold">AI 渠道与模型</h2>
         <p class="mt-1 text-xs text-muted-color">真实 API key 只从配置所指向的环境变量读取</p>
       </div>
-      <Button size="small" :disabled="editing" @click="startCreate"><Plus :size="16" />添加配置</Button>
+      <Button class="shrink-0" size="small" :disabled="editing" @click="startCreate"
+        ><Plus :size="16" /><span class="hidden sm:inline">添加配置</span></Button
+      >
     </div>
 
     <div class="divide-y divide-surface-200 border-y border-surface-200">
-      <div v-for="option in models" :key="option.id" class="flex min-h-16 items-center gap-3 py-3">
+      <div v-for="option in models" :key="option.id" class="flex min-h-16 flex-wrap items-center gap-2 py-3 sm:gap-3">
         <Bot :size="18" class="shrink-0 text-primary" />
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2">
@@ -131,7 +133,7 @@ onMounted(load)
             {{ option.provider }} · {{ option.model }} · {{ option.base_url || '供应商默认地址' }}
           </p>
         </div>
-        <span v-if="option.source === 'environment'" class="text-xs text-muted-color">.env</span>
+        <span v-if="option.source === 'environment'" class="shrink-0 text-xs text-muted-color">.env</span>
         <template v-else>
           <Button text rounded severity="secondary" aria-label="编辑模型配置" title="编辑" @click="startEdit(option)">
             <Pencil :size="16" />

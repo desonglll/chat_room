@@ -96,12 +96,16 @@ async function uploadAvatar(event: Event): Promise<void> {
       </div>
     </header>
 
-    <form autocomplete="on" class="cr-page-form mx-auto w-full max-w-2xl px-5 py-8 sm:px-8" @submit.prevent="save">
+    <form
+      autocomplete="on"
+      class="cr-page-form mx-auto w-full max-w-2xl px-4 py-5 sm:px-8 sm:py-8"
+      @submit.prevent="save"
+    >
       <section class="cr-form-section pb-7">
         <div class="mb-4 flex items-center gap-2 text-sm font-semibold">
           <UserRound :size="18" class="text-primary" />头像
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
           <AppAvatar
             :avatar="avatarEmoji"
             :fallback="user.username"

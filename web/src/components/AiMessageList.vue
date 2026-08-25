@@ -30,14 +30,14 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
 </script>
 
 <template>
-  <div ref="viewport" class="min-h-0 overflow-y-auto px-4 py-6 sm:px-7" aria-live="polite">
+  <div ref="viewport" class="min-h-0 overflow-y-auto px-3 py-4 sm:px-7 sm:py-6" aria-live="polite">
     <div v-if="!messages.length" class="grid min-h-full place-items-center text-center text-muted-color">
       <div>
         <Bot :size="32" class="mx-auto opacity-35" />
         <p class="mt-3 text-sm">可以直接提问，也可以输入 @ 引用一个聊天会话</p>
       </div>
     </div>
-    <ol v-else class="mx-auto w-full max-w-3xl space-y-6">
+    <ol v-else class="mx-auto w-full max-w-3xl space-y-4 sm:space-y-6">
       <li
         v-for="message in messages"
         :key="message.id"
@@ -48,7 +48,7 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
           class="min-w-0 text-sm leading-6"
           :class="
             message.role === 'user'
-              ? 'max-w-[82%] rounded-md bg-primary px-3.5 py-2.5 text-primary-contrast'
+              ? 'max-w-[88%] rounded-md bg-primary px-3.5 py-2.5 text-primary-contrast sm:max-w-[82%]'
               : 'w-full max-w-[46rem] text-surface-900'
           "
         >

@@ -138,8 +138,8 @@ onBeforeUnmount(() => window.clearInterval(timer))
 </script>
 
 <template>
-  <main class="h-dvh overflow-y-auto bg-surface-50 text-color">
-    <header class="sticky top-0 z-20 border-b border-surface-200 bg-surface-0/95 backdrop-blur">
+  <main class="cr-admin-shell h-dvh overflow-y-auto bg-surface-50 text-color">
+    <header class="cr-admin-header sticky top-0 z-20 border-b border-surface-200 bg-surface-0/95 backdrop-blur">
       <div class="mx-auto flex h-[68px] w-full max-w-[1440px] items-center gap-3 px-4 sm:px-7">
         <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="router.push('/')">
           <ArrowLeft :size="19" />
@@ -196,7 +196,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
           <span class="inline-flex items-center gap-1.5"
             ><Clock3 :size="14" />已运行 {{ formatDuration(overview.runtime.uptime_seconds) }}</span
           >
-          <span class="ml-auto">更新于 {{ formatTime(overview.generated_at) }}</span>
+          <span class="w-full sm:ml-auto sm:w-auto">更新于 {{ formatTime(overview.generated_at) }}</span>
         </section>
 
         <AdminSystemLockPanel
@@ -259,7 +259,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
 
         <div class="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
           <section aria-labelledby="rooms-heading" class="min-w-0">
-            <div class="mb-3 flex items-end justify-between gap-4">
+            <div class="mb-3 flex flex-wrap items-end justify-between gap-2 sm:gap-4">
               <div>
                 <h2 id="rooms-heading" class="text-sm font-semibold">活跃房间</h2>
                 <p class="mt-1 text-xs text-muted-color">按累计消息数排序</p>

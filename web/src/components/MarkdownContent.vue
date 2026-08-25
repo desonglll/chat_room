@@ -7,7 +7,7 @@ const html = computed(() => renderMarkdown(props.content))
 </script>
 
 <template>
-  <div class="cr-markdown break-words" v-html="html" />
+  <div class="cr-markdown min-w-0 max-w-full break-words" v-html="html" />
 </template>
 
 <style scoped>
@@ -45,6 +45,7 @@ const html = computed(() => renderMarkdown(props.content))
 }
 
 .cr-markdown :deep(code) {
+  overflow-wrap: anywhere;
   border-radius: 0.2rem;
   background: var(--p-surface-100);
   padding: 0.1rem 0.3rem;
@@ -61,7 +62,23 @@ const html = computed(() => renderMarkdown(props.content))
 
 .cr-markdown :deep(pre code) {
   background: transparent;
+  overflow-wrap: normal;
   padding: 0;
+}
+
+.cr-markdown :deep(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.cr-markdown :deep(th),
+.cr-markdown :deep(td) {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--p-surface-200);
+  text-align: left;
+  white-space: nowrap;
 }
 
 .cr-markdown :deep(blockquote) {

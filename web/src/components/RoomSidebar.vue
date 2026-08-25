@@ -99,13 +99,8 @@ function handleResizeKeydown(event: KeyboardEvent): void {
 
 <template>
   <aside
-    class="cr-sidebar absolute inset-0 z-10 grid min-h-0 min-w-0 transition-[transform,opacity,visibility] duration-[var(--cr-motion-enter)] [transition-timing-function:var(--cr-ease-drawer)] motion-reduce:transition-none md:relative md:inset-auto md:visible md:translate-x-0 md:opacity-100"
-    :class="[
-      visible
-        ? 'visible translate-x-0 opacity-100'
-        : 'invisible pointer-events-none -translate-x-4 opacity-0 md:pointer-events-auto',
-      { 'cr-sidebar--collapsed': collapsed },
-    ]"
+    class="cr-sidebar absolute inset-0 z-10 grid min-h-0 min-w-0 md:relative md:inset-auto"
+    :class="[{ 'cr-sidebar--nav-only': !visible }, { 'cr-sidebar--collapsed': collapsed }]"
   >
     <WorkspaceRail
       :active-section="activeSection"

@@ -233,7 +233,7 @@ async function submitForward(): Promise<void> {
         option-label="label"
         option-value="value"
         :allow-empty="false"
-        class="mb-5 inline-grid grid-cols-4"
+        class="mb-5 grid w-full grid-cols-4 sm:inline-grid sm:w-auto"
       />
       <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
       <div v-if="loading" class="divide-y divide-surface-200">
@@ -248,7 +248,7 @@ async function submitForward(): Promise<void> {
       <ol v-else class="divide-y divide-surface-200">
         <li v-for="item in visibleItems" :key="item.id" class="py-5 first:pt-1">
           <article class="min-w-0">
-            <div class="flex min-w-0 items-start gap-3">
+            <div class="flex min-w-0 flex-wrap items-start gap-3 sm:flex-nowrap">
               <span class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-md bg-surface-100 text-surface-600">
                 <File v-if="item.attachment" :size="18" />
                 <MessageSquareText v-else :size="18" />
@@ -281,7 +281,7 @@ async function submitForward(): Promise<void> {
                   {{ item.content }}
                 </p>
               </div>
-              <div class="flex shrink-0 gap-1">
+              <div class="ml-12 flex w-full shrink-0 justify-end gap-1 sm:ml-0 sm:w-auto">
                 <Button text rounded severity="secondary" aria-label="编辑收藏" title="编辑" @click="openEdit(item)">
                   <Pencil :size="17" />
                 </Button>
