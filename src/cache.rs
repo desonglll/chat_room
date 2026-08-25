@@ -6,6 +6,7 @@ use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::ai_threads::AiCitationSource;
 use crate::config::RedisConfig;
 use crate::message_store::MessageCursor;
 use crate::models::{StoredMessage, User};
@@ -31,6 +32,8 @@ pub(crate) struct CachedAiAnswer {
     pub context_message_count: i64,
     #[serde(default)]
     pub retrieved_message_count: i64,
+    #[serde(default)]
+    pub sources: Vec<AiCitationSource>,
     pub revision: i64,
     #[serde(default = "streaming_status")]
     pub status: String,
@@ -387,10 +390,19 @@ mod tests {
             return;
         };
         let message_id = Uuid::new_v4();
+        let source = AiCitationSource {
+            label: "S1".into(),
+            room_id: Uuid::new_v4(),
+            message_id: Uuid::new_v4(),
+            sender: "Ada".into(),
+            sent_at: Utc::now(),
+            excerpt: "The launch date is Friday".into(),
+        };
         let answer = CachedAiAnswer {
             content: "partial answer".into(),
             context_message_count: 3,
             retrieved_message_count: 1,
+            sources: vec![source.clone()],
             revision: 2,
             status: "completed".into(),
             updated_at: Utc::now(),
@@ -400,6 +412,7 @@ mod tests {
         let cached = cache.ai_answer(message_id).await.unwrap().unwrap();
         assert_eq!(cached.content, "partial answer");
         assert_eq!(cached.retrieved_message_count, 1);
+        assert_eq!(cached.sources, vec![source]);
         assert_eq!(cached.revision, 2);
         assert_eq!(cached.status, "completed");
     }

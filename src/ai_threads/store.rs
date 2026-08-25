@@ -121,14 +121,16 @@ impl AppState {
         let mut messages: Vec<AiThreadMessage> = with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   retrieved_message_count, status, \
+                   retrieved_message_count, sources, status, \
                    revision, created_at, updated_at \
                  FROM (SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   retrieved_message_count, \
+                   retrieved_message_count, sources, \
                    status, revision, created_at, COALESCE(updated_at, created_at) AS updated_at \
                    FROM ai_thread_messages WHERE thread_id = $1 \
-                   ORDER BY created_at DESC, id DESC LIMIT $2) AS recent \
-                 ORDER BY created_at ASC, id ASC",
+                   ORDER BY created_at DESC, \
+                     CASE role WHEN 'assistant' THEN 1 ELSE 0 END DESC, id DESC LIMIT $2) AS recent \
+                 ORDER BY created_at ASC, \
+                   CASE role WHEN 'assistant' THEN 1 ELSE 0 END ASC, id ASC",
             )
             .bind(thread_id)
             .bind(limit)
@@ -145,6 +147,7 @@ impl AppState {
                         message.content = answer.content;
                         message.context_message_count = Some(answer.context_message_count);
                         message.retrieved_message_count = Some(answer.retrieved_message_count);
+                        message.sources = answer.sources.into();
                         message.status = answer.status;
                         message.revision = answer.revision;
                         message.updated_at = answer.updated_at;
@@ -204,7 +207,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   retrieved_message_count, status, \
+                   retrieved_message_count, sources, status, \
                    revision, created_at, COALESCE(updated_at, created_at) AS updated_at \
                  FROM ai_thread_messages WHERE id = $1",
             )
