@@ -271,6 +271,7 @@
   }
 
   .cr-sidebar--nav-only {
+    background: transparent;
     pointer-events: none;
   }
 
