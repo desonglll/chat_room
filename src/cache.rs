@@ -29,6 +29,8 @@ pub(crate) struct MessageCacheTicket(String);
 pub(crate) struct CachedAiAnswer {
     pub content: String,
     pub context_message_count: i64,
+    #[serde(default)]
+    pub retrieved_message_count: i64,
     pub revision: i64,
     #[serde(default = "streaming_status")]
     pub status: String,
@@ -388,6 +390,7 @@ mod tests {
         let answer = CachedAiAnswer {
             content: "partial answer".into(),
             context_message_count: 3,
+            retrieved_message_count: 1,
             revision: 2,
             status: "completed".into(),
             updated_at: Utc::now(),
@@ -396,6 +399,7 @@ mod tests {
         cache.set_ai_answer(message_id, &answer, 60).await.unwrap();
         let cached = cache.ai_answer(message_id).await.unwrap().unwrap();
         assert_eq!(cached.content, "partial answer");
+        assert_eq!(cached.retrieved_message_count, 1);
         assert_eq!(cached.revision, 2);
         assert_eq!(cached.status, "completed");
     }

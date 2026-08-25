@@ -14,6 +14,7 @@ pub(super) struct GenerationContext {
     pub history: Vec<AiConversationTurn>,
     pub toon_context: Option<String>,
     pub message_count: i64,
+    pub retrieved_message_count: i64,
 }
 
 pub(super) async fn prepare_generation_context(
@@ -47,6 +48,7 @@ pub(super) async fn prepare_generation_context(
         toon_context: room_context
             .as_ref()
             .map(|context| context.toon_context.clone()),
+        retrieved_message_count: 0,
     };
     let (Some(room_id), Some(index)) = (execution.room_id, state.message_index().cloned()) else {
         return Ok(context);
@@ -69,6 +71,7 @@ pub(super) async fn prepare_generation_context(
     {
         Ok(Ok(rag_context)) if rag_context.message_count > 0 => {
             context.message_count += rag_context.message_count as i64;
+            context.retrieved_message_count = rag_context.message_count as i64;
             let prompt_context = context.toon_context.get_or_insert_with(String::new);
             prompt_context.push_str("\n\n");
             prompt_context.push_str(&rag_context.toon_context);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import { Bot } from 'lucide-vue-next'
-import type { AiUiMessage } from '../aiUi'
+import { aiContextUsage, type AiUiMessage } from '../aiUi'
 import MarkdownContent from './MarkdownContent.vue'
 
 defineProps<{ messages: AiUiMessage[]; roomTitle: string }>()
@@ -70,8 +70,13 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
           >
             <template v-if="roomTitle">{{ roomTitle }}</template>
             <template v-if="message.context_message_count">
-              · 本次注入 {{ message.context_message_count }} 条消息 · TOON + RAG</template
-            >
+              · 最近上下文
+              {{ aiContextUsage(message.context_message_count, message.retrieved_message_count).recent }} 条
+            </template>
+            <template v-if="aiContextUsage(message.context_message_count, message.retrieved_message_count).retrieved">
+              · 全房间 RAG 命中
+              {{ aiContextUsage(message.context_message_count, message.retrieved_message_count).retrieved }} 条
+            </template>
           </p>
         </article>
       </li>

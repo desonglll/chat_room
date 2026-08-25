@@ -331,7 +331,7 @@ mod tests {
         );
 
         let mut stream = assistant
-            .answer_stream(Some("room: test"), &[], "总结", false)
+            .answer_stream(Some("room: test"), &[], "总结", false, false)
             .await
             .unwrap();
         let mut chunks = Vec::new();

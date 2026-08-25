@@ -112,6 +112,7 @@ export interface AiThreadMessage {
   content: string
   room_id: string | null
   context_message_count: number | null
+  retrieved_message_count: number | null
   status: 'pending' | 'streaming' | 'completed' | 'failed'
   revision: number
   created_at: string
@@ -130,6 +131,7 @@ export interface AiRun {
   model: string
   status: 'queued' | 'running' | 'completed' | 'failed'
   context_message_count: number | null
+  retrieved_message_count: number | null
   error_message: string | null
   created_at: string
   updated_at: string

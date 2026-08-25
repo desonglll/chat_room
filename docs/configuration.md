@@ -178,18 +178,21 @@ and delete operations write a transactional outbox; a background worker updates
 Qdrant and retries failures. AI Runs use a LangChain `Retriever` to embed the
 question and search the full-room index. Qdrant returns three times `top_k`
 candidates (capped at 50) with relevance scores; retrieval is filtered to the
-one room attached to the AI session, then every hit is batch-rechecked in the
+one room attached to the AI session. Message IDs already present in the bounded
+recent transcript are excluded inside the Qdrant query, so they cannot consume
+the semantic result budget and older evidence is selected from the full indexed
+history. Every hit is then batch-rechecked in the
 relational database for active membership and current recall state before the
 best `top_k` messages are sent to the model as LangChain `Document` values.
-Messages already present in the bounded recent transcript are removed from the
-semantic results, leaving the RAG budget available for older relevant history.
 Each injected result has a stable `S1`, `S2`, ... source label, message ID,
 sender, timestamp, and relevance score; answers are instructed to cite those
 labels when relying on retrieved evidence.
 The migration backfills every existing non-recalled text message into the
 outbox, so after the queue reaches zero every room message is eligible for RAG.
-The displayed context count is the number of recent and semantic messages
-actually injected into that answer, not the total number of indexed messages.
+The answer footer displays recent transcript messages separately from full-room
+RAG matches. These are the messages actually injected into one answer, not the
+total number of indexed messages; bounded injection keeps latency and model
+context usage stable while retrieval searches the complete indexed room corpus.
 
 To verify RAG, open `/admin`, wait until the vector queue shows no pending or
 retrying jobs, choose a room, and search for a distinctive fact from an older

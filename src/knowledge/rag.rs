@@ -64,7 +64,10 @@ impl Retriever for RoomMessageRetriever {
 
 impl RoomMessageRetriever {
     async fn retrieve(&self, query: &str) -> anyhow::Result<Vec<Document>> {
-        let candidates = self.index.related_messages(self.room_id, query).await?;
+        let candidates = self
+            .index
+            .related_messages(self.room_id, query, &self.excluded_message_ids)
+            .await?;
         let candidate_ids: Vec<Uuid> = candidates.iter().map(|candidate| candidate.id).collect();
         let messages = self
             .state

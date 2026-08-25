@@ -36,9 +36,12 @@ impl MessageIndex {
         &self,
         room_id: Uuid,
         question: &str,
+        excluded_message_ids: &std::collections::HashSet<Uuid>,
     ) -> Result<Vec<ScoredMessageId>> {
         let vector = self.clients.embed(question).await?;
-        self.clients.search(room_id, vector).await
+        self.clients
+            .search(room_id, vector, excluded_message_ids)
+            .await
     }
 
     pub(crate) fn result_limit(&self) -> usize {
@@ -60,6 +63,7 @@ pub(crate) struct RetrievedMessage {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use std::sync::{Arc, Mutex};
 
     use axum::{
@@ -133,8 +137,9 @@ mod tests {
 
         let index = MessageIndex::connect(&config).await.unwrap().unwrap();
         let room_id = Uuid::new_v4();
+        let recent_id = Uuid::new_v4();
         let matches = index
-            .related_messages(room_id, "release plan")
+            .related_messages(room_id, "release plan", &HashSet::from([recent_id]))
             .await
             .unwrap();
         index
@@ -161,6 +166,10 @@ mod tests {
         assert_eq!(
             search.2["filter"]["must"][0]["match"]["value"],
             room_id.to_string()
+        );
+        assert_eq!(
+            search.2["filter"]["must_not"][0]["has_id"][0],
+            recent_id.to_string()
         );
         assert_eq!(search.2["limit"], 18);
         assert!(calls.iter().any(|(method, uri, body)| {
