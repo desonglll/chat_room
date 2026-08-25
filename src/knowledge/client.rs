@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Context, Result};
 use reqwest::{Client, RequestBuilder, StatusCode};
 use serde::Deserialize;
@@ -129,13 +131,21 @@ impl VectorClients {
         &self,
         room_id: Uuid,
         vector: Vec<f32>,
+        excluded_message_ids: &HashSet<Uuid>,
     ) -> Result<Vec<ScoredMessageId>> {
         let url = format!("{}/points/search", self.collection_url());
+        let mut filter = json!({
+            "must": [{ "key": "room_id", "match": { "value": room_id } }]
+        });
+        if !excluded_message_ids.is_empty() {
+            let excluded: Vec<String> = excluded_message_ids.iter().map(Uuid::to_string).collect();
+            filter["must_not"] = json!([{ "has_id": excluded }]);
+        }
         let response: SearchResponse = self
             .qdrant(self.http.post(url))
             .json(&json!({
                 "vector": vector,
-                "filter": { "must": [{ "key": "room_id", "match": { "value": room_id } }] },
+                "filter": filter,
                 "limit": self.candidate_limit(),
                 "score_threshold": self.config.score_threshold,
                 "with_payload": true,

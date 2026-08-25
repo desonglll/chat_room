@@ -9,7 +9,7 @@ use crate::{
 
 const RUN_COLUMNS: &str = "id, thread_id, user_message_id, assistant_message_id, \
     client_request_id, room_id, model_option_id, provider, model, status, \
-    context_message_count, error_message, created_at, updated_at";
+    context_message_count, retrieved_message_count, error_message, created_at, updated_at";
 
 pub(super) enum CreateRunOutcome {
     Created(AiRun),
@@ -112,7 +112,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT m.id, m.thread_id, m.role, m.content, m.room_id, \
-                 m.context_message_count, m.status, m.revision, m.created_at, \
+                 m.context_message_count, m.retrieved_message_count, m.status, m.revision, m.created_at, \
                  COALESCE(m.updated_at, m.created_at) AS updated_at \
                  FROM ai_thread_messages m JOIN ai_runs r ON r.assistant_message_id = m.id \
                  WHERE r.id = $1 AND r.user_id = $2",
@@ -207,6 +207,7 @@ impl AppState {
         execution: &AiRunExecution,
         content: &str,
         context_message_count: i64,
+        retrieved_message_count: i64,
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
         let lease = now + Duration::seconds(60);
@@ -214,19 +215,22 @@ impl AppState {
             let mut transaction = pool.begin().await?;
             sqlx::query(
                 "UPDATE ai_thread_messages SET content = $1, status = 'streaming', \
-                 context_message_count = $2, revision = revision + 1, updated_at = $3 WHERE id = $4",
+                 context_message_count = $2, retrieved_message_count = $3, \
+                 revision = revision + 1, updated_at = $4 WHERE id = $5",
             )
             .bind(content)
             .bind(context_message_count)
+            .bind(retrieved_message_count)
             .bind(now)
             .bind(execution.assistant_message_id)
             .execute(&mut *transaction)
             .await?;
             sqlx::query(
-                "UPDATE ai_runs SET context_message_count = $1, lease_expires_at = $2, \
-                 updated_at = $3 WHERE id = $4 AND status = 'running'",
+                "UPDATE ai_runs SET context_message_count = $1, retrieved_message_count = $2, \
+                 lease_expires_at = $3, updated_at = $4 WHERE id = $5 AND status = 'running'",
             )
             .bind(context_message_count)
+            .bind(retrieved_message_count)
             .bind(lease)
             .bind(now)
             .bind(execution.id)
@@ -270,9 +274,17 @@ impl AppState {
         execution: &AiRunExecution,
         content: &str,
         context_message_count: i64,
+        retrieved_message_count: i64,
     ) -> Result<(), sqlx::Error> {
-        self.set_ai_run_terminal(execution, "completed", content, context_message_count, None)
-            .await
+        self.set_ai_run_terminal(
+            execution,
+            "completed",
+            content,
+            context_message_count,
+            retrieved_message_count,
+            None,
+        )
+        .await
     }
 
     pub(super) async fn fail_ai_run(
@@ -281,7 +293,7 @@ impl AppState {
         content: &str,
         error_message: &str,
     ) -> Result<(), sqlx::Error> {
-        self.set_ai_run_terminal(execution, "failed", content, 0, Some(error_message))
+        self.set_ai_run_terminal(execution, "failed", content, 0, 0, Some(error_message))
             .await
     }
 
@@ -291,6 +303,7 @@ impl AppState {
         status: &str,
         content: &str,
         context_message_count: i64,
+        retrieved_message_count: i64,
         error_message: Option<&str>,
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
@@ -298,21 +311,23 @@ impl AppState {
             let mut transaction = pool.begin().await?;
             sqlx::query(
                 "UPDATE ai_thread_messages SET content = $1, status = $2, context_message_count = $3, \
-                 revision = revision + 1, updated_at = $4 WHERE id = $5",
+                 retrieved_message_count = $4, revision = revision + 1, updated_at = $5 WHERE id = $6",
             )
             .bind(content)
             .bind(if status == "completed" { "completed" } else { "failed" })
             .bind(context_message_count)
+            .bind(retrieved_message_count)
             .bind(now)
             .bind(execution.assistant_message_id)
             .execute(&mut *transaction)
             .await?;
             sqlx::query(
-                "UPDATE ai_runs SET status = $1, context_message_count = $2, error_message = $3, \
-                 lease_expires_at = NULL, updated_at = $4 WHERE id = $5",
+                "UPDATE ai_runs SET status = $1, context_message_count = $2, retrieved_message_count = $3, \
+                 error_message = $4, lease_expires_at = NULL, updated_at = $5 WHERE id = $6",
             )
             .bind(status)
             .bind(context_message_count)
+            .bind(retrieved_message_count)
             .bind(error_message)
             .bind(now)
             .bind(execution.id)

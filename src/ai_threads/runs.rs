@@ -189,6 +189,7 @@ async fn execute_run(state: SharedState, run_id: Uuid) -> anyhow::Result<()> {
             &execution,
             &partial.content,
             0,
+            0,
             partial.revision + 1,
             "failed",
         )
@@ -207,6 +208,7 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
             context.toon_context.as_deref(),
             &context.history,
             &execution.question,
+            context.retrieved_message_count > 0,
             execution.thinking_enabled,
         )
         .await?;
@@ -221,8 +223,15 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
                 || last_flush.elapsed() >= Duration::from_millis(50)
             {
                 revision += 1;
-                store_live_answer(state, execution, &answer, context.message_count, revision)
-                    .await?;
+                store_live_answer(
+                    state,
+                    execution,
+                    &answer,
+                    context.message_count,
+                    context.retrieved_message_count,
+                    revision,
+                )
+                .await?;
                 last_flushed_len = answer.len();
                 last_flush = tokio::time::Instant::now();
             }
@@ -233,13 +242,19 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
         anyhow::bail!("AI response had no text content");
     }
     state
-        .finish_ai_run(execution, answer, context.message_count)
+        .finish_ai_run(
+            execution,
+            answer,
+            context.message_count,
+            context.retrieved_message_count,
+        )
         .await?;
     store_terminal_answer(
         state,
         execution,
         answer,
         context.message_count,
+        context.retrieved_message_count,
         revision + 1,
         "completed",
     )
@@ -252,12 +267,14 @@ async fn store_live_answer(
     execution: &AiRunExecution,
     content: &str,
     context_message_count: i64,
+    retrieved_message_count: i64,
     revision: i64,
 ) -> anyhow::Result<()> {
     if let Some(cache) = state.redis_cache() {
         let answer = CachedAiAnswer {
             content: content.to_owned(),
             context_message_count,
+            retrieved_message_count,
             revision,
             status: "streaming".into(),
             updated_at: chrono::Utc::now(),
@@ -278,7 +295,12 @@ async fn store_live_answer(
         }
     }
     state
-        .update_ai_run_answer(execution, content, context_message_count)
+        .update_ai_run_answer(
+            execution,
+            content,
+            context_message_count,
+            retrieved_message_count,
+        )
         .await?;
     Ok(())
 }
@@ -304,6 +326,7 @@ async fn live_or_persisted_answer(
     CachedAiAnswer {
         content,
         context_message_count: 0,
+        retrieved_message_count: 0,
         revision: 0,
         status: "streaming".into(),
         updated_at: chrono::Utc::now(),
@@ -315,6 +338,7 @@ async fn store_terminal_answer(
     execution: &AiRunExecution,
     content: &str,
     context_message_count: i64,
+    retrieved_message_count: i64,
     revision: i64,
     status: &str,
 ) {
@@ -324,6 +348,7 @@ async fn store_terminal_answer(
     let answer = CachedAiAnswer {
         content: content.to_owned(),
         context_message_count,
+        retrieved_message_count,
         revision,
         status: status.into(),
         updated_at: chrono::Utc::now(),

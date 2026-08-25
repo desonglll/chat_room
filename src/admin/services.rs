@@ -202,9 +202,10 @@ pub async fn probe_vector_search(
     }
     let index = state.message_index().ok_or(StatusCode::CONFLICT)?;
     let started = Instant::now();
+    let excluded_message_ids = std::collections::HashSet::new();
     let candidates = tokio::time::timeout(
         VECTOR_PROBE_TIMEOUT,
-        index.related_messages(payload.room_id, query),
+        index.related_messages(payload.room_id, query, &excluded_message_ids),
     )
     .await
     .map_err(|_| StatusCode::GATEWAY_TIMEOUT)?

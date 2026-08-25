@@ -295,15 +295,18 @@ async fn ai_run_continues_without_a_browser_stream() {
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
 
-    assert_eq!(completed.unwrap()["content"], "你好");
+    let completed = completed.unwrap();
+    assert_eq!(completed["content"], "你好");
+    assert_eq!(completed["retrieved_message_count"], 0);
     let event_body = tokio::time::timeout(std::time::Duration::from_secs(3), events_task)
         .await
         .unwrap()
         .unwrap();
     assert!(event_body.contains("\"status\":\"streaming\""));
     assert!(event_body.contains("\"status\":\"completed\""));
-    let persisted_after_completion: (String, String) = sqlx::query_as(
-        "SELECT content, status FROM ai_thread_messages WHERE thread_id = $1 AND role = 'assistant'",
+    let persisted_after_completion: (String, String, i64) = sqlx::query_as(
+        "SELECT content, status, retrieved_message_count FROM ai_thread_messages \
+         WHERE thread_id = $1 AND role = 'assistant'",
     )
     .bind(uuid::Uuid::parse_str(thread_id).unwrap())
     .fetch_one(state.pool())
@@ -311,7 +314,7 @@ async fn ai_run_continues_without_a_browser_stream() {
     .unwrap();
     assert_eq!(
         persisted_after_completion,
-        ("你好".into(), "completed".into())
+        ("你好".into(), "completed".into(), 0)
     );
     server.abort();
     provider.abort();
