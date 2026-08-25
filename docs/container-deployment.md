@@ -68,10 +68,10 @@ Create a Docker Hub repository with the same name as the GitHub repository
 (`chat_room`), then add these under **GitHub repository settings > Secrets and
 variables > Actions**:
 
-| Type | Name | Value |
-| --- | --- | --- |
-| Variable | `DOCKERHUB_USERNAME` | Docker Hub username |
-| Secret | `DOCKERHUB_TOKEN` | Docker Hub access token with read/write permission |
+| Type     | Name                 | Value                                              |
+| -------- | -------------------- | -------------------------------------------------- |
+| Variable | `DOCKERHUB_USERNAME` | Docker Hub username                                |
+| Secret   | `DOCKERHUB_TOKEN`    | Docker Hub access token with read/write permission |
 
 Do not store the Docker Hub account password in GitHub. Once the variable and
 secret are present, the next `main` push or `v*` tag publishes matching tags
