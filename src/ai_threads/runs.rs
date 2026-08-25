@@ -20,6 +20,7 @@ use crate::state::SharedState;
 const MAX_QUESTION_CHARS: usize = 4_000;
 const MEMORY_TURNS: i64 = 26;
 const DISPATCH_INTERVAL: Duration = Duration::from_secs(5);
+const SEMANTIC_SEARCH_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 #[utoipa::path(
     post,
@@ -214,11 +215,13 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
         .as_ref()
         .map(|context| context.toon_context.clone());
     if let (Some(room_id), Some(index)) = (execution.room_id, state.message_index()) {
-        match index
-            .related_message_ids(room_id, &execution.question)
-            .await
+        match tokio::time::timeout(
+            SEMANTIC_SEARCH_TIMEOUT,
+            index.related_message_ids(room_id, &execution.question),
+        )
+        .await
         {
-            Ok(message_ids) => {
+            Ok(Ok(message_ids)) => {
                 let retrieved = state
                     .authorized_retrieved_messages(execution.user_id, room_id, &message_ids)
                     .await?;
@@ -230,9 +233,10 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
                     context.push_str(&encoded);
                 }
             }
-            Err(error) => {
+            Ok(Err(error)) => {
                 tracing::warn!(room_id = %room_id, "semantic message retrieval failed: {error:#}");
             }
+            Err(_) => tracing::warn!(room_id = %room_id, "semantic message retrieval timed out"),
         }
     }
     let mut stream = assistant

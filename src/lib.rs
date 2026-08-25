@@ -25,7 +25,9 @@ pub mod web;
 mod work_queue;
 
 pub use accounts::{account_ws, avatar_handlers, user_handlers, users};
-pub use admin::{metrics as admin_metrics, system_lock as admin_system_lock};
+pub use admin::{
+    metrics as admin_metrics, services as admin_services, system_lock as admin_system_lock,
+};
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
     file_handlers, handlers as attachment_handlers, storage as attachment_storage,
@@ -33,7 +35,7 @@ pub use attachments::{
 };
 pub use messages::{
     actions as message_actions, forward_handlers, reactions as message_reactions, read_store,
-    store as message_store,
+    search as message_search, store as message_store,
 };
 pub use realtime::ws;
 pub(crate) use realtime::{auth as ws_auth, inbound as ws_inbound};
@@ -61,6 +63,8 @@ use crate::state::AppState;
         handlers::update_room,
         handlers::delete_room,
         handlers::list_messages,
+        message_search::search_messages,
+        message_search::message_context,
         attachment_handlers::upload_attachment,
         attachment_handlers::download_attachment,
         attachment_upload_handlers::create_upload,
@@ -112,6 +116,7 @@ use crate::state::AppState;
         ai_threads::runs::get_run,
         admin_metrics::overview,
         admin_metrics::purge,
+        admin_services::probe_vector_search,
         admin_system_lock::update,
         admin_system_lock::room_status,
         admin_system_lock::update_room,
@@ -125,6 +130,12 @@ use crate::state::AppState;
         ai_threads::UpdateAiThreadRequest,
         ai_threads::CreateAiRunRequest,
         ai_threads::AiRun,
+        admin_services::ServiceStatus,
+        admin_services::VectorIndexStatus,
+        admin_services::ServiceOverview,
+        admin_services::VectorProbeRequest,
+        admin_services::VectorProbeMatch,
+        admin_services::VectorProbeResult,
         models::Room,
         models::CreateRoomRequest,
         models::UpdateRoomRequest,
@@ -213,6 +224,14 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
                 .delete(handlers::delete_room),
         )
         .route("/api/rooms/:id/messages", get(handlers::list_messages))
+        .route(
+            "/api/rooms/:id/messages/search",
+            get(message_search::search_messages),
+        )
+        .route(
+            "/api/rooms/:id/messages/:message_id/context",
+            get(message_search::message_context),
+        )
         .route("/api/rooms/:id/files", get(file_handlers::list_room_files))
         .route(
             "/api/rooms/:id/ai/suggest",
@@ -391,6 +410,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             axum::routing::post(user_handlers::logout),
         )
         .route("/api/admin/overview", get(admin_metrics::overview))
+        .route(
+            "/api/admin/vector/probe",
+            axum::routing::post(admin_services::probe_vector_search),
+        )
         .route(
             "/api/admin/maintenance/purge",
             axum::routing::post(admin_metrics::purge),

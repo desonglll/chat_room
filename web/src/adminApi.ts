@@ -1,4 +1,10 @@
-import type { AdminOverview, AdminPurgeResult, AdminRoomLockStatus, AdminSystemLockStatus } from './adminTypes'
+import type {
+  AdminOverview,
+  AdminPurgeResult,
+  AdminRoomLockStatus,
+  AdminSystemLockStatus,
+  AdminVectorProbeResult,
+} from './adminTypes'
 
 export class AdminApiError extends Error {
   constructor(public readonly status: number) {
@@ -27,6 +33,16 @@ export async function getAdminOverview(token: string): Promise<AdminOverview> {
 
 export async function purgeAdminRetention(token: string): Promise<AdminPurgeResult> {
   return (await adminRequest('/api/admin/maintenance/purge', token, 'POST')).json() as Promise<AdminPurgeResult>
+}
+
+export async function probeAdminVectorSearch(
+  roomId: string,
+  query: string,
+  token: string,
+): Promise<AdminVectorProbeResult> {
+  return (
+    await adminRequest('/api/admin/vector/probe', token, 'POST', { room_id: roomId, query })
+  ).json() as Promise<AdminVectorProbeResult>
 }
 
 export async function setAdminChatLock(locked: boolean, token: string): Promise<AdminSystemLockStatus> {

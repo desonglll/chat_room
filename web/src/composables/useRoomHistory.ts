@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from 'vue'
-import { listRoomMessages, storedMessageToBroadcast } from '../api'
+import { listRoomMessageContext, listRoomMessages, storedMessageToBroadcast } from '../api'
 import type { DisplayMessage, Room } from '../types'
 
 interface RoomHistoryOptions {
@@ -60,8 +60,14 @@ export function useRoomHistory(options: RoomHistoryOptions) {
   async function ensureMessage(messageId: string): Promise<boolean> {
     const containsMessage = () =>
       options.messages.value.some((message) => message.type === 'broadcast' && message.message_id === messageId)
-    while (!containsMessage() && hasMore.value) {
-      if ((await loadOlder()) === 0) break
+    if (containsMessage()) return true
+    const room = options.room.value
+    if (!room || !options.token.value) return false
+    try {
+      const context = await listRoomMessageContext(room.id, messageId, options.token.value, options.password.value)
+      options.prepend(context.map(storedMessageToBroadcast))
+    } catch {
+      return false
     }
     return containsMessage()
   }

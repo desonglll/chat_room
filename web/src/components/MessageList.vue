@@ -258,6 +258,7 @@ async function scrollToMessage(messageId: string): Promise<boolean> {
   let target = findMessage(messageId)
   if (!target && (await props.ensureMessage(messageId))) {
     await nextTick()
+    await nextTick()
     target = findMessage(messageId)
   }
   if (!target) return false

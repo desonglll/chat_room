@@ -58,6 +58,18 @@ impl RedisCache {
         })
     }
 
+    pub(crate) async fn ping(&self) -> Result<()> {
+        let mut connection = self.manager.clone();
+        tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("PING").query_async::<String>(&mut connection),
+        )
+        .await
+        .context("Redis PING timed out")?
+        .context("Redis PING failed")?;
+        Ok(())
+    }
+
     pub async fn get_session(&self, token: Uuid) -> Result<Option<User>> {
         let mut connection = self.manager.clone();
         let value = tokio::time::timeout(

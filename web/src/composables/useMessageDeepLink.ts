@@ -9,13 +9,24 @@ export function useMessageDeepLink(
 ): void {
   const route = useRoute()
   let handled = ''
+  let locating = ''
+  const targetMessageId = () => messageIdFromRoute(route.name, route.params.id, route.query.message, roomId())
   watch(
-    [() => messageIdFromRoute(route.name, route.params.id, route.query.message, roomId()), ready],
+    [targetMessageId, ready],
     async ([messageId, isReady]) => {
-      if (!messageId || !isReady || handled === messageId) return
-      handled = messageId
-      await nextTick()
-      await locate(messageId)
+      if (!messageId) {
+        handled = ''
+        return
+      }
+      if (!isReady || handled === messageId || locating === messageId) return
+      locating = messageId
+      try {
+        await nextTick()
+        const found = await locate(messageId)
+        if (found && targetMessageId() === messageId) handled = messageId
+      } finally {
+        if (locating === messageId) locating = ''
+      }
     },
     { immediate: true, flush: 'post' },
   )

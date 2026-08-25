@@ -151,6 +151,19 @@ impl VectorClients {
             .collect())
     }
 
+    pub(super) async fn point_count(&self) -> Result<u64> {
+        let response: CollectionResponse = self
+            .qdrant(self.http.get(self.collection_url()))
+            .send()
+            .await?
+            .error_for_status()
+            .context("inspect Qdrant collection health")?
+            .json()
+            .await
+            .context("decode Qdrant collection health")?;
+        Ok(response.result.points_count)
+    }
+
     async fn ensure_keyword_index(&self, field_name: &str) -> Result<()> {
         let url = format!("{}/index?wait=true", self.collection_url());
         self.qdrant(self.http.put(url))
@@ -198,4 +211,15 @@ struct SearchResponse {
 struct SearchPoint {
     #[serde(default)]
     payload: serde_json::Map<String, Value>,
+}
+
+#[derive(Deserialize)]
+struct CollectionResponse {
+    result: CollectionInfo,
+}
+
+#[derive(Deserialize)]
+struct CollectionInfo {
+    #[serde(default)]
+    points_count: u64,
 }

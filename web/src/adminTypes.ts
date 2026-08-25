@@ -35,6 +35,40 @@ export interface AdminTopRoom {
   last_message_at: string | null
 }
 
+export type AdminServiceState = 'healthy' | 'degraded' | 'disabled' | 'configured'
+
+export interface AdminServiceStatus {
+  id: 'database' | 'redis' | 'vector_store' | 'embedding' | 'ai_provider'
+  label: string
+  state: AdminServiceState
+  latency_ms: number | null
+  detail: string
+}
+
+export interface AdminVectorIndexStatus {
+  points: number | null
+  pending_jobs: number
+  retrying_jobs: number
+  last_error: string | null
+}
+
+export interface AdminServiceOverview {
+  items: AdminServiceStatus[]
+  vector_index: AdminVectorIndexStatus
+}
+
+export interface AdminVectorProbeMatch {
+  message_id: string
+  sender: string
+  content: string
+  created_at: string
+}
+
+export interface AdminVectorProbeResult {
+  latency_ms: number
+  matches: AdminVectorProbeMatch[]
+}
+
 export interface AdminOverview {
   generated_at: string
   database_backend: 'sqlite' | 'postgres'
@@ -47,6 +81,7 @@ export interface AdminOverview {
   runtime: AdminRuntimeMetrics
   totals: AdminTotals
   storage: AdminStorageMetrics
+  services: AdminServiceOverview
   top_rooms: AdminTopRoom[]
 }
 

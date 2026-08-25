@@ -179,9 +179,15 @@ impl AppState {
         } else {
             None
         };
-        let message_index = MessageIndex::connect(&config.vector_store)
-            .await
-            .context("initialize vector message index")?;
+        let message_index = match MessageIndex::connect(&config.vector_store).await {
+            Ok(index) => index,
+            Err(error) => {
+                tracing::warn!(
+                    "vector message index unavailable; semantic retrieval disabled: {error:#}"
+                );
+                None
+            }
+        };
 
         let mut rooms = HashMap::with_capacity(loaded.len());
         let mut channels = HashMap::with_capacity(loaded.len());

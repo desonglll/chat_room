@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use chat_room::{
+    ai::AiConfig,
     build_app,
-    config::{AdminConfig, AppConfig},
+    config::{AdminConfig, AppConfig, RedisConfig, VectorStoreConfig},
     state::AppState,
 };
 use chrono::{Duration, Utc};
@@ -102,6 +103,75 @@ async fn overview_requires_allowlisted_authenticated_account() {
     assert_eq!(overview["totals"]["active_rooms"], 1);
     assert!(overview["runtime"]["requests"].as_u64().unwrap() >= 2);
     assert_eq!(overview["top_rooms"][0]["name"], "admin-visible-room");
+    assert_eq!(overview["services"]["items"][0]["id"], "database");
+    assert_eq!(overview["services"]["items"][0]["state"], "healthy");
+    assert_eq!(overview["services"]["items"][1]["id"], "redis");
+    assert_eq!(overview["services"]["items"][1]["state"], "disabled");
+    assert_eq!(overview["services"]["items"][2]["id"], "vector_store");
+    assert_eq!(overview["services"]["items"][2]["state"], "disabled");
+    assert_eq!(overview["services"]["vector_index"]["pending_jobs"], 0);
+}
+
+#[tokio::test]
+async fn unavailable_vector_store_is_reported_without_stopping_the_server() {
+    let config = AppConfig {
+        admin: AdminConfig {
+            usernames: vec!["vector-admin".into()],
+            ..AdminConfig::default()
+        },
+        vector_store: VectorStoreConfig {
+            enabled: true,
+            url: "http://127.0.0.1:9".into(),
+            collection: "messages".into(),
+            dimensions: 2,
+            embedding_base_url: "http://127.0.0.1:9/v1".into(),
+            embedding_model: "embed-test".into(),
+            ..VectorStoreConfig::default()
+        },
+        redis: RedisConfig {
+            enabled: true,
+            url: "redis://127.0.0.1:9/".into(),
+            connect_timeout_ms: 100,
+            command_timeout_ms: 100,
+            ..RedisConfig::default()
+        },
+        ai: AiConfig {
+            enabled: true,
+            provider: "openai-compatible".into(),
+            api_key_env: "CHAT_ROOM_TEST_MISSING_AI_KEY".into(),
+            model: "test-model".into(),
+            ..AiConfig::default()
+        },
+        ..AppConfig::default()
+    };
+    let state = Arc::new(
+        AppState::new_with_config(&config)
+            .await
+            .expect("vector dependency failure should degrade instead of aborting startup"),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn({
+        let state = state.clone();
+        async move { axum::serve(listener, build_app(state)).await.unwrap() }
+    });
+    let server = Server { base, state, task };
+    let admin = session_token(&server.base, "vector-admin").await;
+    let overview: serde_json::Value = reqwest::Client::new()
+        .get(format!("{}/api/admin/overview", server.base))
+        .bearer_auth(admin)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(overview["services"]["items"][2]["id"], "vector_store");
+    assert_eq!(overview["services"]["items"][2]["state"], "degraded");
+    assert_eq!(overview["services"]["items"][1]["id"], "redis");
+    assert_eq!(overview["services"]["items"][1]["state"], "degraded");
+    assert_eq!(overview["services"]["items"][4]["id"], "ai_provider");
+    assert_eq!(overview["services"]["items"][4]["state"], "degraded");
 }
 
 #[tokio::test]

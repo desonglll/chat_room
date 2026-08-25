@@ -38,6 +38,10 @@ impl MessageIndex {
         let vector = self.clients.embed(question).await?;
         self.clients.search(room_id, vector).await
     }
+
+    pub(crate) async fn point_count(&self) -> Result<u64> {
+        self.clients.point_count().await
+    }
 }
 
 #[derive(Serialize, sqlx::FromRow)]

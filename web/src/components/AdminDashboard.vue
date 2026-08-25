@@ -26,6 +26,7 @@ import { AdminApiError, getAdminOverview, purgeAdminRetention } from '../adminAp
 import type { AdminOverview, AdminPurgeResult } from '../adminTypes'
 import { storageGet } from '../browserStorage'
 import AdminSystemLockPanel from './AdminSystemLockPanel.vue'
+import AdminServiceStatusPanel from './AdminServiceStatusPanel.vue'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const REFRESH_INTERVAL_MS = 15_000
@@ -201,6 +202,13 @@ onBeforeUnmount(() => window.clearInterval(timer))
           :locked="overview.chat_rooms_locked"
           :token="token"
           @updated="overview.chat_rooms_locked = $event"
+          @error="error = $event"
+        />
+
+        <AdminServiceStatusPanel
+          :services="overview.services"
+          :rooms="overview.top_rooms"
+          :token="token"
           @error="error = $event"
         />
 

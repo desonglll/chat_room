@@ -20,6 +20,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
+    admin::services::{collect_service_overview, ServiceOverview},
+    models::User,
     state::{with_pool, AppState, SharedState},
     user_handlers::bearer_token,
 };
@@ -149,6 +151,7 @@ pub struct AdminOverview {
     runtime: RuntimeSnapshot,
     totals: AdminTotals,
     storage: StorageMetrics,
+    services: ServiceOverview,
     top_rooms: Vec<TopRoom>,
 }
 
@@ -173,7 +176,10 @@ struct OrphanGroup {
     size_bytes: i64,
 }
 
-pub(crate) async fn require_admin(state: &AppState, headers: &HeaderMap) -> Result<(), StatusCode> {
+pub(crate) async fn require_admin(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<User, StatusCode> {
     let token = bearer_token(headers)?;
     let user = state
         .session_user(token)
@@ -182,7 +188,7 @@ pub(crate) async fn require_admin(state: &AppState, headers: &HeaderMap) -> Resu
         .ok_or(StatusCode::UNAUTHORIZED)?;
     state
         .is_system_admin(&user.username)
-        .then_some(())
+        .then_some(user)
         .ok_or(StatusCode::FORBIDDEN)
 }
 
@@ -264,6 +270,7 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
     })?;
     let (online_users, websocket_connections) = state.online_counts().await;
     let chat_rooms_locked = state.chat_rooms_locked().await?;
+    let services = collect_service_overview(state).await;
     Ok(AdminOverview {
         generated_at: now,
         database_backend: state.database_backend().to_string(),
@@ -280,6 +287,7 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
         runtime: state.runtime_metrics().snapshot(),
         totals,
         storage,
+        services,
         top_rooms,
     })
 }
