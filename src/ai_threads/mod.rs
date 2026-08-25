@@ -1,3 +1,4 @@
+pub mod events;
 pub mod handlers;
 pub mod models;
 mod run_store;

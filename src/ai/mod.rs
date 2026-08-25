@@ -4,9 +4,12 @@
 //! (genai infers the adapter from the model name, e.g. `gpt-*` vs `claude-*`).
 
 mod config;
+pub mod model_handlers;
+pub mod model_options;
 mod stream;
 
 pub use config::{AiConfig, AiRuntimeStatus};
+pub use model_options::{AiModelChoice, AiModelOptionView, SaveAiModelOption};
 pub use stream::{AiStreamItem, AiTextStream};
 
 use genai::adapter::AdapterKind;

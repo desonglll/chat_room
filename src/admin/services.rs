@@ -8,10 +8,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use super::metrics::require_admin;
-use crate::{
-    ai::AiRuntimeStatus,
-    state::{with_pool, AppState, SharedState},
-};
+use crate::state::{with_pool, AppState, SharedState};
 
 const VECTOR_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -68,7 +65,7 @@ pub(crate) async fn collect_service_overview(state: &AppState) -> ServiceOvervie
         state.config.vector_store.enabled,
         state.config.vector_store.embedding_model.clone(),
     );
-    let ai_provider = ai_service(state);
+    let ai_provider = ai_service(state).await;
     let mut vector_index = index_queue_status(state).await;
     vector_index.points = points;
     ServiceOverview {
@@ -80,7 +77,7 @@ pub(crate) async fn collect_service_overview(state: &AppState) -> ServiceOvervie
 async fn probe_database(state: &AppState) -> ServiceStatus {
     let started = Instant::now();
     let result = with_pool!(state, |pool| {
-        sqlx::query_scalar::<_, i64>("SELECT 1")
+        sqlx::query_scalar::<_, i64>("SELECT CAST(1 AS BIGINT)")
             .fetch_one(pool)
             .await
     });
@@ -246,18 +243,32 @@ fn configured_service(id: &str, label: &str, enabled: bool, detail: String) -> S
     }
 }
 
-fn ai_service(state: &AppState) -> ServiceStatus {
-    let detail = format!("{} / {}", state.config.ai.provider, state.config.ai.model);
-    match state.ai_status() {
-        AiRuntimeStatus::Ready => configured_service("ai_provider", "LLM", true, detail),
-        AiRuntimeStatus::MissingCredentials => degraded(
+async fn ai_service(state: &AppState) -> ServiceStatus {
+    let Ok(options) = state.ai_model_options().await else {
+        return degraded("ai_provider", "LLM", None, "读取模型配置失败");
+    };
+    let enabled = options.iter().filter(|option| option.enabled).count();
+    let ready = options
+        .iter()
+        .filter(|option| option.enabled && option.ready)
+        .count();
+    if enabled == 0 {
+        return disabled("ai_provider", "LLM");
+    }
+    if ready == 0 {
+        return degraded(
             "ai_provider",
             "LLM",
             None,
-            format!("{detail}，缺少 API 凭据"),
-        ),
-        AiRuntimeStatus::Disabled => disabled("ai_provider", "LLM"),
+            "已配置模型，但全部缺少 API 凭据",
+        );
     }
+    configured_service(
+        "ai_provider",
+        "LLM",
+        true,
+        format!("{ready}/{enabled} 个模型可用"),
+    )
 }
 
 fn status_from_result(

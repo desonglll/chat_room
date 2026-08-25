@@ -2,12 +2,18 @@ import { nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { messageIdFromRoute } from '../messageDeepLink'
 
+interface DeepLinkRoute {
+  name: unknown
+  params: Record<string, unknown>
+  query: Record<string, unknown>
+}
+
 export function useMessageDeepLink(
   roomId: () => string,
   ready: () => boolean,
   locate: (messageId: string) => Promise<boolean>,
+  route: DeepLinkRoute = useRoute(),
 ): void {
-  const route = useRoute()
   let handled = ''
   let locating = ''
   const targetMessageId = () => messageIdFromRoute(route.name, route.params.id, route.query.message, roomId())

@@ -2,10 +2,14 @@ use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use super::models::{AiRun, AiThreadMessage};
-use crate::state::{with_pool, AppState};
+use crate::{
+    ai::{model_options::ResolvedAiModel, AiAssistant, AiConfig},
+    state::{with_pool, AppState},
+};
 
 const RUN_COLUMNS: &str = "id, thread_id, user_message_id, assistant_message_id, \
-    client_request_id, room_id, status, context_message_count, error_message, created_at, updated_at";
+    client_request_id, room_id, model_option_id, provider, model, status, \
+    context_message_count, error_message, created_at, updated_at";
 
 pub(super) enum CreateRunOutcome {
     Created(AiRun),
@@ -21,6 +25,7 @@ impl AppState {
         question: &str,
         room_id: Option<Uuid>,
         client_request_id: Uuid,
+        selected_model: &ResolvedAiModel,
     ) -> Result<CreateRunOutcome, sqlx::Error> {
         if let Some(run) = self.ai_run_by_request(user_id, client_request_id).await? {
             return Ok(CreateRunOutcome::Existing(run));
@@ -55,8 +60,9 @@ impl AppState {
             sqlx::query(
                 "INSERT INTO ai_runs \
                  (id, thread_id, user_id, user_message_id, assistant_message_id, client_request_id, \
-                  room_id, status, attempt_count, created_at, updated_at) \
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'queued', 0, $8, $8)",
+                  room_id, model_option_id, provider, model, base_url, api_key_env, status, \
+                  attempt_count, created_at, updated_at) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'queued', 0, $13, $13)",
             )
             .bind(run_id)
             .bind(thread_id)
@@ -65,6 +71,11 @@ impl AppState {
             .bind(assistant_message_id)
             .bind(client_request_id)
             .bind(room_id)
+            .bind(selected_model.id)
+            .bind(&selected_model.provider)
+            .bind(&selected_model.model)
+            .bind(&selected_model.base_url)
+            .bind(&selected_model.api_key_env)
             .bind(now)
             .execute(&mut *transaction)
             .await?;
@@ -90,6 +101,26 @@ impl AppState {
                 .bind(user_id)
                 .fetch_optional(pool)
                 .await
+        })
+    }
+
+    pub(super) async fn ai_run_message(
+        &self,
+        user_id: Uuid,
+        run_id: Uuid,
+    ) -> Result<Option<AiThreadMessage>, sqlx::Error> {
+        with_pool!(self, |pool| {
+            sqlx::query_as(
+                "SELECT m.id, m.thread_id, m.role, m.content, m.room_id, \
+                 m.context_message_count, m.status, m.revision, m.created_at, \
+                 COALESCE(m.updated_at, m.created_at) AS updated_at \
+                 FROM ai_thread_messages m JOIN ai_runs r ON r.assistant_message_id = m.id \
+                 WHERE r.id = $1 AND r.user_id = $2",
+            )
+            .bind(run_id)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
         })
     }
 
@@ -160,7 +191,8 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT r.id, r.thread_id, r.user_id, r.user_message_id, r.assistant_message_id, \
-                 r.room_id, t.thinking_enabled, m.content AS question FROM ai_runs r \
+                 r.room_id, r.provider, r.model, r.base_url, r.api_key_env, \
+                 t.thinking_enabled, m.content AS question FROM ai_runs r \
                  JOIN ai_threads t ON t.id = r.thread_id \
                  JOIN ai_thread_messages m ON m.id = r.user_message_id WHERE r.id = $1",
             )
@@ -299,11 +331,29 @@ pub(super) struct AiRunExecution {
     pub user_message_id: Uuid,
     pub assistant_message_id: Uuid,
     pub room_id: Option<Uuid>,
+    pub provider: String,
+    pub model: String,
+    pub base_url: String,
+    pub api_key_env: String,
     pub thinking_enabled: bool,
     pub question: String,
 }
 
 impl AiRunExecution {
+    pub(super) fn assistant(&self, defaults: &AiConfig) -> Option<AiAssistant> {
+        let mut config = defaults.clone();
+        if !self.provider.is_empty() {
+            config.provider = self.provider.clone();
+            config.model = self.model.clone();
+            config.fast_model = None;
+            config.base_url = (!self.base_url.is_empty()).then(|| self.base_url.clone());
+            config.api_key_env = self.api_key_env.clone();
+        }
+        config
+            .resolved_api_key()
+            .map(|key| AiAssistant::new(&config, key))
+    }
+
     pub(super) fn excludes(&self, message: &AiThreadMessage) -> bool {
         message.id == self.user_message_id || message.id == self.assistant_message_id
     }

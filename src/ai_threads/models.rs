@@ -36,6 +36,9 @@ pub struct AiRun {
     pub assistant_message_id: Uuid,
     pub client_request_id: Uuid,
     pub room_id: Option<Uuid>,
+    pub model_option_id: Option<Uuid>,
+    pub provider: String,
+    pub model: String,
     pub status: String,
     pub context_message_count: Option<i64>,
     pub error_message: Option<String>,
@@ -63,5 +66,6 @@ pub struct UpdateAiThreadRequest {
 pub struct CreateAiRunRequest {
     pub question: String,
     pub room_id: Option<Uuid>,
+    pub model_option_id: Option<Uuid>,
     pub client_request_id: Uuid,
 }

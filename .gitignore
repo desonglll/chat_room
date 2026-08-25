@@ -7,4 +7,5 @@
 /private/
 /web/dist/
 /web/node_modules/
+/.env
 /.scratch-shot/

@@ -69,6 +69,29 @@ export interface AdminVectorProbeResult {
   matches: AdminVectorProbeMatch[]
 }
 
+export interface AdminAiModelOption {
+  id: string
+  label: string
+  provider: 'openai' | 'anthropic'
+  base_url: string
+  model: string
+  api_key_env: string
+  enabled: boolean
+  ready: boolean
+  source: 'environment' | 'database'
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface SaveAdminAiModelOption {
+  label: string
+  provider: 'openai' | 'anthropic'
+  base_url: string
+  model: string
+  api_key_env: string
+  enabled: boolean
+}
+
 export interface AdminOverview {
   generated_at: string
   database_backend: 'sqlite' | 'postgres'

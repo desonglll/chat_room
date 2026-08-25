@@ -1,23 +1,36 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { CheckCheck, Hash, ListChecks, Sparkles, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Password from 'primevue/password'
+import Select from 'primevue/select'
 import ToggleSwitch from 'primevue/toggleswitch'
-import type { Room } from '../types'
+import type { AiModelChoice, Room } from '../types'
 
-defineProps<{
+const props = defineProps<{
   room: Room | null
   thinkingEnabled: boolean
   aiReady: boolean
   loading: boolean
+  models: AiModelChoice[]
+  modelId: string
 }>()
 
 const password = defineModel<string>('password', { required: true })
 const emit = defineEmits<{
   clearRoom: []
   thinking: [enabled: boolean]
+  model: [id: string]
   quick: [question: string]
 }>()
+
+const selectableModels = computed(() =>
+  props.models.map((option) => ({
+    ...option,
+    display_name: `${option.label} · ${option.model}`,
+    disabled: !option.ready,
+  })),
+)
 </script>
 
 <template>
@@ -50,6 +63,17 @@ const emit = defineEmits<{
       class="min-w-40 sm:max-w-52"
       :input-props="{ form: 'ai-assistant-query-form' }"
       :disabled="loading"
+    />
+    <Select
+      :model-value="modelId"
+      :options="selectableModels"
+      option-label="display_name"
+      option-value="id"
+      option-disabled="disabled"
+      aria-label="选择 AI 渠道和模型"
+      class="min-w-52 max-w-80"
+      :disabled="loading || !selectableModels.length"
+      @update:model-value="emit('model', String($event || ''))"
     />
     <label class="ml-auto flex min-h-8 items-center gap-2 text-xs text-muted-color">
       <ToggleSwitch

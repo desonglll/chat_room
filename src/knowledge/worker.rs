@@ -1,6 +1,7 @@
 use std::sync::atomic::Ordering;
 
 use anyhow::Result;
+use futures_util::{stream, StreamExt};
 
 use super::store::IndexJob;
 use crate::state::SharedState;
@@ -22,9 +23,9 @@ pub fn ensure_worker(state: SharedState) {
         loop {
             match state.ready_index_jobs().await {
                 Ok(jobs) => {
-                    for job in jobs {
-                        process_job(&state, job).await;
-                    }
+                    stream::iter(jobs)
+                        .for_each_concurrent(4, |job| process_job(&state, job))
+                        .await;
                 }
                 Err(error) => tracing::error!("load message index outbox failed: {error}"),
             }

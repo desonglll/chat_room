@@ -393,6 +393,7 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
+ "dotenvy",
  "futures-util",
  "genai",
  "hex",

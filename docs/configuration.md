@@ -4,6 +4,20 @@ The server reads `chat-room.toml` from its working directory by default. Use
 `--config PATH` to load another file. If the selected file does not exist, the
 built-in defaults are used.
 
+For local development, start only the infrastructure containers and run the
+Rust server on the host:
+
+```sh
+docker compose -f docker-compose.local.yaml up -d
+cargo run --bin server -- --web
+```
+
+The server loads `.env` before `chat-room.toml`. `CHAT_ROOM_AI_MODEL` and
+`CHAT_ROOM_AI_BASE_URL` override the default model, while
+`CHAT_ROOM_EMBEDDING_MODEL`, `CHAT_ROOM_EMBEDDING_BASE_URL`, and
+`CHAT_ROOM_VECTOR_ENABLED` configure full-room RAG. See `.env.example` for the
+complete local PostgreSQL, Redis, Qdrant, and AI variable set.
+
 ```toml
 [uploads]
 max_file_size_mib = 512
@@ -146,9 +160,16 @@ reasoning or content event, and `stream_total_timeout_secs` is the hard upper
 bound for one response. AI Runs and placeholder messages are persisted before
 execution, so closing or refreshing the browser does not cancel an answer.
 When Redis is enabled and reachable, live answer revisions are kept there and
-overlaid by the message API; completion writes the terminal answer to
-PostgreSQL (or SQLite in SQLite deployments) and removes the Redis key. Redis
-errors fall back to relational-database revisions instead of aborting the Run.
+delivered to the browser over one server-sent event connection. Completion
+writes the terminal answer to PostgreSQL (or SQLite in SQLite deployments) and
+keeps the terminal Redis snapshot until its TTL expires. Redis errors fall back
+to relational-database revisions instead of aborting the Run.
+
+The environment model appears as a read-only option in the admin page. Admins
+can add more OpenAI-compatible or Anthropic endpoints there using a label,
+base URL, model name, and the name of an API-key environment variable. Secret
+values are never stored in the database. Users select any enabled, credentialed
+endpoint from the AI conversation toolbar.
 
 The vector store is strictly opt-in. With `vector_store.enabled = false`, the
 server does not connect to Qdrant or the embeddings endpoint. When enabled,
@@ -157,6 +178,10 @@ and delete operations write a transactional outbox; a background worker updates
 Qdrant and retries failures. Retrieval is filtered to the one room attached to
 the AI session, then every hit is rechecked in the relational database for
 active membership and current recall state before it is sent to the model.
+The migration backfills every existing non-recalled text message into the
+outbox, so after the queue reaches zero every room message is eligible for RAG.
+The displayed context count is the number of recent and semantic messages
+actually injected into that answer, not the total number of indexed messages.
 
 The Compose stack exposes Qdrant REST and gRPC on loopback ports 6333 and 6334
 by default and stores its data in `qdrant_data`. Containers use

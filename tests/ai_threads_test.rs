@@ -9,7 +9,7 @@ use axum::{
     routing::post,
     Router,
 };
-use chat_room::config::AppConfig;
+use chat_room::{ai::SaveAiModelOption, config::AppConfig};
 use chat_room::{build_app, state::AppState};
 use reqwest::{Client, StatusCode};
 use tokio::net::TcpListener;
@@ -199,6 +199,17 @@ async fn ai_run_continues_without_a_browser_stream() {
     let (base, state, server) = start_server_with_config(&config).await;
     let client = Client::new();
     let token = register(&client, &base, "durable-run-owner").await;
+    let selected_model = state
+        .create_ai_model_option(&SaveAiModelOption {
+            label: "Selected provider".into(),
+            provider: "openai".into(),
+            base_url: format!("http://{provider_address}/v1"),
+            model: "gpt-selected".into(),
+            api_key_env: "PATH".into(),
+            enabled: true,
+        })
+        .await
+        .unwrap();
     let thread: serde_json::Value = client
         .post(format!("{base}/api/ai/threads"))
         .bearer_auth(&token)
@@ -216,12 +227,24 @@ async fn ai_run_continues_without_a_browser_stream() {
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "question": "你好",
-            "client_request_id": uuid::Uuid::new_v4()
+            "client_request_id": uuid::Uuid::new_v4(),
+            "model_option_id": selected_model.id
         }))
         .send()
         .await
         .unwrap();
     assert_eq!(accepted.status(), StatusCode::ACCEPTED);
+    let accepted: serde_json::Value = accepted.json().await.unwrap();
+    assert_eq!(accepted["model"], "gpt-selected");
+    let run_id = accepted["id"].as_str().unwrap();
+    let events = client
+        .get(format!("{base}/api/ai/runs/{run_id}/events"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(events.status(), StatusCode::OK);
+    let events_task = tokio::spawn(async move { events.text().await.unwrap() });
 
     let mut live_revision = None;
     for _ in 0..20 {
@@ -273,6 +296,12 @@ async fn ai_run_continues_without_a_browser_stream() {
     }
 
     assert_eq!(completed.unwrap()["content"], "你好");
+    let event_body = tokio::time::timeout(std::time::Duration::from_secs(3), events_task)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(event_body.contains("\"status\":\"streaming\""));
+    assert!(event_body.contains("\"status\":\"completed\""));
     let persisted_after_completion: (String, String) = sqlx::query_as(
         "SELECT content, status FROM ai_thread_messages WHERE thread_id = $1 AND role = 'assistant'",
     )

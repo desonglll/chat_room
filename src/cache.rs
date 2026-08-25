@@ -30,7 +30,13 @@ pub(crate) struct CachedAiAnswer {
     pub content: String,
     pub context_message_count: i64,
     pub revision: i64,
+    #[serde(default = "streaming_status")]
+    pub status: String,
     pub updated_at: DateTime<Utc>,
+}
+
+fn streaming_status() -> String {
+    "streaming".into()
 }
 
 impl RedisCache {
@@ -312,20 +318,6 @@ impl RedisCache {
         .context("cache AI answer")
     }
 
-    pub async fn delete_ai_answer(&self, message_id: Uuid) -> Result<()> {
-        let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("DEL")
-                .arg(self.ai_answer_key(message_id))
-                .query_async::<usize>(&mut connection),
-        )
-        .await
-        .context("Redis AI answer DEL timed out")?
-        .context("delete cached AI answer")?;
-        Ok(())
-    }
-
     async fn message_version(&self, room_id: Uuid) -> Result<u64> {
         let mut connection = self.manager.clone();
         tokio::time::timeout(
@@ -382,7 +374,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn live_ai_answers_expire_from_redis_after_persistence() {
+    async fn live_ai_answers_keep_the_terminal_snapshot_until_ttl() {
         let config = RedisConfig {
             enabled: true,
             key_prefix: format!("chat-room-test:{}", Uuid::new_v4()),
@@ -397,6 +389,7 @@ mod tests {
             content: "partial answer".into(),
             context_message_count: 3,
             revision: 2,
+            status: "completed".into(),
             updated_at: Utc::now(),
         };
 
@@ -404,8 +397,6 @@ mod tests {
         let cached = cache.ai_answer(message_id).await.unwrap().unwrap();
         assert_eq!(cached.content, "partial answer");
         assert_eq!(cached.revision, 2);
-
-        cache.delete_ai_answer(message_id).await.unwrap();
-        assert!(cache.ai_answer(message_id).await.unwrap().is_none());
+        assert_eq!(cached.status, "completed");
     }
 }

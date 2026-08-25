@@ -1,5 +1,6 @@
 import { assertAiResponse } from './assistantApi'
-import type { AiRun, AiThread, AiThreadMessage } from './types'
+import { readSseJsonStream } from './aiRunStream'
+import type { AiModelChoice, AiRun, AiThread, AiThreadMessage } from './types'
 
 export interface UpdateAiThreadPayload {
   title?: string
@@ -21,6 +22,12 @@ export async function listAiThreads(token: string): Promise<AiThread[]> {
   const response = await fetch('/api/ai/threads', { headers: headers(token) })
   assertAiResponse(response)
   return response.json() as Promise<AiThread[]>
+}
+
+export async function listAiModels(token: string): Promise<AiModelChoice[]> {
+  const response = await fetch('/api/ai/models', { headers: headers(token) })
+  assertAiResponse(response)
+  return response.json() as Promise<AiModelChoice[]>
 }
 
 export async function createAiThread(token: string): Promise<AiThread> {
@@ -70,12 +77,32 @@ export async function createAiRun(
   roomId: string | null,
   password: string,
   clientRequestId: string,
+  modelOptionId: string | null,
 ): Promise<AiRun> {
   const response = await fetch(`/api/ai/threads/${encodeURIComponent(threadId)}/runs`, {
     method: 'POST',
     headers: headers(token, password),
-    body: JSON.stringify({ question, room_id: roomId, client_request_id: clientRequestId }),
+    body: JSON.stringify({
+      question,
+      room_id: roomId,
+      client_request_id: clientRequestId,
+      model_option_id: modelOptionId,
+    }),
   })
   assertAiResponse(response)
   return response.json() as Promise<AiRun>
+}
+
+export async function streamAiRunMessages(
+  token: string,
+  runId: string,
+  onMessage: (message: AiThreadMessage) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`/api/ai/runs/${encodeURIComponent(runId)}/events`, {
+    headers: headers(token),
+    signal,
+  })
+  assertAiResponse(response)
+  await readSseJsonStream<AiThreadMessage>(response, onMessage)
 }

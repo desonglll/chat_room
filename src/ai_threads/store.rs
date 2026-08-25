@@ -142,7 +142,7 @@ impl AppState {
                     Ok(Some(answer)) => {
                         message.content = answer.content;
                         message.context_message_count = Some(answer.context_message_count);
-                        message.status = "streaming".into();
+                        message.status = answer.status;
                         message.revision = answer.revision;
                         message.updated_at = answer.updated_at;
                     }

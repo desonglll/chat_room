@@ -1,15 +1,12 @@
 import { createRenderer, defineComponent, h, nextTick, reactive } from 'vue'
-import { describe, expect, mock, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
+import { useMessageDeepLink } from './useMessageDeepLink'
 
 const route = reactive({
   name: 'room',
   params: { id: 'room-1' },
   query: { message: 'message-1' } as { message?: string },
 })
-
-mock.module('vue-router', () => ({ useRoute: () => route }))
-
-const { useMessageDeepLink } = await import('./useMessageDeepLink')
 
 function mountDeepLink(locate: (messageId: string) => Promise<boolean>) {
   const renderer = createRenderer<Record<string, never>, Record<string, never>>({
@@ -35,6 +32,7 @@ function mountDeepLink(locate: (messageId: string) => Promise<boolean>) {
           () => 'room-1',
           () => true,
           locate,
+          route,
         )
         return () => h('div')
       },

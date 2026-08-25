@@ -27,6 +27,7 @@ import type { AdminOverview, AdminPurgeResult } from '../adminTypes'
 import { storageGet } from '../browserStorage'
 import AdminSystemLockPanel from './AdminSystemLockPanel.vue'
 import AdminServiceStatusPanel from './AdminServiceStatusPanel.vue'
+import AdminAiModelsPanel from './AdminAiModelsPanel.vue'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const REFRESH_INTERVAL_MS = 15_000
@@ -211,6 +212,8 @@ onBeforeUnmount(() => window.clearInterval(timer))
           :token="token"
           @error="error = $event"
         />
+
+        <AdminAiModelsPanel :token="token" @error="error = $event" />
 
         <section aria-labelledby="overview-heading">
           <h2 id="overview-heading" class="mb-3 text-sm font-semibold">实时概览</h2>

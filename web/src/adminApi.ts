@@ -4,12 +4,39 @@ import type {
   AdminRoomLockStatus,
   AdminSystemLockStatus,
   AdminVectorProbeResult,
+  AdminAiModelOption,
+  SaveAdminAiModelOption,
 } from './adminTypes'
 
 export class AdminApiError extends Error {
   constructor(public readonly status: number) {
     super(status === 401 ? '登录已过期' : status === 403 ? '当前账户没有系统管理权限' : `后台接口返回 ${status}`)
   }
+}
+
+export async function listAdminAiModels(token: string): Promise<AdminAiModelOption[]> {
+  return (await adminRequest('/api/admin/ai-models', token)).json() as Promise<AdminAiModelOption[]>
+}
+
+export async function createAdminAiModel(
+  token: string,
+  payload: SaveAdminAiModelOption,
+): Promise<AdminAiModelOption> {
+  return (await adminRequest('/api/admin/ai-models', token, 'POST', payload)).json() as Promise<AdminAiModelOption>
+}
+
+export async function updateAdminAiModel(
+  token: string,
+  id: string,
+  payload: SaveAdminAiModelOption,
+): Promise<AdminAiModelOption> {
+  return (
+    await adminRequest(`/api/admin/ai-models/${encodeURIComponent(id)}`, token, 'PUT', payload)
+  ).json() as Promise<AdminAiModelOption>
+}
+
+export async function deleteAdminAiModel(token: string, id: string): Promise<void> {
+  await adminRequest(`/api/admin/ai-models/${encodeURIComponent(id)}`, token, 'DELETE')
 }
 
 async function adminRequest(path: string, token: string, method = 'GET', body?: unknown): Promise<Response> {

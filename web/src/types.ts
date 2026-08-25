@@ -125,11 +125,22 @@ export interface AiRun {
   assistant_message_id: string
   client_request_id: string
   room_id: string | null
+  model_option_id: string | null
+  provider: string
+  model: string
   status: 'queued' | 'running' | 'completed' | 'failed'
   context_message_count: number | null
   error_message: string | null
   created_at: string
   updated_at: string
+}
+
+export interface AiModelChoice {
+  id: string
+  label: string
+  provider: 'openai' | 'anthropic'
+  model: string
+  ready: boolean
 }
 
 export interface Attachment {

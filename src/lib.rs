@@ -26,7 +26,8 @@ mod work_queue;
 
 pub use accounts::{account_ws, avatar_handlers, user_handlers, users};
 pub use admin::{
-    metrics as admin_metrics, services as admin_services, system_lock as admin_system_lock,
+    ai_models as admin_ai_models, metrics as admin_metrics, services as admin_services,
+    system_lock as admin_system_lock,
 };
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
@@ -107,6 +108,7 @@ use crate::state::AppState;
         favorites::handlers::add_collaborator,
         favorites::handlers::remove_collaborator,
         ai_handlers::suggest,
+        ai::model_handlers::list_models,
         ai_threads::handlers::list_threads,
         ai_threads::handlers::create_thread,
         ai_threads::handlers::update_thread,
@@ -114,9 +116,14 @@ use crate::state::AppState;
         ai_threads::handlers::list_messages,
         ai_threads::runs::create_run,
         ai_threads::runs::get_run,
+        ai_threads::events::stream_run_events,
         admin_metrics::overview,
         admin_metrics::purge,
         admin_services::probe_vector_search,
+        admin_ai_models::list,
+        admin_ai_models::create,
+        admin_ai_models::update,
+        admin_ai_models::delete,
         admin_system_lock::update,
         admin_system_lock::room_status,
         admin_system_lock::update_room,
@@ -124,6 +131,9 @@ use crate::state::AppState;
     components(schemas(
         ai::AiSuggestions,
         ai::AiConversationTurn,
+        ai::AiModelChoice,
+        ai::AiModelOptionView,
+        ai::SaveAiModelOption,
         ai_threads::AiThread,
         ai_threads::AiThreadMessage,
         ai_threads::CreateAiThreadRequest,
@@ -241,6 +251,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/ai/threads",
             get(ai_threads::handlers::list_threads).post(ai_threads::handlers::create_thread),
         )
+        .route("/api/ai/models", get(ai::model_handlers::list_models))
         .route(
             "/api/ai/threads/:id",
             axum::routing::patch(ai_threads::handlers::update_thread)
@@ -255,6 +266,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             axum::routing::post(ai_threads::runs::create_run),
         )
         .route("/api/ai/runs/:id", get(ai_threads::runs::get_run))
+        .route(
+            "/api/ai/runs/:id/events",
+            get(ai_threads::events::stream_run_events),
+        )
         .route(
             "/api/rooms/:id/members/me",
             axum::routing::delete(membership_handlers::leave_room)
@@ -413,6 +428,14 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/admin/vector/probe",
             axum::routing::post(admin_services::probe_vector_search),
+        )
+        .route(
+            "/api/admin/ai-models",
+            get(admin_ai_models::list).post(admin_ai_models::create),
+        )
+        .route(
+            "/api/admin/ai-models/:id",
+            axum::routing::put(admin_ai_models::update).delete(admin_ai_models::delete),
         )
         .route(
             "/api/admin/maintenance/purge",

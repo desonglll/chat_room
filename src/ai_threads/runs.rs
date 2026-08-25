@@ -51,9 +51,11 @@ pub async fn create_run(
     if question.is_empty() || question.chars().count() > MAX_QUESTION_CHARS {
         return Err(StatusCode::BAD_REQUEST);
     }
-    if state.ai_assistant().is_none() {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    }
+    let selected_model = state
+        .resolve_ai_model(payload.model_option_id)
+        .await
+        .map_err(internal_error)?
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     if !state
         .check_action_cooldown(thread_id, user.id, thread_id, state.ai_suggest_cooldown())
         .await
@@ -99,6 +101,7 @@ pub async fn create_run(
             question,
             room_id,
             payload.client_request_id,
+            &selected_model,
         )
         .await
         .map_err(internal_error)?;
@@ -176,17 +179,28 @@ async fn execute_run(state: SharedState, run_id: Uuid) -> anyhow::Result<()> {
         tracing::error!(%run_id, "AI run generation failed: {error:#}");
         let partial = live_or_persisted_answer(&state, &execution).await;
         state
-            .fail_ai_run(&execution, &partial, "AI 助手当前不可用，请稍后重试")
+            .fail_ai_run(
+                &execution,
+                &partial.content,
+                "AI 助手当前不可用，请稍后重试",
+            )
             .await?;
-        clear_live_answer(&state, execution.assistant_message_id).await;
+        store_terminal_answer(
+            &state,
+            &execution,
+            &partial.content,
+            0,
+            partial.revision + 1,
+            "failed",
+        )
+        .await;
     }
     Ok(())
 }
 
 async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> anyhow::Result<()> {
-    let assistant = state
-        .ai_assistant()
-        .cloned()
+    let assistant = execution
+        .assistant(&state.config.ai)
         .ok_or_else(|| anyhow::anyhow!("AI assistant is disabled"))?;
     let room_context = match execution.room_id {
         Some(room_id) => Some(
@@ -208,9 +222,10 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
             content: message.content,
         })
         .collect();
-    let context_message_count = room_context
+    let mut context_message_count = room_context
         .as_ref()
-        .map_or(0, |context| context.context_message_count) as i64;
+        .map_or(0, |context| context.context_message_count)
+        as i64;
     let mut toon_context = room_context
         .as_ref()
         .map(|context| context.toon_context.clone());
@@ -226,6 +241,7 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
                     .authorized_retrieved_messages(execution.user_id, room_id, &message_ids)
                     .await?;
                 if !retrieved.is_empty() {
+                    context_message_count += retrieved.len() as i64;
                     let encoded = toon_format::encode_default(&retrieved)
                         .map_err(|error| anyhow::anyhow!("encode retrieved messages: {error}"))?;
                     let context = toon_context.get_or_insert_with(String::new);
@@ -272,7 +288,15 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
     state
         .finish_ai_run(execution, answer, context_message_count)
         .await?;
-    clear_live_answer(state, execution.assistant_message_id).await;
+    store_terminal_answer(
+        state,
+        execution,
+        answer,
+        context_message_count,
+        revision + 1,
+        "completed",
+    )
+    .await;
     Ok(())
 }
 
@@ -288,6 +312,7 @@ async fn store_live_answer(
             content: content.to_owned(),
             context_message_count,
             revision,
+            status: "streaming".into(),
             updated_at: chrono::Utc::now(),
         };
         match cache
@@ -311,10 +336,13 @@ async fn store_live_answer(
     Ok(())
 }
 
-async fn live_or_persisted_answer(state: &SharedState, execution: &AiRunExecution) -> String {
+async fn live_or_persisted_answer(
+    state: &SharedState,
+    execution: &AiRunExecution,
+) -> CachedAiAnswer {
     if let Some(cache) = state.redis_cache() {
         match cache.ai_answer(execution.assistant_message_id).await {
-            Ok(Some(answer)) => return answer.content,
+            Ok(Some(answer)) => return answer,
             Ok(None) => {}
             Err(error) => tracing::warn!(
                 run_id = %execution.id,
@@ -322,18 +350,46 @@ async fn live_or_persisted_answer(state: &SharedState, execution: &AiRunExecutio
             ),
         }
     }
-    state
+    let content = state
         .persisted_ai_run_answer(execution.assistant_message_id)
         .await
-        .unwrap_or_default()
+        .unwrap_or_default();
+    CachedAiAnswer {
+        content,
+        context_message_count: 0,
+        revision: 0,
+        status: "streaming".into(),
+        updated_at: chrono::Utc::now(),
+    }
 }
 
-async fn clear_live_answer(state: &SharedState, message_id: Uuid) {
+async fn store_terminal_answer(
+    state: &SharedState,
+    execution: &AiRunExecution,
+    content: &str,
+    context_message_count: i64,
+    revision: i64,
+    status: &str,
+) {
     let Some(cache) = state.redis_cache() else {
         return;
     };
-    if let Err(error) = cache.delete_ai_answer(message_id).await {
-        tracing::warn!(%message_id, "delete completed AI answer cache failed: {error:#}");
+    let answer = CachedAiAnswer {
+        content: content.to_owned(),
+        context_message_count,
+        revision,
+        status: status.into(),
+        updated_at: chrono::Utc::now(),
+    };
+    if let Err(error) = cache
+        .set_ai_answer(
+            execution.assistant_message_id,
+            &answer,
+            state.ai_answer_cache_ttl_secs(),
+        )
+        .await
+    {
+        tracing::warn!(run_id = %execution.id, "cache terminal AI answer failed: {error:#}");
     }
 }
 

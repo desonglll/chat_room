@@ -75,6 +75,11 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
     assert_eq!(overview_status, 200, "postgres overview: {overview_body}");
     let overview: serde_json::Value = serde_json::from_str(&overview_body).unwrap();
     assert_eq!(overview["database_backend"], "postgres");
+    assert_eq!(
+        overview["services"]["items"][0]["state"], "healthy",
+        "postgres health probe: {}",
+        overview["services"]["items"][0]["detail"]
+    );
     assert_eq!(overview["storage"]["logical_bytes"], 0);
 
     let (room_id, has_password) = create_room(&server, "pg-integration-room", None).await;

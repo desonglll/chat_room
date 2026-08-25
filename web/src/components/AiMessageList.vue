@@ -70,7 +70,7 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
           >
             <template v-if="roomTitle">{{ roomTitle }}</template>
             <template v-if="message.context_message_count">
-              · {{ message.context_message_count }} 条消息 · TOON</template
+              · 本次注入 {{ message.context_message_count }} 条消息 · TOON + RAG</template
             >
           </p>
         </article>

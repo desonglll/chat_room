@@ -8,8 +8,10 @@ import {
   createAiThread,
   deleteAiThread,
   listAiThreadMessages,
+  listAiModels,
   listAiThreads,
   createAiRun,
+  streamAiRunMessages,
   updateAiThread,
 } from '../aiThreadApi'
 import {
@@ -22,9 +24,10 @@ import {
 } from '../assistantMentions'
 import type { AiUiMessage } from '../aiUi'
 import { hasActiveAiMessage, pollAiThreadMessages } from '../aiRunPolling'
+import { shouldSubmitMessage } from '../composer'
 import { createRandomUuid } from '../randomUuid'
 import { readRoomPassword } from '../roomPasswordVault'
-import type { AiRuntimeStatus, AiThread, Room } from '../types'
+import type { AiModelChoice, AiRuntimeStatus, AiThread, Room } from '../types'
 import AiAssistantHeader from './AiAssistantHeader.vue'
 import AiAssistantToolbar from './AiAssistantToolbar.vue'
 import AiMessageList from './AiMessageList.vue'
@@ -41,6 +44,8 @@ const emit = defineEmits<{ back: []; error: [message: string] }>()
 const threads = ref<AiThread[]>([])
 const activeThreadId = ref('')
 const messages = ref<AiUiMessage[]>([])
+const modelOptions = ref<AiModelChoice[]>([])
+const selectedModelId = ref('')
 const roomPassword = ref('')
 const prompt = ref('')
 const loading = ref(false)
@@ -52,13 +57,14 @@ const messageList = ref<{ scrollToLatest: (smooth?: boolean) => Promise<void>; s
 const mentionRange = ref<ConversationMentionRange | null>(null)
 const mentionIndex = ref(0)
 let pollGeneration = 0
+let runStream: AbortController | null = null
 
 const availableRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
 const mentionableRooms = computed(() => availableRooms.value.map((room) => ({ roomId: room.id, title: room.name })))
 const mentionCandidates = computed(() => conversationMentionCandidates(mentionRange.value, mentionableRooms.value))
 const activeThread = computed(() => threads.value.find((thread) => thread.id === activeThreadId.value) || null)
 const activeRoom = computed(() => availableRooms.value.find((room) => room.id === activeThread.value?.room_id) || null)
-const aiReady = computed(() => props.aiStatus === 'ready')
+const aiReady = computed(() => modelOptions.value.some((option) => option.ready))
 
 function report(caught: unknown, fallback: string): void {
   emit('error', caught instanceof Error ? caught.message : fallback)
@@ -78,7 +84,10 @@ function syncRoomPassword(): void {
 async function loadSessions(): Promise<void> {
   loadingThreads.value = true
   try {
-    threads.value = await listAiThreads(props.token)
+    const [loadedThreads, loadedModels] = await Promise.all([listAiThreads(props.token), listAiModels(props.token)])
+    threads.value = loadedThreads
+    modelOptions.value = loadedModels
+    selectedModelId.value = loadedModels.find((option) => option.ready)?.id || ''
     if (threads.value.length) await selectSession(threads.value[0].id)
   } catch (caught) {
     report(caught, '加载 AI 对话失败')
@@ -107,6 +116,8 @@ async function createSession(): Promise<AiThread | null> {
 
 async function selectSession(threadId: string): Promise<void> {
   if (threadId === activeThreadId.value) return
+  runStream?.abort()
+  runStream = null
   const generation = ++pollGeneration
   activeThreadId.value = threadId
   loadingThreads.value = true
@@ -120,6 +131,35 @@ async function selectSession(threadId: string): Promise<void> {
     report(caught, '加载 AI 对话消息失败')
   } finally {
     loadingThreads.value = false
+  }
+}
+
+async function followRunStream(threadId: string, runId: string, generation: number): Promise<void> {
+  const controller = new AbortController()
+  runStream?.abort()
+  runStream = controller
+  try {
+    await streamAiRunMessages(
+      props.token,
+      runId,
+      (next) => {
+        if (generation !== pollGeneration || activeThreadId.value !== threadId) return
+        const index = messages.value.findIndex((message) => message.id === next.id)
+        if (index === -1) messages.value.push(next)
+        else messages.value[index] = next
+        messageList.value?.scrollToLatestSoon()
+      },
+      controller.signal,
+    )
+  } catch (caught) {
+    if (!controller.signal.aborted && generation === pollGeneration) report(caught, '读取 AI 回答失败')
+  } finally {
+    if (runStream === controller) runStream = null
+    if (generation !== pollGeneration) return
+    messages.value = await listAiThreadMessages(props.token, threadId).catch(() => messages.value)
+    loading.value = false
+    threads.value = await listAiThreads(props.token).catch(() => threads.value)
+    await messageList.value?.scrollToLatest()
   }
 }
 
@@ -239,7 +279,7 @@ function handlePromptKeydown(event: KeyboardEvent): void {
     mentionRange.value = null
     return
   }
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+  if (shouldSubmitMessage(event, false)) {
     event.preventDefault()
     void submit()
   }
@@ -260,19 +300,20 @@ async function submit(quickQuestion = ''): Promise<void> {
   mentionRange.value = null
   loading.value = true
   try {
-    await createAiRun(
+    const run = await createAiRun(
       props.token,
       session.id,
       parsed.question,
       room?.id || null,
       room?.has_password ? roomPassword.value : '',
       createRandomUuid(),
+      selectedModelId.value || null,
     )
     const generation = ++pollGeneration
     messages.value = await listAiThreadMessages(props.token, session.id)
     threads.value = await listAiThreads(props.token).catch(() => threads.value)
     await messageList.value?.scrollToLatest(true)
-    void followPersistedRun(session.id, generation)
+    void followRunStream(session.id, run.id, generation)
   } catch (caught) {
     loading.value = false
     report(caught, 'AI 请求失败')
@@ -281,6 +322,7 @@ async function submit(quickQuestion = ''): Promise<void> {
 
 onMounted(loadSessions)
 onUnmounted(() => {
+  runStream?.abort()
   pollGeneration += 1
 })
 </script>
@@ -289,10 +331,10 @@ onUnmounted(() => {
   <main id="workspace-main" class="cr-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <AiAssistantHeader :title="activeThread?.title || '新对话'" :ready="aiReady" @back="emit('back')" />
 
-    <Message v-if="aiStatus === 'missing_credentials'" severity="warn" :closable="false" class="m-4 sm:mx-7">
-      服务端未设置 CHAT_ROOM_AI_API_KEY，配置后重启服务即可启用。
+    <Message v-if="!aiReady && aiStatus === 'missing_credentials'" severity="warn" :closable="false" class="m-4 sm:mx-7">
+      当前没有凭据完整的模型配置，请在系统后台检查 API key 环境变量。
     </Message>
-    <Message v-else-if="aiStatus === 'disabled'" severity="secondary" :closable="false" class="m-4 sm:mx-7">
+    <Message v-else-if="!aiReady && aiStatus === 'disabled'" severity="secondary" :closable="false" class="m-4 sm:mx-7">
       AI 功能当前已关闭。
     </Message>
 
@@ -311,12 +353,15 @@ onUnmounted(() => {
       <div class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
         <AiAssistantToolbar
           v-model:password="roomPassword"
+          :models="modelOptions"
+          :model-id="selectedModelId"
           :room="activeRoom"
           :thinking-enabled="activeThread?.thinking_enabled || false"
           :ai-ready="aiReady"
           :loading="loading"
           @clear-room="clearRoom"
           @thinking="setThinking"
+          @model="selectedModelId = $event"
           @quick="submit"
         />
 

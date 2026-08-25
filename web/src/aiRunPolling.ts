@@ -14,7 +14,7 @@ export async function pollAiThreadMessages(
   onUpdate: (messages: AiThreadMessage[]) => void,
   options: AiPollingOptions = {},
 ): Promise<AiThreadMessage[]> {
-  const intervalMs = options.intervalMs ?? 100
+  const intervalMs = options.intervalMs ?? 1500
   while (options.isCurrent?.() !== false) {
     const messages = await load()
     onUpdate(messages)
