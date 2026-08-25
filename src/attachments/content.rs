@@ -212,7 +212,7 @@ impl AppState {
         }
     }
 
-    async fn healthy_storage_key(&self, content_hash: &str) -> Result<Option<String>> {
+    pub(crate) async fn healthy_storage_key(&self, content_hash: &str) -> Result<Option<String>> {
         let key: Option<String> = with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "SELECT storage_key FROM attachments \
@@ -229,7 +229,7 @@ impl AppState {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn finalize_attachment_message(
+    pub(crate) async fn finalize_attachment_message(
         &self,
         room_id: Uuid,
         sender: &User,

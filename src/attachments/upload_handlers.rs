@@ -7,8 +7,6 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::attachment_upload_sessions::{AttachmentUploadSession, AttachmentUploadSpec};
@@ -17,44 +15,17 @@ use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
-const MAX_FILE_NAME_CHARS: usize = 255;
+use super::upload_validation::{
+    authorize, chunk_error, normalize_content_hash, normalize_file_name,
+};
+
 const MAX_MESSAGE_CHARS: usize = 4096;
+const MAX_DIRECT_UPLOAD_BYTES: i64 = 5 * 1024 * 1024 * 1024;
 
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct CreateUploadRequest {
-    pub file_name: String,
-    pub mime_type: String,
-    pub size_bytes: i64,
-    #[serde(default)]
-    pub fingerprint: String,
-    #[serde(default)]
-    pub content_hash: Option<String>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct CreateUploadResponse {
-    pub upload_id: Uuid,
-    pub received_bytes: i64,
-    pub declared_size_bytes: i64,
-    pub deduplicated: bool,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ChunkResponse {
-    pub received_bytes: i64,
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct CompleteUploadRequest {
-    #[serde(default)]
-    pub content: String,
-    #[serde(default)]
-    pub reply_to: Option<Uuid>,
-    #[serde(default)]
-    pub is_sensitive: bool,
-}
-
-#[derive(Deserialize)]
+pub use super::upload_models::{
+    ChunkResponse, CompleteUploadRequest, CreateUploadRequest, CreateUploadResponse,
+};
+#[derive(serde::Deserialize)]
 pub struct ChunkQuery {
     offset: i64,
 }
@@ -135,11 +106,34 @@ pub async fn create_upload(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
     }
+    let direct_upload = if content_hash.is_some()
+        && reusable_storage_key.is_none()
+        && session.received_bytes == 0
+        && session.declared_size_bytes <= MAX_DIRECT_UPLOAD_BYTES
+    {
+        match state
+            .attachment_store()
+            .presign_upload(session.id, &session.mime_type)
+            .await
+        {
+            Ok(target) => target,
+            Err(error) => {
+                tracing::warn!(
+                    upload_id = %session.id,
+                    "direct OSS upload signing failed; using server upload: {error:#}"
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
     Ok(Json(CreateUploadResponse {
         upload_id: session.id,
         received_bytes: session.received_bytes,
         declared_size_bytes: session.declared_size_bytes,
         deduplicated: reusable_storage_key.is_some(),
+        direct_upload,
     }))
 }
 
@@ -265,7 +259,13 @@ pub async fn complete_upload(
     if session.uploader_id != user.id {
         return Err(StatusCode::UNAUTHORIZED);
     }
-    if session.status != "in_progress" || session.received_bytes != session.declared_size_bytes {
+    let direct_upload = session.received_bytes == 0
+        && session.content_hash.is_some()
+        && session.declared_size_bytes <= MAX_DIRECT_UPLOAD_BYTES
+        && state.attachment_store().direct_upload_enabled();
+    if session.status != "in_progress"
+        || (!direct_upload && session.received_bytes != session.declared_size_bytes)
+    {
         return Err(StatusCode::BAD_REQUEST);
     }
     let content = request.content.trim();
@@ -279,10 +279,14 @@ pub async fn complete_upload(
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
 
     let display_name = state.resolve_display_name(session.room_id, &user).await;
-    let streamed_hash = state
-        .upload_hashes()
-        .completed_digest(upload_id, session.declared_size_bytes as u64)
-        .await;
+    let streamed_hash = if direct_upload {
+        None
+    } else {
+        state
+            .upload_hashes()
+            .completed_digest(upload_id, session.declared_size_bytes as u64)
+            .await
+    };
     let reusable_storage_key = match session.content_hash.as_deref() {
         Some(hash) => state
             .healthy_owned_storage_key(hash, user.id, session.declared_size_bytes)
@@ -290,7 +294,26 @@ pub async fn complete_upload(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
         None => None,
     };
-    let result = if let (Some(content_hash), Some(storage_key)) =
+    let result = if direct_upload {
+        state
+            .store_direct_attachment_message(
+                upload_id,
+                session.room_id,
+                &user,
+                &display_name,
+                session.file_name.clone(),
+                session.mime_type.clone(),
+                session.declared_size_bytes,
+                request.is_sensitive,
+                content,
+                request.reply_to,
+                session
+                    .content_hash
+                    .clone()
+                    .expect("direct upload requires a content hash"),
+            )
+            .await
+    } else if let (Some(content_hash), Some(storage_key)) =
         (session.content_hash.clone(), reusable_storage_key)
     {
         state
@@ -332,6 +355,9 @@ pub async fn complete_upload(
     };
     match result {
         Ok(message) => {
+            if !direct_upload {
+                let _ = state.attachment_store().discard_direct(upload_id).await;
+            }
             state.upload_hashes().remove(upload_id).await;
             let _ = state.finish_attachment_upload(upload_id, "completed").await;
             state.invalidate_message_cache(session.room_id).await;
@@ -341,7 +367,7 @@ pub async fn complete_upload(
             Ok((StatusCode::CREATED, Json(message)))
         }
         Err(error) => {
-            tracing::error!("complete chunked attachment upload failed: {}", error);
+            tracing::error!("complete attachment upload failed: {error:#}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -399,69 +425,7 @@ pub async fn cancel_upload(
         return Err(StatusCode::NOT_FOUND);
     }
     let _ = state.attachment_store().discard_chunked(upload_id).await;
+    let _ = state.attachment_store().discard_direct(upload_id).await;
     state.upload_hashes().remove(upload_id).await;
     Ok(StatusCode::NO_CONTENT)
-}
-
-async fn authorize(
-    state: &SharedState,
-    room_id: Uuid,
-    headers: &HeaderMap,
-) -> Result<(crate::models::Room, crate::models::User), StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
-    if room.has_password {
-        let password = headers
-            .get("x-room-password")
-            .and_then(|value| value.to_str().ok())
-            .ok_or(StatusCode::UNAUTHORIZED)?;
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        if hex::encode(hasher.finalize()) != room.password_hash {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-    }
-    let token = bearer_token(headers)?;
-    let user = state
-        .session_user(token)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    if !state
-        .has_room_permission(room_id, user.id, "message.send")
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    {
-        return Err(StatusCode::FORBIDDEN);
-    }
-    Ok((room, user))
-}
-
-fn normalize_file_name(value: &str) -> Result<String, StatusCode> {
-    let name = value
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or("file")
-        .trim()
-        .chars()
-        .filter(|character| !character.is_control())
-        .collect::<String>();
-    if name.is_empty() || name.chars().count() > MAX_FILE_NAME_CHARS {
-        return Err(StatusCode::BAD_REQUEST);
-    }
-    Ok(name)
-}
-
-fn normalize_content_hash(value: Option<&str>) -> Result<Option<String>, StatusCode> {
-    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
-        return Ok(None);
-    };
-    if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(StatusCode::BAD_REQUEST);
-    }
-    Ok(Some(value.to_ascii_lowercase()))
-}
-
-fn chunk_error(status: StatusCode, received_bytes: i64) -> (StatusCode, Json<ChunkResponse>) {
-    (status, Json(ChunkResponse { received_bytes }))
 }

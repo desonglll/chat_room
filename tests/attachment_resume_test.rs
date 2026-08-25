@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use chat_room::{build_app, state::AppState};
+use chat_room::{
+    build_app,
+    config::{AppConfig, OssConfig},
+    state::AppState,
+};
 use sha2::{Digest, Sha256};
 use tokio::net::TcpListener;
 use uuid::Uuid;
@@ -21,7 +25,11 @@ impl Drop for Server {
 }
 
 async fn start() -> Server {
-    let state = Arc::new(AppState::new().await.unwrap());
+    start_with_config(&AppConfig::default()).await
+}
+
+async fn start_with_config(config: &AppConfig) -> Server {
+    let state = Arc::new(AppState::new_with_config(config).await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let task = tokio::spawn({
@@ -29,6 +37,101 @@ async fn start() -> Server {
         async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
     Server { base, state, task }
+}
+
+#[tokio::test]
+async fn chunked_upload_uses_local_mirror_when_oss_write_fails() {
+    let mut config = AppConfig::default();
+    config.attachments.oss = OssConfig {
+        enabled: true,
+        local_mirror_enabled: true,
+        endpoint: "http://127.0.0.1:9".into(),
+        bucket: "unreachable".into(),
+        access_key_id: "fake-id".into(),
+        access_key_secret: "fake-secret".into(),
+        root: "/chat-room/".into(),
+        operation_timeout_secs: 1,
+        ..OssConfig::default()
+    };
+    let server = start_with_config(&config).await;
+    let (room_id, token) = room_for(&server.base, "mirror-owner", "mirror-room").await;
+    let bytes = b"durable local mirror";
+    let session = create_session(
+        &server.base,
+        &room_id,
+        &token,
+        "mirror.bin",
+        bytes.len(),
+        "mirror-upload",
+        None,
+    )
+    .await;
+    let upload_id = session["upload_id"].as_str().unwrap();
+    assert_eq!(
+        send_chunk(&server.base, &token, upload_id, 0, bytes)
+            .await
+            .status(),
+        200
+    );
+
+    let completed = complete(&server.base, &token, upload_id).await;
+    let download_url = completed["attachment"]["download_url"].as_str().unwrap();
+    let downloaded = reqwest::get(format!("{}{}", server.base, download_url))
+        .await
+        .unwrap();
+    assert_eq!(downloaded.status(), 200);
+    assert_eq!(downloaded.bytes().await.unwrap().as_ref(), bytes);
+}
+
+#[tokio::test]
+async fn hashed_upload_session_returns_a_short_lived_direct_oss_target() {
+    let mut config = AppConfig::default();
+    config.attachments.oss = OssConfig {
+        enabled: true,
+        direct_upload_enabled: true,
+        endpoint: "https://oss-cn-hangzhou.aliyuncs.com".into(),
+        bucket: "direct-upload-test".into(),
+        access_key_id: "fake-id".into(),
+        access_key_secret: "must-not-leak".into(),
+        root: "/chat-room/".into(),
+        ..OssConfig::default()
+    };
+    let server = start_with_config(&config).await;
+    let (room_id, token) = room_for(&server.base, "direct-owner", "direct-room").await;
+    let bytes = b"browser to OSS";
+    let first = create_session(
+        &server.base,
+        &room_id,
+        &token,
+        "direct.bin",
+        bytes.len(),
+        "direct-upload",
+        None,
+    )
+    .await;
+    assert!(first.get("direct_upload").is_none());
+
+    let hash = hex::encode(Sha256::digest(bytes));
+    let signed = create_session(
+        &server.base,
+        &room_id,
+        &token,
+        "direct.bin",
+        bytes.len(),
+        "direct-upload",
+        Some(&hash),
+    )
+    .await;
+    assert_eq!(signed["direct_upload"]["method"], "PUT");
+    assert_eq!(
+        signed["direct_upload"]["headers"]["content-type"],
+        "application/octet-stream"
+    );
+    assert!(signed["direct_upload"]["url"]
+        .as_str()
+        .unwrap()
+        .contains("du"));
+    assert!(!signed.to_string().contains("must-not-leak"));
 }
 
 async fn room_for(base: &str, username: &str, room_name: &str) -> (String, String) {

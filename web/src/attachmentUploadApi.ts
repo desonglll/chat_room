@@ -6,6 +6,14 @@ export interface CreateUploadSessionResult {
   received_bytes: number
   declared_size_bytes: number
   deduplicated: boolean
+  direct_upload?: DirectUploadTarget
+}
+
+export interface DirectUploadTarget {
+  method: string
+  url: string
+  headers: Record<string, string>
+  expires_at: string
 }
 
 export async function createUploadSession(
@@ -59,6 +67,44 @@ export async function uploadChunk(
   if (!response.ok) throw new Error(`上传分片失败：${response.status}`)
   const body = (await response.json()) as { received_bytes: number }
   return body.received_bytes
+}
+
+export function uploadDirect(
+  target: DirectUploadTarget,
+  file: File,
+  onProgress: (uploadedBytes: number) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const cleanup = () => signal?.removeEventListener('abort', abort)
+    const abort = () => xhr.abort()
+    xhr.open(target.method, target.url, true)
+    for (const [name, value] of Object.entries(target.headers)) xhr.setRequestHeader(name, value)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.min(event.loaded, file.size))
+    }
+    xhr.onload = () => {
+      cleanup()
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(file.size)
+        resolve()
+      } else {
+        reject(new Error(`OSS 直传失败：${xhr.status}`))
+      }
+    }
+    xhr.onerror = () => {
+      cleanup()
+      reject(new Error('OSS 直传失败，请检查 Bucket CORS 与公网 Endpoint'))
+    }
+    xhr.onabort = () => {
+      cleanup()
+      reject(new DOMException('upload cancelled', 'AbortError'))
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) return abort()
+    xhr.send(file)
+  })
 }
 
 export async function completeUploadSession(

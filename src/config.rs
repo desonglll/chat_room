@@ -108,6 +108,16 @@ impl Default for AttachmentConfig {
 #[serde(default)]
 pub struct OssConfig {
     pub enabled: bool,
+    /// Keep a durable local copy and use it when the OSS object is unavailable.
+    pub local_mirror_enabled: bool,
+    /// Let browsers upload directly with a short-lived, object-scoped PUT URL.
+    pub direct_upload_enabled: bool,
+    pub presign_expiry_secs: u64,
+    pub operation_timeout_secs: u64,
+    /// Optional browser-reachable endpoint when the server uses an internal endpoint.
+    pub presign_endpoint: String,
+    /// OpenDAL addressing style for `presign_endpoint`: virtual, path, or cname.
+    pub presign_addressing_style: String,
     pub endpoint: String,
     pub bucket: String,
     pub access_key_id: String,
@@ -120,6 +130,12 @@ impl Default for OssConfig {
     fn default() -> Self {
         Self {
             enabled: false,
+            local_mirror_enabled: false,
+            direct_upload_enabled: false,
+            presign_expiry_secs: 900,
+            operation_timeout_secs: 30,
+            presign_endpoint: String::new(),
+            presign_addressing_style: "virtual".into(),
             endpoint: String::new(),
             bucket: String::new(),
             access_key_id: String::new(),
@@ -226,6 +242,21 @@ impl AppConfig {
             // Not validated here: whether these credentials actually work —
             // consistent with [ai], a bad OSS config shouldn't crash the whole
             // server at startup; it surfaces as upload/download failures instead.
+        }
+        if self.attachments.oss.direct_upload_enabled && !self.attachments.oss.enabled {
+            bail!("attachments.oss.direct_upload_enabled requires attachments.oss.enabled");
+        }
+        if !(60..=3600).contains(&self.attachments.oss.presign_expiry_secs) {
+            bail!("attachments.oss.presign_expiry_secs must be between 60 and 3600");
+        }
+        if !(1..=300).contains(&self.attachments.oss.operation_timeout_secs) {
+            bail!("attachments.oss.operation_timeout_secs must be between 1 and 300");
+        }
+        if !matches!(
+            self.attachments.oss.presign_addressing_style.as_str(),
+            "virtual" | "path" | "cname"
+        ) {
+            bail!("attachments.oss.presign_addressing_style must be virtual, path, or cname");
         }
         if self.realtime.poll_interval_ms == 0 {
             bail!("realtime.poll_interval_ms must be greater than zero");
