@@ -1,5 +1,5 @@
 import { sha256 } from '@noble/hashes/sha2.js'
-import { completeUploadSession, createUploadSession, uploadChunk } from '../attachmentUploadApi'
+import { completeUploadSession, createUploadSession, uploadChunk, uploadDirect } from '../attachmentUploadApi'
 import type { BroadcastMessage } from '../types'
 
 export const UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024
@@ -96,6 +96,31 @@ export async function uploadFileInChunks(options: UploadFileOptions): Promise<Ch
   )
   let offset = session.received_bytes
   report(session.deduplicated ? 'deduplicating' : 'uploading', offset, session.upload_id)
+
+  if (session.direct_upload && !session.deduplicated && offset === 0) {
+    let uploadedDirectly = false
+    try {
+      await uploadDirect(session.direct_upload, file, (bytes) => report('uploading', bytes, session.upload_id), signal)
+      uploadedDirectly = true
+    } catch (caught) {
+      if ((caught as { name?: string }).name === 'AbortError') throw caught
+      offset = 0
+      report('uploading', 0, session.upload_id)
+    }
+    if (uploadedDirectly) {
+      ensureActive(signal)
+      report('finalizing', file.size, session.upload_id)
+      const message = await completeUploadSession(
+        session.upload_id,
+        options.token,
+        options.content,
+        options.replyTo,
+        options.isSensitive,
+        signal,
+      )
+      return { message, uploadId: session.upload_id }
+    }
+  }
 
   while (offset < file.size) {
     ensureActive(signal)

@@ -29,11 +29,17 @@ directory = "chat_attachments"
 
 [attachments.oss]
 enabled = false
+local_mirror_enabled = false
+direct_upload_enabled = false
+presign_expiry_secs = 900
+operation_timeout_secs = 30
 endpoint = ""
 bucket = ""
 access_key_id = ""
 access_key_secret = ""
 root = "/"
+presign_endpoint = ""
+presign_addressing_style = "virtual"
 
 [database]
 kind = "sqlite"
@@ -112,8 +118,30 @@ permissions. SQLite/PostgreSQL stores metadata only.
 
 Enable `[attachments.oss]` to use Aliyun OSS for final objects. `endpoint`,
 `bucket`, `access_key_id`, and `access_key_secret` are required when enabled;
-chunked uploads still stage locally. Restart the server after changing any
-storage setting.
+chunked uploads still stage locally. Keep the credentials on the server. They
+are never returned by the upload API.
+
+Set `local_mirror_enabled = true` to publish every completed object to both
+local disk and OSS. Upload completion first makes the local copy durable, then
+attempts OSS for at most `operation_timeout_secs`. If OSS rejects or times out,
+the message remains available from the local copy. Downloads prefer OSS but
+fall back to local when the object is missing or the service is unavailable.
+For browser-direct uploads, the server reads the new OSS object once to verify
+its length and SHA-256 while creating the local mirror.
+
+Set `direct_upload_enabled = true` to let the browser request a short-lived,
+object-scoped PUT URL after it has calculated the file hash. `presign_expiry_secs`
+controls that URL's lifetime. If the server uses an internal OSS endpoint, set
+`presign_endpoint` to a browser-reachable public endpoint or bucket CNAME and
+select `presign_addressing_style = "virtual"`, `"path"`, or `"cname"` as
+appropriate. A failed direct PUT automatically falls back to the existing
+resumable server upload.
+
+The OSS Bucket must have a CORS rule for the web application's exact origin:
+allow `PUT` and the `Content-Type` request header. Avoid `*` origins in
+production. The application binds `Content-Type` into the signed request, so a
+different header value is rejected by OSS. Restart the server after changing
+any storage setting.
 
 `database.kind` accepts `sqlite` or `postgres`. The CLI `--database-type` and
 `--database` options override the selected backend and connection path/URL.

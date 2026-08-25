@@ -79,10 +79,20 @@ fn oss_attachment_backend_is_disabled_by_default_and_validated_when_enabled() {
     assert!(missing_bucket.validate().is_err());
 
     let complete: AppConfig = toml::from_str(
-        "[attachments.oss]\nenabled = true\nendpoint = 'https://oss-cn-hangzhou.aliyuncs.com'\nbucket = 'my-bucket'\naccess_key_id = 'id'\naccess_key_secret = 'secret'",
+        "[attachments.oss]\nenabled = true\nlocal_mirror_enabled = true\ndirect_upload_enabled = true\npresign_expiry_secs = 600\nendpoint = 'https://oss-cn-hangzhou.aliyuncs.com'\nbucket = 'my-bucket'\naccess_key_id = 'id'\naccess_key_secret = 'secret'",
     )
     .unwrap();
+    assert!(complete.attachments.oss.local_mirror_enabled);
+    assert!(complete.attachments.oss.direct_upload_enabled);
     assert!(complete.validate().is_ok());
+
+    let direct_without_oss: AppConfig =
+        toml::from_str("[attachments.oss]\ndirect_upload_enabled = true").unwrap();
+    assert!(direct_without_oss.validate().is_err());
+
+    let bad_expiry: AppConfig =
+        toml::from_str("[attachments.oss]\npresign_expiry_secs = 5").unwrap();
+    assert!(bad_expiry.validate().is_err());
 }
 
 #[test]

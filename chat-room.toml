@@ -14,15 +14,26 @@ abandoned_upload_gc_hours = 24
 directory = "chat_attachments"
 
 [attachments.oss]
-# If enabled, finished uploads are stored in Aliyun OSS instead of the local
-# disk directory above (in-progress chunked uploads still stage locally).
-# Disabled by default — local disk keeps working exactly as before either way.
+# If enabled, finished uploads are stored in Aliyun OSS. In-progress chunked
+# uploads still stage locally.
 enabled = false
+# Keep a final local copy too. Reads prefer OSS and fall back to this copy when
+# the object is missing or OSS is unavailable.
+local_mirror_enabled = false
+# Return a short-lived, object-scoped PUT URL so the browser can upload to OSS
+# without sending the file through this server. Failed PUTs fall back to chunks.
+direct_upload_enabled = false
+presign_expiry_secs = 900
+# Upper bound for each OSS operation before a local mirror is used.
+operation_timeout_secs = 30
 endpoint = ""
 bucket = ""
 access_key_id = ""
 access_key_secret = ""
 root = "/"
+# Set this to a public endpoint/CNAME if `endpoint` is internal-only.
+presign_endpoint = ""
+presign_addressing_style = "virtual"
 
 [database]
 # Use "sqlite" or "postgres". CLI --database-type overrides this value.

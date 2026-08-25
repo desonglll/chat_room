@@ -1,18 +1,20 @@
 //! Attachment storage with atomic staging and range reads. In-progress
 //! (chunked or single-shot) uploads always stage on local disk; once
-//! complete, the durable copy goes either to that same local disk (default)
-//! or to Aliyun OSS when `[attachments.oss]` is enabled — see `commit`,
-//! `commit_chunked`, `open_range` and `remove` for the branch point.
+//! complete, the durable storage policy is handled by the `durable` module;
+//! short-lived browser upload signatures are handled by `direct`.
+
+mod direct;
+mod durable;
+
+pub use direct::DirectUploadTarget;
 
 use std::{path::Path, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result};
-use futures_util::TryStreamExt;
-use opendal::{services, ErrorKind, Operator};
+use opendal::{services, Operator};
 use sha2::{Digest, Sha256};
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, SeekFrom};
-use tokio_util::compat::FuturesAsyncReadCompatExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, SeekFrom};
 use uuid::Uuid;
 
 use crate::config::OssConfig;
@@ -23,6 +25,9 @@ pub struct AttachmentStore {
     staging: PathBuf,
     abandoned_upload_age: Duration,
     oss: Option<Operator>,
+    local_mirror_enabled: bool,
+    direct_upload_expiry: Option<Duration>,
+    oss_operation_timeout: Duration,
 }
 
 pub struct StagedUpload {
@@ -70,13 +75,18 @@ impl AttachmentStore {
         tokio::fs::create_dir_all(&staging)
             .await
             .with_context(|| format!("create attachment directory {}", staging.display()))?;
-        let oss = if oss.enabled {
-            let builder = services::Oss::default()
+        let operator = if oss.enabled {
+            let mut builder = services::Oss::default()
                 .endpoint(&oss.endpoint)
                 .bucket(&oss.bucket)
                 .access_key_id(&oss.access_key_id)
                 .access_key_secret(&oss.access_key_secret)
                 .root(&oss.root);
+            if !oss.presign_endpoint.trim().is_empty() {
+                builder = builder
+                    .presign_endpoint(&oss.presign_endpoint)
+                    .presign_addressing_style(&oss.presign_addressing_style);
+            }
             Some(Operator::new(builder).context("build Aliyun OSS attachment backend")?)
         } else {
             None
@@ -85,7 +95,11 @@ impl AttachmentStore {
             root,
             staging,
             abandoned_upload_age,
-            oss,
+            oss: operator,
+            local_mirror_enabled: oss.enabled && oss.local_mirror_enabled,
+            direct_upload_expiry: (oss.enabled && oss.direct_upload_enabled)
+                .then(|| Duration::from_secs(oss.presign_expiry_secs)),
+            oss_operation_timeout: Duration::from_secs(oss.operation_timeout_secs),
         };
         store.clear_staging().await?;
         Ok(store)
@@ -149,31 +163,6 @@ impl AttachmentStore {
         }
     }
 
-    /// Commit a completed chunked upload — the counterpart to `commit()` for
-    /// staged uploads built via `begin()`/`write()`.
-    pub async fn commit_chunked(&self, upload_id: Uuid, key: &str) -> Result<i64> {
-        let source = self.chunked_staging_path(upload_id);
-        if let Some(operator) = &self.oss {
-            let size = upload_path_to_oss(operator, key, &source).await?;
-            tokio::fs::remove_file(&source)
-                .await
-                .with_context(|| format!("remove staged chunked upload {}", source.display()))?;
-            return Ok(size);
-        }
-        let size = tokio::fs::metadata(&source)
-            .await
-            .with_context(|| format!("stat chunked upload {}", source.display()))?
-            .len();
-        let target = self.path(key);
-        if let Some(parent) = target.parent() {
-            tokio::fs::create_dir_all(parent).await.with_context(|| {
-                format!("create attachment shard directory {}", parent.display())
-            })?;
-        }
-        publish_local(&source, &target).await?;
-        i64::try_from(size).context("attachment is too large")
-    }
-
     /// Hash a chunked upload's staging file without moving or committing it.
     pub async fn hash_chunked(&self, upload_id: Uuid) -> Result<String> {
         sha256_hex_of_path(&self.chunked_staging_path(upload_id)).await
@@ -188,30 +177,6 @@ impl AttachmentStore {
                 Err(error).with_context(|| format!("remove chunked upload {}", path.display()))
             }
         }
-    }
-
-    pub async fn commit(&self, mut staged: StagedUpload, key: &str) -> Result<i64> {
-        let size = staged.size;
-        let mut file = staged.file.take().context("staged upload has no file")?;
-        file.flush().await.context("flush staged attachment")?;
-        file.sync_all().await.context("sync staged attachment")?;
-        drop(file);
-        let source = staged.path.take().context("staged upload has no path")?;
-        if let Some(operator) = &self.oss {
-            upload_path_to_oss(operator, key, &source).await?;
-            tokio::fs::remove_file(&source)
-                .await
-                .with_context(|| format!("remove staged attachment {}", source.display()))?;
-            return Ok(size);
-        }
-        let target = self.path(key);
-        if let Some(parent) = target.parent() {
-            tokio::fs::create_dir_all(parent).await.with_context(|| {
-                format!("create attachment shard directory {}", parent.display())
-            })?;
-        }
-        publish_local(&source, &target).await?;
-        Ok(size)
     }
 
     /// Flush a staged (single-shot) upload to disk and compute its content
@@ -240,80 +205,16 @@ impl AttachmentStore {
         Ok(())
     }
 
-    pub async fn open_range(
-        &self,
-        key: &str,
-        start: u64,
-        length: u64,
-    ) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
-        if let Some(operator) = &self.oss {
-            let end = start.checked_add(length).context("range overflow")?;
-            let reader = operator
-                .reader(&object_key(key))
-                .await
-                .context("open OSS attachment reader")?
-                .into_futures_async_read(start..end)
-                .await
-                .context("open OSS attachment range")?;
-            return Ok(Box::new(reader.compat()));
-        }
-        let path = self.path(key);
-        let mut file = File::open(&path)
-            .await
-            .with_context(|| format!("open attachment {}", path.display()))?;
-        file.seek(SeekFrom::Start(start))
-            .await
-            .context("seek attachment")?;
-        Ok(Box::new(tokio::io::AsyncReadExt::take(file, length)))
-    }
-
-    /// Hash an already-committed file in full — used only by the one-time
-    /// legacy backfill (`AppState::backfill_attachment_content_hashes`).
-    pub async fn hash_stored(&self, key: &str) -> Result<String> {
-        if let Some(operator) = &self.oss {
-            return sha256_hex_of_oss(operator, key).await;
-        }
-        sha256_hex_of_path(&self.path(key)).await
-    }
-
-    pub async fn exists(&self, key: &str) -> Result<bool> {
-        if let Some(operator) = &self.oss {
-            return match operator.stat(&object_key(key)).await {
-                Ok(_) => Ok(true),
-                Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
-                Err(error) => Err(error).context("stat OSS attachment"),
-            };
-        }
-        match tokio::fs::metadata(self.path(key)).await {
-            Ok(metadata) => Ok(metadata.is_file()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-            Err(error) => Err(error).context("stat local attachment"),
-        }
-    }
-
-    pub async fn remove(&self, key: &str) -> Result<()> {
-        if let Some(operator) = &self.oss {
-            return operator
-                .delete(&object_key(key))
-                .await
-                .context("delete attachment from OSS");
-        }
-        let path = self.path(key);
-        match tokio::fs::remove_file(&path).await {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => {
-                Err(error).with_context(|| format!("remove attachment {}", path.display()))
-            }
-        }
-    }
-
     pub fn path(&self, key: &str) -> PathBuf {
         self.root.join(&key[..2]).join(key)
     }
 
     pub fn oss_enabled(&self) -> bool {
         self.oss.is_some()
+    }
+
+    pub fn direct_upload_enabled(&self) -> bool {
+        self.direct_upload_expiry.is_some()
     }
 
     async fn clear_staging(&self) -> Result<()> {
@@ -343,79 +244,8 @@ impl AttachmentStore {
 }
 
 /// Same sharding scheme as the local `path()` helper, as an OSS object key.
-fn object_key(key: &str) -> String {
+pub(super) fn object_key(key: &str) -> String {
     format!("{}/{}", &key[..2], key)
-}
-
-async fn publish_local(source: &Path, target: &Path) -> Result<()> {
-    if tokio::fs::metadata(target).await.is_ok() {
-        tokio::fs::remove_file(source)
-            .await
-            .with_context(|| format!("discard duplicate attachment {}", source.display()))?;
-        return Ok(());
-    }
-    tokio::fs::rename(source, target).await.with_context(|| {
-        format!(
-            "commit attachment {} to {}",
-            source.display(),
-            target.display()
-        )
-    })
-}
-
-async fn upload_path_to_oss(operator: &Operator, key: &str, path: &Path) -> Result<i64> {
-    let size = tokio::fs::metadata(path)
-        .await
-        .with_context(|| format!("stat staged attachment {}", path.display()))?
-        .len();
-    let mut source = File::open(path)
-        .await
-        .with_context(|| format!("open staged attachment {}", path.display()))?;
-    let mut writer = operator
-        .writer(&object_key(key))
-        .await
-        .context("open OSS attachment writer")?;
-    let mut buffer = vec![0u8; 64 * 1024];
-    loop {
-        let read = source
-            .read(&mut buffer)
-            .await
-            .with_context(|| format!("read staged attachment {}", path.display()))?;
-        if read == 0 {
-            break;
-        }
-        writer
-            .write(buffer[..read].to_vec())
-            .await
-            .context("stream attachment to OSS")?;
-    }
-    writer
-        .close()
-        .await
-        .context("finish OSS attachment upload")?;
-    i64::try_from(size).context("attachment is too large")
-}
-
-async fn sha256_hex_of_oss(operator: &Operator, key: &str) -> Result<String> {
-    let reader = operator
-        .reader(&object_key(key))
-        .await
-        .context("open OSS attachment for hashing")?;
-    let mut stream = reader
-        .into_stream(..)
-        .await
-        .context("stream OSS attachment for hashing")?;
-    let mut hasher = Sha256::new();
-    while let Some(buffer) = stream
-        .try_next()
-        .await
-        .context("read OSS attachment for hashing")?
-    {
-        for bytes in buffer {
-            hasher.update(&bytes);
-        }
-    }
-    Ok(hex::encode(hasher.finalize()))
 }
 
 /// Stream a file through SHA-256 without loading it fully into memory.
@@ -455,11 +285,13 @@ mod tests {
     async fn opens_with_oss_backend_configured_without_network_access() {
         let oss = OssConfig {
             enabled: true,
+            local_mirror_enabled: false,
             endpoint: "https://oss-cn-hangzhou.aliyuncs.com".into(),
             bucket: "test-bucket".into(),
             access_key_id: "fake-id".into(),
             access_key_secret: "fake-secret".into(),
             root: "/chat-room/".into(),
+            ..OssConfig::default()
         };
         let store = AttachmentStore::open(test_directory(), Duration::from_secs(3600), &oss)
             .await

@@ -170,6 +170,7 @@ use crate::state::AppState;
         attachment_upload_handlers::CreateUploadResponse,
         attachment_upload_handlers::ChunkResponse,
         attachment_upload_handlers::CompleteUploadRequest,
+        attachment_storage::DirectUploadTarget,
         attachment_upload_sessions::AttachmentUploadSession,
         models::User,
         models::UserSummary,
