@@ -1,14 +1,16 @@
 mod client;
+mod rag;
 mod store;
 mod worker;
 
+pub(crate) use rag::retrieve_room_context;
 pub use worker::ensure_worker;
 
 use anyhow::Result;
 use serde::Serialize;
 use uuid::Uuid;
 
-use self::client::VectorClients;
+use self::client::{ScoredMessageId, VectorClients};
 use crate::config::VectorStoreConfig;
 
 #[derive(Clone)]
@@ -30,13 +32,17 @@ impl MessageIndex {
         }))
     }
 
-    pub(crate) async fn related_message_ids(
+    pub(crate) async fn related_messages(
         &self,
         room_id: Uuid,
         question: &str,
-    ) -> Result<Vec<Uuid>> {
+    ) -> Result<Vec<ScoredMessageId>> {
         let vector = self.clients.embed(question).await?;
         self.clients.search(room_id, vector).await
+    }
+
+    pub(crate) fn result_limit(&self) -> usize {
+        self.clients.result_limit()
     }
 
     pub(crate) async fn point_count(&self) -> Result<u64> {
@@ -44,7 +50,7 @@ impl MessageIndex {
     }
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Clone, Debug, Serialize, sqlx::FromRow)]
 pub(crate) struct RetrievedMessage {
     pub id: Uuid,
     pub sender: String,
@@ -90,7 +96,10 @@ mod tests {
             }
             if uri.path().ends_with("/points/search") {
                 return Json(serde_json::json!({
-                    "result": [{ "payload": { "message_id": "d9ceaaae-c068-4a22-81cb-d6c29ee46b9a" } }]
+                    "result": [{
+                        "score": 0.82,
+                        "payload": { "message_id": "d9ceaaae-c068-4a22-81cb-d6c29ee46b9a" }
+                    }]
                 }))
                 .into_response();
             }
@@ -124,8 +133,8 @@ mod tests {
 
         let index = MessageIndex::connect(&config).await.unwrap().unwrap();
         let room_id = Uuid::new_v4();
-        let ids = index
-            .related_message_ids(room_id, "release plan")
+        let matches = index
+            .related_messages(room_id, "release plan")
             .await
             .unwrap();
         index
@@ -135,8 +144,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            ids,
-            [Uuid::parse_str("d9ceaaae-c068-4a22-81cb-d6c29ee46b9a").unwrap()]
+            matches,
+            [ScoredMessageId {
+                id: Uuid::parse_str("d9ceaaae-c068-4a22-81cb-d6c29ee46b9a").unwrap(),
+                score: 0.82,
+            }]
         );
         let calls = calls.lock().unwrap();
         assert!(calls.iter().any(|(method, uri, _)| {
@@ -150,6 +162,7 @@ mod tests {
             search.2["filter"]["must"][0]["match"]["value"],
             room_id.to_string()
         );
+        assert_eq!(search.2["limit"], 18);
         assert!(calls.iter().any(|(method, uri, body)| {
             method == Method::PUT
                 && uri.starts_with("/collections/messages/points?wait=true")

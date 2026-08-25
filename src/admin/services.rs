@@ -44,6 +44,7 @@ pub struct VectorProbeRequest {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct VectorProbeMatch {
     message_id: Uuid,
+    score: f64,
     sender: String,
     content: String,
     created_at: chrono::DateTime<chrono::Utc>,
@@ -201,9 +202,9 @@ pub async fn probe_vector_search(
     }
     let index = state.message_index().ok_or(StatusCode::CONFLICT)?;
     let started = Instant::now();
-    let ids = tokio::time::timeout(
+    let candidates = tokio::time::timeout(
         VECTOR_PROBE_TIMEOUT,
-        index.related_message_ids(payload.room_id, query),
+        index.related_messages(payload.room_id, query),
     )
     .await
     .map_err(|_| StatusCode::GATEWAY_TIMEOUT)?
@@ -211,13 +212,23 @@ pub async fn probe_vector_search(
         tracing::warn!("vector search probe failed: {error:#}");
         StatusCode::BAD_GATEWAY
     })?;
+    let scores: std::collections::HashMap<Uuid, f64> = candidates
+        .iter()
+        .map(|candidate| (candidate.id, candidate.score))
+        .collect();
+    let ids: Vec<Uuid> = candidates
+        .into_iter()
+        .map(|candidate| candidate.id)
+        .collect();
     let matches = state
         .authorized_retrieved_messages(user.id, payload.room_id, &ids)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .into_iter()
+        .take(index.result_limit())
         .map(|message| VectorProbeMatch {
             message_id: message.id,
+            score: scores.get(&message.id).copied().unwrap_or_default(),
             sender: message.sender,
             content: message.content,
             created_at: message.created_at,

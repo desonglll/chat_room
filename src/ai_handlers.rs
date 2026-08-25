@@ -1,5 +1,7 @@
 //! AI suggestions and authorized room-context preparation.
 
+use std::collections::HashSet;
+
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -99,6 +101,7 @@ const MAX_CONTEXT_TOON_BYTES: usize = 256 * 1024;
 pub(crate) struct PreparedRoomContext {
     pub toon_context: String,
     pub context_message_count: usize,
+    pub message_ids: HashSet<Uuid>,
 }
 
 pub(crate) async fn room_context_for_user(
@@ -140,6 +143,11 @@ pub(crate) async fn room_context_for_authorized_user(
             tracing::error!(%room_id, "load AI analysis context failed: {error}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+    let message_ids = history
+        .iter()
+        .filter(|message| message.recalled_at.is_none())
+        .map(|message| message.id)
+        .collect();
     let mut context: Vec<AiContextMessage> = history
         .into_iter()
         .filter(|message| message.recalled_at.is_none())
@@ -165,6 +173,7 @@ pub(crate) async fn room_context_for_authorized_user(
     Ok(PreparedRoomContext {
         toon_context,
         context_message_count: context.len(),
+        message_ids,
     })
 }
 

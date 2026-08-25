@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use chrono::{Duration, Utc};
+use sqlx::{Postgres, QueryBuilder, Sqlite};
 use uuid::Uuid;
 
 use super::RetrievedMessage;
@@ -92,28 +95,78 @@ impl AppState {
         room_id: Uuid,
         message_ids: &[Uuid],
     ) -> Result<Vec<RetrievedMessage>, sqlx::Error> {
-        let mut messages = Vec::with_capacity(message_ids.len());
-        for message_id in message_ids {
-            let message = with_pool!(self, |pool| {
-                sqlx::query_as(
-                    "SELECT messages.id, messages.sender, messages.content, messages.created_at \
-                     FROM messages WHERE messages.id = $1 AND messages.room_id = $2 \
-                     AND messages.recalled_at IS NULL AND EXISTS (SELECT 1 FROM room_memberships \
-                       WHERE room_memberships.room_id = messages.room_id \
-                         AND room_memberships.user_id = $3 AND room_memberships.status = 'active')",
-                )
-                .bind(message_id)
-                .bind(room_id)
-                .bind(user_id)
-                .fetch_optional(pool)
-                .await
-            })?;
-            if let Some(message) = message {
-                messages.push(message);
-            }
+        if message_ids.is_empty() {
+            return Ok(Vec::new());
         }
-        Ok(messages)
+        let rows = match self.database_pool() {
+            crate::storage::DatabasePool::Sqlite(pool) => {
+                authorized_messages_sqlite(pool, user_id, room_id, message_ids).await?
+            }
+            crate::storage::DatabasePool::Postgres(pool) => {
+                authorized_messages_postgres(pool, user_id, room_id, message_ids).await?
+            }
+        };
+        let mut by_id: HashMap<Uuid, RetrievedMessage> = rows
+            .into_iter()
+            .map(|message| (message.id, message))
+            .collect();
+        Ok(message_ids
+            .iter()
+            .filter_map(|message_id| by_id.remove(message_id))
+            .collect())
     }
+}
+
+async fn authorized_messages_sqlite(
+    pool: &sqlx::SqlitePool,
+    user_id: Uuid,
+    room_id: Uuid,
+    message_ids: &[Uuid],
+) -> Result<Vec<RetrievedMessage>, sqlx::Error> {
+    let mut query = authorized_messages_query::<Sqlite>(user_id, room_id, message_ids);
+    query.build_query_as().fetch_all(pool).await
+}
+
+async fn authorized_messages_postgres(
+    pool: &sqlx::PgPool,
+    user_id: Uuid,
+    room_id: Uuid,
+    message_ids: &[Uuid],
+) -> Result<Vec<RetrievedMessage>, sqlx::Error> {
+    let mut query = authorized_messages_query::<Postgres>(user_id, room_id, message_ids);
+    query.build_query_as().fetch_all(pool).await
+}
+
+fn authorized_messages_query<DB>(
+    user_id: Uuid,
+    room_id: Uuid,
+    message_ids: &[Uuid],
+) -> QueryBuilder<'static, DB>
+where
+    DB: sqlx::Database,
+    Uuid: for<'query> sqlx::Encode<'query, DB> + sqlx::Type<DB>,
+{
+    let mut query = QueryBuilder::<DB>::new(
+        "SELECT messages.id, messages.sender, messages.content, messages.created_at \
+         FROM messages WHERE messages.room_id = ",
+    );
+    query
+        .push_bind(room_id)
+        .push(
+            " AND messages.recalled_at IS NULL AND EXISTS (SELECT 1 FROM room_memberships \
+               WHERE room_memberships.room_id = messages.room_id \
+                 AND room_memberships.user_id = ",
+        )
+        .push_bind(user_id)
+        .push(" AND room_memberships.status = 'active') AND messages.id IN (");
+    {
+        let mut values = query.separated(", ");
+        for message_id in message_ids {
+            values.push_bind(*message_id);
+        }
+    }
+    query.push(")");
+    query
 }
 
 #[cfg(test)]
@@ -159,12 +212,28 @@ mod tests {
             .await
             .unwrap()
             .message;
+        let newer = state
+            .store_message(
+                room.id,
+                owner.id,
+                &owner.username,
+                "",
+                "newer indexed detail",
+                None,
+                Some(Uuid::new_v4()),
+            )
+            .await
+            .unwrap()
+            .message;
 
         let visible = state
-            .authorized_retrieved_messages(owner.id, room.id, &[stored.id])
+            .authorized_retrieved_messages(owner.id, room.id, &[newer.id, stored.id])
             .await
             .unwrap();
-        assert_eq!(visible.len(), 1);
+        assert_eq!(
+            visible.iter().map(|message| message.id).collect::<Vec<_>>(),
+            [newer.id, stored.id]
+        );
         assert!(state
             .authorized_retrieved_messages(outsider.id, room.id, &[stored.id])
             .await

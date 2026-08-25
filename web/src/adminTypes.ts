@@ -59,6 +59,7 @@ export interface AdminServiceOverview {
 
 export interface AdminVectorProbeMatch {
   message_id: string
+  score: number
   sender: string
   content: string
   created_at: string

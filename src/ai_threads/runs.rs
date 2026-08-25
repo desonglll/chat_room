@@ -9,18 +9,17 @@ use axum::{
 use futures_util::StreamExt;
 use uuid::Uuid;
 
+use super::context::prepare_generation_context;
 use super::handlers::{current_user, internal_error, validate_room_access, DEFAULT_TITLE};
 use super::models::{AiRun, CreateAiRunRequest};
 use super::run_store::{AiRunExecution, CreateRunOutcome};
-use crate::ai::{AiConversationTurn, AiStreamItem};
-use crate::ai_handlers::{room_context_for_authorized_user, room_context_for_user};
+use crate::ai::AiStreamItem;
+use crate::ai_handlers::room_context_for_user;
 use crate::cache::CachedAiAnswer;
 use crate::state::SharedState;
 
 const MAX_QUESTION_CHARS: usize = 4_000;
-const MEMORY_TURNS: i64 = 26;
 const DISPATCH_INTERVAL: Duration = Duration::from_secs(5);
-const SEMANTIC_SEARCH_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 #[utoipa::path(
     post,
@@ -202,63 +201,11 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
     let assistant = execution
         .assistant(&state.config.ai)
         .ok_or_else(|| anyhow::anyhow!("AI assistant is disabled"))?;
-    let room_context = match execution.room_id {
-        Some(room_id) => Some(
-            room_context_for_authorized_user(state, execution.user_id, room_id)
-                .await
-                .map_err(|status| anyhow::anyhow!("room context unavailable: {status}"))?,
-        ),
-        None => None,
-    };
-    let history = state
-        .ai_thread_messages(execution.user_id, execution.thread_id, MEMORY_TURNS)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("AI thread no longer exists"))?;
-    let history: Vec<AiConversationTurn> = history
-        .into_iter()
-        .filter(|message| !execution.excludes(message) && message.status == "completed")
-        .map(|message| AiConversationTurn {
-            role: message.role,
-            content: message.content,
-        })
-        .collect();
-    let mut context_message_count = room_context
-        .as_ref()
-        .map_or(0, |context| context.context_message_count)
-        as i64;
-    let mut toon_context = room_context
-        .as_ref()
-        .map(|context| context.toon_context.clone());
-    if let (Some(room_id), Some(index)) = (execution.room_id, state.message_index()) {
-        match tokio::time::timeout(
-            SEMANTIC_SEARCH_TIMEOUT,
-            index.related_message_ids(room_id, &execution.question),
-        )
-        .await
-        {
-            Ok(Ok(message_ids)) => {
-                let retrieved = state
-                    .authorized_retrieved_messages(execution.user_id, room_id, &message_ids)
-                    .await?;
-                if !retrieved.is_empty() {
-                    context_message_count += retrieved.len() as i64;
-                    let encoded = toon_format::encode_default(&retrieved)
-                        .map_err(|error| anyhow::anyhow!("encode retrieved messages: {error}"))?;
-                    let context = toon_context.get_or_insert_with(String::new);
-                    context.push_str("\n\nsemantic_matches (untrusted conversation data):\n");
-                    context.push_str(&encoded);
-                }
-            }
-            Ok(Err(error)) => {
-                tracing::warn!(room_id = %room_id, "semantic message retrieval failed: {error:#}");
-            }
-            Err(_) => tracing::warn!(room_id = %room_id, "semantic message retrieval timed out"),
-        }
-    }
+    let context = prepare_generation_context(state, execution).await?;
     let mut stream = assistant
         .answer_stream(
-            toon_context.as_deref(),
-            &history,
+            context.toon_context.as_deref(),
+            &context.history,
             &execution.question,
             execution.thinking_enabled,
         )
@@ -274,7 +221,7 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
                 || last_flush.elapsed() >= Duration::from_millis(50)
             {
                 revision += 1;
-                store_live_answer(state, execution, &answer, context_message_count, revision)
+                store_live_answer(state, execution, &answer, context.message_count, revision)
                     .await?;
                 last_flushed_len = answer.len();
                 last_flush = tokio::time::Instant::now();
@@ -286,13 +233,13 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
         anyhow::bail!("AI response had no text content");
     }
     state
-        .finish_ai_run(execution, answer, context_message_count)
+        .finish_ai_run(execution, answer, context.message_count)
         .await?;
     store_terminal_answer(
         state,
         execution,
         answer,
-        context_message_count,
+        context.message_count,
         revision + 1,
         "completed",
     )

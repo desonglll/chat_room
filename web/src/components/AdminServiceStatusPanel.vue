@@ -127,7 +127,10 @@ function openMessage(messageId: string): void {
         <ol v-if="result.matches.length" class="divide-y divide-surface-100">
           <li v-for="match in result.matches" :key="match.message_id" class="flex items-start gap-3 py-3 text-sm">
             <div class="min-w-0 flex-1">
-              <strong class="text-xs">{{ match.sender }}</strong>
+              <div class="flex items-center gap-2">
+                <strong class="text-xs">{{ match.sender }}</strong>
+                <span class="text-xs text-muted-color">相关度 {{ match.score.toFixed(3) }}</span>
+              </div>
               <p class="mt-1 line-clamp-2 break-words text-muted-color">{{ match.content }}</p>
             </div>
             <Button

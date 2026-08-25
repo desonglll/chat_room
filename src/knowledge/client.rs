@@ -6,6 +6,12 @@ use uuid::Uuid;
 
 use crate::config::VectorStoreConfig;
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ScoredMessageId {
+    pub id: Uuid,
+    pub score: f64,
+}
+
 #[derive(Clone)]
 pub(super) struct VectorClients {
     http: Client,
@@ -119,14 +125,18 @@ impl VectorClients {
         Ok(())
     }
 
-    pub(super) async fn search(&self, room_id: Uuid, vector: Vec<f32>) -> Result<Vec<Uuid>> {
+    pub(super) async fn search(
+        &self,
+        room_id: Uuid,
+        vector: Vec<f32>,
+    ) -> Result<Vec<ScoredMessageId>> {
         let url = format!("{}/points/search", self.collection_url());
         let response: SearchResponse = self
             .qdrant(self.http.post(url))
             .json(&json!({
                 "vector": vector,
                 "filter": { "must": [{ "key": "room_id", "match": { "value": room_id } }] },
-                "limit": self.config.top_k,
+                "limit": self.candidate_limit(),
                 "score_threshold": self.config.score_threshold,
                 "with_payload": true,
                 "with_vector": false
@@ -142,13 +152,25 @@ impl VectorClients {
             .result
             .into_iter()
             .filter_map(|point| {
-                point
+                let id = point
                     .payload
                     .get("message_id")
                     .and_then(Value::as_str)
-                    .and_then(|id| Uuid::parse_str(id).ok())
+                    .and_then(|id| Uuid::parse_str(id).ok())?;
+                Some(ScoredMessageId {
+                    id,
+                    score: point.score,
+                })
             })
             .collect())
+    }
+
+    pub(super) fn result_limit(&self) -> usize {
+        self.config.top_k
+    }
+
+    fn candidate_limit(&self) -> usize {
+        self.config.top_k.saturating_mul(3).min(50)
     }
 
     pub(super) async fn point_count(&self) -> Result<u64> {
@@ -209,6 +231,8 @@ struct SearchResponse {
 
 #[derive(Deserialize)]
 struct SearchPoint {
+    #[serde(default)]
+    score: f64,
     #[serde(default)]
     payload: serde_json::Map<String, Value>,
 }

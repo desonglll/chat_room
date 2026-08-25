@@ -175,13 +175,29 @@ The vector store is strictly opt-in. With `vector_store.enabled = false`, the
 server does not connect to Qdrant or the embeddings endpoint. When enabled,
 `dimensions` must exactly match `embedding_model`. Message insert, edit, recall,
 and delete operations write a transactional outbox; a background worker updates
-Qdrant and retries failures. Retrieval is filtered to the one room attached to
-the AI session, then every hit is rechecked in the relational database for
-active membership and current recall state before it is sent to the model.
+Qdrant and retries failures. AI Runs use a LangChain `Retriever` to embed the
+question and search the full-room index. Qdrant returns three times `top_k`
+candidates (capped at 50) with relevance scores; retrieval is filtered to the
+one room attached to the AI session, then every hit is batch-rechecked in the
+relational database for active membership and current recall state before the
+best `top_k` messages are sent to the model as LangChain `Document` values.
+Messages already present in the bounded recent transcript are removed from the
+semantic results, leaving the RAG budget available for older relevant history.
+Each injected result has a stable `S1`, `S2`, ... source label, message ID,
+sender, timestamp, and relevance score; answers are instructed to cite those
+labels when relying on retrieved evidence.
 The migration backfills every existing non-recalled text message into the
 outbox, so after the queue reaches zero every room message is eligible for RAG.
 The displayed context count is the number of recent and semantic messages
 actually injected into that answer, not the total number of indexed messages.
+
+To verify RAG, open `/admin`, wait until the vector queue shows no pending or
+retrying jobs, choose a room, and search for a distinctive fact from an older
+message. A healthy probe returns that message with a relevance score. The
+Qdrant point count measures indexed messages across all rooms, while the probe
+and AI Retriever always apply a room filter. If the embedding request, Qdrant,
+or retrieval deadline fails, the AI Run logs a warning and safely falls back to
+the recent transcript instead of failing the whole answer.
 
 The Compose stack exposes Qdrant REST and gRPC on loopback ports 6333 and 6334
 by default and stores its data in `qdrant_data`. Containers use
