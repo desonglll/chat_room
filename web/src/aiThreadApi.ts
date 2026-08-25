@@ -105,6 +105,10 @@ export async function streamAiThread(
       const { done, value } = await reader.read()
       if (done) break
       parser.push(decoder.decode(value, { stream: true }))
+      if (completed || streamError) {
+        await reader.cancel()
+        break
+      }
     }
     parser.push(decoder.decode())
     parser.finish()

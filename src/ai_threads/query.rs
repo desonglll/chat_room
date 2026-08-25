@@ -88,6 +88,9 @@ pub async fn query_thread_stream(
             content: message.content,
         })
         .collect();
+
+    // debug for user question.
+    // tracing::debug!("{}", question);
     state
         .append_ai_thread_message(user.id, thread.id, "user", question, room_id, None)
         .await

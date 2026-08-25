@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { Hash, Send } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
@@ -241,7 +241,7 @@ async function submit(quickQuestion = ''): Promise<void> {
     context_message_count: null,
     created_at: now,
   })
-  const assistantMessage: AiUiMessage = {
+  const assistantMessage = reactive<AiUiMessage>({
     id: createRandomUuid(),
     thread_id: session.id,
     role: 'assistant',
@@ -251,7 +251,7 @@ async function submit(quickQuestion = ''): Promise<void> {
     created_at: now,
     streaming: true,
     phase: 'connecting',
-  }
+  })
   messages.value.push(assistantMessage)
   prompt.value = ''
   mentionRange.value = null
