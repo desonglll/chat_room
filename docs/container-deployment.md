@@ -37,7 +37,10 @@ local database access.
 
 For non-local deployments, set a strong `POSTGRES_PASSWORD`. If it contains URL
 reserved characters, percent-encode them because the same value is placed in
-`CHAT_ROOM_DATABASE_URL`.
+`CHAT_ROOM_DATABASE_URL`. The production Compose stack always connects the app
+container to `postgres`, `redis`, and `qdrant` by their Compose service names.
+Values such as `redis://127.0.0.1:6379/` in `.env` are for a host-local
+`cargo run`; inside a container, `127.0.0.1` refers to that container itself.
 
 ## Use a published image
 

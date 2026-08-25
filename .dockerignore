@@ -4,6 +4,7 @@
 .claude
 .scratch-shot
 .DS_Store
+.env
 target
 chat_attachments
 chat_rooms.db*
