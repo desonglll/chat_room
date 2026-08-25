@@ -16,6 +16,20 @@ automatically at startup. Redis caches authenticated sessions; PostgreSQL
 remains authoritative and the application falls back to it if cache commands
 fail.
 
+Compose mounts the repository's `chat-room.toml` at `/app/chat-room.toml` as a
+read-only file. Keep it beside `docker-compose.yaml`; after changing it, recreate
+the application container so startup reloads the configuration:
+
+```sh
+docker compose up -d --force-recreate chatroom
+curl http://localhost:3000/api/config
+```
+
+When `[ai].enabled = true`, set the environment variable named by
+`[ai].api_key_env` in `.env`. A healthy AI configuration reports
+`"ai_status":"ready"`; `disabled` means the mounted TOML did not enable AI,
+while `missing_credentials` means the named environment variable is absent.
+
 The Compose stack keeps database records in `postgres_data` and uploaded files
 in `attachment_data`. PostgreSQL is only reachable from the internal Compose
 network. Use `docker compose exec postgres psql -U chatroom -d chatroom` for
@@ -41,7 +55,7 @@ Then pull and start the services without a local rebuild:
 
 ```sh
 docker compose pull chatroom
-docker compose up -d --no-build
+docker compose up -d --no-build --force-recreate
 ```
 
 Published tags include `latest` for `main`, the branch or version tag, and a

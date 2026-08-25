@@ -1,10 +1,16 @@
-//! The "magic wand" endpoint: summarize recent room activity and suggest replies.
+//! AI endpoints for suggestions and conversation-grounded questions.
+
+use std::convert::Infallible;
 
 use axum::{
     extract::{Path, State},
     http::StatusCode,
+    response::sse::{Event, KeepAlive, Sse},
     Json,
 };
+use futures_util::{stream, Stream, StreamExt};
+use serde::Serialize;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::ai::{
@@ -123,7 +129,126 @@ pub async fn analyze_conversation(
     headers: axum::http::HeaderMap,
     Json(payload): Json<AiConversationRequest>,
 ) -> Result<Json<AiConversationResponse>, StatusCode> {
-    let token = bearer_token(&headers)?;
+    let prepared = prepare_conversation_query(&state, room_id, &headers, payload).await?;
+    let answer = prepared
+        .assistant
+        .answer(
+            &prepared.toon_context,
+            &prepared.history,
+            &prepared.question,
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!(%room_id, "AI conversation query failed: {error}");
+            StatusCode::SERVICE_UNAVAILABLE
+        })?;
+    Ok(Json(AiConversationResponse {
+        room_id,
+        answer,
+        context_message_count: prepared.context_message_count,
+        context_format: "toon-v3-compatible".into(),
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/ai/conversations/{id}/query/stream",
+    params(("id" = Uuid, Path, description = "Conversation room ID")),
+    request_body = AiConversationRequest,
+    responses(
+        (status = 200, description = "SSE stream with meta, delta, done, or error events", content_type = "text/event-stream"),
+        (status = 400, description = "Invalid question or history"),
+        (status = 401, description = "Missing or expired session"),
+        (status = 403, description = "Not an active conversation member"),
+        (status = 404, description = "Room not found"),
+        (status = 429, description = "Too many requests, try again shortly"),
+        (status = 503, description = "AI assistant is disabled, unconfigured, or unavailable")
+    )
+)]
+pub async fn analyze_conversation_stream(
+    State(state): State<SharedState>,
+    Path(room_id): Path<Uuid>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<AiConversationRequest>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
+    let prepared = prepare_conversation_query(&state, room_id, &headers, payload).await?;
+    let mut provider_stream = prepared
+        .assistant
+        .answer_stream(
+            &prepared.toon_context,
+            &prepared.history,
+            &prepared.question,
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!(%room_id, "start AI conversation stream failed: {error}");
+            StatusCode::SERVICE_UNAVAILABLE
+        })?;
+    let (sender, receiver) = mpsc::channel(16);
+    tokio::spawn(async move {
+        let meta = ConversationStreamMeta {
+            room_id,
+            context_message_count: prepared.context_message_count,
+            context_format: "toon-v3-compatible",
+        };
+        if sender.send(json_event("meta", meta)).await.is_err() {
+            return;
+        }
+        while let Some(chunk) = provider_stream.next().await {
+            match chunk {
+                Ok(content) => {
+                    if sender
+                        .send(json_event("delta", ConversationStreamDelta { content }))
+                        .await
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+                Err(error) => {
+                    tracing::error!(%room_id, "AI conversation stream failed: {error}");
+                    let _ = sender
+                        .send(json_event(
+                            "error",
+                            ConversationStreamError {
+                                message: "AI 助手当前不可用",
+                            },
+                        ))
+                        .await;
+                    return;
+                }
+            }
+        }
+        let _ = sender.send(json_event("done", EmptyEvent {})).await;
+    });
+    let output = stream::unfold(receiver, |mut receiver| async move {
+        receiver
+            .recv()
+            .await
+            .map(|event| (Ok::<_, Infallible>(event), receiver))
+    });
+    Ok(Sse::new(output).keep_alive(
+        KeepAlive::new()
+            .interval(std::time::Duration::from_secs(15))
+            .text("keep-alive"),
+    ))
+}
+
+struct PreparedConversationQuery {
+    assistant: crate::ai::AiAssistant,
+    toon_context: String,
+    history: Vec<AiConversationTurn>,
+    question: String,
+    context_message_count: usize,
+}
+
+async fn prepare_conversation_query(
+    state: &SharedState,
+    room_id: Uuid,
+    headers: &axum::http::HeaderMap,
+    payload: AiConversationRequest,
+) -> Result<PreparedConversationQuery, StatusCode> {
+    let token = bearer_token(headers)?;
     let user = state
         .session_user(token)
         .await
@@ -135,9 +260,9 @@ pub async fn analyze_conversation(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::FORBIDDEN)?;
-    require_room_password(&room, &headers)?;
+    require_room_password(&room, headers)?;
     validate_query(&payload)?;
-    let Some(assistant) = state.ai_assistant() else {
+    let Some(assistant) = state.ai_assistant().cloned() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
     if !state
@@ -180,19 +305,40 @@ pub async fn analyze_conversation(
         tracing::error!(%room_id, "encode AI analysis context failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    let answer = assistant
-        .answer(&toon_context, &payload.history, payload.question.trim())
-        .await
-        .map_err(|error| {
-            tracing::error!(%room_id, "AI conversation query failed: {error}");
-            StatusCode::SERVICE_UNAVAILABLE
-        })?;
-    Ok(Json(AiConversationResponse {
-        room_id,
-        answer,
+    Ok(PreparedConversationQuery {
+        assistant,
+        toon_context,
+        history: payload.history,
+        question: payload.question.trim().to_owned(),
         context_message_count: context.len(),
-        context_format: "toon-v3-compatible".into(),
-    }))
+    })
+}
+
+#[derive(Serialize)]
+struct ConversationStreamMeta {
+    room_id: Uuid,
+    context_message_count: usize,
+    context_format: &'static str,
+}
+
+#[derive(Serialize)]
+struct ConversationStreamDelta {
+    content: String,
+}
+
+#[derive(Serialize)]
+struct ConversationStreamError {
+    message: &'static str,
+}
+
+#[derive(Serialize)]
+struct EmptyEvent {}
+
+fn json_event(name: &'static str, payload: impl Serialize) -> Event {
+    Event::default()
+        .event(name)
+        .json_data(payload)
+        .expect("AI stream events must be serializable")
 }
 
 fn validate_query(payload: &AiConversationRequest) -> Result<(), StatusCode> {

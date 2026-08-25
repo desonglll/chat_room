@@ -3,6 +3,7 @@ use std::sync::Arc;
 use chat_room::{build_app, state::AppState};
 use reqwest::{Client, StatusCode};
 use tokio::net::TcpListener;
+use uuid::Uuid;
 
 async fn start_server() -> (String, tokio::task::JoinHandle<()>) {
     let state = Arc::new(AppState::new().await.unwrap());
@@ -93,5 +94,22 @@ async fn conversation_ai_checks_identity_and_membership_before_provider_availabi
             .status(),
         StatusCode::SERVICE_UNAVAILABLE
     );
+    task.abort();
+}
+
+#[tokio::test]
+async fn conversation_ai_stream_requires_identity_before_room_lookup() {
+    let (base, task) = start_server().await;
+    let response = Client::new()
+        .post(format!(
+            "{base}/api/ai/conversations/{}/query/stream",
+            Uuid::new_v4()
+        ))
+        .json(&serde_json::json!({ "question": "总结一下", "history": [] }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     task.abort();
 }

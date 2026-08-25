@@ -53,6 +53,7 @@ services:
     ports:
       - "${CHAT_ROOM_PORT:-3000}:3000"
     volumes:
+      - ./chat-room.toml:/app/chat-room.toml:ro
       - attachment_data:/app/chat_attachments
     read_only: true
     tmpfs:

@@ -102,6 +102,7 @@ use crate::state::AppState;
         favorites::handlers::remove_collaborator,
         ai_handlers::suggest,
         ai_handlers::analyze_conversation,
+        ai_handlers::analyze_conversation_stream,
         admin_metrics::overview,
         admin_metrics::purge,
         admin_system_lock::update,
@@ -207,6 +208,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .route(
             "/api/ai/conversations/:id/query",
             axum::routing::post(ai_handlers::analyze_conversation),
+        )
+        .route(
+            "/api/ai/conversations/:id/query/stream",
+            axum::routing::post(ai_handlers::analyze_conversation_stream),
         )
         .route(
             "/api/rooms/:id/members/me",

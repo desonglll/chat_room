@@ -5,7 +5,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
 import Textarea from 'primevue/textarea'
-import { queryConversation } from '../assistantApi'
+import { streamConversation } from '../assistantApi'
 import {
   activeConversationMention,
   conversationMentionCandidates,
@@ -21,6 +21,7 @@ interface ThreadMessage extends AiConversationTurn {
   id: string
   roomTitle: string
   contextCount?: number
+  streaming?: boolean
 }
 
 const props = defineProps<{
@@ -40,6 +41,7 @@ const threadElement = ref<HTMLElement | null>(null)
 const promptInput = ref<{ $el?: HTMLTextAreaElement } | null>(null)
 const mentionRange = ref<ConversationMentionRange | null>(null)
 const mentionIndex = ref(0)
+let pendingScrollFrame: number | null = null
 const availableRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
 const selectedRoom = computed(() => availableRooms.value.find((room) => room.id === selectedRoomId.value) || null)
 const mentionableRooms = computed(() => availableRooms.value.map((room) => ({ roomId: room.id, title: room.name })))
@@ -121,6 +123,14 @@ async function scrollToLatest(): Promise<void> {
   threadElement.value?.scrollTo({ top: threadElement.value.scrollHeight, behavior: 'smooth' })
 }
 
+function scrollToLatestSoon(): void {
+  if (pendingScrollFrame !== null) return
+  pendingScrollFrame = requestAnimationFrame(() => {
+    pendingScrollFrame = null
+    threadElement.value?.scrollTo({ top: threadElement.value.scrollHeight })
+  })
+}
+
 async function submit(quickQuestion = ''): Promise<void> {
   if (loading.value || !aiReady.value) return
   const source = quickQuestion ? quickQuestion : prompt.value
@@ -138,22 +148,38 @@ async function submit(quickQuestion = ''): Promise<void> {
     roomPassword.value = room.has_password ? readRoomPassword(room.id, props.rememberRoomPasswords) : ''
   }
   thread.value.push({ id: crypto.randomUUID(), role: 'user', content: parsed.question, roomTitle: room.name })
+  const assistantMessage: ThreadMessage = {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: '',
+    roomTitle: room.name,
+    streaming: true,
+  }
+  thread.value.push(assistantMessage)
   prompt.value = ''
   mentionRange.value = null
   loading.value = true
   await scrollToLatest()
   try {
-    const result = await queryConversation(room.id, parsed.question, history, props.token, roomPassword.value)
-    thread.value.push({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: result.answer,
-      roomTitle: room.name,
-      contextCount: result.context_message_count,
-    })
+    const result = await streamConversation(
+      room.id,
+      parsed.question,
+      history,
+      props.token,
+      roomPassword.value,
+      (content) => {
+        assistantMessage.content += content
+        scrollToLatestSoon()
+      },
+    )
+    assistantMessage.contextCount = result.context_message_count
   } catch (caught) {
+    if (!assistantMessage.content) {
+      thread.value = thread.value.filter((message) => message.id !== assistantMessage.id)
+    }
     emit('error', caught instanceof Error ? caught.message : 'AI 请求失败')
   } finally {
+    assistantMessage.streaming = false
     loading.value = false
     await scrollToLatest()
   }
@@ -273,7 +299,13 @@ async function submit(quickQuestion = ''): Promise<void> {
                   : 'border border-surface-200 bg-surface-0 text-surface-900'
               "
             >
-              <p class="whitespace-pre-wrap break-words">{{ message.content }}</p>
+              <p v-if="message.content" class="whitespace-pre-wrap break-words">{{ message.content }}</p>
+              <div v-else-if="message.streaming" class="flex min-h-6 items-center gap-2 text-muted-color">
+                <span
+                  class="size-3.5 animate-spin rounded-full border-2 border-surface-300 border-t-primary motion-reduce:animate-none"
+                />
+                正在分析
+              </div>
               <p class="mt-2 text-[10px] opacity-65">
                 {{ message.roomTitle
                 }}<template v-if="message.contextCount !== undefined">
@@ -281,16 +313,6 @@ async function submit(quickQuestion = ''): Promise<void> {
                 >
               </p>
             </article>
-          </li>
-          <li v-if="loading" class="flex justify-start">
-            <div
-              class="flex items-center gap-2 rounded-md border border-surface-200 bg-surface-0 px-3.5 py-3 text-sm text-muted-color"
-            >
-              <span
-                class="size-3.5 animate-spin rounded-full border-2 border-surface-300 border-t-primary motion-reduce:animate-none"
-              />
-              正在分析
-            </div>
           </li>
         </ol>
       </div>
