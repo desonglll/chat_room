@@ -331,7 +331,12 @@ onUnmounted(() => {
   <main id="workspace-main" class="cr-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <AiAssistantHeader :title="activeThread?.title || '新对话'" :ready="aiReady" @back="emit('back')" />
 
-    <Message v-if="!aiReady && aiStatus === 'missing_credentials'" severity="warn" :closable="false" class="m-4 sm:mx-7">
+    <Message
+      v-if="!aiReady && aiStatus === 'missing_credentials'"
+      severity="warn"
+      :closable="false"
+      class="m-4 sm:mx-7"
+    >
       当前没有凭据完整的模型配置，请在系统后台检查 API key 环境变量。
     </Message>
     <Message v-else-if="!aiReady && aiStatus === 'disabled'" severity="secondary" :closable="false" class="m-4 sm:mx-7">

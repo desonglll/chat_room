@@ -18,10 +18,7 @@ export async function listAdminAiModels(token: string): Promise<AdminAiModelOpti
   return (await adminRequest('/api/admin/ai-models', token)).json() as Promise<AdminAiModelOption[]>
 }
 
-export async function createAdminAiModel(
-  token: string,
-  payload: SaveAdminAiModelOption,
-): Promise<AdminAiModelOption> {
+export async function createAdminAiModel(token: string, payload: SaveAdminAiModelOption): Promise<AdminAiModelOption> {
   return (await adminRequest('/api/admin/ai-models', token, 'POST', payload)).json() as Promise<AdminAiModelOption>
 }
 
