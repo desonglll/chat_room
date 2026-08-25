@@ -6,16 +6,25 @@ use redis::aio::ConnectionManager;
 use uuid::Uuid;
 
 use crate::config::RedisConfig;
-use crate::models::User;
+use crate::message_store::MessageCursor;
+use crate::models::{StoredMessage, User};
 
 #[derive(Clone)]
-pub(crate) struct SessionCache {
+pub(crate) struct RedisCache {
     manager: ConnectionManager,
     key_prefix: String,
     command_timeout: Duration,
+    message_ttl_secs: u64,
 }
 
-impl SessionCache {
+pub(crate) enum MessageCacheLookup {
+    Hit(Vec<StoredMessage>),
+    Miss(MessageCacheTicket),
+}
+
+pub(crate) struct MessageCacheTicket(String);
+
+impl RedisCache {
     pub async fn connect(config: &RedisConfig) -> Result<Self> {
         let client = redis::Client::open(config.url.as_str()).context("parse Redis URL")?;
         let mut manager = tokio::time::timeout(
@@ -36,10 +45,11 @@ impl SessionCache {
             manager,
             key_prefix: config.key_prefix.trim_end_matches(':').to_string(),
             command_timeout: Duration::from_millis(config.command_timeout_ms),
+            message_ttl_secs: config.message_ttl_secs,
         })
     }
 
-    pub async fn get(&self, token: Uuid) -> Result<Option<User>> {
+    pub async fn get_session(&self, token: Uuid) -> Result<Option<User>> {
         let mut connection = self.manager.clone();
         let value = tokio::time::timeout(
             self.command_timeout,
@@ -55,7 +65,12 @@ impl SessionCache {
             .transpose()
     }
 
-    pub async fn set(&self, token: Uuid, user: &User, expires_at: DateTime<Utc>) -> Result<()> {
+    pub async fn set_session(
+        &self,
+        token: Uuid,
+        user: &User,
+        expires_at: DateTime<Utc>,
+    ) -> Result<()> {
         let ttl_seconds = (expires_at - Utc::now()).num_seconds().max(1);
         let session_key = self.session_key(token);
         let user_key = self.user_sessions_key(user.id);
@@ -86,7 +101,7 @@ impl SessionCache {
         .context("write cached session")
     }
 
-    pub async fn delete(&self, token: Uuid, user_id: Uuid) -> Result<()> {
+    pub async fn delete_session(&self, token: Uuid, user_id: Uuid) -> Result<()> {
         let session_key = self.session_key(token);
         let user_key = self.user_sessions_key(user_id);
         let mut connection = self.manager.clone();
@@ -108,7 +123,7 @@ impl SessionCache {
         .context("delete cached session")
     }
 
-    pub async fn delete_user(&self, user_id: Uuid) -> Result<()> {
+    pub async fn delete_user_sessions(&self, user_id: Uuid) -> Result<()> {
         let user_key = self.user_sessions_key(user_id);
         let mut connection = self.manager.clone();
         let session_keys = tokio::time::timeout(
@@ -170,11 +185,117 @@ impl SessionCache {
         }
     }
 
+    pub async fn message_history(
+        &self,
+        room_id: Uuid,
+        limit: i64,
+        through: Option<&MessageCursor>,
+        viewer_id: Option<Uuid>,
+    ) -> Result<MessageCacheLookup> {
+        let version = self.message_version(room_id).await?;
+        let key = self.message_history_key(room_id, version, limit, through, viewer_id);
+        let mut connection = self.manager.clone();
+        let value = tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("GET")
+                .arg(&key)
+                .query_async::<Option<String>>(&mut connection),
+        )
+        .await
+        .context("Redis message GET timed out")?
+        .context("read cached message history")?;
+        match value {
+            Some(json) => Ok(MessageCacheLookup::Hit(
+                serde_json::from_str(&json).context("decode cached message history")?,
+            )),
+            None => Ok(MessageCacheLookup::Miss(MessageCacheTicket(key))),
+        }
+    }
+
+    pub async fn set_message_history(
+        &self,
+        ticket: MessageCacheTicket,
+        messages: &[StoredMessage],
+    ) -> Result<()> {
+        let json = serde_json::to_string(messages).context("encode cached message history")?;
+        let mut connection = self.manager.clone();
+        tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("SET")
+                .arg(ticket.0)
+                .arg(json)
+                .arg("EX")
+                .arg(self.message_ttl_secs)
+                .query_async::<()>(&mut connection),
+        )
+        .await
+        .context("Redis message SET timed out")?
+        .context("cache message history")
+    }
+
+    pub async fn invalidate_message_history(&self, room_id: Uuid) -> Result<()> {
+        let mut connection = self.manager.clone();
+        tokio::time::timeout(
+            self.command_timeout,
+            redis::pipe()
+                .atomic()
+                .cmd("INCR")
+                .arg(self.message_version_key(room_id))
+                .ignore()
+                .cmd("EXPIRE")
+                .arg(self.message_version_key(room_id))
+                .arg(self.message_ttl_secs.max(900))
+                .ignore()
+                .query_async::<()>(&mut connection),
+        )
+        .await
+        .context("Redis message invalidation timed out")?
+        .context("invalidate cached message history")
+    }
+
+    async fn message_version(&self, room_id: Uuid) -> Result<u64> {
+        let mut connection = self.manager.clone();
+        tokio::time::timeout(
+            self.command_timeout,
+            redis::cmd("GET")
+                .arg(self.message_version_key(room_id))
+                .query_async::<Option<u64>>(&mut connection),
+        )
+        .await
+        .context("Redis message version GET timed out")?
+        .context("read message cache version")
+        .map(|version| version.unwrap_or(0))
+    }
+
     fn session_key(&self, token: Uuid) -> String {
         format!("{}:session:{token}", self.key_prefix)
     }
 
     fn user_sessions_key(&self, user_id: Uuid) -> String {
         format!("{}:user-sessions:{user_id}", self.key_prefix)
+    }
+
+    fn message_version_key(&self, room_id: Uuid) -> String {
+        format!("{}:messages:{room_id}:version", self.key_prefix)
+    }
+
+    fn message_history_key(
+        &self,
+        room_id: Uuid,
+        version: u64,
+        limit: i64,
+        through: Option<&MessageCursor>,
+        viewer_id: Option<Uuid>,
+    ) -> String {
+        let through = through
+            .map(|cursor| format!("{}-{}", cursor.created_at.timestamp_micros(), cursor.id))
+            .unwrap_or_else(|| "latest".into());
+        let viewer = viewer_id
+            .map(|id| id.to_string())
+            .unwrap_or_else(|| "public".into());
+        format!(
+            "{}:messages:{room_id}:v{version}:{viewer}:{limit}:{through}",
+            self.key_prefix
+        )
     }
 }

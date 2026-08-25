@@ -14,11 +14,12 @@ use crate::ai::AiAssistant;
 use crate::attachment_content::ContentHashLocks;
 use crate::attachment_storage::{self, AttachmentStore};
 use crate::attachments::upload_hashes::UploadHashTracker;
-use crate::cache::SessionCache;
+use crate::cache::RedisCache;
 use crate::config::AppConfig;
 use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
+use crate::work_queue::WorkQueue;
 
 const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
      password_hash <> '' AS has_password, creator_user_id, join_policy, \
@@ -76,7 +77,8 @@ pub struct AppState {
     pub(crate) social_rate_limits: SocialRateLimits,
     pub(crate) ai_assistant: Option<AiAssistant>,
     pub(crate) config: AppConfig,
-    pub(crate) session_cache: Option<SessionCache>,
+    pub(crate) redis_cache: Option<RedisCache>,
+    pub(crate) work_queue: WorkQueue,
 }
 
 impl AppState {
@@ -158,14 +160,14 @@ impl AppState {
             }
         }
         .context("load rooms from database")?;
-        let session_cache = if config.redis.enabled {
-            match SessionCache::connect(&config.redis).await {
+        let redis_cache = if config.redis.enabled {
+            match RedisCache::connect(&config.redis).await {
                 Ok(cache) => {
-                    tracing::info!("Redis session cache enabled");
+                    tracing::info!("Redis session and message cache enabled");
                     Some(cache)
                 }
                 Err(error) => {
-                    tracing::warn!("Redis unavailable; using database sessions: {error:#}");
+                    tracing::warn!("Redis unavailable; using database reads: {error:#}");
                     None
                 }
             }
@@ -180,6 +182,7 @@ impl AppState {
             rooms.insert(room.id, room);
         }
 
+        let work_queue = WorkQueue::new(&config.work_queue);
         let state = Self {
             pool,
             rooms: RwLock::new(rooms),
@@ -194,7 +197,8 @@ impl AppState {
             social_rate_limits: SocialRateLimits::default(),
             ai_assistant,
             config,
-            session_cache,
+            redis_cache,
+            work_queue,
         };
         state.backfill_attachment_content_hashes().await?;
         Ok(state)

@@ -6,7 +6,12 @@ use crate::favorites::models::FavoriteItem;
 use crate::models::{Attachment, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
-const FAVORITE_SELECT: &str = "SELECT favorites.id, favorites.kind, favorites.title, \
+pub(super) const FAVORITE_SELECT: &str = "SELECT favorites.id, favorites.user_id AS owner_id, \
+    owner.username AS owner_username, owner.display_name AS owner_display_name, \
+    CASE WHEN favorites.user_id = $1 THEN 'owner' ELSE 'editor' END AS access, \
+    favorites.version, (SELECT COUNT(*) FROM favorite_collaborators AS count_collaborators \
+      WHERE count_collaborators.favorite_id = favorites.id) AS collaborator_count, \
+    favorites.kind, favorites.title, \
     favorites.content, favorites.source_message_id, \
     CASE WHEN source_membership.user_id IS NULL THEN NULL ELSE source_message.room_id END AS source_room_id, \
     favorites.source_sender, \
@@ -15,15 +20,22 @@ const FAVORITE_SELECT: &str = "SELECT favorites.id, favorites.kind, favorites.ti
     attachments.file_name AS attachment_file_name, attachments.mime_type AS attachment_mime_type, \
     attachments.size_bytes AS attachment_size_bytes, \
     attachments.is_sensitive AS attachment_is_sensitive FROM favorites \
+    JOIN users AS owner ON owner.id = favorites.user_id \
     LEFT JOIN attachments ON attachments.id = favorites.attachment_id \
     LEFT JOIN messages AS source_message ON source_message.id = favorites.source_message_id \
     LEFT JOIN rooms AS source_room ON source_room.id = source_message.room_id AND source_room.deleted_at IS NULL \
     LEFT JOIN room_memberships AS source_membership ON source_membership.room_id = source_room.id \
-      AND source_membership.user_id = favorites.user_id AND source_membership.status = 'active'";
+      AND source_membership.user_id = $1 AND source_membership.status = 'active'";
 
 #[derive(FromRow)]
-struct FavoriteRow {
+pub(super) struct FavoriteRow {
     id: Uuid,
+    owner_id: Uuid,
+    owner_username: String,
+    owner_display_name: String,
+    access: String,
+    version: i64,
+    collaborator_count: i64,
     kind: String,
     title: String,
     content: String,
@@ -42,7 +54,7 @@ struct FavoriteRow {
 }
 
 impl FavoriteRow {
-    fn into_item(self) -> FavoriteItem {
+    pub(super) fn into_item(self) -> FavoriteItem {
         let attachment = self.attachment_id.and_then(|id| {
             Some(Attachment {
                 id,
@@ -55,6 +67,12 @@ impl FavoriteRow {
         });
         FavoriteItem {
             id: self.id,
+            owner_id: self.owner_id,
+            owner_username: self.owner_username,
+            owner_display_name: self.owner_display_name,
+            access: self.access,
+            version: self.version,
+            collaborator_count: self.collaborator_count,
             kind: self.kind,
             title: self.title,
             content: self.content,
@@ -87,7 +105,10 @@ impl AppState {
 
     pub async fn favorites(&self, user_id: Uuid) -> Result<Vec<FavoriteItem>, sqlx::Error> {
         let query = format!(
-            "{FAVORITE_SELECT} WHERE favorites.user_id = $1 \
+            "{FAVORITE_SELECT} WHERE favorites.user_id = $1 OR EXISTS \
+             (SELECT 1 FROM favorite_collaborators AS visible_collaborator \
+              WHERE visible_collaborator.favorite_id = favorites.id \
+                AND visible_collaborator.user_id = $1) \
              ORDER BY favorites.created_at DESC, favorites.id DESC LIMIT 500"
         );
         let rows: Vec<FavoriteRow> = with_pool!(self, |pool| {
@@ -101,7 +122,13 @@ impl AppState {
         user_id: Uuid,
         favorite_id: Uuid,
     ) -> Result<Option<FavoriteItem>, sqlx::Error> {
-        let query = format!("{FAVORITE_SELECT} WHERE favorites.user_id = $1 AND favorites.id = $2");
+        let query = format!(
+            "{FAVORITE_SELECT} WHERE favorites.id = $2 AND \
+             (favorites.user_id = $1 OR EXISTS \
+              (SELECT 1 FROM favorite_collaborators AS visible_collaborator \
+               WHERE visible_collaborator.favorite_id = favorites.id \
+                 AND visible_collaborator.user_id = $1))"
+        );
         let row: Option<FavoriteRow> = with_pool!(self, |pool| {
             sqlx::query_as(&query)
                 .bind(user_id)
@@ -257,7 +284,11 @@ impl AppState {
                      ELSE favorites.source_sender END, \
                    CASE WHEN favorites.kind = 'manual' THEN '个人收藏' \
                      ELSE favorites.source_room_name END, $6 \
-                 FROM favorites WHERE favorites.id = $5 AND favorites.user_id = $3 \
+                 FROM favorites WHERE favorites.id = $5 AND \
+                   (favorites.user_id = $3 OR EXISTS \
+                     (SELECT 1 FROM favorite_collaborators \
+                      WHERE favorite_collaborators.favorite_id = favorites.id \
+                        AND favorite_collaborators.user_id = $3)) \
                    AND EXISTS (SELECT 1 FROM room_memberships \
                      JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
                      JOIN rooms ON rooms.id = room_memberships.room_id AND rooms.deleted_at IS NULL \
@@ -278,6 +309,7 @@ impl AppState {
         if !inserted {
             return Ok(None);
         }
+        self.invalidate_message_cache(target_room_id).await;
         self.message_by_id(id, Some(forwarder.id)).await
     }
 }

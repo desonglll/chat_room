@@ -67,13 +67,22 @@ poke_cooldown_secs = 5
 session_lifetime_days = 30
 
 [redis]
-# Redis accelerates bearer-session lookups. PostgreSQL/SQLite remains the
-# source of truth, and the server falls back to it when Redis is unavailable.
-enabled = false
+# Redis accelerates bearer-session lookups and message history pages.
+# PostgreSQL/SQLite remains the source of truth, and requests fall back to it.
+enabled = true
 url = "redis://127.0.0.1:6379/"
 key_prefix = "chat-room"
 connect_timeout_ms = 1500
 command_timeout_ms = 500
+# Read-through cache lifetime for message history pages. Room versions invalidate immediately.
+message_ttl_secs = 30
+
+[work_queue]
+# Fair in-process admission queues. The database and resumable upload sessions
+# remain the durable source of truth, so retries are idempotent after restarts.
+message_concurrency = 32
+upload_concurrency = 4
+wait_timeout_secs = 30
 
 [admin]
 # System-wide operations are disabled until at least one existing account is

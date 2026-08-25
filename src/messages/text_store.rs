@@ -74,6 +74,8 @@ impl AppState {
             });
         }
 
+        self.invalidate_message_cache(room_id).await;
+
         Ok(StoreMessageResult {
             message: StoredMessage {
                 id,

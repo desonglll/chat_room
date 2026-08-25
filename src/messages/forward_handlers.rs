@@ -78,6 +78,15 @@ pub async fn forward_messages(
                 });
                 continue;
             }
+            let Ok(_permit) = state.work_queue().message().await else {
+                results.push(ForwardResult {
+                    message_id,
+                    target_room_id,
+                    forwarded_message_id: None,
+                    skipped_reason: Some("server busy; retry this forward".into()),
+                });
+                continue;
+            };
             match state
                 .forward_message(message_id, source_room_id, target_room_id, &user)
                 .await

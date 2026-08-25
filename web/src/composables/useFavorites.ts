@@ -1,10 +1,14 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import {
   createFavorite as createFavoriteRequest,
+  addFavoriteCollaborator,
   deleteFavorite as deleteFavoriteRequest,
   favoriteMessages as favoriteMessagesRequest,
   forwardFavorite as forwardFavoriteRequest,
   listFavorites,
+  listFavoriteCollaborators,
+  removeFavoriteCollaborator,
+  updateFavorite as updateFavoriteRequest,
 } from '../favoritesApi'
 import type { FavoriteItem } from '../types'
 
@@ -46,6 +50,28 @@ export function useFavorites(token: Ref<string>) {
     return added
   }
 
+  async function update(id: string, version: number, title: string, content: string): Promise<FavoriteItem> {
+    try {
+      const updated = await updateFavoriteRequest(id, version, title, content, token.value)
+      items.value = items.value.map((item) => (item.id === id ? updated : item))
+      return updated
+    } catch (caught) {
+      await refresh()
+      throw caught
+    }
+  }
+
+  async function addCollaborator(id: string, userId: string) {
+    const collaborator = await addFavoriteCollaborator(id, userId, token.value)
+    await refresh()
+    return collaborator
+  }
+
+  async function removeCollaborator(id: string, userId: string): Promise<void> {
+    await removeFavoriteCollaborator(id, userId, token.value)
+    await refresh()
+  }
+
   async function remove(id: string): Promise<void> {
     await deleteFavoriteRequest(id, token.value)
     items.value = items.value.filter((item) => item.id !== id)
@@ -75,10 +101,14 @@ export function useFavorites(token: Ref<string>) {
     error,
     refresh,
     create,
+    update,
     addMessages,
     toggleMessage,
     updateMessages,
     remove,
     forward,
+    listCollaborators: (id: string) => listFavoriteCollaborators(id, token.value),
+    addCollaborator,
+    removeCollaborator,
   }
 }

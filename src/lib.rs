@@ -20,6 +20,7 @@ pub mod state;
 mod state_runtime;
 pub mod storage;
 pub mod web;
+mod work_queue;
 
 pub use accounts::{account_ws, avatar_handlers, user_handlers, users};
 pub use admin::{metrics as admin_metrics, system_lock as admin_system_lock};
@@ -92,9 +93,13 @@ use crate::state::AppState;
         forward_handlers::forward_messages,
         favorites::handlers::list_favorites,
         favorites::handlers::create_favorite,
+        favorites::handlers::update_favorite,
         favorites::handlers::favorite_messages,
         favorites::handlers::delete_favorite,
         favorites::handlers::forward_favorite,
+        favorites::handlers::list_collaborators,
+        favorites::handlers::add_collaborator,
+        favorites::handlers::remove_collaborator,
         ai_handlers::suggest,
         ai_handlers::analyze_conversation,
         admin_metrics::overview,
@@ -122,6 +127,9 @@ use crate::state::AppState;
         models::ForwardResult,
         favorites::models::FavoriteItem,
         favorites::models::CreateFavoriteRequest,
+        favorites::models::UpdateFavoriteRequest,
+        favorites::models::FavoriteCollaborator,
+        favorites::models::AddFavoriteCollaboratorRequest,
         favorites::models::FavoriteMessagesRequest,
         favorites::models::ForwardFavoriteRequest,
         favorites::models::FavoriteForwardResult,
@@ -334,7 +342,17 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         )
         .route(
             "/api/favorites/:id",
-            axum::routing::delete(favorites::handlers::delete_favorite),
+            axum::routing::put(favorites::handlers::update_favorite)
+                .delete(favorites::handlers::delete_favorite),
+        )
+        .route(
+            "/api/favorites/:id/collaborators",
+            get(favorites::handlers::list_collaborators)
+                .post(favorites::handlers::add_collaborator),
+        )
+        .route(
+            "/api/favorites/:id/collaborators/:user_id",
+            axum::routing::delete(favorites::handlers::remove_collaborator),
         )
         .route(
             "/api/favorites/:id/forward",

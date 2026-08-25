@@ -118,6 +118,12 @@ export interface Attachment {
 
 export interface FavoriteItem {
   id: string
+  owner_id: string
+  owner_username: string
+  owner_display_name: string
+  access: 'owner' | 'editor'
+  version: number
+  collaborator_count: number
   kind: 'message' | 'video' | 'manual'
   title: string
   content: string
@@ -128,6 +134,14 @@ export interface FavoriteItem {
   attachment: Attachment | null
   created_at: string
   updated_at: string
+}
+
+export interface FavoriteCollaborator {
+  user_id: string
+  username: string
+  display_name: string
+  avatar_emoji: string
+  added_at: string
 }
 
 export interface FavoriteForwardResult {

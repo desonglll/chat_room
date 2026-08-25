@@ -51,6 +51,9 @@ impl AppState {
                 tracing::warn!("recompute attachment orphan status failed: {error:#}");
             }
         }
+        if attachment_id.is_some() {
+            self.invalidate_message_cache(room_id).await;
+        }
         Ok(attachment_id.map(|_| edited_at))
     }
 
@@ -83,6 +86,9 @@ impl AppState {
             if let Err(error) = self.recompute_attachment_orphan_status(attachment_id).await {
                 tracing::warn!("recompute attachment orphan status failed: {error:#}");
             }
+        }
+        if attachment_id.is_some() {
+            self.invalidate_message_cache(room_id).await;
         }
         Ok(attachment_id.map(|_| recalled_at))
     }

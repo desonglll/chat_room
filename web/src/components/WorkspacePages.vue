@@ -3,6 +3,7 @@ import { defineAsyncComponent, type Ref } from 'vue'
 import type {
   AiRuntimeStatus,
   FavoriteForwardResult,
+  FavoriteCollaborator,
   FavoriteItem,
   FriendRequest,
   Room,
@@ -35,8 +36,12 @@ interface FavoritesController {
   loading: Ref<boolean>
   error: Ref<string>
   create: (title: string, content: string) => Promise<FavoriteItem>
+  update: (id: string, version: number, title: string, content: string) => Promise<FavoriteItem>
   remove: (id: string) => Promise<void>
   forward: (id: string, roomIds: string[]) => Promise<FavoriteForwardResult[]>
+  listCollaborators: (id: string) => Promise<FavoriteCollaborator[]>
+  addCollaborator: (id: string, userId: string) => Promise<FavoriteCollaborator>
+  removeCollaborator: (id: string, userId: string) => Promise<void>
 }
 
 defineProps<{
@@ -108,12 +113,18 @@ const emit = defineEmits<{
   <FavoritesPage
     v-else-if="activePage === 'favorites' && user"
     :items="favorites.items.value"
+    :user="user"
+    :friends="contacts.friends.value"
     :rooms="rooms"
     :loading="favorites.loading.value"
     :error="favorites.error.value"
     :create="favorites.create"
+    :update="favorites.update"
     :remove="favorites.remove"
     :forward="favorites.forward"
+    :list-collaborators="favorites.listCollaborators"
+    :add-collaborator="favorites.addCollaborator"
+    :remove-collaborator="favorites.removeCollaborator"
     @back="emit('back')"
     @changed="emit('conversationsChanged')"
     @success="emit('success', $event)"

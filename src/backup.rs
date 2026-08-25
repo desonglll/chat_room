@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use tokio::process::Command;
 use uuid::Uuid;
 
-use crate::{cache::SessionCache, config::AppConfig};
+use crate::{cache::RedisCache, config::AppConfig};
 
 const FORMAT_VERSION: u32 = 1;
 const DUMP_FILE: &str = "database.dump";
@@ -185,7 +185,7 @@ pub async fn restore_postgres(
     }
 
     let redis_cache = if config.redis.enabled {
-        Some(SessionCache::connect(&config.redis).await.context(
+        Some(RedisCache::connect(&config.redis).await.context(
             "connect to Redis before restore; disable Redis explicitly if it is intentionally unavailable",
         )?)
     } else {

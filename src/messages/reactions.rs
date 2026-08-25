@@ -76,6 +76,7 @@ impl AppState {
                 .map(|_| ())
             })?;
         }
+        self.invalidate_message_cache(room_id).await;
         Ok(true)
     }
 

@@ -5,6 +5,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::attachment_storage::StagedUpload;
+use crate::cache::MessageCacheLookup;
 use crate::models::{Attachment, ForwardedFrom, ReplyPreview, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
@@ -199,6 +200,7 @@ impl AppState {
         if !inserted {
             return Ok(None);
         }
+        self.invalidate_message_cache(target_room_id).await;
         self.message_by_id(id, Some(forwarder.id)).await
     }
 
@@ -351,6 +353,21 @@ impl AppState {
         viewer_id: Option<Uuid>,
     ) -> Result<Vec<StoredMessage>, sqlx::Error> {
         let limit = limit.clamp(1, 500);
+        let cache_ticket = if let Some(cache) = self.redis_cache() {
+            match cache
+                .message_history(room_id, limit, through, viewer_id)
+                .await
+            {
+                Ok(MessageCacheLookup::Hit(messages)) => return Ok(messages),
+                Ok(MessageCacheLookup::Miss(ticket)) => Some(ticket),
+                Err(error) => {
+                    tracing::warn!(%room_id, "read Redis message cache failed: {error:#}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let query = match through {
             Some(_) => format!(
                 "{MESSAGE_SELECT} WHERE messages.room_id = $1 AND \
@@ -389,6 +406,11 @@ impl AppState {
             .map(|row| row.into_message(viewer_id))
             .collect();
         self.attach_message_reactions(&mut messages).await?;
+        if let (Some(cache), Some(ticket)) = (self.redis_cache(), cache_ticket) {
+            if let Err(error) = cache.set_message_history(ticket, &messages).await {
+                tracing::warn!(%room_id, "populate Redis message cache failed: {error:#}");
+            }
+        }
         Ok(messages)
     }
 

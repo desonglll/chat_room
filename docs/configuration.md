@@ -33,6 +33,12 @@ url = "redis://127.0.0.1:6379/"
 key_prefix = "chat-room"
 connect_timeout_ms = 1500
 command_timeout_ms = 500
+message_ttl_secs = 30
+
+[work_queue]
+message_concurrency = 32
+upload_concurrency = 4
+wait_timeout_secs = 30
 
 [admin]
 usernames = []
@@ -69,11 +75,32 @@ storage setting.
 `database.kind` accepts `sqlite` or `postgres`. The CLI `--database-type` and
 `--database` options override the selected backend and connection path/URL.
 
-Redis is an optional cache for bearer-session lookups; PostgreSQL/SQLite
-remains the source of truth. Set `redis.enabled = true`, or set
-`CHAT_ROOM_REDIS_URL`, to enable it. Startup falls back to direct database
-reads if Redis is temporarily unavailable. Profile, password, avatar, logout,
-and account-deletion changes invalidate affected cached sessions.
+Redis is an optional read-through cache for bearer-session lookups and paged
+message history; PostgreSQL/SQLite remains the source of truth. Set
+`redis.enabled = true`, or set `CHAT_ROOM_REDIS_URL`, to enable it. Startup and
+request handling fall back to direct database reads if Redis is unavailable.
+The supplied Compose file binds Redis only to `127.0.0.1:6379`, so both the
+containerized service and a local `cargo run` can use the same cache without
+exposing Redis on the network.
+Message writes, edits, recalls, reactions, forwards, and attachment messages
+advance a per-room cache version, so stale pages stop being addressable without
+an expensive key scan. `message_ttl_secs` bounds memory used by old versions.
+Profile, password, avatar, logout, and account-deletion changes invalidate
+affected cached sessions.
+
+`work_queue` applies fair, bounded admission to durable message writes and file
+I/O. Requests wait for a permit for at most `wait_timeout_secs`; HTTP uploads
+then return `503` and resumable chunks include their last confirmed byte offset.
+The browser can retry without duplicating messages or restarting files.
+
+The queue deliberately does not put chat messages or file bodies in RabbitMQ.
+Messages already enter the database with a unique client message id before the
+WebSocket poller publishes them, and upload sessions persist every confirmed
+offset while bytes remain in local staging. Adding a broker in front would
+create a second source of truth and a database/broker dual-write failure mode;
+large attachment payloads are also unsuitable broker messages. The database,
+staging files, and resumable session rows provide crash recovery, while the
+fair admission queue provides overload control.
 
 ## Complete PostgreSQL backup and restore
 

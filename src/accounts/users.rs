@@ -128,8 +128,8 @@ impl AppState {
             user,
             expires_at,
         };
-        if let Some(cache) = self.session_cache() {
-            if let Err(error) = cache.set(token, &session.user, expires_at).await {
+        if let Some(cache) = self.redis_cache() {
+            if let Err(error) = cache.set_session(token, &session.user, expires_at).await {
                 tracing::warn!("cache newly created session failed: {error:#}");
             }
         }
@@ -137,8 +137,8 @@ impl AppState {
     }
 
     pub async fn session_user(&self, token: Uuid) -> Result<Option<User>, sqlx::Error> {
-        if let Some(cache) = self.session_cache() {
-            match cache.get(token).await {
+        if let Some(cache) = self.redis_cache() {
+            match cache.get_session(token).await {
                 Ok(Some(user)) => return Ok(Some(user)),
                 Ok(None) => {}
                 Err(error) => tracing::warn!("read Redis session cache failed: {error:#}"),
@@ -156,8 +156,8 @@ impl AppState {
             .fetch_optional(pool)
             .await
         })?;
-        if let (Some(cache), Some(row)) = (self.session_cache(), row.as_ref()) {
-            if let Err(error) = cache.set(token, &row.user(), row.expires_at).await {
+        if let (Some(cache), Some(row)) = (self.redis_cache(), row.as_ref()) {
+            if let Err(error) = cache.set_session(token, &row.user(), row.expires_at).await {
                 tracing::warn!("populate Redis session cache failed: {error:#}");
             }
         }
@@ -274,8 +274,8 @@ impl AppState {
                 .fetch_optional(pool)
                 .await
         })?;
-        if let (Some(cache), Some(user_id)) = (self.session_cache(), user_id) {
-            if let Err(error) = cache.delete(token, user_id).await {
+        if let (Some(cache), Some(user_id)) = (self.redis_cache(), user_id) {
+            if let Err(error) = cache.delete_session(token, user_id).await {
                 tracing::warn!("delete Redis session cache failed: {error:#}");
             }
         }
@@ -283,8 +283,8 @@ impl AppState {
     }
 
     pub(crate) async fn invalidate_user_sessions(&self, user_id: Uuid) {
-        if let Some(cache) = self.session_cache() {
-            if let Err(error) = cache.delete_user(user_id).await {
+        if let Some(cache) = self.redis_cache() {
+            if let Err(error) = cache.delete_user_sessions(user_id).await {
                 tracing::warn!("invalidate Redis user sessions failed: {error:#}");
             }
         }

@@ -4,6 +4,12 @@ import { favoriteKindLabel, matchesFavoriteFilter } from './favoriteView'
 
 const base: FavoriteItem = {
   id: 'favorite-1',
+  owner_id: 'user-1',
+  owner_username: 'ada',
+  owner_display_name: 'Ada',
+  access: 'owner',
+  version: 1,
+  collaborator_count: 0,
   kind: 'message',
   title: '',
   content: 'hello',

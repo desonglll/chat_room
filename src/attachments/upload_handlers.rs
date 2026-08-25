@@ -190,6 +190,11 @@ pub async fn upload_chunk(
             session.received_bytes,
         ));
     }
+    let _permit = state
+        .work_queue()
+        .upload()
+        .await
+        .map_err(|_| chunk_error(StatusCode::SERVICE_UNAVAILABLE, session.received_bytes))?;
 
     match state
         .attachment_store()
@@ -267,6 +272,11 @@ pub async fn complete_upload(
     if content.chars().count() > MAX_MESSAGE_CHARS {
         return Err(StatusCode::BAD_REQUEST);
     }
+    let _permit = state
+        .work_queue()
+        .upload()
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
 
     let display_name = state.resolve_display_name(session.room_id, &user).await;
     let streamed_hash = state
@@ -324,6 +334,7 @@ pub async fn complete_upload(
         Ok(message) => {
             state.upload_hashes().remove(upload_id).await;
             let _ = state.finish_attachment_upload(upload_id, "completed").await;
+            state.invalidate_message_cache(session.room_id).await;
             state
                 .broadcast(session.room_id, stored_message_to_chat(message.clone()))
                 .await;

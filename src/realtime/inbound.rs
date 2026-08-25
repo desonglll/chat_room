@@ -50,6 +50,10 @@ pub async fn handle_client_message(
                 tracing::warn!("ignored invalid message from {}", user.username);
                 return;
             };
+            let Ok(_permit) = state.work_queue().message().await else {
+                tracing::warn!(%room_id, user_id = %user.id, "message write queue timed out");
+                return;
+            };
             let display_name = state.resolve_display_name(room_id, user).await;
             state
                 .broadcast(
@@ -115,6 +119,10 @@ pub async fn handle_client_message(
             let Some(content) = normalize_message(content) else {
                 return;
             };
+            let Ok(_permit) = state.work_queue().message().await else {
+                tracing::warn!(%room_id, user_id = %user.id, "message edit queue timed out");
+                return;
+            };
             match state
                 .edit_message(room_id, user.id, message_id, &content)
                 .await
@@ -148,6 +156,10 @@ pub async fn handle_client_message(
                 .await;
         }
         ChatMessage::Read { message_id } => {
+            let Ok(_permit) = state.work_queue().message().await else {
+                tracing::warn!(%room_id, user_id = %user.id, "read cursor queue timed out");
+                return;
+            };
             match state.store_read_cursor(room_id, user.id, message_id).await {
                 Ok(true) => {
                     state
@@ -194,6 +206,10 @@ pub async fn handle_client_message(
                 .await;
         }
         ChatMessage::Recall { message_id } => {
+            let Ok(_permit) = state.work_queue().message().await else {
+                tracing::warn!(%room_id, user_id = %user.id, "message recall queue timed out");
+                return;
+            };
             match state.recall_message(room_id, user.id, message_id).await {
                 Ok(Some(recalled_at)) => {
                     state
@@ -214,26 +230,32 @@ pub async fn handle_client_message(
             message_id,
             emoji,
             active,
-        } => match state
-            .set_message_reaction(room_id, user.id, message_id, &emoji, active)
-            .await
-        {
-            Ok(true) => {
-                state
-                    .broadcast(
-                        room_id,
-                        ChatMessage::ReactionChanged {
-                            message_id,
-                            emoji,
-                            user_id: user.id,
-                            active,
-                        },
-                    )
-                    .await;
+        } => {
+            let Ok(_permit) = state.work_queue().message().await else {
+                tracing::warn!(%room_id, user_id = %user.id, "message reaction queue timed out");
+                return;
+            };
+            match state
+                .set_message_reaction(room_id, user.id, message_id, &emoji, active)
+                .await
+            {
+                Ok(true) => {
+                    state
+                        .broadcast(
+                            room_id,
+                            ChatMessage::ReactionChanged {
+                                message_id,
+                                emoji,
+                                user_id: user.id,
+                                active,
+                            },
+                        )
+                        .await;
+                }
+                Ok(false) => {}
+                Err(error) => tracing::warn!("update message reaction failed: {}", error),
             }
-            Ok(false) => {}
-            Err(error) => tracing::warn!("update message reaction failed: {}", error),
-        },
+        }
         _ => {}
     }
 }

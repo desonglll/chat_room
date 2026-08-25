@@ -77,8 +77,20 @@ impl AppState {
         self.config.auth.session_lifetime_days
     }
 
-    pub(crate) fn session_cache(&self) -> Option<&crate::cache::SessionCache> {
-        self.session_cache.as_ref()
+    pub(crate) fn redis_cache(&self) -> Option<&crate::cache::RedisCache> {
+        self.redis_cache.as_ref()
+    }
+
+    pub(crate) async fn invalidate_message_cache(&self, room_id: uuid::Uuid) {
+        if let Some(cache) = self.redis_cache() {
+            if let Err(error) = cache.invalidate_message_history(room_id).await {
+                tracing::warn!(%room_id, "invalidate Redis message cache failed: {error:#}");
+            }
+        }
+    }
+
+    pub(crate) fn work_queue(&self) -> &crate::work_queue::WorkQueue {
+        &self.work_queue
     }
 
     pub fn chunk_body_limit_bytes(&self) -> usize {

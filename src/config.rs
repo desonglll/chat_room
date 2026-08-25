@@ -13,6 +13,10 @@ use anyhow::{bail, Context, Result};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
+mod performance;
+
+pub use performance::{RedisConfig, WorkQueueConfig};
+
 pub const DEFAULT_MAX_UPLOAD_MIB: u64 = 512;
 const BYTES_PER_MIB: u64 = 1024 * 1024;
 
@@ -27,28 +31,7 @@ pub struct AppConfig {
     pub auth: AuthConfig,
     pub admin: AdminConfig,
     pub redis: RedisConfig,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(default)]
-pub struct RedisConfig {
-    pub enabled: bool,
-    pub url: String,
-    pub key_prefix: String,
-    pub connect_timeout_ms: u64,
-    pub command_timeout_ms: u64,
-}
-
-impl Default for RedisConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            url: "redis://127.0.0.1:6379/".into(),
-            key_prefix: "chat-room".into(),
-            connect_timeout_ms: 1500,
-            command_timeout_ms: 500,
-        }
-    }
+    pub work_queue: WorkQueueConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -276,6 +259,15 @@ impl AppConfig {
         if self.redis.connect_timeout_ms == 0 || self.redis.command_timeout_ms == 0 {
             bail!("redis timeouts must be greater than zero");
         }
+        if self.redis.message_ttl_secs == 0 || self.redis.message_ttl_secs > 3600 {
+            bail!("redis.message_ttl_secs must be between 1 and 3600");
+        }
+        if self.work_queue.message_concurrency == 0 || self.work_queue.upload_concurrency == 0 {
+            bail!("work_queue concurrency limits must be greater than zero");
+        }
+        if self.work_queue.wait_timeout_secs == 0 || self.work_queue.wait_timeout_secs > 300 {
+            bail!("work_queue.wait_timeout_secs must be between 1 and 300");
+        }
         if self
             .admin
             .usernames
@@ -387,6 +379,20 @@ mod tests {
         assert_eq!(config.ai.suggest_cooldown_secs, 10);
         assert_eq!(config.uploads.chunk_size_mib, 8);
         assert_eq!(config.uploads.abandoned_upload_gc_hours, 24);
+        assert_eq!(config.redis.message_ttl_secs, 30);
+        assert_eq!(config.work_queue.message_concurrency, 32);
+        assert_eq!(config.work_queue.upload_concurrency, 4);
+        assert_eq!(config.work_queue.wait_timeout_secs, 30);
+    }
+
+    #[test]
+    fn rejects_invalid_cache_and_work_queue_limits() {
+        let invalid_cache: AppConfig = toml::from_str("[redis]\nmessage_ttl_secs = 0").unwrap();
+        assert!(invalid_cache.validate().is_err());
+
+        let invalid_queue: AppConfig =
+            toml::from_str("[work_queue]\nupload_concurrency = 0").unwrap();
+        assert!(invalid_queue.validate().is_err());
     }
 
     #[test]

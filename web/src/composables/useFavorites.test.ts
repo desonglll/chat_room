@@ -6,6 +6,12 @@ import { useFavorites } from './useFavorites'
 const originalFetch = globalThis.fetch
 const favorite: FavoriteItem = {
   id: 'favorite-1',
+  owner_id: 'user-1',
+  owner_username: 'alice',
+  owner_display_name: '',
+  access: 'owner',
+  version: 1,
+  collaborator_count: 0,
   kind: 'message',
   title: '',
   content: 'hello',

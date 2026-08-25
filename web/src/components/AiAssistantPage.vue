@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { ArrowLeft, Bot, CheckCheck, ListChecks, Send, Sparkles } from 'lucide-vue-next'
+import { ArrowLeft, Bot, CheckCheck, Hash, ListChecks, Send, Sparkles, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
-import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { queryConversation } from '../assistantApi'
-import { parseAssistantPrompt } from '../assistantMentions'
+import {
+  activeConversationMention,
+  conversationMentionCandidates,
+  insertConversationMention,
+  parseAssistantPrompt,
+  type ConversationMentionRange,
+  type MentionableConversation,
+} from '../assistantMentions'
 import { readRoomPassword } from '../roomPasswordVault'
 import type { AiConversationTurn, AiRuntimeStatus, Room } from '../types'
 
@@ -27,21 +33,82 @@ const emit = defineEmits<{ back: []; error: [message: string] }>()
 
 const selectedRoomId = ref('')
 const roomPassword = ref('')
-const prompt = ref('@AI助手 ')
+const prompt = ref('')
 const thread = ref<ThreadMessage[]>([])
 const loading = ref(false)
 const threadElement = ref<HTMLElement | null>(null)
+const promptInput = ref<{ $el?: HTMLTextAreaElement } | null>(null)
+const mentionRange = ref<ConversationMentionRange | null>(null)
+const mentionIndex = ref(0)
 const availableRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
 const selectedRoom = computed(() => availableRooms.value.find((room) => room.id === selectedRoomId.value) || null)
 const mentionableRooms = computed(() => availableRooms.value.map((room) => ({ roomId: room.id, title: room.name })))
+const mentionCandidates = computed(() => conversationMentionCandidates(mentionRange.value, mentionableRooms.value))
 const aiReady = computed(() => props.aiStatus === 'ready')
 
 function selectRoom(roomId: string): void {
+  if (roomId === selectedRoomId.value) return
   selectedRoomId.value = roomId
   thread.value = []
   const room = availableRooms.value.find((candidate) => candidate.id === roomId)
   roomPassword.value = room?.has_password ? readRoomPassword(room.id, props.rememberRoomPasswords) : ''
-  prompt.value = room ? `@AI助手 @${room.name} ` : '@AI助手 '
+}
+
+function clearRoom(): void {
+  selectedRoomId.value = ''
+  roomPassword.value = ''
+  thread.value = []
+}
+
+function updateMention(value: string, caret: number): void {
+  mentionRange.value = activeConversationMention(value, caret, mentionableRooms.value)
+  mentionIndex.value = Math.min(mentionIndex.value, Math.max(0, mentionCandidates.value.length - 1))
+}
+
+function handlePromptInput(event: Event): void {
+  const textarea = event.target as HTMLTextAreaElement
+  prompt.value = textarea.value
+  updateMention(textarea.value, textarea.selectionStart)
+}
+
+function chooseConversation(conversation: MentionableConversation): void {
+  if (!mentionRange.value) return
+  const inserted = insertConversationMention(prompt.value, mentionRange.value, conversation)
+  prompt.value = inserted.value
+  mentionRange.value = null
+  mentionIndex.value = 0
+  selectRoom(conversation.roomId)
+  void nextTick(() => {
+    const textarea = promptInput.value?.$el
+    textarea?.focus()
+    textarea?.setSelectionRange(inserted.caret, inserted.caret)
+  })
+}
+
+function handlePromptKeydown(event: KeyboardEvent): void {
+  if (mentionRange.value && mentionCandidates.value.length) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const offset = event.key === 'ArrowDown' ? 1 : -1
+      mentionIndex.value =
+        (mentionIndex.value + offset + mentionCandidates.value.length) % mentionCandidates.value.length
+      return
+    }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      chooseConversation(mentionCandidates.value[mentionIndex.value])
+      return
+    }
+  }
+  if (event.key === 'Escape' && mentionRange.value) {
+    event.preventDefault()
+    mentionRange.value = null
+    return
+  }
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault()
+    void submit()
+  }
 }
 
 function historyFor(roomId: string): AiConversationTurn[] {
@@ -56,9 +123,7 @@ async function scrollToLatest(): Promise<void> {
 
 async function submit(quickQuestion = ''): Promise<void> {
   if (loading.value || !aiReady.value) return
-  const source = quickQuestion
-    ? `@AI助手 ${selectedRoom.value ? `@${selectedRoom.value.name} ` : ''}${quickQuestion}`
-    : prompt.value
+  const source = quickQuestion ? quickQuestion : prompt.value
   const parsed = parseAssistantPrompt(source, mentionableRooms.value, selectedRoomId.value)
   const room = availableRooms.value.find((candidate) => candidate.id === parsed.roomId)
   if (!room) {
@@ -73,7 +138,8 @@ async function submit(quickQuestion = ''): Promise<void> {
     roomPassword.value = room.has_password ? readRoomPassword(room.id, props.rememberRoomPasswords) : ''
   }
   thread.value.push({ id: crypto.randomUUID(), role: 'user', content: parsed.question, roomTitle: room.name })
-  prompt.value = `@AI助手 @${room.name} `
+  prompt.value = ''
+  mentionRange.value = null
   loading.value = true
   await scrollToLatest()
   try {
@@ -125,17 +191,26 @@ async function submit(quickQuestion = ''): Promise<void> {
       class="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-rows-[auto_minmax(0,1fr)_auto] px-4 pb-4 sm:px-7 sm:pb-6"
     >
       <div class="flex flex-wrap items-center gap-2 border-b border-surface-200 py-3">
-        <Select
-          :model-value="selectedRoomId"
-          :options="availableRooms"
-          option-label="name"
-          option-value="id"
-          filter
-          placeholder="选择会话"
-          class="min-w-52 flex-1 sm:max-w-80"
-          :disabled="loading"
-          @update:model-value="selectRoom($event)"
-        />
+        <div
+          v-if="selectedRoom"
+          class="mr-auto flex min-h-9 items-center gap-2 rounded-md bg-surface-100 px-2.5 text-sm"
+        >
+          <Hash :size="15" class="text-primary" />
+          <span class="max-w-48 truncate">{{ selectedRoom.name }}</span>
+          <Button
+            text
+            rounded
+            severity="secondary"
+            aria-label="清除当前会话"
+            title="清除当前会话"
+            class="size-7! p-0!"
+            :disabled="loading"
+            @click="clearRoom"
+          >
+            <X :size="14" />
+          </Button>
+        </div>
+        <p v-else class="mr-auto text-xs text-muted-color">在输入框输入 @ 选择会话</p>
         <Password
           v-if="selectedRoom?.has_password"
           v-model="roomPassword"
@@ -180,7 +255,7 @@ async function submit(quickQuestion = ''): Promise<void> {
         <div v-if="!thread.length" class="grid min-h-full place-items-center text-center text-muted-color">
           <div>
             <Bot :size="34" class="mx-auto opacity-35" />
-            <p class="mt-3 text-sm">{{ selectedRoom ? '可以开始提问' : '尚未选择会话' }}</p>
+            <p class="mt-3 text-sm">{{ selectedRoom ? '可以开始提问' : '输入 @ 选择需要分析的会话' }}</p>
           </div>
         </div>
         <ol v-else class="space-y-5">
@@ -221,18 +296,46 @@ async function submit(quickQuestion = ''): Promise<void> {
       </div>
 
       <form class="flex items-end gap-2 border-t border-surface-200 pt-3" @submit.prevent="submit()">
-        <Textarea
-          v-model="prompt"
-          auto-resize
-          rows="2"
-          maxlength="4000"
-          fluid
-          class="max-h-32 min-h-12 flex-1"
-          placeholder="@AI助手 @会话名称 输入问题"
-          :disabled="loading || !aiReady"
-          @keydown.meta.enter.prevent="submit()"
-          @keydown.ctrl.enter.prevent="submit()"
-        />
+        <div class="relative min-w-0 flex-1">
+          <div
+            v-if="mentionRange"
+            class="absolute bottom-[calc(100%+0.5rem)] left-0 z-20 w-[min(24rem,100%)] overflow-hidden rounded-md border border-surface-200 bg-surface-0 shadow-lg"
+          >
+            <p class="border-b border-surface-200 px-3 py-2 text-xs font-medium text-muted-color">选择会话</p>
+            <ul v-if="mentionCandidates.length" role="listbox" class="max-h-64 overflow-y-auto p-1">
+              <li v-for="(room, index) in mentionCandidates" :key="room.roomId" role="option">
+                <button
+                  type="button"
+                  class="flex min-h-10 w-full items-center gap-2 rounded-sm px-2 text-left text-sm"
+                  :class="index === mentionIndex ? 'bg-primary-50 text-primary' : 'hover:bg-surface-100'"
+                  :aria-selected="index === mentionIndex"
+                  @mousedown.prevent="chooseConversation(room)"
+                >
+                  <Hash :size="15" class="shrink-0" />
+                  <span class="truncate">{{ room.title }}</span>
+                </button>
+              </li>
+            </ul>
+            <p v-else class="px-3 py-5 text-center text-sm text-muted-color">没有匹配的会话</p>
+          </div>
+          <Textarea
+            ref="promptInput"
+            v-model="prompt"
+            auto-resize
+            rows="2"
+            maxlength="4000"
+            fluid
+            class="max-h-32 min-h-12"
+            placeholder="输入 @ 选择会话，然后提出问题"
+            :disabled="loading || !aiReady"
+            aria-label="向 AI 助手提问"
+            aria-autocomplete="list"
+            :aria-expanded="Boolean(mentionRange)"
+            @input="handlePromptInput"
+            @click="handlePromptInput"
+            @keydown="handlePromptKeydown"
+          />
+        </div>
         <Button
           type="submit"
           rounded
