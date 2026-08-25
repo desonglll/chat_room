@@ -19,6 +19,11 @@ describe('mobile workspace layout contract', () => {
     expect(workspace).toContain('.cr-sidebar--nav-only')
   })
 
+  test('does not let the mobile navigation shell cover an open room', () => {
+    const workspace = source('./workspace.css')
+    expect(workspace).toMatch(/\.cr-sidebar--nav-only\s*{[^}]*background:\s*transparent;/s)
+  })
+
   test('uses compact scrollable AI controls instead of a fixed-height thread panel', () => {
     expect(source('./components/AiAssistantPage.vue')).toContain('grid-rows-[auto_minmax(0,1fr)]')
     expect(source('./components/AiAssistantToolbar.vue')).toContain('overflow-x-auto')
