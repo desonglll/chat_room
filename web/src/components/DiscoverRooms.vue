@@ -6,7 +6,7 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import { listDiscoverableRooms } from '../api'
+import { listDiscoverableRooms } from '../roomDiscoveryApi'
 import { avatarColor } from '../avatarColor'
 import type { Room, User } from '../types'
 

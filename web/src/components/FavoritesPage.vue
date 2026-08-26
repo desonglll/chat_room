@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -11,22 +11,18 @@ import {
   Pencil,
   Plus,
   Trash2,
-  UserMinus,
-  UserPlus,
   Users,
 } from 'lucide-vue-next'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Select from 'primevue/select'
 import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
-import Textarea from 'primevue/textarea'
 import type { FavoriteCollaborator, FavoriteForwardResult, FavoriteItem, Room, SocialUser, User } from '../types'
 import { favoriteKindLabel, matchesFavoriteFilter, type FavoriteFilter } from '../favoriteView'
+import FavoriteCollaborationDialog from './FavoriteCollaborationDialog.vue'
 import FavoriteCreateDialog from './FavoriteCreateDialog.vue'
+import FavoriteEditDialog from './FavoriteEditDialog.vue'
+import FavoriteForwardDialog from './FavoriteForwardDialog.vue'
 import MarkdownContent from './MarkdownContent.vue'
 import MessageAttachment from './MessageAttachment.vue'
 
@@ -54,15 +50,8 @@ const router = useRouter()
 const filter = ref<FavoriteFilter>('all')
 const createOpen = ref(false)
 const forwardItem = ref<FavoriteItem | null>(null)
-const editItem = ref<FavoriteItem | null>(null)
+const editItemId = ref('')
 const collaborationItem = ref<FavoriteItem | null>(null)
-const collaborators = ref<FavoriteCollaborator[]>([])
-const selectedFriendId = ref('')
-const collaboratorsLoading = ref(false)
-const editTitle = ref('')
-const editContent = ref('')
-const selectedRoomIds = ref<string[]>([])
-const busy = ref(false)
 const filters = [
   { label: '全部', value: 'all' },
   { label: '文件', value: 'file' },
@@ -70,11 +59,7 @@ const filters = [
   { label: '手动', value: 'manual' },
 ]
 const visibleItems = computed(() => props.items.filter((item) => matchesFavoriteFilter(item, filter.value)))
-const targetRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
-const availableFriends = computed(() => {
-  const existing = new Set(collaborators.value.map((collaborator) => collaborator.user_id))
-  return props.friends.filter((friend) => friend.id !== collaborationItem.value?.owner_id && !existing.has(friend.id))
-})
+const editItem = computed(() => props.items.find((item) => item.id === editItemId.value) || null)
 onMounted(() => void props.refresh())
 
 function formatDate(value: string): string {
@@ -106,13 +91,11 @@ async function remove(item: FavoriteItem): Promise<void> {
 }
 
 function openEdit(item: FavoriteItem): void {
-  editItem.value = item
-  editTitle.value = item.title
-  editContent.value = item.content
+  editItemId.value = item.id
 }
 
 function closeEdit(): void {
-  editItem.value = null
+  editItemId.value = ''
   if (route.query.edit) void router.replace({ query: { ...route.query, edit: undefined } }).catch(() => {})
 }
 
@@ -121,101 +104,17 @@ watch(
   ([value]) => {
     const id = Array.isArray(value) ? value[0] : value
     const item = id ? props.items.find((candidate) => candidate.id === id) : null
-    if (item && editItem.value?.id !== item.id) openEdit(item)
+    if (item && editItemId.value !== item.id) openEdit(item)
   },
   { immediate: true },
 )
 
-async function submitEdit(): Promise<void> {
-  if (!editItem.value) return
-  busy.value = true
-  try {
-    await props.update(editItem.value.id, editItem.value.version, editTitle.value, editContent.value)
-    closeEdit()
-    emit('success', '收藏已更新')
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : '更新收藏失败'
-    if (message.includes('其他协作者') && editItem.value) {
-      const id = editItem.value.id
-      await nextTick()
-      editItem.value = props.items.find((item) => item.id === id) || null
-    }
-    emit('error', message)
-  } finally {
-    busy.value = false
-  }
-}
-
-async function openCollaboration(item: FavoriteItem): Promise<void> {
+function openCollaboration(item: FavoriteItem): void {
   collaborationItem.value = item
-  selectedFriendId.value = ''
-  collaboratorsLoading.value = true
-  try {
-    collaborators.value = await props.listCollaborators(item.id)
-  } catch (caught) {
-    collaborationItem.value = null
-    emit('error', caught instanceof Error ? caught.message : '读取协作者失败')
-  } finally {
-    collaboratorsLoading.value = false
-  }
-}
-
-async function addCollaborator(): Promise<void> {
-  if (!collaborationItem.value || !selectedFriendId.value) return
-  busy.value = true
-  try {
-    const collaborator = await props.addCollaborator(collaborationItem.value.id, selectedFriendId.value)
-    collaborators.value = [...collaborators.value, collaborator]
-    selectedFriendId.value = ''
-    emit('success', '协作者已添加')
-  } catch (caught) {
-    emit('error', caught instanceof Error ? caught.message : '添加协作者失败')
-  } finally {
-    busy.value = false
-  }
-}
-
-async function removeCollaborator(collaborator: FavoriteCollaborator): Promise<void> {
-  if (!collaborationItem.value) return
-  const leaving = collaborator.user_id === props.user.id
-  if (!window.confirm(leaving ? '退出这条协作收藏？' : `移除 ${collaborator.display_name || collaborator.username}？`))
-    return
-  try {
-    await props.removeCollaborator(collaborationItem.value.id, collaborator.user_id)
-    collaborators.value = collaborators.value.filter((item) => item.user_id !== collaborator.user_id)
-    if (leaving) collaborationItem.value = null
-    emit('success', leaving ? '已退出协作' : '协作者已移除')
-  } catch (caught) {
-    emit('error', caught instanceof Error ? caught.message : '移除协作者失败')
-  }
 }
 
 function openForward(item: FavoriteItem): void {
-  selectedRoomIds.value = []
   forwardItem.value = item
-}
-
-function toggleRoom(roomId: string): void {
-  selectedRoomIds.value = selectedRoomIds.value.includes(roomId)
-    ? selectedRoomIds.value.filter((id) => id !== roomId)
-    : [...selectedRoomIds.value, roomId]
-}
-
-async function submitForward(): Promise<void> {
-  if (!forwardItem.value || !selectedRoomIds.value.length) return
-  busy.value = true
-  try {
-    const results = await props.forward(forwardItem.value.id, selectedRoomIds.value)
-    const forwarded = results.filter((result) => result.forwarded_message_id).length
-    if (!forwarded) throw new Error('没有可转发的目标会话')
-    forwardItem.value = null
-    emit('changed')
-    emit('success', forwarded === results.length ? '收藏已转发' : `已转发到 ${forwarded} 个会话`)
-  } catch (caught) {
-    emit('error', caught instanceof Error ? caught.message : '转发收藏失败')
-  } finally {
-    busy.value = false
-  }
 }
 </script>
 
@@ -344,132 +243,32 @@ async function submitForward(): Promise<void> {
       @error="emit('error', $event)"
     />
 
-    <Dialog
-      :visible="Boolean(editItem)"
-      modal
-      header="编辑收藏"
-      class="w-[min(92vw,560px)]"
-      :draggable="false"
-      @update:visible="!$event && closeEdit()"
-    >
-      <form class="space-y-4" @submit.prevent="submitEdit">
-        <div>
-          <label for="favorite-edit-title" class="mb-2 block text-sm font-medium">标题</label>
-          <InputText id="favorite-edit-title" v-model="editTitle" maxlength="120" fluid />
-        </div>
-        <div>
-          <label for="favorite-edit-content" class="mb-2 block text-sm font-medium">内容</label>
-          <Textarea id="favorite-edit-content" v-model="editContent" maxlength="8000" rows="9" auto-resize fluid />
-        </div>
-        <p class="text-xs text-muted-color">版本 {{ editItem?.version }} · 保存时会检查其他协作者的修改</p>
-        <div class="flex justify-end gap-2">
-          <Button type="button" label="取消" severity="secondary" text @click="closeEdit" />
-          <Button
-            type="submit"
-            label="保存"
-            :loading="busy"
-            :disabled="editItem?.kind === 'manual' && !editTitle.trim() && !editContent.trim()"
-          />
-        </div>
-      </form>
-    </Dialog>
-
-    <Dialog
-      :visible="Boolean(collaborationItem)"
-      modal
-      header="协作成员"
-      class="w-[min(92vw,500px)]"
-      :draggable="false"
-      @update:visible="!$event && (collaborationItem = null)"
-    >
-      <div v-if="collaborationItem" class="space-y-4">
-        <div class="flex items-center gap-3 rounded-md bg-surface-100 px-3 py-2.5">
-          <span class="grid size-9 shrink-0 place-items-center rounded-full bg-primary-50 text-sm text-primary">
-            {{ collaborationItem.owner_display_name?.[0] || collaborationItem.owner_username[0] }}
-          </span>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium">
-              {{ collaborationItem.owner_display_name || collaborationItem.owner_username }}
-            </p>
-            <p class="text-xs text-muted-color">所有者</p>
-          </div>
-        </div>
-
-        <div v-if="collaborationItem.access === 'owner'" class="flex items-center gap-2">
-          <Select
-            v-model="selectedFriendId"
-            :options="availableFriends"
-            option-value="id"
-            :option-label="(friend) => friend.remark || friend.display_name || friend.username"
-            filter
-            placeholder="选择好友"
-            class="min-w-0 flex-1"
-            :disabled="busy"
-          />
-          <Button aria-label="添加协作者" title="添加协作者" :disabled="!selectedFriendId" @click="addCollaborator">
-            <UserPlus :size="17" />
-          </Button>
-        </div>
-
-        <div v-if="collaboratorsLoading" class="space-y-2"><Skeleton v-for="i in 3" :key="i" height="2.75rem" /></div>
-        <ul v-else class="max-h-72 divide-y divide-surface-200 overflow-y-auto p-0">
-          <li
-            v-for="collaborator in collaborators"
-            :key="collaborator.user_id"
-            class="flex min-h-12 items-center gap-3 py-2"
-          >
-            <span class="grid size-8 shrink-0 place-items-center rounded-full bg-surface-100 text-sm">
-              {{ collaborator.avatar_emoji || collaborator.display_name?.[0] || collaborator.username[0] }}
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium">{{ collaborator.display_name || collaborator.username }}</p>
-              <p class="truncate text-xs text-muted-color">@{{ collaborator.username }} · 可编辑</p>
-            </div>
-            <Button
-              v-if="collaborationItem.access === 'owner' || collaborator.user_id === user.id"
-              text
-              rounded
-              severity="danger"
-              :aria-label="collaborator.user_id === user.id ? '退出协作' : '移除协作者'"
-              :title="collaborator.user_id === user.id ? '退出协作' : '移除'"
-              @click="removeCollaborator(collaborator)"
-            >
-              <UserMinus :size="16" />
-            </Button>
-          </li>
-          <li v-if="!collaborators.length" class="py-7 text-center text-sm text-muted-color">尚未添加协作者</li>
-        </ul>
-      </div>
-    </Dialog>
-
-    <Dialog
-      :visible="Boolean(forwardItem)"
-      modal
-      header="转发收藏"
-      class="w-[min(92vw,420px)]"
-      :draggable="false"
-      @update:visible="!$event && (forwardItem = null)"
-    >
-      <ul class="max-h-72 space-y-1 overflow-y-auto p-0">
-        <li v-for="room in targetRooms" :key="room.id">
-          <label class="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm hover:bg-surface-100"
-            ><Checkbox
-              binary
-              :model-value="selectedRoomIds.includes(room.id)"
-              @update:model-value="toggleRoom(room.id)"
-            /><span class="min-w-0 flex-1 truncate">{{ room.name }}</span></label
-          >
-        </li>
-        <li v-if="!targetRooms.length" class="py-6 text-center text-sm text-muted-color">没有可转发的会话</li>
-      </ul>
-      <div class="mt-5 flex justify-end gap-2 border-t border-surface-200 pt-4">
-        <Button label="取消" severity="secondary" text @click="forwardItem = null" /><Button
-          :disabled="!selectedRoomIds.length"
-          :loading="busy"
-          @click="submitForward"
-          ><Forward :size="17" /><span>转发</span></Button
-        >
-      </div>
-    </Dialog>
+    <FavoriteEditDialog
+      :item="editItem"
+      :update="update"
+      @close="closeEdit"
+      @success="emit('success', $event)"
+      @error="emit('error', $event)"
+    />
+    <FavoriteCollaborationDialog
+      :item="collaborationItem"
+      :user="user"
+      :friends="friends"
+      :list="listCollaborators"
+      :add="addCollaborator"
+      :remove="removeCollaborator"
+      @close="collaborationItem = null"
+      @success="emit('success', $event)"
+      @error="emit('error', $event)"
+    />
+    <FavoriteForwardDialog
+      :item="forwardItem"
+      :rooms="rooms"
+      :forward="forward"
+      @close="forwardItem = null"
+      @changed="emit('changed')"
+      @success="emit('success', $event)"
+      @error="emit('error', $event)"
+    />
   </main>
 </template>

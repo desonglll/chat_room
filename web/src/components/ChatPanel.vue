@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { UploadCloud } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import ChatAccessPanel from './ChatAccessPanel.vue'
+import ChatPanelDialogs from './ChatPanelDialogs.vue'
 import ChatRoomHeader from './ChatRoomHeader.vue'
 import MessageComposer from './MessageComposer.vue'
 import MessageList from './MessageList.vue'
 import MessageSelectionBar from './MessageSelectionBar.vue'
 import RoomConnectingView from './RoomConnectingView.vue'
 import UploadStatusPanel from './UploadStatusPanel.vue'
-import { shouldFocusComposer } from '../composer'
+import { useChatPanelInteractions } from '../composables/useChatPanelInteractions'
+import { useChatPanelMessageActions } from '../composables/useChatPanelMessageActions'
 import { useRoomMessageNavigation } from '../composables/useRoomMessageNavigation'
 import { useMessageSelection } from '../composables/useMessageSelection'
 import { resolveRoomViewState } from '../roomViewState'
@@ -30,10 +32,6 @@ import type {
   User,
 } from '../types'
 import type { DownloadProgress } from '../attachmentDownloads'
-const ChatFilesDialog = defineAsyncComponent(() => import('./ChatFilesDialog.vue'))
-const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
-const ProfileCardDialog = defineAsyncComponent(() => import('./ProfileCardDialog.vue'))
-const RoomMessageSearchDialog = defineAsyncComponent(() => import('./RoomMessageSearchDialog.vue'))
 const RoomPinsBar = defineAsyncComponent(() => import('./RoomPinsBar.vue'))
 const props = defineProps<{
   room: Room | null
@@ -103,17 +101,12 @@ const emit = defineEmits<{
   'update:rememberRoomPasswords': [remember: boolean]
 }>()
 
-const replyingTo = ref<BroadcastMessage | null>(null)
-const editingTo = ref<BroadcastMessage | null>(null)
 const filesOpen = ref(false)
-const previewImageId = ref('')
 const viewProfileUserId = ref('')
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
 const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
 const roomPinsRef = ref<{ toggle: (messageId: string) => Promise<void> } | null>(null)
 const pinnedMessageIds = ref<string[]>([])
-const dragActive = ref(false)
-const shaking = ref(false)
 const viewState = computed(() =>
   resolveRoomViewState({
     room: props.room,
@@ -123,8 +116,6 @@ const viewState = computed(() =>
     messageCount: props.messages.length,
   }),
 )
-let dragDepth = 0
-let shakeTimer: number | undefined
 const router = useRouter()
 const canPin = computed(
   () =>
@@ -153,34 +144,37 @@ const {
   favorite: (messageIds) => emit('favorite', messageIds),
   forward: (messageIds) => emit('forward', messageIds),
 })
-
-watch(
-  () => props.pokedAt,
-  (value) => {
-    if (!value) return
-    shaking.value = false
-    void requestAnimationFrame(() => {
-      shaking.value = true
-      window.clearTimeout(shakeTimer)
-      shakeTimer = window.setTimeout(() => {
-        shaking.value = false
-      }, 600)
-    })
-  },
-)
-const galleryImages = computed(() =>
-  props.messages.flatMap((message) =>
-    message.type === 'broadcast' && message.attachment?.mime_type.startsWith('image/') && !message.recalled_at
-      ? [message.attachment]
-      : [],
-  ),
-)
+const {
+  editMessage,
+  editingTo,
+  recallMessage,
+  replyingTo,
+  resetTargets,
+  sendMessage,
+  startEdit,
+  startReply,
+  uploadFiles,
+} = useChatPanelMessageActions(router, {
+  edit: (messageId, content) => emit('edit', messageId, content),
+  recall: (messageId) => emit('recall', messageId),
+  send: (content, replyTo) => emit('send', content, replyTo),
+  upload: (files, content, replyTo, isSensitive) => emit('upload', files, content, replyTo, isSensitive),
+})
+const { dragActive, galleryImages, handleDragEnter, handleDragLeave, handleDrop, previewImageId, shaking } =
+  useChatPanelInteractions({
+    messages: () => props.messages,
+    pokedAt: () => props.pokedAt,
+    visible: () => props.visible,
+    authenticated: () => props.authenticated,
+    focusShortcut: () => props.focusShortcut,
+    focusComposer: () => composerRef.value?.focus(),
+    addFiles: (files) => composerRef.value?.addFiles(files),
+  })
 
 watch(
   () => props.room?.id,
   () => {
-    replyingTo.value = null
-    editingTo.value = null
+    resetTargets()
     filesOpen.value = false
     pinnedMessageIds.value = []
     previewImageId.value = ''
@@ -188,85 +182,6 @@ watch(
     selectedMessageIds.value = []
   },
 )
-
-function sendMessage(content: string, replyTo: string): void {
-  emit('send', content, replyTo)
-  replyingTo.value = null
-}
-
-function uploadFiles(files: File[], content: string, replyTo: string, isSensitive: boolean): void {
-  emit('upload', files, content, replyTo, isSensitive)
-  replyingTo.value = null
-}
-
-function recallMessage(messageId: string): void {
-  if (replyingTo.value?.message_id === messageId) replyingTo.value = null
-  emit('recall', messageId)
-}
-
-function startReply(message: BroadcastMessage): void {
-  editingTo.value = null
-  replyingTo.value = message
-}
-
-function startEdit(message: BroadcastMessage): void {
-  if (message.favorite_id) {
-    void router.push({ name: 'favorites', query: { edit: message.favorite_id } }).catch(() => {})
-    return
-  }
-  replyingTo.value = null
-  editingTo.value = message
-}
-
-function editMessage(messageId: string, content: string): void {
-  emit('edit', messageId, content)
-  editingTo.value = null
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null
-  return Boolean(element?.closest('input, textarea, select, button, [contenteditable="true"]'))
-}
-
-function handleGlobalKeydown(event: KeyboardEvent): void {
-  if (
-    !props.visible ||
-    !props.authenticated ||
-    !shouldFocusComposer(
-      event,
-      props.focusShortcut,
-      isEditableTarget(event.target),
-      Boolean(document.querySelector('.p-dialog-mask')),
-    )
-  )
-    return
-  event.preventDefault()
-  composerRef.value?.focus()
-}
-
-function handleDragEnter(event: DragEvent): void {
-  if (!event.dataTransfer?.types.includes('Files')) return
-  dragDepth += 1
-  dragActive.value = true
-}
-
-function handleDragLeave(): void {
-  dragDepth = Math.max(0, dragDepth - 1)
-  if (!dragDepth) dragActive.value = false
-}
-
-function handleDrop(event: DragEvent): void {
-  dragDepth = 0
-  dragActive.value = false
-  const files = Array.from(event.dataTransfer?.files || [])
-  if (files.length) composerRef.value?.addFiles(files)
-}
-
-onMounted(() => document.addEventListener('keydown', handleGlobalKeydown))
-onBeforeUnmount(() => {
-  document.removeEventListener('keydown', handleGlobalKeydown)
-  window.clearTimeout(shakeTimer)
-})
 </script>
 
 <template>
@@ -449,36 +364,29 @@ onBeforeUnmount(() => {
         />
       </template>
     </section>
-    <ChatFilesDialog
-      :open="filesOpen"
+    <ChatPanelDialogs
+      :files-open="filesOpen"
+      :search-open="searchOpen"
       :room-id="room?.id || ''"
       :token="token"
       :password="password"
       :downloading="downloading"
       :download-progress="downloadProgress"
-      @close="filesOpen = false"
+      :images="galleryImages"
+      :preview-image-id="previewImageId"
+      :profile-user-id="viewProfileUserId"
+      :profile-room-id="conversation?.kind === 'direct' ? undefined : room?.id"
+      :current-user-id="currentUserId"
+      :contact="contact"
+      :set-friend-remark="setFriendRemark"
+      @close-files="filesOpen = false"
+      @close-search="searchOpen = false"
+      @close-image="previewImageId = ''"
+      @close-profile="viewProfileUserId = ''"
       @download="emit('download', $event)"
       @cancel-download="emit('cancelDownload')"
       @locate-message="locateMessage"
-    />
-    <RoomMessageSearchDialog
-      :open="searchOpen"
-      :room-id="room?.id || ''"
-      :token="token"
-      :password="password"
-      @close="searchOpen = false"
-      @locate="locateSearchResult"
-    />
-    <ImageViewerGallery :images="galleryImages" :active-id="previewImageId" @close="previewImageId = ''" />
-    <ProfileCardDialog
-      :open="Boolean(viewProfileUserId)"
-      :user-id="viewProfileUserId"
-      :token="token"
-      :room-id="conversation?.kind === 'direct' ? undefined : room?.id"
-      :current-user-id="currentUserId"
-      :contact="contact"
-      :set-remark="setFriendRemark"
-      @close="viewProfileUserId = ''"
+      @locate-search="locateSearchResult"
       @remove-friend="emit('removeFriend')"
       @block-user="emit('blockUser')"
     />

@@ -8,7 +8,8 @@ import ComposerContext from './ComposerContext.vue'
 import PendingAttachmentStrip from './PendingAttachmentStrip.vue'
 import { shouldSubmitMessage } from '../composer'
 import { formatUploadLimit } from '../api'
-import { streamAiSuggestions } from '../aiSuggestionApi'
+import { useAiComposerSuggestions } from '../composables/useAiComposerSuggestions'
+import { useComposerMentions } from '../composables/useComposerMentions'
 import type { BroadcastMessage, RoomMember, SendShortcut } from '../types'
 
 const EmojiPicker = defineAsyncComponent(() => import('./EmojiPicker.vue'))
@@ -49,71 +50,42 @@ const draft = ref('')
 const pendingFiles = ref<PendingFile[]>([])
 const pendingFilesSensitive = ref(false)
 const fileError = ref('')
-const mentionQuery = ref<string | null>(null)
-const aiLoading = ref(false)
-const aiError = ref('')
-const aiSummary = ref('')
-// The suggestion currently reflected in `draft` (so a chip click knows what
-// to hand back to the chip row) and the remaining, not-yet-used suggestions.
-const aiCurrent = ref('')
-const aiRemaining = ref<string[]>([])
-let aiTypewriterTimer: number | undefined
-let typewriting = false
-let mentionStart = 0
 let composing = false
 let pendingId = 0
 
-const canSend = computed(() => !props.disabled && Boolean(draft.value.trim() || pendingFiles.value.length))
-const mentionMatches = computed(() => {
-  if (mentionQuery.value === null) return []
-  const query = mentionQuery.value.toLowerCase()
-  return props.participants.filter((member) => member.username.toLowerCase().startsWith(query)).slice(0, 6)
+const {
+  insert: insertMention,
+  matches: mentionMatches,
+  query: mentionQuery,
+  update: updateMentionState,
+} = useComposerMentions({ draft, input: messageInput, participants: () => props.participants })
+
+const {
+  clear: clearAiSuggestions,
+  current: aiCurrent,
+  error: aiError,
+  loading: aiLoading,
+  open: openAiAssistant,
+  remaining: aiRemaining,
+  summary: aiSummary,
+  useSuggestion,
+} = useAiComposerSuggestions({
+  draft,
+  roomId: () => props.roomId,
+  token: () => props.token,
+  password: () => props.password,
+  focusDraftEnd: () => {
+    void nextTick(() => {
+      const input = messageInput.value?.$el
+      input?.focus()
+      input?.setSelectionRange(draft.value.length, draft.value.length)
+    })
+  },
 })
 
-function updateMentionState(): void {
-  const input = messageInput.value?.$el
-  if (!input) {
-    mentionQuery.value = null
-    return
-  }
-  const caret = input.selectionStart ?? draft.value.length
-  const match = draft.value.slice(0, caret).match(/(?:^|\s)@([^\s@]*)$/)
-  if (!match) {
-    mentionQuery.value = null
-    return
-  }
-  mentionStart = caret - match[1].length - 1
-  mentionQuery.value = match[1]
-}
-
-function insertMention(username: string): void {
-  const caret = messageInput.value?.$el.selectionStart ?? draft.value.length
-  const before = draft.value.slice(0, mentionStart)
-  const after = draft.value.slice(caret)
-  const insertion = `@${username} `
-  draft.value = `${before}${insertion}${after}`
-  mentionQuery.value = null
-  void nextTick(() => {
-    const nextInput = messageInput.value?.$el
-    const position = before.length + insertion.length
-    nextInput?.focus()
-    nextInput?.setSelectionRange(position, position)
-  })
-}
+const canSend = computed(() => !props.disabled && Boolean(draft.value.trim() || pendingFiles.value.length))
 
 watch(draft, (content) => emit('typing', content))
-
-// Suggestions are only "live" while the draft still matches what AI put
-// there — any manual edit (including the user retyping over a suggestion)
-// drops the chip row, since it no longer reflects an option the user can
-// swap back in cleanly.
-watch(draft, (content) => {
-  if (typewriting) return
-  if ((aiCurrent.value || aiRemaining.value.length) && content !== aiCurrent.value) {
-    aiCurrent.value = ''
-    aiRemaining.value = []
-  }
-})
 
 watch(
   () => props.replyingTo?.message_id,
@@ -241,77 +213,6 @@ function insertEmoji(emoji: string): void {
   })
 }
 
-function clearAiTypewriter(): void {
-  window.clearInterval(aiTypewriterTimer)
-  aiTypewriterTimer = undefined
-  typewriting = false
-}
-
-function clearAiSuggestions(): void {
-  clearAiTypewriter()
-  aiCurrent.value = ''
-  aiRemaining.value = []
-  aiError.value = ''
-  aiSummary.value = ''
-}
-
-// Reveals `text` into `draft` a few characters at a time — the "something is
-// typing" feel the AI reply is meant to have, rather than appearing instantly.
-function typewriteIntoDraft(text: string): void {
-  clearAiTypewriter()
-  typewriting = true
-  draft.value = ''
-  let index = 0
-  aiTypewriterTimer = window.setInterval(() => {
-    index = Math.min(text.length, index + 2)
-    draft.value = text.slice(0, index)
-    if (index >= text.length) clearAiTypewriter()
-  }, 16)
-}
-
-async function openAiAssistant(): Promise<void> {
-  if (aiLoading.value) return
-  aiError.value = ''
-  aiSummary.value = ''
-  aiCurrent.value = ''
-  aiRemaining.value = []
-  aiLoading.value = true
-  try {
-    await streamAiSuggestions(props.roomId, props.token, props.password, (item) => {
-      if (item.type === 'summary') {
-        aiSummary.value = item.content
-        return
-      }
-      if (!aiCurrent.value) {
-        aiCurrent.value = item.content
-        typewriteIntoDraft(item.content)
-      } else if (item.content !== aiCurrent.value && !aiRemaining.value.includes(item.content)) {
-        aiRemaining.value.push(item.content)
-      }
-    })
-  } catch (error) {
-    aiError.value = error instanceof Error ? error.message : 'AI 助手不可用'
-  } finally {
-    aiLoading.value = false
-  }
-}
-
-// Swaps a chip into the draft, trading places with whatever suggestion was
-// there before — so the user can keep cycling between options.
-function useSuggestion(suggestion: string, index: number): void {
-  clearAiTypewriter()
-  const rest = aiRemaining.value.filter((_, candidate) => candidate !== index)
-  if (aiCurrent.value) rest.unshift(aiCurrent.value)
-  aiRemaining.value = rest
-  aiCurrent.value = suggestion
-  draft.value = suggestion
-  void nextTick(() => {
-    const input = messageInput.value?.$el
-    input?.focus()
-    input?.setSelectionRange(draft.value.length, draft.value.length)
-  })
-}
-
 function onCompositionStart(): void {
   composing = true
 }
@@ -344,7 +245,6 @@ function cancelEditing(): void {
 
 onBeforeUnmount(() => {
   clearFiles()
-  clearAiTypewriter()
 })
 
 defineExpose({ addFiles, focus })

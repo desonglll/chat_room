@@ -1,5 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
-import { listRoomMessageContext, listRoomMessages, storedMessageToBroadcast } from '../api'
+import { storedMessageToBroadcast } from '../api'
+import { listRoomMessageContext, listRoomMessages } from '../roomMessagesApi'
 import type { DisplayMessage, Room } from '../types'
 
 interface RoomHistoryOptions {

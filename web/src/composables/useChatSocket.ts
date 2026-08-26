@@ -1,11 +1,11 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { mergeIncomingBroadcast } from '../chatIncoming'
-import { createOptimisticMessage, updateDeliveryState } from '../chatOptimistic'
+import { updateDeliveryState } from '../chatOptimistic'
 import { AUTH_ERRORS, readableSystemMessage, type ServerMessage } from '../chatProtocol'
 import { classifyMessageMotion, classifySystemMotion } from '../messageMotion'
 import { applyMessageReaction } from '../messageReactions'
-import { createRandomUuid } from '../randomUuid'
 import { useChatUploadMessages } from './useChatUploadMessages'
+import { useChatSocketCommands } from './useChatSocketCommands'
 import type { BroadcastMessage, ChatStatus, DisplayMessage, ReadReceipt, Room, RoomMember, TypingDraft } from '../types'
 
 interface ReconnectTarget {
@@ -34,8 +34,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   let reconnectAttempt = 0
   let reconnectEnabled = false
   let systemMessageId = 0
-  let typingTimer: number | undefined
-  let pendingTyping = ''
   const typingExpiry = new Map<string, number>()
   const deliveryTimers = new Map<string, number>()
   const uploadMessages = useChatUploadMessages(messages, (message) => appendBroadcast(message, false))
@@ -50,6 +48,15 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
         failed: '认证失败',
       })[status.value],
   )
+  const { clearTyping, ...outboundCommands } = useChatSocketCommands({
+    socket: () => socket,
+    authenticated: () => authenticated.value,
+    messages,
+    participants,
+    currentUserId,
+    deliveryTimers,
+    clearDeliveryTimer,
+  })
 
   function clearHandshakeTimer(): void {
     window.clearTimeout(handshakeTimer)
@@ -102,6 +109,7 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     members.value = []
     participants.value = []
     readReceipts.value = []
+    clearTyping()
     clearTypingDrafts()
   }
 
@@ -249,9 +257,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
   }
 
   function clearTypingDrafts(): void {
-    window.clearTimeout(typingTimer)
-    typingTimer = undefined
-    pendingTyping = ''
     for (const timer of typingExpiry.values()) window.clearTimeout(timer)
     typingExpiry.clear()
     typingDrafts.value = []
@@ -365,98 +370,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     openSocket(reconnectTarget)
   }
 
-  function send(content: string, replyTo = ''): boolean {
-    const normalized = content.trim()
-    if (!normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    const clientMessageId = createRandomUuid()
-    const optimistic = createOptimisticMessage({
-      clientMessageId,
-      content: normalized,
-      replyTo,
-      currentUserId: currentUserId.value,
-      participants: participants.value,
-      messages: messages.value,
-    })
-    messages.value.push(optimistic)
-    transmitOptimistic(optimistic)
-    sendTyping('')
-    return true
-  }
-
-  function transmitOptimistic(message: BroadcastMessage): boolean {
-    if (!message.client_message_id || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(
-      JSON.stringify({
-        type: 'message',
-        content: message.content,
-        reply_to: message.reply_to?.message_id || undefined,
-        client_message_id: message.client_message_id,
-      }),
-    )
-    clearDeliveryTimer(message.client_message_id)
-    deliveryTimers.set(
-      message.client_message_id,
-      window.setTimeout(() => {
-        messages.value = updateDeliveryState(messages.value, message.client_message_id as string, 'failed')
-        deliveryTimers.delete(message.client_message_id as string)
-      }, 10_000),
-    )
-    return true
-  }
-
-  function retry(messageId: string): boolean {
-    const pending = messages.value.find(
-      (message): message is BroadcastMessage =>
-        message.type === 'broadcast' && message.message_id === messageId && message.delivery_state === 'failed',
-    )
-    if (!pending?.client_message_id || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    messages.value = updateDeliveryState(messages.value, pending.client_message_id, 'sending')
-    return transmitOptimistic(pending)
-  }
-
-  function edit(messageId: string, content: string): boolean {
-    const normalized = content.trim()
-    if (!messageId || !normalized || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({ type: 'edit', message_id: messageId, content: normalized }))
-    sendTyping('')
-    return true
-  }
-
-  function flushTyping(): void {
-    typingTimer = undefined
-    if (!authenticated.value || socket?.readyState !== WebSocket.OPEN) return
-    socket.send(JSON.stringify({ type: 'typing', content: pendingTyping }))
-  }
-
-  function sendTyping(content: string): void {
-    pendingTyping = content.slice(0, 512)
-    if (!typingTimer) typingTimer = window.setTimeout(flushTyping, 90)
-  }
-
-  function markRead(messageId: string): boolean {
-    if (!messageId || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({ type: 'read', message_id: messageId }))
-    return true
-  }
-
-  function recall(messageId: string): boolean {
-    if (!messageId || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({ type: 'recall', message_id: messageId }))
-    return true
-  }
-
-  function poke(targetUserId: string): boolean {
-    if (!targetUserId || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({ type: 'poke', target_user_id: targetUserId }))
-    return true
-  }
-
-  function react(messageId: string, emoji: string, active: boolean): boolean {
-    if (!messageId || !emoji || !authenticated.value || socket?.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify({ type: 'reaction', message_id: messageId, emoji, active }))
-    return true
-  }
-
   onBeforeUnmount(() => close())
 
   return {
@@ -478,13 +391,6 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
     prependHistory,
     close,
     connect,
-    edit,
-    markRead,
-    recall,
-    react,
-    retry,
-    poke,
-    send,
-    sendTyping,
+    ...outboundCommands,
   }
 }

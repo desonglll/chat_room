@@ -3,7 +3,7 @@ import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { LoaderCircle, LocateFixed, Search } from 'lucide-vue-next'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
-import { searchRoomMessages } from '../api'
+import { searchRoomMessages } from '../roomMessagesApi'
 import type { StoredMessage } from '../types'
 
 const props = defineProps<{
