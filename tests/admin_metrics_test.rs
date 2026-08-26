@@ -168,12 +168,11 @@ async fn unavailable_vector_store_is_reported_without_stopping_the_server() {
         .json()
         .await
         .unwrap();
-    assert_eq!(overview["services"]["items"][2]["id"], "vector_store");
-    assert_eq!(overview["services"]["items"][2]["state"], "degraded");
-    assert_eq!(overview["services"]["items"][1]["id"], "redis");
-    assert_eq!(overview["services"]["items"][1]["state"], "degraded");
-    assert_eq!(overview["services"]["items"][5]["id"], "ai_provider");
-    assert_eq!(overview["services"]["items"][5]["state"], "degraded");
+    let services = overview["services"]["items"].as_array().unwrap();
+    for id in ["vector_store", "redis", "ai_provider"] {
+        let service = services.iter().find(|item| item["id"] == id).unwrap();
+        assert_eq!(service["state"], "degraded", "service: {id}");
+    }
 }
 
 #[tokio::test]

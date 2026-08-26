@@ -72,7 +72,11 @@ async fn next_event(
             tokio::time::sleep(STREAM_REFRESH).await;
         }
         cursor.ticks += 1;
-        let previous = (cursor.message.revision, cursor.message.status.clone());
+        let previous = (
+            cursor.message.revision,
+            cursor.message.status.clone(),
+            cursor.message.stage.clone(),
+        );
         let cache_hit = refresh_from_redis(&cursor.state, &mut cursor.message).await;
         if (!cache_hit && cursor.ticks.is_multiple_of(DATABASE_REFRESH_TICKS)) || cursor.first {
             if let Ok(Some(message)) = cursor
@@ -84,7 +88,12 @@ async fn next_event(
                 let _ = refresh_from_redis(&cursor.state, &mut cursor.message).await;
             }
         }
-        let changed = previous != (cursor.message.revision, cursor.message.status.clone());
+        let changed = previous
+            != (
+                cursor.message.revision,
+                cursor.message.status.clone(),
+                cursor.message.stage.clone(),
+            );
         if cursor.first || changed {
             cursor.first = false;
             let event = Event::default()
@@ -118,8 +127,11 @@ fn apply_cached_answer(message: &mut AiThreadMessage, answer: CachedAiAnswer) {
     message.context_message_count = Some(answer.context_message_count);
     message.retrieved_message_count = Some(answer.retrieved_message_count);
     message.sources = answer.sources.into();
+    message.trace = answer.trace.into();
     message.revision = answer.revision;
     message.status = answer.status;
+    message.stage = answer.stage;
+    message.stage_started_at = answer.stage_started_at;
     message.updated_at = answer.updated_at;
 }
 

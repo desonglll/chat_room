@@ -146,4 +146,10 @@ fn vector_store_is_opt_in_and_requires_a_complete_embedding_profile() {
     )
     .unwrap();
     assert!(complete.validate().is_ok());
+
+    let incomplete_rerank: AppConfig = toml::from_str(
+        "[vector_store]\nenabled = true\nurl = 'http://qdrant:6333'\ncollection = 'messages'\ndimensions = 1024\nembedding_base_url = 'https://ai.example/v1'\nembedding_model = 'embed-v1'\nrerank_enabled = true",
+    )
+    .unwrap();
+    assert!(incomplete_rerank.validate().is_err());
 }

@@ -6,11 +6,16 @@ use chat_room::{
     state::AppState,
 };
 use chrono::Utc;
+use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use uuid::Uuid;
 
 mod support;
 use support::session_token;
+
+type Socket =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 struct Server {
     base: String,
@@ -64,6 +69,101 @@ async fn create_room(base: &str, token: &str) -> Uuid {
         .await
         .unwrap();
     Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+}
+
+async fn next_type(socket: &mut Socket, expected: &str) -> serde_json::Value {
+    loop {
+        let frame = tokio::time::timeout(std::time::Duration::from_secs(3), socket.next())
+            .await
+            .expect("timed out waiting for WebSocket frame")
+            .expect("WebSocket ended")
+            .expect("WebSocket error");
+        let Message::Text(text) = frame else { continue };
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if value["type"] == expected {
+            return value;
+        }
+    }
+}
+
+async fn open_room(base: &str, room_id: Uuid, token: &str) -> Socket {
+    let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
+    let (mut socket, _) = connect_async(url).await.unwrap();
+    socket
+        .send(Message::Text(
+            serde_json::json!({ "type": "join", "token": token }).to_string(),
+        ))
+        .await
+        .unwrap();
+    let _ = next_type(&mut socket, "auth_ok").await;
+    socket
+}
+
+#[tokio::test]
+async fn message_changes_are_automatically_queued_for_vector_sync() {
+    let server = start().await;
+    let token = session_token(&server.base, "automatic-index-owner").await;
+    let room_id = create_room(&server.base, &token).await;
+    let mut socket = open_room(&server.base, room_id, &token).await;
+    socket
+        .send(Message::Text(
+            serde_json::json!({
+                "type": "message",
+                "content": "first indexed version",
+                "client_message_id": Uuid::new_v4(),
+            })
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+    let sent = next_type(&mut socket, "broadcast").await;
+    let message_id = Uuid::parse_str(sent["message_id"].as_str().unwrap()).unwrap();
+
+    let inserted: (String, i64) = sqlx::query_as(
+        "SELECT operation, generation FROM message_index_outbox WHERE message_id = ?",
+    )
+    .bind(message_id)
+    .fetch_one(server.state.pool())
+    .await
+    .unwrap();
+    assert_eq!(inserted, ("upsert".into(), 1));
+
+    socket
+        .send(Message::Text(
+            serde_json::json!({
+                "type": "edit",
+                "message_id": message_id,
+                "content": "updated indexed version",
+            })
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+    let _ = next_type(&mut socket, "message_edited").await;
+    let edited: (String, i64) = sqlx::query_as(
+        "SELECT operation, generation FROM message_index_outbox WHERE message_id = ?",
+    )
+    .bind(message_id)
+    .fetch_one(server.state.pool())
+    .await
+    .unwrap();
+    assert_eq!(edited, ("upsert".into(), 2));
+
+    socket
+        .send(Message::Text(
+            serde_json::json!({ "type": "recall", "message_id": message_id }).to_string(),
+        ))
+        .await
+        .unwrap();
+    let _ = next_type(&mut socket, "message_recalled").await;
+    let recalled: (String, i64) = sqlx::query_as(
+        "SELECT operation, generation FROM message_index_outbox WHERE message_id = ?",
+    )
+    .bind(message_id)
+    .fetch_one(server.state.pool())
+    .await
+    .unwrap();
+    assert_eq!(recalled, ("delete".into(), 3));
 }
 
 #[tokio::test]

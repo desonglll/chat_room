@@ -6,14 +6,12 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use futures_util::StreamExt;
 use uuid::Uuid;
 
-use super::context::prepare_generation_context;
 use super::handlers::{current_user, internal_error, validate_room_access, DEFAULT_TITLE};
-use super::models::{AiRun, CreateAiRunRequest};
-use super::run_store::{AiRunExecution, CreateRunOutcome};
-use crate::ai::AiStreamItem;
+use super::models::{AiRun, AiRunTraceStep, CreateAiRunRequest};
+use super::pipeline::generate_answer;
+use super::run_store::{AiRunExecution, CreateRunOutcome, FailedAiRun};
 use crate::ai_handlers::room_context_for_user;
 use crate::cache::CachedAiAnswer;
 use crate::state::SharedState;
@@ -51,7 +49,7 @@ pub async fn create_run(
         return Err(StatusCode::BAD_REQUEST);
     }
     let selected_model = state
-        .resolve_ai_model(payload.model_option_id)
+        .resolve_ai_model(payload.model_option_id, thread.thinking_enabled)
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
@@ -180,142 +178,49 @@ async fn execute_run(state: SharedState, run_id: Uuid) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("AI run disappeared after claim"))?;
     if let Err(error) = generate_answer(&state, &execution).await {
         tracing::error!(%run_id, "AI run generation failed: {error:#}");
-        let partial = live_or_persisted_answer(&state, &execution).await;
+        let mut partial = live_or_persisted_answer(&state, &execution).await;
+        let failed_at = chrono::Utc::now();
+        if let Some(step) = partial.trace.last_mut() {
+            step.completed_at.get_or_insert(failed_at);
+        }
+        partial.trace.push(AiRunTraceStep {
+            key: "run_failed".into(),
+            label: "请求失败".into(),
+            detail: "AI 助手当前不可用，请稍后重试".into(),
+            started_at: failed_at,
+            completed_at: Some(failed_at),
+        });
         state
             .fail_ai_run(
                 &execution,
-                &partial.content,
-                partial.context_message_count,
-                partial.retrieved_message_count,
-                &partial.sources,
-                "AI 助手当前不可用，请稍后重试",
+                FailedAiRun {
+                    content: &partial.content,
+                    context_message_count: partial.context_message_count,
+                    retrieved_message_count: partial.retrieved_message_count,
+                    sources: &partial.sources,
+                    trace: &partial.trace,
+                    error_message: "AI 助手当前不可用，请稍后重试",
+                },
             )
             .await?;
-        store_terminal_answer(
+        cache_terminal_answer(
             &state,
             &execution,
-            &partial.content,
-            partial.context_message_count,
-            partial.retrieved_message_count,
-            &partial.sources,
-            partial.revision + 1,
-            "failed",
+            CachedAiAnswer {
+                content: partial.content,
+                context_message_count: partial.context_message_count,
+                retrieved_message_count: partial.retrieved_message_count,
+                sources: partial.sources,
+                trace: partial.trace,
+                revision: partial.revision + 1,
+                status: "failed".into(),
+                stage: "failed".into(),
+                stage_started_at: Some(chrono::Utc::now()),
+                updated_at: chrono::Utc::now(),
+            },
         )
         .await;
     }
-    Ok(())
-}
-
-async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> anyhow::Result<()> {
-    let assistant = execution
-        .assistant(&state.config.ai)
-        .ok_or_else(|| anyhow::anyhow!("AI assistant is disabled"))?;
-    let context = prepare_generation_context(state, execution).await?;
-    let mut stream = assistant
-        .answer_stream(
-            context.toon_context.as_deref(),
-            &context.history,
-            &execution.question,
-            context.retrieved_message_count > 0,
-            execution.thinking_enabled,
-        )
-        .await?;
-    let mut answer = String::new();
-    let mut last_flush = tokio::time::Instant::now();
-    let mut last_flushed_len = 0;
-    let mut revision = 0;
-    while let Some(item) = stream.next().await {
-        if let AiStreamItem::Content(chunk) = item? {
-            answer.push_str(&chunk);
-            if answer.len().saturating_sub(last_flushed_len) >= 256
-                || last_flush.elapsed() >= Duration::from_millis(50)
-            {
-                revision += 1;
-                store_live_answer(
-                    state,
-                    execution,
-                    &answer,
-                    context.message_count,
-                    context.retrieved_message_count,
-                    &context.sources,
-                    revision,
-                )
-                .await?;
-                last_flushed_len = answer.len();
-                last_flush = tokio::time::Instant::now();
-            }
-        }
-    }
-    let answer = answer.trim();
-    if answer.is_empty() {
-        anyhow::bail!("AI response had no text content");
-    }
-    state
-        .finish_ai_run(
-            execution,
-            answer,
-            context.message_count,
-            context.retrieved_message_count,
-            &context.sources,
-        )
-        .await?;
-    store_terminal_answer(
-        state,
-        execution,
-        answer,
-        context.message_count,
-        context.retrieved_message_count,
-        &context.sources,
-        revision + 1,
-        "completed",
-    )
-    .await;
-    Ok(())
-}
-
-async fn store_live_answer(
-    state: &SharedState,
-    execution: &AiRunExecution,
-    content: &str,
-    context_message_count: i64,
-    retrieved_message_count: i64,
-    sources: &[super::models::AiCitationSource],
-    revision: i64,
-) -> anyhow::Result<()> {
-    if let Some(cache) = state.redis_cache() {
-        let answer = CachedAiAnswer {
-            content: content.to_owned(),
-            context_message_count,
-            retrieved_message_count,
-            sources: sources.to_vec(),
-            revision,
-            status: "streaming".into(),
-            updated_at: chrono::Utc::now(),
-        };
-        match cache
-            .set_ai_answer(
-                execution.assistant_message_id,
-                &answer,
-                state.ai_answer_cache_ttl_secs(),
-            )
-            .await
-        {
-            Ok(()) => return Ok(state.heartbeat_ai_run(execution.id).await?),
-            Err(error) => tracing::warn!(
-                run_id = %execution.id,
-                "cache live AI answer in Redis failed; using database fallback: {error:#}"
-            ),
-        }
-    }
-    state
-        .update_ai_run_answer(
-            execution,
-            content,
-            context_message_count,
-            retrieved_message_count,
-            sources,
-        )
-        .await?;
     Ok(())
 }
 
@@ -333,42 +238,41 @@ async fn live_or_persisted_answer(
             ),
         }
     }
-    let content = state
-        .persisted_ai_run_answer(execution.assistant_message_id)
-        .await
-        .unwrap_or_default();
+    if let Ok(Some(message)) = state.ai_run_message(execution.user_id, execution.id).await {
+        return CachedAiAnswer {
+            content: message.content,
+            context_message_count: message.context_message_count.unwrap_or_default(),
+            retrieved_message_count: message.retrieved_message_count.unwrap_or_default(),
+            sources: message.sources.0,
+            trace: message.trace.0,
+            revision: message.revision,
+            status: message.status,
+            stage: message.stage,
+            stage_started_at: message.stage_started_at,
+            updated_at: message.updated_at,
+        };
+    }
     CachedAiAnswer {
-        content,
+        content: String::new(),
         context_message_count: 0,
         retrieved_message_count: 0,
         sources: Vec::new(),
+        trace: Vec::new(),
         revision: 0,
         status: "streaming".into(),
+        stage: "queued".into(),
+        stage_started_at: None,
         updated_at: chrono::Utc::now(),
     }
 }
 
-async fn store_terminal_answer(
+pub(super) async fn cache_terminal_answer(
     state: &SharedState,
     execution: &AiRunExecution,
-    content: &str,
-    context_message_count: i64,
-    retrieved_message_count: i64,
-    sources: &[super::models::AiCitationSource],
-    revision: i64,
-    status: &str,
+    answer: CachedAiAnswer,
 ) {
     let Some(cache) = state.redis_cache() else {
         return;
-    };
-    let answer = CachedAiAnswer {
-        content: content.to_owned(),
-        context_message_count,
-        retrieved_message_count,
-        sources: sources.to_vec(),
-        revision,
-        status: status.into(),
-        updated_at: chrono::Utc::now(),
     };
     if let Err(error) = cache
         .set_ai_answer(

@@ -14,6 +14,8 @@ const props = defineProps<{
   loading: boolean
   models: AiModelChoice[]
   modelId: string
+  lockedRoom?: boolean
+  compact?: boolean
 }>()
 
 const password = defineModel<string>('password', { required: true })
@@ -27,7 +29,7 @@ const emit = defineEmits<{
 const selectableModels = computed(() =>
   props.models.map((option) => ({
     ...option,
-    display_name: `${option.label} · ${option.model}`,
+    display_name: `${option.label} · ${props.thinkingEnabled ? option.model : option.fast_model || option.model}`,
     disabled: !option.ready,
   })),
 )
@@ -35,12 +37,14 @@ const selectableModels = computed(() =>
 
 <template>
   <div
-    class="flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-surface-200 px-3 py-1.5 [scrollbar-width:none] md:min-h-14 md:flex-wrap md:overflow-visible md:px-7 md:py-2"
+    class="flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-surface-200 px-3 py-1.5 [scrollbar-width:none]"
+    :class="compact ? 'flex-nowrap' : 'md:min-h-14 md:flex-wrap md:overflow-visible md:px-7 md:py-2'"
   >
     <div v-if="room" class="flex min-h-8 shrink-0 items-center gap-2 rounded-md bg-surface-100 px-2 text-sm">
       <Hash :size="15" class="text-primary" />
       <span class="max-w-44 truncate">{{ room.name }}</span>
       <Button
+        v-if="!lockedRoom"
         text
         rounded
         severity="secondary"

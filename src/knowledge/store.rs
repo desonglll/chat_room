@@ -147,8 +147,13 @@ where
     Uuid: for<'query> sqlx::Encode<'query, DB> + sqlx::Type<DB>,
 {
     let mut query = QueryBuilder::<DB>::new(
-        "SELECT messages.id, messages.sender, messages.content, messages.created_at \
-         FROM messages WHERE messages.room_id = ",
+        "SELECT messages.id, messages.sender, messages.content, messages.created_at, \
+         attachments.id AS attachment_id, attachments.access_key AS attachment_access_key, \
+         attachments.file_name AS attachment_file_name, attachments.mime_type AS attachment_mime_type, \
+         attachments.size_bytes AS attachment_size_bytes, \
+         attachments.is_sensitive AS attachment_is_sensitive \
+         FROM messages LEFT JOIN attachments ON attachments.id = messages.attachment_id \
+         WHERE messages.room_id = ",
     );
     query
         .push_bind(room_id)

@@ -6,7 +6,7 @@ use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::ai_threads::AiCitationSource;
+use crate::ai_threads::{AiCitationSource, AiRunTraceStep};
 use crate::config::RedisConfig;
 use crate::message_store::MessageCursor;
 use crate::models::{StoredMessage, User};
@@ -34,14 +34,24 @@ pub(crate) struct CachedAiAnswer {
     pub retrieved_message_count: i64,
     #[serde(default)]
     pub sources: Vec<AiCitationSource>,
+    #[serde(default)]
+    pub trace: Vec<AiRunTraceStep>,
     pub revision: i64,
     #[serde(default = "streaming_status")]
     pub status: String,
+    #[serde(default = "responding_stage")]
+    pub stage: String,
+    #[serde(default)]
+    pub stage_started_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
 }
 
 fn streaming_status() -> String {
     "streaming".into()
+}
+
+fn responding_stage() -> String {
+    "responding".into()
 }
 
 impl RedisCache {
@@ -397,14 +407,20 @@ mod tests {
             sender: "Ada".into(),
             sent_at: Utc::now(),
             excerpt: "The launch date is Friday".into(),
+            score: Some(0.82),
+            score_kind: "rerank".into(),
+            attachment: None,
         };
         let answer = CachedAiAnswer {
             content: "partial answer".into(),
             context_message_count: 3,
             retrieved_message_count: 1,
             sources: vec![source.clone()],
+            trace: Vec::new(),
             revision: 2,
             status: "completed".into(),
+            stage: "completed".into(),
+            stage_started_at: Some(Utc::now()),
             updated_at: Utc::now(),
         };
 
@@ -415,5 +431,6 @@ mod tests {
         assert_eq!(cached.sources, vec![source]);
         assert_eq!(cached.revision, 2);
         assert_eq!(cached.status, "completed");
+        assert_eq!(cached.stage, "completed");
     }
 }

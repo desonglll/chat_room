@@ -25,6 +25,16 @@ pub fn ensure_worker(state: SharedState) {
                 tokio::time::sleep(interval).await;
                 continue;
             }
+            let index = state
+                .message_index()
+                .expect("message index checked before worker startup");
+            if let Err(error) = index.ensure_ready().await {
+                tracing::warn!(
+                    "vector store unavailable; automatic indexing will retry: {error:#}"
+                );
+                tokio::time::sleep(interval.max(std::time::Duration::from_secs(5))).await;
+                continue;
+            }
             match state.ready_index_jobs().await {
                 Ok(jobs) => {
                     stream::iter(jobs)

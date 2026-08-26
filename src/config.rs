@@ -367,6 +367,21 @@ impl AppConfig {
             if !(0.0..=1.0).contains(&self.vector_store.score_threshold) {
                 bail!("vector_store.score_threshold must be between 0 and 1");
             }
+            if self.vector_store.rerank_enabled {
+                if self.vector_store.rerank_base_url.trim().is_empty()
+                    || self.vector_store.rerank_model.trim().is_empty()
+                {
+                    bail!("vector_store reranking requires rerank_base_url and rerank_model");
+                }
+                if self.vector_store.rerank_timeout_ms == 0
+                    || self.vector_store.rerank_timeout_ms > 30_000
+                {
+                    bail!("vector_store.rerank_timeout_ms must be between 1 and 30000");
+                }
+                if !(0.0..=1.0).contains(&self.vector_store.rerank_score_threshold) {
+                    bail!("vector_store.rerank_score_threshold must be between 0 and 1");
+                }
+            }
             if self.vector_store.worker_interval_ms == 0 {
                 bail!("vector_store.worker_interval_ms must be greater than zero");
             }

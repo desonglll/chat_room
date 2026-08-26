@@ -30,11 +30,14 @@ export async function listAiModels(token: string): Promise<AiModelChoice[]> {
   return response.json() as Promise<AiModelChoice[]>
 }
 
-export async function createAiThread(token: string): Promise<AiThread> {
+export async function createAiThread(
+  token: string,
+  payload: { room_id?: string; title?: string; thinking_enabled?: boolean } = {},
+): Promise<AiThread> {
   const response = await fetch('/api/ai/threads', {
     method: 'POST',
     headers: headers(token),
-    body: '{}',
+    body: JSON.stringify(payload),
   })
   assertAiResponse(response)
   return response.json() as Promise<AiThread>

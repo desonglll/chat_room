@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use super::client::ScoredMessageId;
 use super::{MessageIndex, RetrievedMessage};
-use crate::ai_threads::AiCitationSource;
+use crate::ai_threads::{AiCitationAttachment, AiCitationSource};
 use crate::state::SharedState;
 
 const MAX_DOCUMENT_CHARS: usize = 2_000;
@@ -32,6 +32,7 @@ pub(crate) async fn retrieve_room_context(
     room_id: Uuid,
     question: &str,
     excluded_message_ids: HashSet<Uuid>,
+    source_offset: usize,
 ) -> anyhow::Result<RagContext> {
     let retriever = RoomMessageRetriever {
         state,
@@ -39,6 +40,7 @@ pub(crate) async fn retrieve_room_context(
         user_id,
         room_id,
         excluded_message_ids,
+        source_offset,
     };
     let documents = retriever
         .get_relevant_documents(question)
@@ -53,6 +55,7 @@ struct RoomMessageRetriever {
     user_id: Uuid,
     room_id: Uuid,
     excluded_message_ids: HashSet<Uuid>,
+    source_offset: usize,
 }
 
 #[async_trait]
@@ -66,9 +69,10 @@ impl Retriever for RoomMessageRetriever {
 
 impl RoomMessageRetriever {
     async fn retrieve(&self, query: &str) -> anyhow::Result<Vec<Document>> {
+        let vector = self.index.embed_question(query).await?;
         let candidates = self
             .index
-            .related_messages(self.room_id, query, &self.excluded_message_ids)
+            .search_vector(self.room_id, vector, &self.excluded_message_ids)
             .await?;
         let candidate_ids: Vec<Uuid> = candidates.iter().map(|candidate| candidate.id).collect();
         let messages = self
@@ -76,13 +80,33 @@ impl RoomMessageRetriever {
             .authorized_retrieved_messages(self.user_id, self.room_id, &candidate_ids)
             .await
             .context("authorize retrieved room messages")?;
-        Ok(documents_from_messages(
+        let mut documents = documents_from_messages(
             self.room_id,
             candidates,
             messages,
             &self.excluded_message_ids,
-            self.index.result_limit(),
-        ))
+            usize::MAX,
+        );
+        if !documents.is_empty() {
+            if self.index.rerank_model().is_some() {
+                match rerank_documents(&self.index, query, &documents).await {
+                    Ok(reranked) if !reranked.is_empty() => {
+                        documents = select_reranked_documents(reranked, self.index.result_limit())
+                    }
+                    Ok(_) => {
+                        documents.clear();
+                    }
+                    Err(error) => {
+                        tracing::warn!(room_id = %self.room_id, "rerank failed; using vector ranking: {error:#}");
+                        documents = select_vector_documents(documents, self.index.result_limit());
+                    }
+                }
+            } else {
+                documents = select_vector_documents(documents, self.index.result_limit());
+            }
+        }
+        relabel_documents(&mut documents, self.source_offset);
+        Ok(documents)
     }
 }
 
@@ -109,11 +133,94 @@ fn documents_from_messages(
             metadata.insert("room_id".into(), json!(room_id));
             metadata.insert("sender".into(), json!(message.sender));
             metadata.insert("sent_at".into(), json!(message.created_at.to_rfc3339()));
-            Document::new(truncate_chars(&message.content, MAX_DOCUMENT_CHARS))
+            metadata.insert("score_kind".into(), json!("vector"));
+            if let (
+                Some(id),
+                Some(access_key),
+                Some(file_name),
+                Some(mime_type),
+                Some(size_bytes),
+            ) = (
+                message.attachment_id,
+                message.attachment_access_key,
+                message.attachment_file_name.as_ref(),
+                message.attachment_mime_type.as_ref(),
+                message.attachment_size_bytes,
+            ) {
+                metadata.insert("attachment_id".into(), json!(id));
+                metadata.insert("attachment_file_name".into(), json!(file_name));
+                metadata.insert("attachment_mime_type".into(), json!(mime_type));
+                metadata.insert("attachment_size_bytes".into(), json!(size_bytes));
+                metadata.insert(
+                    "attachment_download_url".into(),
+                    json!(format!("/api/attachments/{id}?key={access_key}")),
+                );
+                metadata.insert(
+                    "attachment_is_sensitive".into(),
+                    json!(message.attachment_is_sensitive.unwrap_or(false)),
+                );
+            }
+            let content = if message.content.trim().is_empty() {
+                message.attachment_file_name.unwrap_or_default()
+            } else {
+                message.content
+            };
+            Document::new(truncate_chars(&content, MAX_DOCUMENT_CHARS))
                 .with_metadata(metadata)
                 .with_score(scores.get(&message.id).copied().unwrap_or_default())
         })
         .collect()
+}
+
+async fn rerank_documents(
+    index: &MessageIndex,
+    query: &str,
+    documents: &[Document],
+) -> anyhow::Result<Vec<Document>> {
+    let contents: Vec<String> = documents
+        .iter()
+        .map(|document| document.page_content.clone())
+        .collect();
+    let scores = index.rerank(query, &contents).await?;
+    Ok(scores
+        .into_iter()
+        .filter_map(|score| {
+            let document = documents.get(score.index)?.clone();
+            let mut document = document.with_score(score.score);
+            document
+                .metadata
+                .insert("score_kind".into(), json!("rerank"));
+            Some(document)
+        })
+        .collect())
+}
+
+fn select_vector_documents(mut documents: Vec<Document>, limit: usize) -> Vec<Document> {
+    documents.sort_by(|left, right| right.score.total_cmp(&left.score));
+    if let Some(best_score) = documents.first().map(|document| document.score) {
+        documents.retain(|document| document.score >= best_score * 0.9);
+    }
+    documents.truncate(limit);
+    documents
+}
+
+fn select_reranked_documents(mut documents: Vec<Document>, limit: usize) -> Vec<Document> {
+    documents.sort_by(|left, right| right.score.total_cmp(&left.score));
+    if let Some(best_score) = documents.first().map(|document| document.score) {
+        documents
+            .retain(|document| document.score.is_finite() && document.score >= best_score * 0.6);
+    }
+    documents.truncate(limit);
+    documents
+}
+
+fn relabel_documents(documents: &mut [Document], source_offset: usize) {
+    for (index, document) in documents.iter_mut().enumerate() {
+        document.metadata.insert(
+            "source".into(),
+            json!(format!("S{}", source_offset + index + 1)),
+        );
+    }
 }
 
 fn render_rag_context(documents: Vec<Document>) -> anyhow::Result<RagContext> {
@@ -165,6 +272,9 @@ struct Evidence {
     sent_at: String,
     sender: String,
     content: String,
+    score_kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attachment: Option<AiCitationAttachment>,
 }
 
 impl Evidence {
@@ -177,6 +287,8 @@ impl Evidence {
             sent_at: metadata_string(document, "sent_at")?,
             sender: metadata_string(document, "sender")?,
             content: document.page_content.clone(),
+            score_kind: metadata_string(document, "score_kind").unwrap_or_else(|| "vector".into()),
+            attachment: citation_attachment(document),
         })
     }
 
@@ -188,8 +300,26 @@ impl Evidence {
             sender: self.sender.clone(),
             sent_at: self.sent_at.parse().ok()?,
             excerpt: truncate_chars(&self.content, 280),
+            score: Some(self.score),
+            score_kind: self.score_kind.clone(),
+            attachment: self.attachment.clone(),
         })
     }
+}
+
+fn citation_attachment(document: &Document) -> Option<AiCitationAttachment> {
+    Some(AiCitationAttachment {
+        id: Uuid::parse_str(&metadata_string(document, "attachment_id")?).ok()?,
+        file_name: metadata_string(document, "attachment_file_name")?,
+        mime_type: metadata_string(document, "attachment_mime_type")?,
+        size_bytes: document.metadata.get("attachment_size_bytes")?.as_i64()?,
+        download_url: metadata_string(document, "attachment_download_url")?,
+        is_sensitive: document
+            .metadata
+            .get("attachment_is_sensitive")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+    })
 }
 
 fn metadata_string(document: &Document, key: &str) -> Option<String> {
@@ -210,80 +340,5 @@ fn truncate_chars(value: &str, limit: usize) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use chrono::{TimeZone, Utc};
-
-    use super::*;
-
-    #[test]
-    fn langchain_documents_preserve_scores_sources_and_exclude_recent_messages() {
-        let room_id = Uuid::new_v4();
-        let recent_id = Uuid::new_v4();
-        let historic_id = Uuid::new_v4();
-        let messages = vec![
-            message(recent_id, "recent duplicate"),
-            message(historic_id, "historic release decision"),
-        ];
-        let candidates = vec![
-            ScoredMessageId {
-                id: recent_id,
-                score: 0.94,
-            },
-            ScoredMessageId {
-                id: historic_id,
-                score: 0.87,
-            },
-        ];
-
-        let documents = documents_from_messages(
-            room_id,
-            candidates,
-            messages,
-            &HashSet::from([recent_id]),
-            6,
-        );
-
-        assert_eq!(documents.len(), 1);
-        assert_eq!(documents[0].page_content, "historic release decision");
-        assert_eq!(documents[0].score, 0.87);
-        assert_eq!(documents[0].metadata["source"], "S1");
-        assert_eq!(documents[0].metadata["message_id"], historic_id.to_string());
-        assert_eq!(documents[0].metadata["room_id"], room_id.to_string());
-    }
-
-    #[test]
-    fn rag_context_is_structured_for_source_citations() {
-        let id = Uuid::new_v4();
-        let documents_room_id = Uuid::new_v4();
-        let documents = documents_from_messages(
-            documents_room_id,
-            vec![ScoredMessageId { id, score: 0.8764 }],
-            vec![message(id, "The launch date is Friday")],
-            &HashSet::new(),
-            6,
-        );
-
-        let context = render_rag_context(documents).unwrap();
-
-        assert_eq!(context.message_count, 1);
-        assert_eq!(context.sources.len(), 1);
-        assert_eq!(context.sources[0].label, "S1");
-        assert_eq!(context.sources[0].room_id, documents_room_id);
-        assert_eq!(context.sources[0].message_id, id);
-        assert_eq!(context.sources[0].sender, "Ada");
-        assert_eq!(context.sources[0].excerpt, "The launch date is Friday");
-        assert!(context.toon_context.contains("retrieved_evidence"));
-        assert!(context.toon_context.contains("S1"));
-        assert!(context.toon_context.contains("0.876"));
-        assert!(context.toon_context.contains("The launch date is Friday"));
-    }
-
-    fn message(id: Uuid, content: &str) -> RetrievedMessage {
-        RetrievedMessage {
-            id,
-            sender: "Ada".into(),
-            content: content.into(),
-            created_at: Utc.with_ymd_and_hms(2026, 8, 25, 10, 0, 0).unwrap(),
-        }
-    }
-}
+#[path = "rag_tests.rs"]
+mod tests;

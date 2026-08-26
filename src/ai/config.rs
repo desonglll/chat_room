@@ -66,7 +66,7 @@ impl Default for AiConfig {
             standard_extra_body: None,
             reasoning_extra_body: None,
             max_context_messages: 30,
-            analysis_context_messages: 120,
+            analysis_context_messages: 5_000,
             request_timeout_secs: 60,
             stream_idle_timeout_secs: 30,
             stream_total_timeout_secs: 300,

@@ -14,6 +14,7 @@ pub struct AiModelChoice {
     pub label: String,
     pub provider: String,
     pub model: String,
+    pub fast_model: Option<String>,
     pub ready: bool,
 }
 
@@ -89,6 +90,9 @@ impl AppState {
                 label: option.label,
                 provider: option.provider,
                 model: option.model,
+                fast_model: (option.source == "environment")
+                    .then(|| self.config.ai.fast_model.clone())
+                    .flatten(),
                 ready: option.ready,
             })
             .collect())
@@ -97,6 +101,7 @@ impl AppState {
     pub(crate) async fn resolve_ai_model(
         &self,
         requested_id: Option<Uuid>,
+        thinking_enabled: bool,
     ) -> Result<Option<ResolvedAiModel>, sqlx::Error> {
         let id = requested_id.filter(|id| !id.is_nil());
         let option = match id {
@@ -107,7 +112,7 @@ impl AppState {
                 .find(|option| option.id == id && option.enabled),
             None => Some(environment_option(&self.config.ai)),
         };
-        Ok(option.and_then(|option| resolve_option(option, &self.config.ai, id)))
+        Ok(option.and_then(|option| resolve_option(option, &self.config.ai, id, thinking_enabled)))
     }
 
     pub async fn create_ai_model_option(
@@ -243,6 +248,7 @@ fn resolve_option(
     option: AiModelOptionView,
     defaults: &AiConfig,
     id: Option<Uuid>,
+    thinking_enabled: bool,
 ) -> Option<ResolvedAiModel> {
     if !option.enabled || !option.ready {
         return None;
@@ -250,7 +256,17 @@ fn resolve_option(
     let mut config = defaults.clone();
     config.enabled = true;
     config.provider = option.provider.clone();
-    config.model = option.model.clone();
+    let model = if id.is_none() && !thinking_enabled {
+        defaults
+            .fast_model
+            .as_ref()
+            .filter(|model| !model.trim().is_empty())
+            .unwrap_or(&option.model)
+            .clone()
+    } else {
+        option.model.clone()
+    };
+    config.model = model.clone();
     config.fast_model = None;
     config.base_url = (!option.base_url.is_empty()).then(|| option.base_url.clone());
     config.api_key_env = option.api_key_env.clone();
@@ -258,8 +274,32 @@ fn resolve_option(
     Some(ResolvedAiModel {
         id,
         provider: option.provider,
-        model: option.model,
+        model,
         base_url: option.base_url,
         api_key_env: option.api_key_env,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn environment_option_uses_the_fast_model_outside_thinking_mode() {
+        let config = AiConfig {
+            enabled: true,
+            provider: "openai".into(),
+            api_key_env: "PATH".into(),
+            model: "reasoning-model".into(),
+            fast_model: Some("fast-model".into()),
+            base_url: Some("https://ai.example/v1".into()),
+            ..AiConfig::default()
+        };
+
+        let fast = resolve_option(environment_option(&config), &config, None, false).unwrap();
+        let reasoning = resolve_option(environment_option(&config), &config, None, true).unwrap();
+
+        assert_eq!(fast.model, "fast-model");
+        assert_eq!(reasoning.model, "reasoning-model");
+    }
 }

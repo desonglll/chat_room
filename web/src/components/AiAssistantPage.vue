@@ -25,12 +25,14 @@ import {
 import type { AiUiMessage } from '../aiUi'
 import { hasActiveAiMessage, pollAiThreadMessages } from '../aiRunPolling'
 import { shouldSubmitMessage } from '../composer'
+import { useAiSourceDetails } from '../composables/useAiSourceDetails'
 import { createRandomUuid } from '../randomUuid'
 import { readRoomPassword } from '../roomPasswordVault'
 import type { AiModelChoice, AiRuntimeStatus, AiThread, Room } from '../types'
 import AiAssistantHeader from './AiAssistantHeader.vue'
 import AiAssistantToolbar from './AiAssistantToolbar.vue'
 import AiMessageList from './AiMessageList.vue'
+import AiSourceDetailsPage from './AiSourceDetailsPage.vue'
 import AiThreadSidebar from './AiThreadSidebar.vue'
 
 const props = defineProps<{
@@ -38,6 +40,8 @@ const props = defineProps<{
   rooms: Room[]
   aiStatus: AiRuntimeStatus
   rememberRoomPasswords: boolean
+  embedded?: boolean
+  initialRoomId?: string
 }>()
 const emit = defineEmits<{ back: []; error: [message: string] }>()
 
@@ -65,6 +69,8 @@ const mentionCandidates = computed(() => conversationMentionCandidates(mentionRa
 const activeThread = computed(() => threads.value.find((thread) => thread.id === activeThreadId.value) || null)
 const activeRoom = computed(() => availableRooms.value.find((room) => room.id === activeThread.value?.room_id) || null)
 const aiReady = computed(() => modelOptions.value.some((option) => option.ready))
+const { closeSourceDetails, leaveSourceDetailsForThread, openSourceDetails, requestedThreadId, sourceMessage } =
+  useAiSourceDetails(messages, activeThread)
 
 function report(caught: unknown, fallback: string): void {
   emit('error', caught instanceof Error ? caught.message : fallback)
@@ -88,7 +94,14 @@ async function loadSessions(): Promise<void> {
     threads.value = loadedThreads
     modelOptions.value = loadedModels
     selectedModelId.value = loadedModels.find((option) => option.ready)?.id || ''
-    if (threads.value.length) await selectSession(threads.value[0].id)
+    let initialThread = props.embedded
+      ? threads.value.find((thread) => thread.room_id === props.initialRoomId)
+      : threads.value.find((thread) => thread.id === requestedThreadId()) || threads.value[0]
+    if (!initialThread && props.embedded && props.initialRoomId) {
+      initialThread = await createAiThread(props.token, { room_id: props.initialRoomId })
+      threads.value.unshift(initialThread)
+    }
+    if (initialThread) await selectSession(initialThread.id)
   } catch (caught) {
     report(caught, '加载 AI 对话失败')
   } finally {
@@ -100,7 +113,11 @@ async function createSession(): Promise<AiThread | null> {
   if (loading.value || loadingThreads.value) return null
   loadingThreads.value = true
   try {
-    const created = await createAiThread(props.token)
+    const created = await createAiThread(
+      props.token,
+      props.embedded && props.initialRoomId ? { room_id: props.initialRoomId } : {},
+    )
+    await closeSourceDetails(true)
     threads.value.unshift(created)
     activeThreadId.value = created.id
     messages.value = []
@@ -115,7 +132,11 @@ async function createSession(): Promise<AiThread | null> {
 }
 
 async function selectSession(threadId: string): Promise<void> {
-  if (threadId === activeThreadId.value) return
+  if (threadId === activeThreadId.value) {
+    await closeSourceDetails()
+    return
+  }
+  await leaveSourceDetailsForThread(threadId)
   runStream?.abort()
   runStream = null
   const generation = ++pollGeneration
@@ -159,7 +180,7 @@ async function followRunStream(threadId: string, runId: string, generation: numb
     messages.value = await listAiThreadMessages(props.token, threadId).catch(() => messages.value)
     loading.value = false
     threads.value = await listAiThreads(props.token).catch(() => threads.value)
-    await messageList.value?.scrollToLatest()
+    messageList.value?.scrollToLatestSoon()
   }
 }
 
@@ -180,7 +201,7 @@ async function followPersistedRun(threadId: string, generation: number): Promise
     if (generation !== pollGeneration) return
     loading.value = false
     threads.value = await listAiThreads(props.token).catch(() => threads.value)
-    await messageList.value?.scrollToLatest()
+    messageList.value?.scrollToLatestSoon()
   }
 }
 
@@ -328,8 +349,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main id="workspace-main" class="cr-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <AiAssistantHeader :title="activeThread?.title || '新对话'" :ready="aiReady" @back="emit('back')" />
+  <main
+    :id="embedded ? 'room-ai-panel' : 'workspace-main'"
+    class="cr-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    :class="
+      embedded
+        ? 'absolute inset-0 z-40 border-l border-surface-200 bg-surface-0 md:relative md:inset-auto md:z-auto'
+        : ''
+    "
+  >
+    <AiAssistantHeader
+      :title="activeRoom?.name || activeThread?.title || '新对话'"
+      :ready="aiReady"
+      :embedded="embedded"
+      @back="emit('back')"
+    />
 
     <Message
       v-if="!aiReady && aiStatus === 'missing_credentials'"
@@ -344,9 +378,11 @@ onUnmounted(() => {
     </Message>
 
     <section
-      class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1"
+      class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)]"
+      :class="embedded ? '' : 'md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1'"
     >
       <AiThreadSidebar
+        v-if="!embedded"
         :threads="threads"
         :active-id="activeThreadId"
         :busy="loading || loadingThreads"
@@ -355,7 +391,14 @@ onUnmounted(() => {
         @delete="removeSession"
       />
 
-      <div class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
+      <AiSourceDetailsPage
+        v-if="sourceMessage"
+        :message="sourceMessage"
+        :room-title="activeRoom?.name || ''"
+        @back="closeSourceDetails"
+      />
+
+      <div v-else class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
         <AiAssistantToolbar
           v-model:password="roomPassword"
           :models="modelOptions"
@@ -364,13 +407,20 @@ onUnmounted(() => {
           :thinking-enabled="activeThread?.thinking_enabled || false"
           :ai-ready="aiReady"
           :loading="loading"
+          :locked-room="embedded"
+          :compact="embedded"
           @clear-room="clearRoom"
           @thinking="setThinking"
           @model="selectedModelId = $event"
           @quick="submit"
         />
 
-        <AiMessageList ref="messageList" :messages="messages" :room-title="activeRoom?.name || ''" />
+        <AiMessageList
+          ref="messageList"
+          :messages="messages"
+          :room-title="activeRoom?.name || ''"
+          @sources="openSourceDetails"
+        />
 
         <form
           id="ai-assistant-query-form"

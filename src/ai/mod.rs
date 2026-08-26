@@ -30,9 +30,11 @@ pub struct AiSuggestions {
 /// a raw user id) plus the message text.
 #[derive(Debug, Clone, Serialize)]
 pub struct AiContextMessage {
+    pub message_id: String,
     pub sent_at: String,
     pub sender: String,
     pub content: String,
+    pub source: String,
     pub attachment: String,
 }
 
@@ -40,6 +42,15 @@ pub struct AiContextMessage {
 pub struct AiConversationTurn {
     pub role: String,
     pub content: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct AiTaskPlanDecision {
+    pub intent: String,
+    pub context_scope: String,
+    pub semantic_search: bool,
+    #[serde(default)]
+    pub research_questions: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -119,31 +130,7 @@ impl AiAssistant {
         room_name: &str,
         context: &[AiContextMessage],
     ) -> anyhow::Result<AiSuggestions> {
-        let mut transcript = String::new();
-        for message in context {
-            transcript.push_str(&message.sender);
-            transcript.push_str(": ");
-            transcript.push_str(&message.content);
-            transcript.push('\n');
-        }
-        if transcript.is_empty() {
-            transcript.push_str("(no messages yet)");
-        }
-
-        let system_prompt = format!(
-            "You are a helpful assistant embedded in the chat room \"{room_name}\". \
-             Given the recent conversation transcript, do two things: \
-             1) write a one-sentence summary of what's being discussed, in the same \
-             language the conversation is mostly written in; \
-             2) suggest 3 short, natural next messages the current user might want to send. \
-             Respond with ONLY a single JSON object, no markdown fences, no extra text, \
-             in exactly this shape: \
-             {{\"summary\": \"...\", \"suggestions\": [\"...\", \"...\", \"...\"]}}"
-        );
-        let chat_req = ChatRequest::new(vec![
-            ChatMessage::system(system_prompt),
-            ChatMessage::user(transcript),
-        ]);
+        let chat_req = suggestion_request(room_name, context, false);
 
         let options = self.chat_options(false);
         let response = tokio::time::timeout(
@@ -158,6 +145,33 @@ impl AiAssistant {
             .first_text()
             .ok_or_else(|| anyhow::anyhow!("AI response had no text content"))?;
         parse_suggestions(text)
+    }
+
+    pub(crate) async fn plan_room_task(
+        &self,
+        question: &str,
+    ) -> anyhow::Result<AiTaskPlanDecision> {
+        let system_prompt =
+            "You are the planning agent for a private chat analysis assistant. Decide how the server should gather context before answering. Return ONLY one JSON object with: intent (overview, todos, decisions, search, or general), context_scope (recent or full), semantic_search (boolean), and research_questions (zero to three concise search queries). Use full only when the user asks for exhaustive room-wide analysis. Use semantic search for facts or topics that may be outside recent context. Split genuinely multi-topic research into independent research_questions; otherwise return an empty array.";
+        let request = ChatRequest::new(vec![
+            ChatMessage::system(system_prompt),
+            ChatMessage::user(question),
+        ]);
+        let timeout = self.request_timeout.min(std::time::Duration::from_secs(8));
+        let response = tokio::time::timeout(
+            timeout,
+            self.client.exec_chat(
+                self.model_for(false),
+                request,
+                self.chat_options(false).as_ref(),
+            ),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("planning agent timed out"))??;
+        let text = response
+            .first_text()
+            .ok_or_else(|| anyhow::anyhow!("planning agent returned no text"))?;
+        parse_json_object(text)
     }
 
     pub(super) fn model_for(&self, thinking_enabled: bool) -> &str {
@@ -176,6 +190,40 @@ impl AiAssistant {
         }?;
         Some(ChatOptions::default().with_extra_body(extra_body.clone()))
     }
+}
+
+fn suggestion_request(
+    room_name: &str,
+    context: &[AiContextMessage],
+    streaming: bool,
+) -> ChatRequest {
+    let mut transcript = String::new();
+    for message in context {
+        transcript.push_str(&message.sender);
+        transcript.push_str(": ");
+        transcript.push_str(&message.content);
+        if !message.attachment.is_empty() {
+            transcript.push_str(" [attachment: ");
+            transcript.push_str(&message.attachment);
+            transcript.push(']');
+        }
+        transcript.push('\n');
+    }
+    if transcript.is_empty() {
+        transcript.push_str("(no messages yet)");
+    }
+    let output_rules = if streaming {
+        "Respond with ONLY four newline-delimited JSON objects (NDJSON), one per line and no markdown fences. Output the best suggestion first, then two more suggestions, then the summary: {\"type\":\"suggestion\",\"content\":\"...\"} (three lines) and {\"type\":\"summary\",\"content\":\"...\"} (one line)."
+    } else {
+        "Respond with ONLY one JSON object, no markdown fences or extra text, exactly: {\"summary\":\"...\",\"suggestions\":[\"...\",\"...\",\"...\"]}."
+    };
+    let system_prompt = format!(
+        "You are a helpful assistant embedded in the chat room \"{room_name}\". Write in the conversation's main language. Suggest 3 short, natural next messages the current user might send and a one-sentence summary. {output_rules}"
+    );
+    ChatRequest::new(vec![
+        ChatMessage::system(system_prompt),
+        ChatMessage::user(transcript),
+    ])
 }
 
 pub fn conversation_context_to_toon(
@@ -206,6 +254,10 @@ pub fn bounded_conversation_context_to_toon(
 fn parse_suggestions(text: &str) -> anyhow::Result<AiSuggestions> {
     // Models sometimes wrap JSON in prose or markdown fences despite instructions —
     // extract the outermost {...} block defensively instead of failing outright.
+    parse_json_object(text)
+}
+
+fn parse_json_object<T: for<'de> Deserialize<'de>>(text: &str) -> anyhow::Result<T> {
     let start = text
         .find('{')
         .ok_or_else(|| anyhow::anyhow!("AI response did not contain a JSON object"))?;
@@ -215,8 +267,7 @@ fn parse_suggestions(text: &str) -> anyhow::Result<AiSuggestions> {
     if end < start {
         anyhow::bail!("AI response had malformed JSON boundaries");
     }
-    let suggestions: AiSuggestions = serde_json::from_str(&text[start..=end])?;
-    Ok(suggestions)
+    serde_json::from_str(&text[start..=end]).map_err(Into::into)
 }
 
 #[cfg(test)]
@@ -249,32 +300,50 @@ mod tests {
             "Project",
             &[
                 AiContextMessage {
+                    message_id: "message-1".into(),
                     sent_at: "2026-08-25T10:00:00Z".into(),
                     sender: "Ada".into(),
                     content: "ship it".into(),
+                    source: String::new(),
                     attachment: String::new(),
                 },
                 AiContextMessage {
+                    message_id: "message-2".into(),
                     sent_at: "2026-08-25T10:01:00Z".into(),
                     sender: "Lin".into(),
                     content: "review first".into(),
+                    source: "A1".into(),
                     attachment: "plan.pdf".into(),
                 },
             ],
         )
         .unwrap();
-        assert!(encoded.contains("messages[2]{sent_at,sender,content,attachment}:"));
-        assert!(encoded.contains("Ada,ship it"));
-        assert!(encoded.contains("Lin,review first,plan.pdf"));
+        assert!(
+            encoded.contains("messages[2]{message_id,sent_at,sender,content,source,attachment}:")
+        );
+        for value in [
+            "message-1",
+            "Ada",
+            "ship it",
+            "message-2",
+            "Lin",
+            "review first",
+            "A1",
+            "plan.pdf",
+        ] {
+            assert!(encoded.contains(value), "missing TOON value: {value}");
+        }
     }
 
     #[test]
     fn context_byte_limit_discards_oldest_messages_first() {
         let mut context = (0..8)
             .map(|index| AiContextMessage {
+                message_id: format!("message-{index}"),
                 sent_at: format!("2026-08-25T10:0{index}:00Z"),
                 sender: "Ada".into(),
                 content: format!("message-{index}-{}", "x".repeat(80)),
+                source: String::new(),
                 attachment: String::new(),
             })
             .collect();
@@ -322,7 +391,7 @@ mod tests {
                 model: "gpt-test".into(),
                 base_url: Some(format!("http://{address}/v1")),
                 standard_extra_body: Some(serde_json::json!({
-                    "vendor_option": "fast"
+                    "enable_thinking": false
                 })),
                 request_timeout_secs: 5,
                 ..AiConfig::default()
@@ -331,7 +400,14 @@ mod tests {
         );
 
         let mut stream = assistant
-            .answer_stream(Some("room: test"), &[], "总结", false, false)
+            .answer_stream(
+                Some("room: test"),
+                &[],
+                "总结",
+                false,
+                false,
+                Some("会话总结"),
+            )
             .await
             .unwrap();
         let mut chunks = Vec::new();
@@ -345,7 +421,7 @@ mod tests {
 
         assert!(reasoning_seen);
         assert_eq!(chunks, ["你", "好"]);
-        assert_eq!(requests.lock().unwrap()[0]["vendor_option"], "fast");
+        assert_eq!(requests.lock().unwrap()[0]["enable_thinking"], false);
         server.abort();
     }
 }

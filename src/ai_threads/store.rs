@@ -121,11 +121,12 @@ impl AppState {
         let mut messages: Vec<AiThreadMessage> = with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   retrieved_message_count, sources, status, \
+                   retrieved_message_count, sources, trace, status, stage, stage_started_at, \
                    revision, created_at, updated_at \
                  FROM (SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   retrieved_message_count, sources, \
-                   status, revision, created_at, COALESCE(updated_at, created_at) AS updated_at \
+                   retrieved_message_count, sources, trace, \
+                   status, stage, stage_started_at, revision, created_at, \
+                   COALESCE(updated_at, created_at) AS updated_at \
                    FROM ai_thread_messages WHERE thread_id = $1 \
                    ORDER BY created_at DESC, \
                      CASE role WHEN 'assistant' THEN 1 ELSE 0 END DESC, id DESC LIMIT $2) AS recent \
@@ -148,7 +149,10 @@ impl AppState {
                         message.context_message_count = Some(answer.context_message_count);
                         message.retrieved_message_count = Some(answer.retrieved_message_count);
                         message.sources = answer.sources.into();
+                        message.trace = answer.trace.into();
                         message.status = answer.status;
+                        message.stage = answer.stage;
+                        message.stage_started_at = answer.stage_started_at;
                         message.revision = answer.revision;
                         message.updated_at = answer.updated_at;
                     }
@@ -177,8 +181,9 @@ impl AppState {
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO ai_thread_messages \
-                 (id, thread_id, role, content, room_id, context_message_count, status, revision, created_at, updated_at) \
-                 SELECT $1, $2, $3, $4, $5, $6, 'completed', 0, $7, $7 FROM ai_threads \
+                 (id, thread_id, role, content, room_id, context_message_count, status, stage, \
+                  stage_started_at, revision, created_at, updated_at) \
+                 SELECT $1, $2, $3, $4, $5, $6, 'completed', 'completed', $7, 0, $7, $7 FROM ai_threads \
                  WHERE id = $2 AND user_id = $8",
             )
             .bind(id)
@@ -207,7 +212,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT id, thread_id, role, content, room_id, context_message_count, \
-                   retrieved_message_count, sources, status, \
+                   retrieved_message_count, sources, trace, status, stage, stage_started_at, \
                    revision, created_at, COALESCE(updated_at, created_at) AS updated_at \
                  FROM ai_thread_messages WHERE id = $1",
             )

@@ -236,6 +236,27 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         "CHAT_ROOM_EMBEDDING_API_KEY_ENV"
     );
     parse!(
+        config.vector_store.rerank_enabled,
+        "CHAT_ROOM_RERANK_ENABLED"
+    );
+    string!(
+        config.vector_store.rerank_base_url,
+        "CHAT_ROOM_RERANK_BASE_URL"
+    );
+    string!(config.vector_store.rerank_model, "CHAT_ROOM_RERANK_MODEL");
+    string!(
+        config.vector_store.rerank_api_key_env,
+        "CHAT_ROOM_RERANK_API_KEY_ENV"
+    );
+    parse!(
+        config.vector_store.rerank_timeout_ms,
+        "CHAT_ROOM_RERANK_TIMEOUT_MS"
+    );
+    parse!(
+        config.vector_store.rerank_score_threshold,
+        "CHAT_ROOM_RERANK_SCORE_THRESHOLD"
+    );
+    parse!(
         config.vector_store.worker_interval_ms,
         "CHAT_ROOM_VECTOR_WORKER_INTERVAL_MS"
     );

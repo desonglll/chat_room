@@ -72,7 +72,7 @@ base_url = ""
 standard_extra_body = { temperature = 0.2 }
 reasoning_extra_body = { reasoning_effort = "high" }
 max_context_messages = 30
-analysis_context_messages = 120
+analysis_context_messages = 5000
 request_timeout_secs = 60
 stream_idle_timeout_secs = 30
 stream_total_timeout_secs = 300
@@ -85,10 +85,16 @@ collection = "chat_messages"
 api_key_env = ""
 dimensions = 1024
 top_k = 6
-score_threshold = 0.35
+score_threshold = 0.55
 embedding_base_url = ""
 embedding_model = ""
 embedding_api_key_env = "CHAT_ROOM_AI_API_KEY"
+rerank_enabled = false
+rerank_base_url = ""
+rerank_model = ""
+rerank_api_key_env = "CHAT_ROOM_AI_API_KEY"
+rerank_timeout_ms = 2000
+rerank_score_threshold = 0.35
 worker_interval_ms = 500
 
 [admin]
@@ -211,9 +217,12 @@ candidates (capped at 50) with relevance scores; retrieval is filtered to the
 one room attached to the AI session. Message IDs already present in the bounded
 recent transcript are excluded inside the Qdrant query, so they cannot consume
 the semantic result budget and older evidence is selected from the full indexed
-history. Every hit is then batch-rechecked in the
-relational database for active membership and current recall state before the
-best `top_k` messages are sent to the model as LangChain `Document` values.
+history. Every hit is then batch-rechecked in the relational database for
+active membership and current recall state. When `rerank_enabled` is true,
+those authorized candidates are sent to the configured cross-encoder reranker
+and its best `top_k` results are used. A failed or timed-out rerank falls back
+to vector similarity ordering. Only the final `top_k` messages are sent to the
+chat model as LangChain `Document` values.
 Each injected result has a stable `S1`, `S2`, ... source label, message ID,
 sender, timestamp, and relevance score; answers are instructed to cite those
 labels when relying on retrieved evidence. The answer stores the matching source

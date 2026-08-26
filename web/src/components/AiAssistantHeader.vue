@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { ArrowLeft, Bot } from 'lucide-vue-next'
+import { ArrowLeft, Bot, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 
-defineProps<{ title: string; ready: boolean }>()
+defineProps<{ title: string; ready: boolean; embedded?: boolean }>()
 const emit = defineEmits<{ back: [] }>()
 </script>
 
 <template>
   <header class="cr-page-header flex shrink-0 items-center gap-2 px-3 sm:gap-3 sm:px-7">
-    <Button text rounded severity="secondary" aria-label="返回聊天" title="返回聊天" @click="emit('back')">
-      <ArrowLeft :size="19" />
+    <Button
+      text
+      rounded
+      severity="secondary"
+      :aria-label="embedded ? '关闭 AI 助手' : '返回聊天'"
+      :title="embedded ? '关闭' : '返回聊天'"
+      @click="emit('back')"
+    >
+      <X v-if="embedded" :size="19" />
+      <ArrowLeft v-else :size="19" />
     </Button>
     <span class="hidden size-9 shrink-0 place-items-center rounded-md bg-primary-50 text-primary sm:grid"
       ><Bot :size="20"

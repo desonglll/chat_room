@@ -14,12 +14,19 @@ pub(crate) struct ScoredMessageId {
     pub score: f64,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct RerankScore {
+    pub index: usize,
+    pub score: f64,
+}
+
 #[derive(Clone)]
 pub(super) struct VectorClients {
     http: Client,
     config: VectorStoreConfig,
     qdrant_api_key: Option<String>,
     embedding_api_key: Option<String>,
+    rerank_api_key: Option<String>,
 }
 
 impl VectorClients {
@@ -32,6 +39,7 @@ impl VectorClients {
             config: config.clone(),
             qdrant_api_key: config.qdrant_api_key(),
             embedding_api_key: config.embedding_api_key(),
+            rerank_api_key: config.rerank_api_key(),
         })
     }
 
@@ -158,7 +166,7 @@ impl VectorClients {
             .json()
             .await
             .context("decode Qdrant search response")?;
-        Ok(response
+        let candidates = response
             .result
             .into_iter()
             .filter_map(|point| {
@@ -172,11 +180,78 @@ impl VectorClients {
                     score: point.score,
                 })
             })
+            .collect();
+        Ok(select_vector_candidates(
+            candidates,
+            self.candidate_limit(),
+            f64::from(self.config.score_threshold),
+        ))
+    }
+
+    pub(super) async fn rerank(
+        &self,
+        query: &str,
+        documents: &[String],
+    ) -> Result<Vec<RerankScore>> {
+        if documents.is_empty() {
+            return Ok(Vec::new());
+        }
+        let url = format!(
+            "{}/rerank",
+            self.config.rerank_base_url.trim_end_matches('/')
+        );
+        let mut request = self.http.post(url).json(&json!({
+            "model": self.config.rerank_model,
+            "query": query,
+            "documents": documents,
+            "return_documents": false,
+            "top_n": self.config.top_k.min(documents.len())
+        }));
+        if let Some(api_key) = &self.rerank_api_key {
+            request = request.bearer_auth(api_key);
+        }
+        let response: RerankResponse = tokio::time::timeout(
+            std::time::Duration::from_millis(self.config.rerank_timeout_ms),
+            async {
+                request
+                    .send()
+                    .await?
+                    .error_for_status()
+                    .context("rerank request failed")?
+                    .json()
+                    .await
+                    .context("decode rerank response")
+            },
+        )
+        .await
+        .context("rerank request timed out")??;
+        Ok(response
+            .results
+            .into_iter()
+            .filter(|result| {
+                result.index < documents.len()
+                    && result.relevance_score.is_finite()
+                    && result.relevance_score >= f64::from(self.config.rerank_score_threshold)
+            })
+            .map(|result| RerankScore {
+                index: result.index,
+                score: result.relevance_score,
+            })
             .collect())
     }
 
     pub(super) fn result_limit(&self) -> usize {
         self.config.top_k
+    }
+
+    pub(super) fn embedding_model(&self) -> &str {
+        &self.config.embedding_model
+    }
+
+    pub(super) fn rerank_model(&self) -> Option<&str> {
+        self.config
+            .rerank_enabled
+            .then_some(self.config.rerank_model.as_str())
     }
 
     fn candidate_limit(&self) -> usize {
@@ -248,6 +323,17 @@ struct SearchPoint {
 }
 
 #[derive(Deserialize)]
+struct RerankResponse {
+    results: Vec<RerankResult>,
+}
+
+#[derive(Deserialize)]
+struct RerankResult {
+    index: usize,
+    relevance_score: f64,
+}
+
+#[derive(Deserialize)]
 struct CollectionResponse {
     result: CollectionInfo,
 }
@@ -256,4 +342,39 @@ struct CollectionResponse {
 struct CollectionInfo {
     #[serde(default)]
     points_count: u64,
+}
+
+fn select_vector_candidates(
+    mut candidates: Vec<ScoredMessageId>,
+    limit: usize,
+    minimum_score: f64,
+) -> Vec<ScoredMessageId> {
+    candidates.retain(|candidate| candidate.score.is_finite());
+    candidates.sort_by(|left, right| right.score.total_cmp(&left.score));
+    candidates.retain(|candidate| candidate.score >= minimum_score);
+    candidates.truncate(limit);
+    candidates
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn semantic_candidates_must_clear_absolute_and_relative_thresholds() {
+        let candidates = [0.58, 0.77, 0.70, 0.62]
+            .into_iter()
+            .map(|score| ScoredMessageId {
+                id: Uuid::new_v4(),
+                score,
+            })
+            .collect();
+
+        let selected = select_vector_candidates(candidates, 6, 0.55);
+
+        assert_eq!(
+            selected.iter().map(|item| item.score).collect::<Vec<_>>(),
+            [0.77, 0.70, 0.62, 0.58]
+        );
+    }
 }

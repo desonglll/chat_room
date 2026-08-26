@@ -1,13 +1,64 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { aiSourceRoute } from '../aiUi'
 import { renderMarkdown } from '../markdown'
+import type { AiCitationSource } from '../types'
 
-const props = defineProps<{ content: string }>()
+const props = withDefaults(defineProps<{ content: string; sources?: AiCitationSource[] }>(), { sources: () => [] })
 const html = computed(() => renderMarkdown(props.content))
+const root = ref<HTMLElement | null>(null)
+const router = useRouter()
+
+function decorateCitations(): void {
+  if (!root.value || !props.sources.length) return
+  const byLabel = new Map(props.sources.map((source) => [source.label.toUpperCase(), source]))
+  const walker = document.createTreeWalker(root.value, NodeFilter.SHOW_TEXT)
+  const nodes: Text[] = []
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text
+    if (node.parentElement?.closest('a, code, pre') || !/\[[A-Z]\d+\]/i.test(node.data)) continue
+    nodes.push(node)
+  }
+  for (const node of nodes) {
+    const parts = node.data.split(/(\[[A-Z]\d+\])/gi)
+    if (parts.length === 1) continue
+    const fragment = document.createDocumentFragment()
+    for (const part of parts) {
+      const label = /^\[([A-Z]\d+)\]$/i.exec(part)?.[1]?.toUpperCase()
+      const source = label ? byLabel.get(label) : undefined
+      if (!source) {
+        fragment.append(document.createTextNode(part))
+        continue
+      }
+      const link = document.createElement('a')
+      link.href = router.resolve(aiSourceRoute(source)).href
+      link.dataset.aiSource = source.message_id
+      link.textContent = `[${label}]`
+      link.title = `定位到 ${label} 原文`
+      fragment.append(link)
+    }
+    node.replaceWith(fragment)
+  }
+}
+
+function handleClick(event: MouseEvent): void {
+  const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[data-ai-source]')
+  const source = props.sources.find((item) => item.message_id === link?.dataset.aiSource)
+  if (!link || !source) return
+  event.preventDefault()
+  void router.push(aiSourceRoute(source)).catch(() => {})
+}
+
+watch([html, () => props.sources], async () => {
+  await nextTick()
+  decorateCitations()
+})
+onMounted(decorateCitations)
 </script>
 
 <template>
-  <div class="cr-markdown min-w-0 max-w-full break-words" v-html="html" />
+  <div ref="root" class="cr-markdown min-w-0 max-w-full break-words" @click="handleClick" v-html="html" />
 </template>
 
 <style scoped>

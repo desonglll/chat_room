@@ -21,6 +21,9 @@ fn ai_and_vector_settings_can_come_from_the_environment() {
         ("CHAT_ROOM_EMBEDDING_MODEL", "embed-from-env"),
         ("CHAT_ROOM_EMBEDDING_BASE_URL", "https://embed.example/v1"),
         ("CHAT_ROOM_EMBEDDING_DIMENSIONS", "768"),
+        ("CHAT_ROOM_RERANK_ENABLED", "true"),
+        ("CHAT_ROOM_RERANK_BASE_URL", "https://rerank.example/v1"),
+        ("CHAT_ROOM_RERANK_MODEL", "rerank-from-env"),
     ]);
 
     assert!(config.ai.enabled);
@@ -31,6 +34,8 @@ fn ai_and_vector_settings_can_come_from_the_environment() {
     assert!(config.vector_store.enabled);
     assert_eq!(config.vector_store.embedding_model, "embed-from-env");
     assert_eq!(config.vector_store.dimensions, 768);
+    assert!(config.vector_store.rerank_enabled);
+    assert_eq!(config.vector_store.rerank_model, "rerank-from-env");
 }
 
 #[test]

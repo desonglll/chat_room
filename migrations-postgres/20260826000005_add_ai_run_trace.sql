@@ -1,0 +1,2 @@
+ALTER TABLE ai_thread_messages
+ADD COLUMN trace JSONB NOT NULL DEFAULT '[]'::JSONB;

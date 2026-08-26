@@ -53,16 +53,16 @@ enabled = true
 provider = "openai"
 api_key_env = "CHAT_ROOM_AI_API_KEY"
 model = "deepseek-ai/DeepSeek-V4-Flash"
-# Optional non-reasoning model used when the per-session thinking switch is off.
-fast_model = ""
+# Non-reasoning model used when the per-session thinking switch is off.
+fast_model = "deepseek-ai/DeepSeek-V3.2"
 base_url = "https://api.siliconflow.cn/v1"
 # Optional provider extensions, forwarded exactly as configured. No fields are
 # inferred from the endpoint or vendor.
-# standard_extra_body = { temperature = 0.2 }
-# reasoning_extra_body = { reasoning_effort = "high" }
+standard_extra_body = { enable_thinking = false }
+reasoning_extra_body = { reasoning_effort = "high" }
 max_context_messages = 30
 # The independent AI workspace can inspect a wider, still bounded window.
-analysis_context_messages = 120
+analysis_context_messages = 5000
 # Long-context requests can take longer than short suggestions on hosted models.
 request_timeout_secs = 60
 # Any valid upstream event resets the idle deadline. The larger total deadline
@@ -81,11 +81,17 @@ collection = "chat_messages"
 api_key_env = ""
 dimensions = 1024
 top_k = 6
-score_threshold = 0.35
+score_threshold = 0.55
 # Any OpenAI-compatible /embeddings endpoint can be used independently of [ai].
 embedding_base_url = ""
 embedding_model = ""
 embedding_api_key_env = "CHAT_ROOM_AI_API_KEY"
+rerank_enabled = false
+rerank_base_url = ""
+rerank_model = ""
+rerank_api_key_env = "CHAT_ROOM_AI_API_KEY"
+rerank_timeout_ms = 2000
+rerank_score_threshold = 0.35
 worker_interval_ms = 500
 
 [realtime]

@@ -63,7 +63,7 @@ impl AppState {
     }
 
     pub(crate) fn ai_analysis_context_messages(&self) -> usize {
-        self.config.ai.analysis_context_messages.min(500)
+        self.config.ai.analysis_context_messages.min(5_000)
     }
 
     pub(crate) fn ai_suggest_cooldown(&self) -> Duration {

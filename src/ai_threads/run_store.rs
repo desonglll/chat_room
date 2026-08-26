@@ -1,8 +1,8 @@
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use sqlx::types::Json;
 use uuid::Uuid;
 
-use super::models::{AiCitationSource, AiRun, AiThreadMessage};
+use super::models::{AiCitationSource, AiRun, AiRunTraceStep, AiThreadMessage};
 use crate::{
     ai::{model_options::ResolvedAiModel, AiAssistant, AiConfig},
     state::{with_pool, AppState},
@@ -46,9 +46,10 @@ impl AppState {
             let mut transaction = pool.begin().await?;
             sqlx::query(
                 "INSERT INTO ai_thread_messages \
-                 (id, thread_id, role, content, room_id, context_message_count, status, revision, created_at, updated_at) \
-                 VALUES ($1, $2, 'user', $3, $4, NULL, 'completed', 0, $5, $5), \
-                        ($6, $2, 'assistant', '', $4, NULL, 'pending', 0, $5, $5)",
+                 (id, thread_id, role, content, room_id, context_message_count, status, stage, \
+                  stage_started_at, revision, created_at, updated_at) \
+                 VALUES ($1, $2, 'user', $3, $4, NULL, 'completed', 'completed', $5, 0, $5, $5), \
+                        ($6, $2, 'assistant', '', $4, NULL, 'pending', 'queued', $5, 0, $5, $5)",
             )
             .bind(user_message_id)
             .bind(thread_id)
@@ -113,8 +114,8 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT m.id, m.thread_id, m.role, m.content, m.room_id, \
-                 m.context_message_count, m.retrieved_message_count, m.sources, \
-                 m.status, m.revision, m.created_at, \
+                 m.context_message_count, m.retrieved_message_count, m.sources, m.trace, \
+                 m.status, m.stage, m.stage_started_at, m.revision, m.created_at, \
                  COALESCE(m.updated_at, m.created_at) AS updated_at \
                  FROM ai_thread_messages m JOIN ai_runs r ON r.assistant_message_id = m.id \
                  WHERE r.id = $1 AND r.user_id = $2",
@@ -207,24 +208,26 @@ impl AppState {
     pub(super) async fn update_ai_run_answer(
         &self,
         execution: &AiRunExecution,
-        content: &str,
-        context_message_count: i64,
-        retrieved_message_count: i64,
-        sources: &[AiCitationSource],
+        answer: &AiAnswerSnapshot<'_>,
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
         let lease = now + Duration::seconds(60);
         with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             sqlx::query(
-                "UPDATE ai_thread_messages SET content = $1, status = 'streaming', \
-                 context_message_count = $2, retrieved_message_count = $3, \
-                 sources = $4, revision = revision + 1, updated_at = $5 WHERE id = $6",
+                "UPDATE ai_thread_messages SET content = $1, status = 'streaming', stage = $2, \
+                 stage_started_at = $3, \
+                 context_message_count = $4, retrieved_message_count = $5, \
+                 sources = $6, trace = $7, revision = $8, updated_at = $9 WHERE id = $10",
             )
-            .bind(content)
-            .bind(context_message_count)
-            .bind(retrieved_message_count)
-            .bind(Json(sources))
+            .bind(answer.content)
+            .bind(answer.stage)
+            .bind(answer.stage_started_at)
+            .bind(answer.context_message_count)
+            .bind(answer.retrieved_message_count)
+            .bind(Json(answer.sources))
+            .bind(Json(answer.trace))
+            .bind(answer.revision)
             .bind(now)
             .bind(execution.assistant_message_id)
             .execute(&mut *transaction)
@@ -233,8 +236,8 @@ impl AppState {
                 "UPDATE ai_runs SET context_message_count = $1, retrieved_message_count = $2, \
                  lease_expires_at = $3, updated_at = $4 WHERE id = $5 AND status = 'running'",
             )
-            .bind(context_message_count)
-            .bind(retrieved_message_count)
+            .bind(answer.context_message_count)
+            .bind(answer.retrieved_message_count)
             .bind(lease)
             .bind(now)
             .bind(execution.id)
@@ -261,18 +264,6 @@ impl AppState {
         })
     }
 
-    pub(super) async fn persisted_ai_run_answer(
-        &self,
-        message_id: Uuid,
-    ) -> Result<String, sqlx::Error> {
-        with_pool!(self, |pool| {
-            sqlx::query_scalar("SELECT content FROM ai_thread_messages WHERE id = $1")
-                .bind(message_id)
-                .fetch_one(pool)
-                .await
-        })
-    }
-
     pub(super) async fn finish_ai_run(
         &self,
         execution: &AiRunExecution,
@@ -280,15 +271,19 @@ impl AppState {
         context_message_count: i64,
         retrieved_message_count: i64,
         sources: &[AiCitationSource],
+        trace: &[AiRunTraceStep],
     ) -> Result<(), sqlx::Error> {
         self.set_ai_run_terminal(
             execution,
-            "completed",
-            content,
-            context_message_count,
-            retrieved_message_count,
-            sources,
-            None,
+            TerminalAiRun {
+                status: "completed",
+                content,
+                context_message_count,
+                retrieved_message_count,
+                sources,
+                trace,
+                error_message: None,
+            },
         )
         .await
     }
@@ -296,20 +291,19 @@ impl AppState {
     pub(super) async fn fail_ai_run(
         &self,
         execution: &AiRunExecution,
-        content: &str,
-        context_message_count: i64,
-        retrieved_message_count: i64,
-        sources: &[AiCitationSource],
-        error_message: &str,
+        failure: FailedAiRun<'_>,
     ) -> Result<(), sqlx::Error> {
         self.set_ai_run_terminal(
             execution,
-            "failed",
-            content,
-            context_message_count,
-            retrieved_message_count,
-            sources,
-            Some(error_message),
+            TerminalAiRun {
+                status: "failed",
+                content: failure.content,
+                context_message_count: failure.context_message_count,
+                retrieved_message_count: failure.retrieved_message_count,
+                sources: failure.sources,
+                trace: failure.trace,
+                error_message: Some(failure.error_message),
+            },
         )
         .await
     }
@@ -317,26 +311,32 @@ impl AppState {
     async fn set_ai_run_terminal(
         &self,
         execution: &AiRunExecution,
-        status: &str,
-        content: &str,
-        context_message_count: i64,
-        retrieved_message_count: i64,
-        sources: &[AiCitationSource],
-        error_message: Option<&str>,
+        terminal: TerminalAiRun<'_>,
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
         with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             sqlx::query(
                 "UPDATE ai_thread_messages SET content = $1, status = $2, context_message_count = $3, \
-                 retrieved_message_count = $4, sources = $5, \
-                 revision = revision + 1, updated_at = $6 WHERE id = $7",
+                 retrieved_message_count = $4, sources = $5, trace = $6, \
+                 stage = $7, stage_started_at = $8, \
+                 revision = revision + 1, updated_at = $8 WHERE id = $9",
             )
-            .bind(content)
-            .bind(if status == "completed" { "completed" } else { "failed" })
-            .bind(context_message_count)
-            .bind(retrieved_message_count)
-            .bind(Json(sources))
+            .bind(terminal.content)
+            .bind(if terminal.status == "completed" {
+                "completed"
+            } else {
+                "failed"
+            })
+            .bind(terminal.context_message_count)
+            .bind(terminal.retrieved_message_count)
+            .bind(Json(terminal.sources))
+            .bind(Json(terminal.trace))
+            .bind(if terminal.status == "completed" {
+                "completed"
+            } else {
+                "failed"
+            })
             .bind(now)
             .bind(execution.assistant_message_id)
             .execute(&mut *transaction)
@@ -345,10 +345,10 @@ impl AppState {
                 "UPDATE ai_runs SET status = $1, context_message_count = $2, retrieved_message_count = $3, \
                  error_message = $4, lease_expires_at = NULL, updated_at = $5 WHERE id = $6",
             )
-            .bind(status)
-            .bind(context_message_count)
-            .bind(retrieved_message_count)
-            .bind(error_message)
+            .bind(terminal.status)
+            .bind(terminal.context_message_count)
+            .bind(terminal.retrieved_message_count)
+            .bind(terminal.error_message)
             .bind(now)
             .bind(execution.id)
             .execute(&mut *transaction)
@@ -356,6 +356,36 @@ impl AppState {
             transaction.commit().await
         })
     }
+}
+
+pub(super) struct FailedAiRun<'a> {
+    pub content: &'a str,
+    pub context_message_count: i64,
+    pub retrieved_message_count: i64,
+    pub sources: &'a [AiCitationSource],
+    pub trace: &'a [AiRunTraceStep],
+    pub error_message: &'a str,
+}
+
+pub(super) struct AiAnswerSnapshot<'a> {
+    pub content: &'a str,
+    pub context_message_count: i64,
+    pub retrieved_message_count: i64,
+    pub sources: &'a [AiCitationSource],
+    pub trace: &'a [AiRunTraceStep],
+    pub stage: &'a str,
+    pub stage_started_at: DateTime<Utc>,
+    pub revision: i64,
+}
+
+struct TerminalAiRun<'a> {
+    status: &'a str,
+    content: &'a str,
+    context_message_count: i64,
+    retrieved_message_count: i64,
+    sources: &'a [AiCitationSource],
+    trace: &'a [AiRunTraceStep],
+    error_message: Option<&'a str>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -375,6 +405,16 @@ pub(super) struct AiRunExecution {
 }
 
 impl AiRunExecution {
+    pub(super) fn request_label(&self) -> String {
+        let host = reqwest::Url::parse(&self.base_url)
+            .ok()
+            .and_then(|url| url.host_str().map(str::to_owned));
+        match host {
+            Some(host) => format!("{} · {} · {host}", self.provider, self.model),
+            None => format!("{} · {}", self.provider, self.model),
+        }
+    }
+
     pub(super) fn assistant(&self, defaults: &AiConfig) -> Option<AiAssistant> {
         let mut config = defaults.clone();
         if !self.provider.is_empty() {

@@ -13,6 +13,12 @@ pub struct VectorStoreConfig {
     pub embedding_base_url: String,
     pub embedding_model: String,
     pub embedding_api_key_env: String,
+    pub rerank_enabled: bool,
+    pub rerank_base_url: String,
+    pub rerank_model: String,
+    pub rerank_api_key_env: String,
+    pub rerank_timeout_ms: u64,
+    pub rerank_score_threshold: f32,
     pub worker_interval_ms: u64,
 }
 
@@ -23,6 +29,10 @@ impl VectorStoreConfig {
 
     pub(crate) fn embedding_api_key(&self) -> Option<String> {
         env_value(&self.embedding_api_key_env)
+    }
+
+    pub(crate) fn rerank_api_key(&self) -> Option<String> {
+        env_value(&self.rerank_api_key_env)
     }
 }
 
@@ -35,10 +45,16 @@ impl Default for VectorStoreConfig {
             api_key_env: String::new(),
             dimensions: 1024,
             top_k: 6,
-            score_threshold: 0.35,
+            score_threshold: 0.55,
             embedding_base_url: String::new(),
             embedding_model: String::new(),
             embedding_api_key_env: String::new(),
+            rerank_enabled: false,
+            rerank_base_url: String::new(),
+            rerank_model: String::new(),
+            rerank_api_key_env: String::new(),
+            rerank_timeout_ms: 2_000,
+            rerank_score_threshold: 0.35,
             worker_interval_ms: 500,
         }
     }

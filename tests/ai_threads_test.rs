@@ -149,6 +149,9 @@ async fn ai_threads_are_persistent_editable_and_private() {
             sender: "Ada".into(),
             sent_at: tied_at,
             excerpt: "原始消息摘要".into(),
+            score: Some(0.82),
+            score_kind: "vector".into(),
+            attachment: None,
         }]))
         .bind(assistant_message_id)
         .execute(state.pool())
@@ -191,6 +194,7 @@ async fn ai_threads_are_persistent_editable_and_private() {
 async fn ai_run_continues_without_a_browser_stream() {
     async fn openai_stream() -> Response<Body> {
         let chunks = [
+            "data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"reasoning_content\":\"分析\"},\"finish_reason\":null}]}\n\n",
             "data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"你\"},\"finish_reason\":null}]}\n\n",
             "data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"好\"},\"finish_reason\":null}]}\n\n",
             concat!(
@@ -203,8 +207,10 @@ async fn ai_run_continues_without_a_browser_stream() {
                 return None;
             }
             if index == 1 {
-                tokio::time::sleep(std::time::Duration::from_millis(75)).await;
+                tokio::time::sleep(std::time::Duration::from_millis(175)).await;
             } else if index == 2 {
+                tokio::time::sleep(std::time::Duration::from_millis(75)).await;
+            } else if index == 3 {
                 tokio::time::sleep(std::time::Duration::from_millis(300)).await;
             }
             Some((
@@ -296,9 +302,11 @@ async fn ai_run_continues_without_a_browser_stream() {
             .json::<Vec<serde_json::Value>>()
             .await
             .unwrap();
-        live_revision = messages
-            .into_iter()
-            .find(|message| message["role"] == "assistant" && message["status"] == "streaming");
+        live_revision = messages.into_iter().find(|message| {
+            message["role"] == "assistant"
+                && message["status"] == "streaming"
+                && message["content"] == "你好"
+        });
         if live_revision.is_some() {
             break;
         }
@@ -338,11 +346,40 @@ async fn ai_run_continues_without_a_browser_stream() {
     assert_eq!(completed["content"], "你好");
     assert_eq!(completed["retrieved_message_count"], 0);
     assert_eq!(completed["sources"], serde_json::json!([]));
+    let trace_keys = completed["trace"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|step| step["key"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        trace_keys,
+        [
+            "analyze_command",
+            "build_execution_plan",
+            "load_context",
+            "rag_skipped",
+            "tool_feedback",
+            "build_prompt",
+            "request_model_api",
+            "wait_first_token",
+            "model_reasoning",
+            "stream_answer",
+        ]
+    );
+    assert!(completed["trace"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|step| step["completed_at"].is_string()));
     let event_body = tokio::time::timeout(std::time::Duration::from_secs(3), events_task)
         .await
         .unwrap()
         .unwrap();
     assert!(event_body.contains("\"status\":\"streaming\""));
+    assert!(event_body.contains("\"stage\":\"reasoning\""));
+    assert!(event_body.contains("\"stage\":\"responding\""));
+    assert!(event_body.contains("\"key\":\"request_model_api\""));
     assert!(event_body.contains("\"status\":\"completed\""));
     let persisted_after_completion: (String, String, i64) = sqlx::query_as(
         "SELECT content, status, retrieved_message_count FROM ai_thread_messages \
