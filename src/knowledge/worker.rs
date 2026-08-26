@@ -21,6 +21,10 @@ pub fn ensure_worker(state: SharedState) {
             .expect("message index checked above")
             .worker_interval;
         loop {
+            if state.maintenance_active() {
+                tokio::time::sleep(interval).await;
+                continue;
+            }
             match state.ready_index_jobs().await {
                 Ok(jobs) => {
                     stream::iter(jobs)

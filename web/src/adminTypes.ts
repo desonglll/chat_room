@@ -124,3 +124,11 @@ export interface AdminPurgeResult {
   attachment_bytes_deleted: number
   rooms_deleted: number
 }
+
+export interface AdminRestoreBackupResult {
+  backup_created_at: string
+  included_files: boolean
+  previous_files_preserved: boolean
+  redis_keys_cleared: number
+  chat_rooms_locked: boolean
+}

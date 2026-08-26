@@ -22,6 +22,10 @@ pub fn ensure_worker(state: SharedState) {
         let interval = graph.worker_interval;
         let concurrency = graph.worker_concurrency;
         loop {
+            if state.maintenance_active() {
+                tokio::time::sleep(interval).await;
+                continue;
+            }
             match state.ready_graph_jobs().await {
                 Ok(jobs) => process_ready_jobs(&state, jobs, concurrency).await,
                 Err(error) => tracing::error!("load graph outbox failed: {error}"),

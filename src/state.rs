@@ -24,7 +24,7 @@ use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
 use crate::work_queue::WorkQueue;
 
-const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
+pub(crate) const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
      password_hash <> '' AS has_password, creator_user_id, join_policy, \
      avatar_emoji, description, \
      CAST(NULL AS TEXT) AS membership_status, CAST(NULL AS TEXT) AS membership_role, \
@@ -47,17 +47,17 @@ pub(crate) enum RoomEvent {
     DisconnectUser { user_id: Uuid, reason: String },
 }
 
-struct RoomChannel {
+pub(crate) struct RoomChannel {
     tx: broadcast::Sender<RoomEvent>,
 }
 
-struct ConnectedMember {
+pub(crate) struct ConnectedMember {
     member: RoomMember,
     connections: usize,
 }
 
 impl RoomChannel {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let (tx, _) = broadcast::channel(256);
         Self { tx }
     }
@@ -66,9 +66,9 @@ impl RoomChannel {
 /// Application state. SQLite is durable storage; the room map is a read cache.
 pub struct AppState {
     pub(crate) pool: storage::DatabasePool,
-    rooms: RwLock<HashMap<Uuid, Room>>,
-    channels: RwLock<HashMap<Uuid, RoomChannel>>,
-    members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
+    pub(crate) rooms: RwLock<HashMap<Uuid, Room>>,
+    pub(crate) channels: RwLock<HashMap<Uuid, RoomChannel>>,
+    pub(crate) members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
     pub(crate) max_upload_bytes: usize,
     pub(crate) attachment_store: AttachmentStore,
     pub(crate) content_hash_locks: ContentHashLocks,
@@ -87,6 +87,7 @@ pub struct AppState {
     pub(crate) message_index_worker_started: AtomicBool,
     pub(crate) knowledge_graph: Option<KnowledgeGraph>,
     pub(crate) knowledge_graph_worker_started: AtomicBool,
+    pub(crate) backup_runtime: crate::state_backup::BackupRuntime,
 }
 
 impl AppState {
@@ -222,6 +223,7 @@ impl AppState {
             message_index_worker_started: AtomicBool::new(false),
             knowledge_graph,
             knowledge_graph_worker_started: AtomicBool::new(false),
+            backup_runtime: crate::state_backup::BackupRuntime::default(),
         };
         state.backfill_attachment_content_hashes().await?;
         Ok(state)

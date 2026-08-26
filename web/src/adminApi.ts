@@ -5,12 +5,19 @@ import type {
   AdminSystemLockStatus,
   AdminVectorProbeResult,
   AdminAiModelOption,
+  AdminRestoreBackupResult,
   SaveAdminAiModelOption,
 } from './adminTypes'
 
 export class AdminApiError extends Error {
-  constructor(public readonly status: number) {
-    super(status === 401 ? '登录已过期' : status === 403 ? '当前账户没有系统管理权限' : `后台接口返回 ${status}`)
+  constructor(
+    public readonly status: number,
+    detail?: string,
+  ) {
+    super(
+      detail ||
+        (status === 401 ? '登录已过期' : status === 403 ? '当前账户没有系统管理权限' : `后台接口返回 ${status}`),
+    )
   }
 }
 
@@ -47,8 +54,42 @@ async function adminRequest(path: string, token: string, method = 'GET', body?: 
     },
     body: body ? JSON.stringify(body) : undefined,
   })
-  if (!response.ok) throw new AdminApiError(response.status)
+  if (!response.ok) await throwAdminError(response)
   return response
+}
+
+async function throwAdminError(response: Response): Promise<never> {
+  let detail = ''
+  try {
+    const payload = (await response.json()) as { error?: unknown }
+    if (typeof payload.error === 'string') detail = payload.error
+  } catch {
+    // Some existing endpoints intentionally return an empty error body.
+  }
+  throw new AdminApiError(response.status, detail)
+}
+
+export async function exportAdminBackup(
+  token: string,
+  includeFiles: boolean,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await adminRequest('/api/admin/backups/export', token, 'POST', { include_files: includeFiles })
+  const disposition = response.headers.get('content-disposition') || ''
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'chat-room-backup.tar.gz'
+  return { blob: await response.blob(), filename }
+}
+
+export async function restoreAdminBackup(token: string, file: File): Promise<AdminRestoreBackupResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await fetch('/api/admin/backups/restore', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!response.ok) await throwAdminError(response)
+  return response.json() as Promise<AdminRestoreBackupResult>
 }
 
 export async function getAdminOverview(token: string): Promise<AdminOverview> {

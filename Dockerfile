@@ -34,7 +34,7 @@ RUN --mount=type=cache,id=chatroom-cargo-registry,target=/usr/local/cargo/regist
     cargo build --locked --release --bin server && \
     cp target/release/server /tmp/chat-room
 
-FROM debian:bookworm-slim AS runtime
+FROM postgres:17-bookworm AS runtime
 
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends ca-certificates curl libssl3 && \

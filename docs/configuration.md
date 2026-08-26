@@ -279,12 +279,41 @@ PostgreSQL when graph state should be restorable without re-indexing; otherwise
 the graph can be rebuilt from authoritative messages by clearing the derived
 store and re-enqueuing active messages.
 
-## Complete PostgreSQL backup and restore
+## PostgreSQL backup and restore
 
-Stop the chat server and graph worker while taking a maintenance backup so the PostgreSQL
-snapshot and attachment directory describe the same point in time. PostgreSQL
-client tools (`pg_dump` and `pg_restore`) must be installed and match the
-server's major version.
+The `/admin` dashboard offers two downloadable backup scopes:
+
+- **Database only** contains a full PostgreSQL dump, including every account,
+  room, message, setting, and other database record. Restoring it does not
+  change the current attachment files.
+- **Database and files** adds every durable local attachment file. The server
+  briefly enters maintenance mode and disconnects chat clients while creating
+  this package so the database and file snapshot stay consistent. This scope is
+  unavailable when OSS is the attachment backend.
+
+Browser exports are `.tar.gz` archives containing `database.dump`, an optional
+`attachments` directory, and `manifest.json` with the backup scope, SHA-256,
+and byte count of every file. Restore rejects unsafe archive paths, unsupported
+formats, extra files, missing files, and checksum mismatches before changing
+the database.
+
+Restore uses `pg_restore --clean --if-exists --no-owner --no-privileges
+--exit-on-error --single-transaction`. A database-only restore leaves files
+untouched. A complete restore preserves the previous durable local files under
+`.pre-restore-*` in the attachment directory before activating the restored
+files. Redis cache keys are cleared, the in-process room cache is rebuilt, and
+the chat system remains locked after a successful restore. Verify the restored
+state in `/admin`, then unlock chat manually.
+
+Online dashboard backup and restore currently require PostgreSQL. Database-only
+backup remains available with OSS, but file backup and restore do not. The
+runtime must include `pg_dump` and `pg_restore` matching the PostgreSQL server's
+major version; the supplied container uses the PostgreSQL 17 runtime image for
+this reason.
+
+For offline complete backups, stop the chat server and graph worker so the
+PostgreSQL snapshot and attachment directory describe the same point in time,
+then use the maintenance commands:
 
 ```sh
 cargo run -- export --output backups/chat-room-2026-08-24
@@ -297,16 +326,10 @@ directory containing `database.dump`, the complete local `attachments`
 directory, and `manifest.json` with a SHA-256 and byte count for every file.
 The output path must not already exist.
 
-Restore verifies the complete manifest before changing data, then runs
-`pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error`.
-It stages attachment bytes before restoring PostgreSQL. The current attachment
-directory is renamed to a unique `.pre-restore-*` sibling before restored files
-are activated, so it remains available for manual rollback. When Redis is
-enabled, restore requires Redis to be reachable and clears this application's
-cache namespace before replacing the database. The commands intentionally reject SQLite and
-OSS-backed attachment configurations rather than producing a partial backup.
-These commands do not include FalkorDB; copy or snapshot `falkordb_data`
-separately, or plan to rebuild the derived graph from PostgreSQL.
+The offline commands intentionally produce a complete package and reject SQLite
+and OSS-backed attachment configurations. Neither dashboard nor command-line
+packages include Qdrant or FalkorDB. Treat those services as rebuildable derived
+state, or back them up separately when recovery time requires it.
 
 The system dashboard is available at `/admin`. Access requires a normal logged
 in account whose username appears in `admin.usernames` (case-insensitive).

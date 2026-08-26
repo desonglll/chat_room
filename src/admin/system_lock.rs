@@ -44,7 +44,7 @@ impl AppState {
         })
     }
 
-    async fn set_chat_rooms_locked(&self, locked: bool) -> Result<(), sqlx::Error> {
+    pub(crate) async fn set_chat_rooms_locked(&self, locked: bool) -> Result<(), sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query("UPDATE system_settings SET value = $1 WHERE key = 'chat_rooms_locked'")
                 .bind(if locked { "true" } else { "false" })

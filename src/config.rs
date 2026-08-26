@@ -291,8 +291,12 @@ impl AppConfig {
         if self.redis.message_ttl_secs == 0 || self.redis.message_ttl_secs > 3600 {
             bail!("redis.message_ttl_secs must be between 1 and 3600");
         }
-        if self.work_queue.message_concurrency == 0 || self.work_queue.upload_concurrency == 0 {
-            bail!("work_queue concurrency limits must be greater than zero");
+        if self.work_queue.message_concurrency == 0
+            || self.work_queue.upload_concurrency == 0
+            || self.work_queue.message_concurrency > u32::MAX as usize
+            || self.work_queue.upload_concurrency > u32::MAX as usize
+        {
+            bail!("work_queue concurrency limits must be between 1 and u32::MAX");
         }
         if self.work_queue.wait_timeout_secs == 0 || self.work_queue.wait_timeout_secs > 300 {
             bail!("work_queue.wait_timeout_secs must be between 1 and 300");

@@ -28,6 +28,7 @@ import { storageGet } from '../browserStorage'
 import AdminSystemLockPanel from './AdminSystemLockPanel.vue'
 import AdminServiceStatusPanel from './AdminServiceStatusPanel.vue'
 import AdminAiModelsPanel from './AdminAiModelsPanel.vue'
+import AdminBackupPanel from './AdminBackupPanel.vue'
 
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const REFRESH_INTERVAL_MS = 15_000
@@ -214,6 +215,14 @@ onBeforeUnmount(() => window.clearInterval(timer))
         />
 
         <AdminAiModelsPanel :token="token" @error="error = $event" />
+
+        <AdminBackupPanel
+          :token="token"
+          :database-backend="overview.database_backend"
+          :attachment-backend="overview.attachment_backend"
+          @error="error = $event"
+          @restored="overview.chat_rooms_locked = true"
+        />
 
         <section aria-labelledby="overview-heading">
           <h2 id="overview-heading" class="mb-3 text-sm font-semibold">实时概览</h2>

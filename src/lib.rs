@@ -20,6 +20,7 @@ pub mod realtime;
 pub mod rooms;
 pub mod social;
 pub mod state;
+mod state_backup;
 mod state_runtime;
 pub mod storage;
 pub mod web;
@@ -27,8 +28,8 @@ mod work_queue;
 
 pub use accounts::{account_ws, avatar_handlers, user_handlers, users};
 pub use admin::{
-    ai_models as admin_ai_models, metrics as admin_metrics, services as admin_services,
-    system_lock as admin_system_lock,
+    ai_models as admin_ai_models, backups as admin_backups, metrics as admin_metrics,
+    services as admin_services, system_lock as admin_system_lock,
 };
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
@@ -120,6 +121,8 @@ use crate::state::AppState;
         ai_threads::events::stream_run_events,
         admin_metrics::overview,
         admin_metrics::purge,
+        admin_backups::export,
+        admin_backups::restore,
         admin_services::probe_vector_search,
         admin_ai_models::list,
         admin_ai_models::create,
@@ -198,6 +201,8 @@ use crate::state::AppState;
         conversations::models::UpdateConversationAliasRequest,
         admin_metrics::AdminOverview,
         admin_metrics::PurgeResult,
+        admin_backups::RestoreBackupResult,
+        admin_backups::BackupApiError,
         admin_system_lock::SystemLockStatus,
         admin_system_lock::UpdateSystemLockRequest,
         admin_system_lock::RoomLockStatus,
@@ -453,6 +458,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/admin/maintenance/purge",
             axum::routing::post(admin_metrics::purge),
         )
+        .merge(admin_backups::routes())
         .route(
             "/api/admin/chat-lock",
             axum::routing::put(admin_system_lock::update),
@@ -481,6 +487,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     app.layer(axum::middleware::from_fn_with_state(
         state.clone(),
         admin_metrics::track_request,
+    ))
+    .layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        admin_backups::reject_during_restore,
     ))
     .layer(CorsLayer::permissive())
     .layer(TraceLayer::new_for_http())

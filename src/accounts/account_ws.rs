@@ -75,6 +75,9 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
     let mut refresh = interval(Duration::from_millis(750));
     refresh.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
+        if state.maintenance_active() {
+            return;
+        }
         tokio::select! {
             _ = refresh.tick() => {
                 let events = match state.account_messages_after(user.id, message_cursor.as_ref()).await {

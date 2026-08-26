@@ -145,6 +145,10 @@ pub fn ensure_dispatcher(state: SharedState) {
     }
     tokio::spawn(async move {
         loop {
+            if state.maintenance_active() {
+                tokio::time::sleep(DISPATCH_INTERVAL).await;
+                continue;
+            }
             match state.dispatchable_ai_runs().await {
                 Ok(run_ids) => {
                     for run_id in run_ids {
