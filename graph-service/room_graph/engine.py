@@ -4,6 +4,7 @@ from typing import Protocol
 from uuid import UUID
 
 from graphiti_core import Graphiti
+from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
 from graphiti_core.driver.falkordb_driver import FalkorDriver
 from graphiti_core.edges import EntityEdge
 from graphiti_core.embedder import OpenAIEmbedder, OpenAIEmbedderConfig
@@ -34,15 +35,15 @@ def room_graph_id(room_id: UUID) -> str:
 class GraphitiEngine:
     def __init__(self, settings: Settings):
         self._settings = settings
-        self._llm = OpenAIClient(
-            LLMConfig(
-                api_key=settings.llm_api_key.get_secret_value(),
-                base_url=settings.llm_base_url,
-                model=settings.llm_model,
-                small_model=settings.llm_model,
-                temperature=0,
-            )
+        llm_config = LLMConfig(
+            api_key=settings.llm_api_key.get_secret_value(),
+            base_url=settings.llm_base_url,
+            model=settings.llm_model,
+            small_model=settings.llm_model,
+            temperature=0,
         )
+        self._llm = OpenAIClient(llm_config)
+        self._cross_encoder = OpenAIRerankerClient(config=llm_config, client=self._llm)
         self._embedder = OpenAIEmbedder(
             OpenAIEmbedderConfig(
                 api_key=settings.resolved_embedding_key,
@@ -68,6 +69,7 @@ class GraphitiEngine:
             graph_driver=self._driver(room_id),
             llm_client=self._llm,
             embedder=self._embedder,
+            cross_encoder=self._cross_encoder,
             store_raw_episode_content=True,
             max_coroutines=self._settings.max_concurrent_writes,
         )

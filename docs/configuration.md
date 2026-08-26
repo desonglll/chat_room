@@ -12,11 +12,13 @@ docker compose -f docker-compose.local.yaml up -d
 cargo run --bin server -- --web
 ```
 
-The server loads `.env` before `chat-room.toml`. `CHAT_ROOM_AI_MODEL` and
-`CHAT_ROOM_AI_BASE_URL` override the default model, while
-`CHAT_ROOM_EMBEDDING_MODEL`, `CHAT_ROOM_EMBEDDING_BASE_URL`, and
-`CHAT_ROOM_VECTOR_ENABLED` configure full-room RAG. See `.env.example` for the
-complete local PostgreSQL, Redis, Qdrant, and AI variable set.
+The server loads `.env`, then reads `chat-room.toml`, and finally applies
+`CHAT_ROOM_*` environment overrides. Environment values do not use template
+syntax inside TOML; they override the matching runtime field after TOML is
+parsed. Every runtime section has corresponding variables in `.env.example`.
+Empty or invalid optional overrides are ignored, while the effective result is
+still checked by the normal configuration validation. AI extra-body variables
+use JSON object syntax.
 
 ```toml
 [uploads]
