@@ -99,14 +99,19 @@ async fn backup_endpoints_require_admin_and_report_sqlite_as_unsupported() {
 
 #[tokio::test]
 async fn postgres_admin_can_export_and_restore_database_with_local_files() {
-    let admin_url = std::env::var("TEST_POSTGRES_ADMIN_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:52735/postgres".into());
+    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
+    let admin_url = configured
+        .clone()
+        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".into());
     let admin_pool = match PgPoolOptions::new()
         .max_connections(1)
         .connect(&admin_url)
         .await
     {
         Ok(pool) => pool,
+        Err(error) if configured.is_some() => {
+            panic!("required PostgreSQL at {admin_url} is unavailable: {error}")
+        }
         Err(error) => {
             eprintln!("skipping backup restore test; PostgreSQL is unavailable: {error}");
             return;

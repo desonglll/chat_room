@@ -9,9 +9,25 @@ use super::*;
 use chat_room::config::{AdminConfig, AppConfig};
 use sqlx::postgres::PgPoolOptions;
 
-fn postgres_admin_url() -> String {
-    std::env::var("TEST_POSTGRES_ADMIN_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:52735/postgres".to_string())
+async fn connect_postgres_admin(test_name: &str) -> Option<(String, sqlx::PgPool)> {
+    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
+    let admin_url = configured
+        .clone()
+        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".to_string());
+    match PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&admin_url)
+        .await
+    {
+        Ok(pool) => Some((admin_url, pool)),
+        Err(error) if configured.is_some() => {
+            panic!("{test_name}: required PostgreSQL at {admin_url} is unavailable: {error}")
+        }
+        Err(error) => {
+            eprintln!("skipping {test_name}: could not reach PostgreSQL at {admin_url}: {error}");
+            None
+        }
+    }
 }
 
 /// Create a fresh, empty database on the same server as `admin_url` and
@@ -31,20 +47,10 @@ async fn create_scratch_database(admin_pool: &sqlx::PgPool, admin_url: &str) -> 
 
 #[tokio::test]
 async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
-    let admin_url = postgres_admin_url();
-    let admin_pool = match PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&admin_url)
-        .await
-    {
-        Ok(pool) => pool,
-        Err(error) => {
-            eprintln!(
-                "skipping postgres_backend_creates_rooms_and_serves_websocket_chat: \
-                 could not reach Postgres at {admin_url}: {error}"
-            );
-            return;
-        }
+    let Some((admin_url, admin_pool)) =
+        connect_postgres_admin("postgres_backend_creates_rooms_and_serves_websocket_chat").await
+    else {
+        return;
     };
 
     let (db_name, test_url) = create_scratch_database(&admin_pool, &admin_url).await;
@@ -143,20 +149,10 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
 /// the failure mode that actually matters: the two backends drifting apart.
 #[tokio::test]
 async fn sqlite_and_postgres_migrations_produce_matching_schemas() {
-    let admin_url = postgres_admin_url();
-    let admin_pool = match PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&admin_url)
-        .await
-    {
-        Ok(pool) => pool,
-        Err(error) => {
-            eprintln!(
-                "skipping sqlite_and_postgres_migrations_produce_matching_schemas: \
-                 could not reach Postgres at {admin_url}: {error}"
-            );
-            return;
-        }
+    let Some((admin_url, admin_pool)) =
+        connect_postgres_admin("sqlite_and_postgres_migrations_produce_matching_schemas").await
+    else {
+        return;
     };
 
     let (db_name, test_url) = create_scratch_database(&admin_pool, &admin_url).await;
@@ -239,17 +235,10 @@ async fn sqlite_and_postgres_migrations_produce_matching_schemas() {
 
 #[tokio::test]
 async fn postgres_friendship_creates_one_private_direct_conversation() {
-    let admin_url = postgres_admin_url();
-    let admin_pool = match PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&admin_url)
-        .await
-    {
-        Ok(pool) => pool,
-        Err(error) => {
-            eprintln!("skipping postgres social integration: {error}");
-            return;
-        }
+    let Some((admin_url, admin_pool)) =
+        connect_postgres_admin("postgres_friendship_creates_one_private_direct_conversation").await
+    else {
+        return;
     };
     let (db_name, test_url) = create_scratch_database(&admin_pool, &admin_url).await;
     let state = Arc::new(
