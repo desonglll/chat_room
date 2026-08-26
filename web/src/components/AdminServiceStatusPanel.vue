@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowUpRight, Bot, BrainCircuit, Boxes, Database, Search, Server } from 'lucide-vue-next'
+import { ArrowUpRight, Bot, BrainCircuit, Boxes, Database, Network, Search, Server } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
@@ -26,6 +26,7 @@ const icons = {
   redis: Boxes,
   vector_store: Server,
   embedding: BrainCircuit,
+  knowledge_graph: Network,
   ai_provider: Bot,
 }
 
@@ -71,15 +72,16 @@ function openMessage(messageId: string): void {
     <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 id="services-heading" class="text-sm font-semibold">依赖服务</h2>
-        <p class="mt-1 text-xs text-muted-color">连接状态、探测耗时与向量索引积压</p>
+        <p class="mt-1 text-xs text-muted-color">连接状态、探测耗时与派生索引积压</p>
       </div>
       <p class="text-xs text-muted-color">
         向量 {{ services.vector_index.points ?? '—' }} · 待处理 {{ services.vector_index.pending_jobs }} · 重试
         {{ services.vector_index.retrying_jobs }}
+        · 图谱待处理 {{ services.graph_index.pending_jobs }} · 重试 {{ services.graph_index.retrying_jobs }}
       </p>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <article v-for="service in services.items" :key="service.id" class="rounded-lg bg-surface-0 p-4 shadow-xs">
         <div class="mb-4 flex items-center justify-between gap-3">
           <component :is="icons[service.id]" :size="18" class="text-primary" />
@@ -97,6 +99,9 @@ function openMessage(messageId: string): void {
 
     <p v-if="services.vector_index.last_error" class="mt-3 break-words text-xs text-danger">
       最近索引错误：{{ services.vector_index.last_error }}
+    </p>
+    <p v-if="services.graph_index.last_error" class="mt-2 break-words text-xs text-danger">
+      最近图谱错误：{{ services.graph_index.last_error }}
     </p>
 
     <div class="mt-6 border-t border-surface-200 pt-5">

@@ -88,6 +88,22 @@ embedding_model = ""
 embedding_api_key_env = "CHAT_ROOM_AI_API_KEY"
 worker_interval_ms = 500
 
+[knowledge_graph]
+# Temporal room graphs are optional. When disabled, no graph service is contacted.
+enabled = false
+url = "http://127.0.0.1:8090"
+# Name of an environment variable containing the internal sidecar bearer token.
+api_token_env = "CHAT_ROOM_KNOWLEDGE_GRAPH_TOKEN"
+max_facts = 8
+graph_limit = 250
+worker_interval_ms = 1000
+# Indexing calls include LLM extraction and may legitimately take longer.
+request_timeout_secs = 180
+# AI reads degrade independently after this short deadline.
+search_timeout_ms = 2000
+# Different rooms may index concurrently; writes within one room stay ordered.
+worker_concurrency = 4
+
 [realtime]
 # WebSocket timing and per-tick history/poll limits. Restart after changing.
 poll_interval_ms = 250

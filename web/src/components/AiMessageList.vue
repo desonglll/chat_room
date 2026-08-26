@@ -74,7 +74,7 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
               {{ aiContextUsage(message.context_message_count, message.retrieved_message_count).recent }} 条
             </template>
             <template v-if="aiContextUsage(message.context_message_count, message.retrieved_message_count).retrieved">
-              · 全房间 RAG 命中
+              · 全房间检索证据
               {{ aiContextUsage(message.context_message_count, message.retrieved_message_count).retrieved }} 条
             </template>
           </p>

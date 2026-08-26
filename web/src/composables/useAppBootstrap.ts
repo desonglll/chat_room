@@ -39,7 +39,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   const showColdSkeleton = useDelayedVisibility(coldStartPending)
   const networkError = ref('')
   const maxUploadBytes = ref(DEFAULT_MAX_UPLOAD_BYTES)
-  const aiEnabled = ref(false)
+  const capabilities = ref({ ai: false, knowledgeGraph: false })
   const aiStatus = ref<AiRuntimeStatus>('disabled')
   let restoreAttempted = false
 
@@ -83,11 +83,12 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
       if (Number.isSafeInteger(config.max_upload_bytes) && config.max_upload_bytes > 0) {
         maxUploadBytes.value = config.max_upload_bytes
       }
-      aiEnabled.value = Boolean(config.ai_enabled)
+      capabilities.value.ai = Boolean(config.ai_enabled)
+      capabilities.value.knowledgeGraph = Boolean(config.knowledge_graph_enabled)
       aiStatus.value = config.ai_status
     } catch {
       maxUploadBytes.value = DEFAULT_MAX_UPLOAD_BYTES
-      aiEnabled.value = false
+      capabilities.value = { ai: false, knowledgeGraph: false }
       aiStatus.value = 'disabled'
     }
   }
@@ -159,7 +160,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   })
 
   return {
-    aiEnabled,
+    capabilities,
     aiStatus,
     currentUser,
     handleAccountDeleted,

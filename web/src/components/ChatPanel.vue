@@ -65,6 +65,7 @@ const props = defineProps<{
   hasMoreHistory: boolean
   pendingUploads: AttachmentUploadSession[]
   aiEnabled: boolean
+  knowledgeGraphEnabled: boolean
   loading: boolean
   ensureMessage: (messageId: string) => Promise<boolean>
 }>()
@@ -301,6 +302,7 @@ onBeforeUnmount(() => {
       :members="members"
       :current-user-id="currentUserId"
       :token="token"
+      :knowledge-graph-enabled="knowledgeGraphEnabled"
       @back="emit('back')"
       @manage="emit('manage')"
       @leave="emit('leave')"

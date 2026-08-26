@@ -38,7 +38,7 @@ export interface AdminTopRoom {
 export type AdminServiceState = 'healthy' | 'degraded' | 'disabled' | 'configured'
 
 export interface AdminServiceStatus {
-  id: 'database' | 'redis' | 'vector_store' | 'embedding' | 'ai_provider'
+  id: 'database' | 'redis' | 'vector_store' | 'embedding' | 'knowledge_graph' | 'ai_provider'
   label: string
   state: AdminServiceState
   latency_ms: number | null
@@ -55,6 +55,7 @@ export interface AdminVectorIndexStatus {
 export interface AdminServiceOverview {
   items: AdminServiceStatus[]
   vector_index: AdminVectorIndexStatus
+  graph_index: Omit<AdminVectorIndexStatus, 'points'>
 }
 
 export interface AdminVectorProbeMatch {

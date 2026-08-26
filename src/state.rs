@@ -18,6 +18,7 @@ use crate::attachments::upload_hashes::UploadHashTracker;
 use crate::cache::RedisCache;
 use crate::config::AppConfig;
 use crate::knowledge::MessageIndex;
+use crate::knowledge_graph::KnowledgeGraph;
 use crate::models::{ChatMessage, Room, RoomMember, User};
 use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
@@ -84,6 +85,8 @@ pub struct AppState {
     pub(crate) ai_run_dispatcher_started: AtomicBool,
     pub(crate) message_index: Option<MessageIndex>,
     pub(crate) message_index_worker_started: AtomicBool,
+    pub(crate) knowledge_graph: Option<KnowledgeGraph>,
+    pub(crate) knowledge_graph_worker_started: AtomicBool,
 }
 
 impl AppState {
@@ -188,6 +191,7 @@ impl AppState {
                 None
             }
         };
+        let knowledge_graph = crate::knowledge_graph::connect_or_disable(&config.knowledge_graph);
 
         let mut rooms = HashMap::with_capacity(loaded.len());
         let mut channels = HashMap::with_capacity(loaded.len());
@@ -216,6 +220,8 @@ impl AppState {
             ai_run_dispatcher_started: AtomicBool::new(false),
             message_index,
             message_index_worker_started: AtomicBool::new(false),
+            knowledge_graph,
+            knowledge_graph_worker_started: AtomicBool::new(false),
         };
         state.backfill_attachment_content_hashes().await?;
         Ok(state)

@@ -109,7 +109,10 @@ async fn overview_requires_allowlisted_authenticated_account() {
     assert_eq!(overview["services"]["items"][1]["state"], "disabled");
     assert_eq!(overview["services"]["items"][2]["id"], "vector_store");
     assert_eq!(overview["services"]["items"][2]["state"], "disabled");
+    assert_eq!(overview["services"]["items"][4]["id"], "knowledge_graph");
+    assert_eq!(overview["services"]["items"][4]["state"], "disabled");
     assert_eq!(overview["services"]["vector_index"]["pending_jobs"], 0);
+    assert_eq!(overview["services"]["graph_index"]["pending_jobs"], 0);
 }
 
 #[tokio::test]
@@ -170,8 +173,8 @@ async fn unavailable_vector_store_is_reported_without_stopping_the_server() {
     assert_eq!(overview["services"]["items"][2]["state"], "degraded");
     assert_eq!(overview["services"]["items"][1]["id"], "redis");
     assert_eq!(overview["services"]["items"][1]["state"], "degraded");
-    assert_eq!(overview["services"]["items"][4]["id"], "ai_provider");
-    assert_eq!(overview["services"]["items"][4]["state"], "degraded");
+    assert_eq!(overview["services"]["items"][5]["id"], "ai_provider");
+    assert_eq!(overview["services"]["items"][5]["state"], "degraded");
 }
 
 #[tokio::test]

@@ -50,8 +50,8 @@ useTheme(computed(() => preferences.value.theme))
 const sidebarWidth = ref(360)
 const toast = useToast()
 const {
-  aiEnabled,
   aiStatus,
+  capabilities,
   currentUser,
   handleAccountDeleted,
   handleAuthenticated,
@@ -437,7 +437,8 @@ function handleForwarded(): void {
         :poked-at="chat.pokedAt.value"
         :loading-older="history.loading.value"
         :has-more-history="history.hasMore.value"
-        :ai-enabled="aiEnabled"
+        :ai-enabled="capabilities.ai"
+        :knowledge-graph-enabled="capabilities.knowledgeGraph"
         :loading="showColdSkeleton"
         :ensure-message="history.ensureMessage"
         @back="mobileView = 'rooms'"

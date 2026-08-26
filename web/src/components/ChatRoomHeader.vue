@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import {
   ArrowLeft,
   Ban,
@@ -8,6 +8,7 @@ import {
   EllipsisVertical,
   ListChecks,
   LogOut,
+  Network,
   UserMinus,
   UserRound,
 } from 'lucide-vue-next'
@@ -31,7 +32,10 @@ const props = defineProps<{
   members: RoomMember[]
   currentUserId: string
   token: string
+  knowledgeGraphEnabled: boolean
 }>()
+
+const KnowledgeGraphDialog = defineAsyncComponent(() => import('./KnowledgeGraphDialog.vue'))
 
 const emit = defineEmits<{
   back: []
@@ -47,6 +51,7 @@ const emit = defineEmits<{
 const memberPopover = ref()
 const moreMenu = ref()
 const roomIdCopied = ref(false)
+const graphOpen = ref(false)
 const statusColor = computed(
   () =>
     ({
@@ -238,6 +243,18 @@ async function copyRoomId(): Promise<void> {
         <IconSprite name="members" :size="19" />
       </Button>
       <Button
+        v-if="authenticated && knowledgeGraphEnabled"
+        class="cr-header-action cr-header-secondary"
+        text
+        rounded
+        severity="secondary"
+        aria-label="知识图谱"
+        title="知识图谱"
+        @click="graphOpen = true"
+      >
+        <Network :size="19" />
+      </Button>
+      <Button
         v-if="authenticated"
         class="cr-header-action cr-header-secondary"
         text
@@ -275,5 +292,12 @@ async function copyRoomId(): Promise<void> {
         </template>
       </Menu>
     </div>
+    <KnowledgeGraphDialog
+      :open="graphOpen"
+      :room-id="room.id"
+      :room-name="displayTitle"
+      :token="token"
+      @close="graphOpen = false"
+    />
   </header>
 </template>
