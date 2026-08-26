@@ -240,47 +240,6 @@ by default and stores its data in `qdrant_data`. Containers use
 `QDRANT_HTTP_PORT` and `QDRANT_GRPC_PORT`. Configure an API key and TLS before
 making Qdrant reachable beyond the local host.
 
-The room knowledge graph is also strictly opt-in. Set
-`knowledge_graph.enabled = true` or `CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED=true`,
-and place a long random shared secret in the environment variable named by
-`knowledge_graph.api_token_env`. The Rust application never sends graph data
-until both settings are present. It remains the authorization boundary; the
-internal graph service cannot decide whether a user may read a room.
-
-Every active text message is projected to Graphiti as one Episode. A dedicated
-SQL outbox backfills existing messages and tracks new messages, edits, recalls,
-and deletes. Jobs for one room run in order, different rooms can run in
-parallel, and failures retry with exponential backoff. Graph indexing is
-eventually consistent because extraction calls an LLM. The admin dashboard
-shows pending and retrying graph jobs separately from Qdrant jobs.
-
-Graph search contributes bounded `G1`, `G2`, ... relationship facts alongside
-Qdrant's `S1`, `S2`, ... source messages. Before a fact reaches a browser or an
-AI prompt, every referenced Episode is mapped back to an active, non-recalled
-message in the same room and current membership is rechecked. If any source is
-no longer authorized, the complete fact is discarded. Node summaries are not
-exposed because Graphiti summaries do not carry sufficiently granular source
-authorization metadata.
-
-The sidecar pins `graphiti-core==0.29.3`, uses one FalkorDB graph named from
-each room UUID, and only exposes bearer-authenticated `/v1` routes. Graphiti's
-own sample server is not used: it acknowledges an in-memory queue before graph
-commit, which is not compatible with the durable SQL outbox. The custom
-sidecar waits for completion before returning success and reconciles retries by
-the deterministic `message:<UUID>` Episode name.
-
-`search_timeout_ms` bounds graph evidence retrieval for an AI answer. A timeout
-or outage only removes graph evidence from that answer; recent history and
-Qdrant remain available. `request_timeout_secs` is longer because LLM-backed
-indexing may take minutes. Disabling the feature stops workers and retrieval
-without deleting the outbox or graph data, so re-enabling resumes convergence.
-
-FalkorDB 4.18.8 is pinned in Compose and stores data in `falkordb_data`. Its
-SSPLv1 license requires deployment review. Back up that volume together with
-PostgreSQL when graph state should be restorable without re-indexing; otherwise
-the graph can be rebuilt from authoritative messages by clearing the derived
-store and re-enqueuing active messages.
-
 ## PostgreSQL backup and restore
 
 The `/admin` dashboard offers two downloadable backup scopes:
@@ -304,8 +263,8 @@ Restore uses `pg_restore --clean --if-exists --no-owner --no-privileges
 untouched. A complete restore preserves the previous durable local files under
 `.pre-restore-*` in the attachment directory before activating the restored
 files. Redis cache keys are cleared, the in-process room cache is rebuilt, and
-the enabled Qdrant and knowledge-graph indexes are repopulated asynchronously
-from restored messages. The chat system remains locked after a successful
+the enabled Qdrant index is repopulated asynchronously from restored messages.
+The chat system remains locked after a successful
 restore. Verify the restored state in `/admin`, then unlock chat manually.
 
 Online dashboard backup and restore currently require PostgreSQL. Database-only
@@ -314,7 +273,7 @@ runtime must include `pg_dump` and `pg_restore` matching the PostgreSQL server's
 major version; the supplied container uses the PostgreSQL 17 runtime image for
 this reason.
 
-For offline complete backups, stop the chat server and graph worker so the
+For offline complete backups, stop the chat server so the
 PostgreSQL snapshot and attachment directory describe the same point in time,
 then use the maintenance commands:
 
@@ -331,13 +290,12 @@ The output path must not already exist.
 
 The offline commands intentionally produce a complete package and reject SQLite
 and OSS-backed attachment configurations. Neither dashboard nor command-line
-packages include Qdrant or FalkorDB. Treat those services as rebuildable derived
-state, or back them up separately when recovery time requires it.
+packages include Qdrant. Treat it as rebuildable derived state, or back it up
+separately when recovery time requires it.
 
-The `/admin` dependency section can also enqueue a full vector or knowledge-
-graph synchronization manually. This resets failed retries and is safe to run
-while workers are active; knowledge-graph synchronization may make one or more
-model calls for every message that has not already completed extraction.
+The `/admin` dependency section can also enqueue a full vector synchronization
+manually. This resets failed retries and is safe to run while the worker is
+active.
 
 The system dashboard is available at `/admin`. Access requires a normal logged
 in account whose username appears in `admin.usernames` (case-insensitive).

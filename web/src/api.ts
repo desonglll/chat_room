@@ -4,7 +4,6 @@ import type {
   BroadcastMessage,
   ChatFilePage,
   ForwardResult,
-  KnowledgeGraphSnapshot,
   PublicConfig,
   Room,
   RoomMembership,
@@ -152,17 +151,6 @@ export async function getRoom(roomId: string, token = ''): Promise<Room> {
   if (response.status === 404) throw new Error('没有找到这个聊天室，请检查 ID')
   if (!response.ok) throw new Error(`查找聊天室失败：${response.status}`)
   return response.json() as Promise<Room>
-}
-
-export async function getRoomKnowledgeGraph(roomId: string, token: string): Promise<KnowledgeGraphSnapshot> {
-  const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/knowledge-graph`, {
-    headers: authHeaders(token),
-  })
-  if (response.status === 401) throw new Error('登录已过期')
-  if (response.status === 403) throw new Error('你已不是这个聊天室的活跃成员')
-  if (response.status === 503) throw new Error('知识图谱服务暂不可用')
-  if (!response.ok) throw new Error(`读取知识图谱失败：${response.status}`)
-  return response.json() as Promise<KnowledgeGraphSnapshot>
 }
 
 export async function createRoom(

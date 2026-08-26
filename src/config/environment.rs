@@ -239,40 +239,6 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         config.vector_store.worker_interval_ms,
         "CHAT_ROOM_VECTOR_WORKER_INTERVAL_MS"
     );
-
-    parse!(
-        config.knowledge_graph.enabled,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED"
-    );
-    string!(config.knowledge_graph.url, "CHAT_ROOM_KNOWLEDGE_GRAPH_URL");
-    string!(
-        config.knowledge_graph.api_token_env,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_API_TOKEN_ENV"
-    );
-    parse!(
-        config.knowledge_graph.max_facts,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_MAX_FACTS"
-    );
-    parse!(
-        config.knowledge_graph.graph_limit,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_GRAPH_LIMIT"
-    );
-    parse!(
-        config.knowledge_graph.worker_interval_ms,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_WORKER_INTERVAL_MS"
-    );
-    parse!(
-        config.knowledge_graph.request_timeout_secs,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_REQUEST_TIMEOUT_SECS"
-    );
-    parse!(
-        config.knowledge_graph.search_timeout_ms,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_SEARCH_TIMEOUT_MS"
-    );
-    parse!(
-        config.knowledge_graph.worker_concurrency,
-        "CHAT_ROOM_KNOWLEDGE_GRAPH_WORKER_CONCURRENCY"
-    );
 }
 
 fn nonempty(value: Option<String>) -> Option<String> {

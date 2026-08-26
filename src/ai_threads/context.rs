@@ -3,7 +3,6 @@ use std::time::Duration;
 use crate::ai::AiConversationTurn;
 use crate::ai_handlers::room_context_for_authorized_user;
 use crate::knowledge::retrieve_room_context;
-use crate::knowledge_graph::retrieve_graph_context;
 use crate::state::SharedState;
 
 use super::models::AiCitationSource;
@@ -60,68 +59,33 @@ pub(super) async fn prepare_generation_context(
     let excluded_message_ids = room_context
         .map(|context| context.message_ids)
         .unwrap_or_default();
-    let vector_excluded_ids = excluded_message_ids.clone();
-    let vector_retrieval = async {
-        let index = state.message_index().cloned()?;
-        Some(
-            tokio::time::timeout(
-                SEMANTIC_SEARCH_TIMEOUT,
-                retrieve_room_context(
-                    state.clone(),
-                    index,
-                    execution.user_id,
-                    room_id,
-                    &execution.question,
-                    vector_excluded_ids,
-                ),
-            )
-            .await,
-        )
+    let Some(index) = state.message_index().cloned() else {
+        return Ok(context);
     };
-    let graph_retrieval = async {
-        let graph = state.knowledge_graph().cloned()?;
-        Some(
-            tokio::time::timeout(
-                graph.search_timeout,
-                retrieve_graph_context(
-                    state.clone(),
-                    graph,
-                    execution.user_id,
-                    room_id,
-                    &execution.question,
-                    excluded_message_ids,
-                ),
-            )
-            .await,
-        )
-    };
-    let (vector_result, graph_result) = tokio::join!(vector_retrieval, graph_retrieval);
+    let vector_result = tokio::time::timeout(
+        SEMANTIC_SEARCH_TIMEOUT,
+        retrieve_room_context(
+            state.clone(),
+            index,
+            execution.user_id,
+            room_id,
+            &execution.question,
+            excluded_message_ids,
+        ),
+    )
+    .await;
     match vector_result {
-        None => {}
-        Some(Ok(Ok(rag_context))) if rag_context.message_count > 0 => {
+        Ok(Ok(rag_context)) if rag_context.message_count > 0 => {
             context.message_count += rag_context.message_count as i64;
             context.retrieved_message_count += rag_context.message_count as i64;
             context.sources = rag_context.sources;
             append_context(&mut context.toon_context, &rag_context.toon_context);
         }
-        Some(Ok(Ok(_))) => {}
-        Some(Ok(Err(error))) => {
+        Ok(Ok(_)) => {}
+        Ok(Err(error)) => {
             tracing::warn!(room_id = %room_id, "semantic message retrieval failed: {error:#}");
         }
-        Some(Err(_)) => tracing::warn!(room_id = %room_id, "semantic message retrieval timed out"),
-    }
-    match graph_result {
-        None => {}
-        Some(Ok(Ok(graph_context))) if graph_context.fact_count > 0 => {
-            context.message_count += graph_context.fact_count as i64;
-            context.retrieved_message_count += graph_context.fact_count as i64;
-            append_context(&mut context.toon_context, &graph_context.toon_context);
-        }
-        Some(Ok(Ok(_))) => {}
-        Some(Ok(Err(error))) => {
-            tracing::warn!(room_id = %room_id, "knowledge graph retrieval failed: {error:#}");
-        }
-        Some(Err(_)) => tracing::warn!(room_id = %room_id, "knowledge graph retrieval timed out"),
+        Err(_) => tracing::warn!(room_id = %room_id, "semantic message retrieval timed out"),
     }
     Ok(context)
 }

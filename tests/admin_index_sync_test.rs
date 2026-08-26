@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use chat_room::{
     build_app,
-    config::{AdminConfig, AppConfig, KnowledgeGraphConfig, VectorStoreConfig},
+    config::{AdminConfig, AppConfig, VectorStoreConfig},
     state::AppState,
 };
 use chrono::Utc;
@@ -25,8 +25,6 @@ impl Drop for Server {
 }
 
 async fn start() -> Server {
-    let graph_token_env = "CHAT_ROOM_TEST_ADMIN_INDEX_GRAPH_TOKEN";
-    std::env::set_var(graph_token_env, "test-graph-token");
     let config = AppConfig {
         admin: AdminConfig {
             usernames: vec!["index-admin".into()],
@@ -41,13 +39,6 @@ async fn start() -> Server {
             embedding_model: "embed-test".into(),
             worker_interval_ms: 60_000,
             ..VectorStoreConfig::default()
-        },
-        knowledge_graph: KnowledgeGraphConfig {
-            enabled: true,
-            url: "http://127.0.0.1:9".into(),
-            api_token_env: graph_token_env.into(),
-            worker_interval_ms: 60_000,
-            ..KnowledgeGraphConfig::default()
         },
         ..AppConfig::default()
     };
@@ -76,8 +67,15 @@ async fn create_room(base: &str, token: &str) -> Uuid {
 }
 
 #[tokio::test]
-async fn admin_can_resync_vector_and_graph_outboxes() {
+async fn admin_can_resync_the_vector_outbox() {
     let server = start().await;
+    let graph_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'message_graph_outbox'",
+    )
+    .fetch_one(server.state.pool())
+    .await
+    .unwrap();
+    assert_eq!(graph_tables, 0);
     let client = reqwest::Client::new();
     let admin_token = session_token(&server.base, "index-admin").await;
     let regular_token = session_token(&server.base, "index-user").await;
@@ -113,10 +111,6 @@ async fn admin_can_resync_vector_and_graph_outboxes() {
         .execute(server.state.pool())
         .await
         .unwrap();
-    sqlx::query("DELETE FROM message_graph_outbox")
-        .execute(server.state.pool())
-        .await
-        .unwrap();
 
     let unauthorized = client
         .post(format!("{}/api/admin/indexes/sync", server.base))
@@ -127,20 +121,18 @@ async fn admin_can_resync_vector_and_graph_outboxes() {
         .unwrap();
     assert_eq!(unauthorized.status(), 403);
 
-    for target in ["vector", "graph"] {
-        let response = client
-            .post(format!("{}/api/admin/indexes/sync", server.base))
-            .bearer_auth(&admin_token)
-            .json(&serde_json::json!({ "target": target }))
-            .send()
-            .await
-            .unwrap();
-        let status = response.status();
-        let body: serde_json::Value = response.json().await.unwrap();
-        assert_eq!(status, 200, "sync response: {body}");
-        assert_eq!(body["target"], target);
-        assert_eq!(body["queued_messages"], 2);
-    }
+    let response = client
+        .post(format!("{}/api/admin/indexes/sync", server.base))
+        .bearer_auth(&admin_token)
+        .json(&serde_json::json!({ "target": "vector" }))
+        .send()
+        .await
+        .unwrap();
+    let status = response.status();
+    let body: serde_json::Value = response.json().await.unwrap();
+    assert_eq!(status, 200, "sync response: {body}");
+    assert_eq!(body["target"], "vector");
+    assert_eq!(body["queued_messages"], 2);
 
     let vector_jobs: Vec<(Uuid, String, i64, Option<String>)> = sqlx::query_as(
         "SELECT message_id, operation, attempt_count, last_error \
@@ -149,16 +141,7 @@ async fn admin_can_resync_vector_and_graph_outboxes() {
     .fetch_all(server.state.pool())
     .await
     .unwrap();
-    let graph_jobs: Vec<(Uuid, String, i64, Option<String>)> = sqlx::query_as(
-        "SELECT message_id, operation, attempt_count, last_error \
-         FROM message_graph_outbox ORDER BY message_id",
-    )
-    .fetch_all(server.state.pool())
-    .await
-    .unwrap();
-    for jobs in [vector_jobs, graph_jobs] {
-        assert_eq!(jobs.len(), 2);
-        assert!(jobs.contains(&(active_id, "upsert".into(), 0, None)));
-        assert!(jobs.contains(&(recalled_id, "delete".into(), 0, None)));
-    }
+    assert_eq!(vector_jobs.len(), 2);
+    assert!(vector_jobs.contains(&(active_id, "upsert".into(), 0, None)));
+    assert!(vector_jobs.contains(&(recalled_id, "delete".into(), 0, None)));
 }

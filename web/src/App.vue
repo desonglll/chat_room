@@ -438,7 +438,6 @@ function handleForwarded(): void {
         :loading-older="history.loading.value"
         :has-more-history="history.hasMore.value"
         :ai-enabled="capabilities.ai"
-        :knowledge-graph-enabled="capabilities.knowledgeGraph"
         :loading="showColdSkeleton"
         :ensure-message="history.ensureMessage"
         @back="mobileView = 'rooms'"

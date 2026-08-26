@@ -21,8 +21,6 @@ fn ai_and_vector_settings_can_come_from_the_environment() {
         ("CHAT_ROOM_EMBEDDING_MODEL", "embed-from-env"),
         ("CHAT_ROOM_EMBEDDING_BASE_URL", "https://embed.example/v1"),
         ("CHAT_ROOM_EMBEDDING_DIMENSIONS", "768"),
-        ("CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED", "true"),
-        ("CHAT_ROOM_KNOWLEDGE_GRAPH_URL", "http://graph:8000"),
     ]);
 
     assert!(config.ai.enabled);
@@ -33,8 +31,6 @@ fn ai_and_vector_settings_can_come_from_the_environment() {
     assert!(config.vector_store.enabled);
     assert_eq!(config.vector_store.embedding_model, "embed-from-env");
     assert_eq!(config.vector_store.dimensions, 768);
-    assert!(config.knowledge_graph.enabled);
-    assert_eq!(config.knowledge_graph.url, "http://graph:8000");
 }
 
 #[test]
@@ -52,8 +48,6 @@ fn all_runtime_sections_can_come_from_the_environment() {
         ("CHAT_ROOM_AI_REQUEST_TIMEOUT_SECS", "90"),
         ("CHAT_ROOM_VECTOR_COLLECTION", "messages_v2"),
         ("CHAT_ROOM_VECTOR_SCORE_THRESHOLD", "0.7"),
-        ("CHAT_ROOM_KNOWLEDGE_GRAPH_GRAPH_LIMIT", "400"),
-        ("CHAT_ROOM_KNOWLEDGE_GRAPH_WORKER_CONCURRENCY", "6"),
         ("CHAT_ROOM_REALTIME_POLL_INTERVAL_MS", "500"),
         ("CHAT_ROOM_AUTH_SESSION_LIFETIME_DAYS", "14"),
         ("CHAT_ROOM_REDIS_KEY_PREFIX", "chat-test"),
@@ -76,8 +70,6 @@ fn all_runtime_sections_can_come_from_the_environment() {
     assert_eq!(config.ai.request_timeout_secs, 90);
     assert_eq!(config.vector_store.collection, "messages_v2");
     assert_eq!(config.vector_store.score_threshold, 0.7);
-    assert_eq!(config.knowledge_graph.graph_limit, 400);
-    assert_eq!(config.knowledge_graph.worker_concurrency, 6);
     assert_eq!(config.realtime.poll_interval_ms, 500);
     assert_eq!(config.auth.session_lifetime_days, 14);
     assert_eq!(config.redis.key_prefix, "chat-test");

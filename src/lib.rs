@@ -13,7 +13,6 @@ pub mod conversations;
 pub mod direct_conversations;
 pub mod favorites;
 pub mod knowledge;
-pub mod knowledge_graph;
 pub mod messages;
 pub mod models;
 pub mod realtime;
@@ -131,7 +130,6 @@ use crate::state::AppState;
         admin_system_lock::update,
         admin_system_lock::room_status,
         admin_system_lock::update_room,
-        knowledge_graph::handlers::room_graph,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -147,7 +145,6 @@ use crate::state::AppState;
         ai_threads::AiRun,
         admin_services::ServiceStatus,
         admin_services::VectorIndexStatus,
-        admin_services::GraphIndexStatus,
         admin_services::ServiceOverview,
         admin_services::VectorProbeRequest,
         admin_services::VectorProbeMatch,
@@ -206,9 +203,6 @@ use crate::state::AppState;
         admin_system_lock::SystemLockStatus,
         admin_system_lock::UpdateSystemLockRequest,
         admin_system_lock::RoomLockStatus,
-        knowledge_graph::models::GraphNode,
-        knowledge_graph::models::GraphFact,
-        knowledge_graph::models::GraphSnapshot,
     ))
 )]
 pub struct ApiDoc;
@@ -229,7 +223,6 @@ pub fn build_app(state: Arc<AppState>) -> Router {
 pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     ai_threads::runs::ensure_dispatcher(state.clone());
     knowledge::ensure_worker(state.clone());
-    knowledge_graph::ensure_worker(state.clone());
     let multipart_body_limit = state
         .max_upload_bytes()
         .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);
@@ -247,10 +240,6 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
                 .delete(handlers::delete_room),
         )
         .route("/api/rooms/:id/messages", get(handlers::list_messages))
-        .route(
-            "/api/rooms/:id/knowledge-graph",
-            get(knowledge_graph::handlers::room_graph),
-        )
         .route(
             "/api/rooms/:id/messages/search",
             get(message_search::search_messages),

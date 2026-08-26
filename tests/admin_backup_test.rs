@@ -186,7 +186,6 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     let result: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(result["included_files"], false);
     assert_eq!(result["vector_messages_queued"], 0);
-    assert_eq!(result["graph_messages_queued"], 0);
     assert!(retained_file.exists());
     assert_eq!(state.list_rooms(None).await.len(), 1);
     let unlocked = client
@@ -223,7 +222,6 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     assert_eq!(result["chat_rooms_locked"], true);
     assert_eq!(result["previous_files_preserved"], true);
     assert_eq!(result["vector_messages_queued"], 0);
-    assert_eq!(result["graph_messages_queued"], 0);
     assert_eq!(
         state
             .list_rooms(None)

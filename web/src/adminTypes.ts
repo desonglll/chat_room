@@ -38,7 +38,7 @@ export interface AdminTopRoom {
 export type AdminServiceState = 'healthy' | 'degraded' | 'disabled' | 'configured'
 
 export interface AdminServiceStatus {
-  id: 'database' | 'redis' | 'vector_store' | 'embedding' | 'knowledge_graph' | 'ai_provider'
+  id: 'database' | 'redis' | 'vector_store' | 'embedding' | 'ai_provider'
   label: string
   state: AdminServiceState
   latency_ms: number | null
@@ -55,7 +55,6 @@ export interface AdminVectorIndexStatus {
 export interface AdminServiceOverview {
   items: AdminServiceStatus[]
   vector_index: AdminVectorIndexStatus
-  graph_index: Omit<AdminVectorIndexStatus, 'points'>
 }
 
 export interface AdminVectorProbeMatch {
@@ -71,7 +70,7 @@ export interface AdminVectorProbeResult {
   matches: AdminVectorProbeMatch[]
 }
 
-export type AdminIndexSyncTarget = 'vector' | 'graph'
+export type AdminIndexSyncTarget = 'vector'
 
 export interface AdminIndexSyncResult {
   target: AdminIndexSyncTarget
@@ -138,6 +137,5 @@ export interface AdminRestoreBackupResult {
   previous_files_preserved: boolean
   redis_keys_cleared: number
   vector_messages_queued: number
-  graph_messages_queued: number
   chat_rooms_locked: boolean
 }

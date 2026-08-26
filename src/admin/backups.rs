@@ -41,7 +41,6 @@ pub struct RestoreBackupResult {
     previous_files_preserved: bool,
     redis_keys_cleared: usize,
     vector_messages_queued: u64,
-    graph_messages_queued: u64,
     chat_rooms_locked: bool,
 }
 
@@ -293,7 +292,6 @@ pub async fn restore(
         previous_files_preserved: outcome.previous_attachments.is_some(),
         redis_keys_cleared: outcome.redis_keys_cleared,
         vector_messages_queued: index_sync.vector_messages,
-        graph_messages_queued: index_sync.graph_messages,
         chat_rooms_locked: true,
     })
     .into_response()

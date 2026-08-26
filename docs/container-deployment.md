@@ -30,41 +30,6 @@ When `[ai].enabled = true`, set the environment variable named by
 `"ai_status":"ready"`; `disabled` means the mounted TOML did not enable AI,
 while `missing_credentials` means the named environment variable is absent.
 
-## Enable room knowledge graphs
-
-Knowledge graph containers are behind an explicit Compose profile. Configure
-these values in `.env` first:
-
-```dotenv
-CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED=true
-CHAT_ROOM_KNOWLEDGE_GRAPH_TOKEN=<long-random-internal-token>
-FALKORDB_PASSWORD=<long-random-database-password>
-CHAT_ROOM_AI_API_KEY=<provider-key>
-GRAPH_LLM_BASE_URL=https://api.openai.com/v1
-GRAPH_LLM_MODEL=gpt-4.1-mini
-GRAPH_EMBEDDING_BASE_URL=https://api.openai.com/v1
-GRAPH_EMBEDDING_MODEL=text-embedding-3-small
-GRAPH_EMBEDDING_DIMENSIONS=1536
-```
-
-Then start the profile:
-
-```sh
-docker compose --profile knowledge-graph up --build -d
-docker compose --profile knowledge-graph ps
-curl http://localhost:3000/api/config
-```
-
-Production Compose keeps FalkorDB and the graph service on the internal
-network. For a host-local Rust server, use `docker-compose.local.yaml`; it binds
-the graph API to `127.0.0.1:8090` and FalkorDB to `127.0.0.1:6380`.
-
-The chat container intentionally has no startup dependency on this optional
-profile. If the graph service starts later or restarts, durable outbox jobs
-remain in PostgreSQL and resume automatically. Check the admin dashboard for a
-healthy Knowledge Graph service and a zero pending-job count before judging a
-room's graph complete.
-
 The Compose stack keeps database records in `postgres_data` and uploaded files
 in `attachment_data`. PostgreSQL is only reachable from the internal Compose
 network. Use `docker compose exec postgres psql -U chatroom -d chatroom` for
@@ -132,9 +97,7 @@ Stop containers without deleting stored data:
 docker compose down
 ```
 
-Back up `postgres_data`, `attachment_data`, `redis_data`, and (when enabled)
-`falkordb_data` before upgrades,
+Back up `postgres_data`, `attachment_data`, and `redis_data` before upgrades,
 or use the verified PostgreSQL/local-file commands documented in
 `docs/configuration.md`. `docker compose down --volumes` deletes all three and
-should not be used for a normal shutdown. With the knowledge-graph profile it
-also permanently deletes the derived room graphs.
+should not be used for a normal shutdown.

@@ -41,7 +41,6 @@ describe('admin backup API', () => {
         previous_files_preserved: false,
         redis_keys_cleared: 0,
         vector_messages_queued: 0,
-        graph_messages_queued: 0,
         chat_rooms_locked: true,
       })
     })
@@ -72,13 +71,13 @@ describe('admin backup API', () => {
 test('queues an admin index synchronization', async () => {
   const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
     expect(init?.method).toBe('POST')
-    expect(init?.body).toBe(JSON.stringify({ target: 'graph' }))
-    return Response.json({ target: 'graph', queued_messages: 1043 })
+    expect(init?.body).toBe(JSON.stringify({ target: 'vector' }))
+    return Response.json({ target: 'vector', queued_messages: 1043 })
   })
   globalThis.fetch = fetchMock as typeof fetch
 
-  const result = await syncAdminIndex('graph', 'admin-token')
+  const result = await syncAdminIndex('vector', 'admin-token')
 
-  expect(result).toEqual({ target: 'graph', queued_messages: 1043 })
+  expect(result).toEqual({ target: 'vector', queued_messages: 1043 })
   expect(fetchMock).toHaveBeenCalledWith('/api/admin/indexes/sync', expect.any(Object))
 })

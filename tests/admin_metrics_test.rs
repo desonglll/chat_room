@@ -109,10 +109,9 @@ async fn overview_requires_allowlisted_authenticated_account() {
     assert_eq!(overview["services"]["items"][1]["state"], "disabled");
     assert_eq!(overview["services"]["items"][2]["id"], "vector_store");
     assert_eq!(overview["services"]["items"][2]["state"], "disabled");
-    assert_eq!(overview["services"]["items"][4]["id"], "knowledge_graph");
+    assert_eq!(overview["services"]["items"][4]["id"], "ai_provider");
     assert_eq!(overview["services"]["items"][4]["state"], "disabled");
     assert_eq!(overview["services"]["vector_index"]["pending_jobs"], 0);
-    assert_eq!(overview["services"]["graph_index"]["pending_jobs"], 0);
 }
 
 #[tokio::test]

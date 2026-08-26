@@ -75,7 +75,7 @@ async function runRestore(): Promise<void> {
     const restored = result.included_files
       ? '数据库与文件恢复完成，聊天室保持锁定。'
       : '数据库恢复完成，现有文件未改动，聊天室保持锁定。'
-    success.value = `${restored} 已重新排队 ${result.vector_messages_queued.toLocaleString('zh-CN')} 条向量消息、${result.graph_messages_queued.toLocaleString('zh-CN')} 条图谱消息。`
+    success.value = `${restored} 已重新排队 ${result.vector_messages_queued.toLocaleString('zh-CN')} 条向量消息。`
     emit('restored')
     restoreOpen.value = false
   } catch (caught) {

@@ -7,8 +7,8 @@ use sqlx::{PgPool, SqlitePool};
 use crate::{
     admin_metrics::RuntimeMetrics, ai::AiAssistant, ai::AiRuntimeStatus,
     attachment_content::ContentHashLocks, attachment_storage::AttachmentStore,
-    attachments::upload_hashes::UploadHashTracker, knowledge::MessageIndex,
-    knowledge_graph::KnowledgeGraph, state::AppState, storage,
+    attachments::upload_hashes::UploadHashTracker, knowledge::MessageIndex, state::AppState,
+    storage,
 };
 
 impl AppState {
@@ -56,10 +56,6 @@ impl AppState {
 
     pub(crate) fn message_index(&self) -> Option<&MessageIndex> {
         self.message_index.as_ref()
-    }
-
-    pub(crate) fn knowledge_graph(&self) -> Option<&KnowledgeGraph> {
-        self.knowledge_graph.as_ref()
     }
 
     pub(crate) fn ai_max_context_messages(&self) -> usize {

@@ -88,34 +88,6 @@ export interface PublicConfig {
   max_upload_bytes: number
   ai_enabled: boolean
   ai_status: AiRuntimeStatus
-  knowledge_graph_enabled: boolean
-}
-
-export interface KnowledgeGraphNode {
-  id: string
-  name: string
-  summary: string
-  labels: string[]
-}
-
-export interface KnowledgeGraphFact {
-  id: string
-  name: string
-  fact: string
-  source_node_id: string
-  target_node_id: string
-  episode_ids: string[]
-  valid_at: string | null
-  invalid_at: string | null
-  created_at: string
-  expired_at: string | null
-}
-
-export interface KnowledgeGraphSnapshot {
-  room_id: string
-  nodes: KnowledgeGraphNode[]
-  facts: KnowledgeGraphFact[]
-  truncated: boolean
 }
 
 export interface AiSuggestions {
