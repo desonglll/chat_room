@@ -7,7 +7,8 @@ import Textarea from 'primevue/textarea'
 import ComposerContext from './ComposerContext.vue'
 import PendingAttachmentStrip from './PendingAttachmentStrip.vue'
 import { shouldSubmitMessage } from '../composer'
-import { formatUploadLimit, getAiSuggestions } from '../api'
+import { formatUploadLimit } from '../api'
+import { streamAiSuggestions } from '../aiSuggestionApi'
 import type { BroadcastMessage, RoomMember, SendShortcut } from '../types'
 
 const EmojiPicker = defineAsyncComponent(() => import('./EmojiPicker.vue'))
@@ -276,14 +277,18 @@ async function openAiAssistant(): Promise<void> {
   aiRemaining.value = []
   aiLoading.value = true
   try {
-    const result = await getAiSuggestions(props.roomId, props.token, props.password)
-    aiSummary.value = result.summary
-    const [first, ...rest] = result.suggestions
-    aiRemaining.value = rest
-    if (first) {
-      aiCurrent.value = first
-      typewriteIntoDraft(first)
-    }
+    await streamAiSuggestions(props.roomId, props.token, props.password, (item) => {
+      if (item.type === 'summary') {
+        aiSummary.value = item.content
+        return
+      }
+      if (!aiCurrent.value) {
+        aiCurrent.value = item.content
+        typewriteIntoDraft(item.content)
+      } else if (item.content !== aiCurrent.value && !aiRemaining.value.includes(item.content)) {
+        aiRemaining.value.push(item.content)
+      }
+    })
   } catch (error) {
     aiError.value = error instanceof Error ? error.message : 'AI 助手不可用'
   } finally {
@@ -449,21 +454,19 @@ defineExpose({ addFiles, focus })
         >
           <span v-if="aiLoading" class="flex items-center gap-1.5 text-xs text-muted-color">
             <Sparkles :size="13" class="animate-pulse text-primary" />
-            AI 正在思考…
+            {{ aiCurrent || aiRemaining.length ? '正在补充建议…' : 'AI 正在思考…' }}
           </span>
-          <span v-else-if="aiError" class="text-xs text-danger">{{ aiError }}</span>
-          <template v-else>
-            <p v-if="aiSummary" class="w-full text-[11px] text-muted-color">{{ aiSummary }}</p>
-            <button
-              v-for="(suggestion, index) in aiRemaining"
-              :key="index"
-              type="button"
-              class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-              @click="useSuggestion(suggestion, index)"
-            >
-              {{ suggestion }}
-            </button>
-          </template>
+          <span v-if="aiError" class="text-xs text-danger">{{ aiError }}</span>
+          <p v-if="aiSummary" class="w-full text-[11px] text-muted-color">{{ aiSummary }}</p>
+          <button
+            v-for="(suggestion, index) in aiRemaining"
+            :key="index"
+            type="button"
+            class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+            @click="useSuggestion(suggestion, index)"
+          >
+            {{ suggestion }}
+          </button>
         </div>
       </div>
       <Button

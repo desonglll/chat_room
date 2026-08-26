@@ -37,7 +37,7 @@ export function useAppPages(
       if (route.name === 'discover') return 'discover'
       if (route.name === 'contacts') return 'contacts'
       if (route.name === 'favorites') return 'favorites'
-      if (route.name === 'assistant') return 'assistant'
+      if (route.name === 'assistant' || route.name === 'assistant-sources') return 'assistant'
       return 'chat'
     },
     set: (value) => {

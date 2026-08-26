@@ -35,7 +35,7 @@ export function referencedAiAttachments(content: string, sources: AiCitationSour
   const referenced: AiCitationSource[] = []
   for (const match of content.matchAll(/\[([a-z]\d+)\]/gi)) {
     const source = byLabel.get(match[1].toLocaleUpperCase())
-    const attachment = source.attachment
+    const attachment = source?.attachment
     if (!attachment || seen.has(attachment.id)) continue
     seen.add(attachment.id)
     referenced.push(source)
@@ -56,7 +56,9 @@ export function inlineAiAttachments(content: string, sources: AiCitationSource[]
 
 export function trailingAiAttachments(content: string, sources: AiCitationSource[]): AiCitationSource[] {
   const inlineAttachmentIds = new Set(
-    inlineAiAttachments(content, sources).map((source) => source.attachment?.id).filter(Boolean),
+    inlineAiAttachments(content, sources)
+      .map((source) => source.attachment?.id)
+      .filter(Boolean),
   )
   return referencedAiAttachments(content, sources).filter(
     (source) => !source.attachment || !inlineAttachmentIds.has(source.attachment.id),

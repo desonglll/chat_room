@@ -19,6 +19,16 @@ interface MessageStartPosition {
   topGap?: number
 }
 
+interface ViewportPosition {
+  scrollTop: number
+  clientHeight: number
+  scrollHeight: number
+}
+
+export function isViewportNearBottom(position: ViewportPosition, threshold = 72): boolean {
+  return position.scrollHeight - position.clientHeight - position.scrollTop <= threshold
+}
+
 export function messageStartScrollTop(position: MessageStartPosition): number {
   return Math.max(0, position.currentScrollTop + position.messageTop - position.containerTop - (position.topGap ?? 20))
 }

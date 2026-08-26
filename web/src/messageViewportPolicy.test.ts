@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { firstUnreadMessageId, messageStartScrollTop } from './messageViewportPolicy'
+import { firstUnreadMessageId, isViewportNearBottom, messageStartScrollTop } from './messageViewportPolicy'
 
 const message = (messageId: string, senderId: string | null) => ({
   message_id: messageId,
@@ -37,5 +37,10 @@ describe('initial message viewport', () => {
 
   test('never scrolls above the beginning of the message list', () => {
     expect(messageStartScrollTop({ containerTop: 168, currentScrollTop: 0, messageTop: 174 })).toBe(0)
+  })
+
+  test('only follows streaming content while the viewport remains near the bottom', () => {
+    expect(isViewportNearBottom({ scrollTop: 928, clientHeight: 600, scrollHeight: 1_600 })).toBe(true)
+    expect(isViewportNearBottom({ scrollTop: 800, clientHeight: 600, scrollHeight: 1_600 })).toBe(false)
   })
 })

@@ -1,7 +1,17 @@
-import type { Room, User } from './types'
+import type { ChatStatus, Room, User } from './types'
 
 export function canAutoConnectRoom(room: Room, user: User | null, token: string, password: string): boolean {
   return room.membership_status === 'active' && Boolean(user && token) && (!room.has_password || Boolean(password))
+}
+
+export function shouldAutoConnectRoom(
+  room: Room | null,
+  user: User | null,
+  token: string,
+  password: string,
+  status: ChatStatus,
+): room is Room {
+  return status === 'idle' && Boolean(room && canAutoConnectRoom(room, user, token, password))
 }
 
 export function reconcileMembershipAuthFailure(room: Room, reason: string): Room {

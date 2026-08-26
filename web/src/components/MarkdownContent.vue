@@ -1,18 +1,33 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { aiSourceRoute } from '../aiUi'
+import { aiSourceRoute, inlineAiAttachments } from '../aiUi'
 import { renderMarkdown } from '../markdown'
-import type { AiCitationSource } from '../types'
+import type { AiCitationSource, Attachment } from '../types'
+import MessageAttachment from './MessageAttachment.vue'
 
+const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
 const props = withDefaults(defineProps<{ content: string; sources?: AiCitationSource[] }>(), { sources: () => [] })
 const html = computed(() => renderMarkdown(props.content))
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()
+const targetPrefix = `ai-attachment-${useId().replaceAll(':', '')}`
+const placements = ref<Array<{ targetId: string; source: AiCitationSource; attachment: Attachment }>>([])
+const previewImageId = ref('')
+const images = computed(() =>
+  placements.value
+    .map((placement) => placement.attachment)
+    .filter((attachment) => attachment.mime_type.startsWith('image/')),
+)
 
 function decorateCitations(): void {
+  placements.value = []
   if (!root.value || !props.sources.length) return
   const byLabel = new Map(props.sources.map((source) => [source.label.toUpperCase(), source]))
+  const inlineSources = new Set(inlineAiAttachments(props.content, props.sources).map((source) => source.label))
+  const placedAttachments = new Set<string>()
+  const attachmentGroups = new Map<HTMLElement, HTMLElement>()
+  const nextPlacements: typeof placements.value = []
   const walker = document.createTreeWalker(root.value, NodeFilter.SHOW_TEXT)
   const nodes: Text[] = []
   while (walker.nextNode()) {
@@ -24,6 +39,7 @@ function decorateCitations(): void {
     const parts = node.data.split(/(\[[A-Z]\d+\])/gi)
     if (parts.length === 1) continue
     const fragment = document.createDocumentFragment()
+    const attachmentLinks: Array<{ link: HTMLAnchorElement; source: AiCitationSource }> = []
     for (const part of parts) {
       const label = /^\[([A-Z]\d+)\]$/i.exec(part)?.[1]?.toUpperCase()
       const source = label ? byLabel.get(label) : undefined
@@ -37,9 +53,31 @@ function decorateCitations(): void {
       link.textContent = `[${label}]`
       link.title = `定位到 ${label} 原文`
       fragment.append(link)
+      if (source.attachment && inlineSources.has(source.label)) attachmentLinks.push({ link, source })
     }
     node.replaceWith(fragment)
+    for (const { link, source } of attachmentLinks) {
+      const attachment = source.attachment
+      if (!attachment || placedAttachments.has(attachment.id)) continue
+      const block = link.closest<HTMLElement>('p, li, blockquote, td, dd') || link.parentElement
+      if (!block) continue
+      let group = attachmentGroups.get(block)
+      if (!group) {
+        group = document.createElement('div')
+        group.className = 'ai-inline-attachment-group'
+        if (block === root.value || block.matches('li, td, dd')) block.append(group)
+        else block.after(group)
+        attachmentGroups.set(block, group)
+      }
+      const target = document.createElement('div')
+      const targetId = `${targetPrefix}-${nextPlacements.length}`
+      target.id = targetId
+      group.append(target)
+      placedAttachments.add(attachment.id)
+      nextPlacements.push({ targetId, source, attachment })
+    }
   }
+  placements.value = nextPlacements
 }
 
 function handleClick(event: MouseEvent): void {
@@ -51,6 +89,7 @@ function handleClick(event: MouseEvent): void {
 }
 
 watch([html, () => props.sources], async () => {
+  placements.value = []
   await nextTick()
   decorateCitations()
 })
@@ -59,6 +98,20 @@ onMounted(decorateCitations)
 
 <template>
   <div ref="root" class="cr-markdown min-w-0 max-w-full break-words" @click="handleClick" v-html="html" />
+  <Teleport v-for="placement in placements" :key="placement.targetId" :to="`#${placement.targetId}`">
+    <figure class="my-2 min-w-0 max-w-[30rem]">
+      <figcaption class="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted-color">
+        <span class="font-mono font-semibold text-primary">[{{ placement.source.label }}]</span>
+        <span class="truncate">{{ placement.source.sender }}</span>
+      </figcaption>
+      <MessageAttachment
+        :attachment="placement.attachment"
+        class="w-full! max-w-full!"
+        @preview-image="previewImageId = $event.id"
+      />
+    </figure>
+  </Teleport>
+  <ImageViewerGallery v-if="images.length" :images="images" :active-id="previewImageId" @close="previewImageId = ''" />
 </template>
 
 <style scoped>
@@ -68,6 +121,13 @@ onMounted(decorateCitations)
 .cr-markdown :deep(pre),
 .cr-markdown :deep(blockquote) {
   margin: 0 0 0.65rem;
+}
+
+.cr-markdown :deep(.ai-inline-attachment-group) {
+  display: grid;
+  max-width: 30rem;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.8rem;
 }
 
 .cr-markdown :deep(*:last-child) {

@@ -83,10 +83,7 @@ describe('AI context usage', () => {
       { ...source, label: 'A1', message_id: 'message-1', attachment },
       { ...source, label: 'A2', message_id: 'message-2', attachment: { ...attachment, id: 'attachment-2' } },
     ]
-    expect(inlineAiAttachments('先看 [A2]，再看 [A1]，不要重复 [A2]。', sources)).toEqual([
-      sources[1],
-      sources[0],
-    ])
+    expect(inlineAiAttachments('先看 [A2]，再看 [A1]，不要重复 [A2]。', sources)).toEqual([sources[1], sources[0]])
   })
 
   test('renders UTC and legacy offsetless values in the selected user timezone', () => {

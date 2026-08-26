@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import AppDialogs from './components/AppDialogs.vue'
+import AiAssistantPage from './components/AiAssistantPage.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import NetworkErrorBanner from './components/NetworkErrorBanner.vue'
 import PrivacyLockScreen from './components/PrivacyLockScreen.vue'
@@ -16,6 +17,8 @@ import { useContacts } from './composables/useContacts'
 import { useFavorites } from './composables/useFavorites'
 import { useFavoriteMessageActions } from './composables/useFavoriteMessageActions'
 import { useConversations } from './composables/useConversations'
+import { useDirectConversationActions } from './composables/useDirectConversationActions'
+import { useMessageForwarding } from './composables/useMessageForwarding'
 import { useUnreadSocket } from './composables/useUnreadSocket'
 import { useAppPages } from './composables/useAppPages'
 import { useAppBootstrap } from './composables/useAppBootstrap'
@@ -30,7 +33,7 @@ import { loadPreferences } from './preferences'
 import { reconcileMembershipAuthFailure } from './roomMembershipState'
 import { storageGet, storageSet } from './browserStorage'
 import { clearRoomPassword } from './roomPasswordVault'
-import { startDirectChat } from './socialApi'
+import { createRoomSystemEventHandler } from './roomSystemEvents'
 import type { ConversationSummary, Room } from './types'
 
 const route = useRoute()
@@ -39,11 +42,10 @@ const roomPassword = ref('')
 const createOpen = ref(false)
 const newConversationOpen = ref(false)
 const manageOpen = ref(false)
-const forwardOpen = ref(false)
-const forwardMessageIds = ref<string[]>([])
 const authOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const sidebarCollapsed = ref(storageGet(window.localStorage, 'chat-room.sidebar-collapsed') === 'true')
+const aiPanelOpen = ref(false)
 const preferences = ref(loadPreferences())
 const privacyLockScreen = ref<{ lock: () => void } | null>(null)
 useTheme(computed(() => preferences.value.theme))
@@ -98,28 +100,19 @@ const {
   downloadProgress,
 } = useAttachmentDownloads(() => selectedRoom.value?.name || 'chat-files')
 
-function handleSystemEvent(content: string): void {
-  if (content.startsWith('room renamed to ')) void Promise.all([loadRoomList(), conversationState.refresh()])
-  if (content === 'room password changed' && selectedRoom.value && !manageOpen.value) {
-    clearRoomPassword(selectedRoom.value.id)
+const handleSystemEvent = createRoomSystemEventHandler({
+  room: () => selectedRoom.value,
+  managing: () => manageOpen.value,
+  closeChat: () => chat.close({ preserveMessages: true }),
+  clearPassword: (roomId) => {
+    clearRoomPassword(roomId)
     roomPassword.value = ''
-    window.setTimeout(() => chat.close({ preserveMessages: true }), 0)
-  }
-  if (content === 'room deleted') {
-    if (manageOpen.value) return
-    window.setTimeout(() => {
-      clearSelection()
-      void loadRoomList()
-      void conversationState.refresh()
-      showToast('聊天室已删除')
-    }, 0)
-  }
-  if (content === 'membership removed' || content === 'membership left') {
-    chat.close({ preserveMessages: true })
-    void loadRoomList()
-    void conversationState.refresh()
-  }
-}
+  },
+  clearSelection: () => clearSelection(),
+  refreshConversations: () => void conversationState.refresh(),
+  refreshRooms: () => void loadRoomList(),
+  showToast,
+})
 
 const chat = useChatSocket(handleSystemEvent)
 const notifier = createBrowserNotifier((roomId) => {
@@ -156,6 +149,15 @@ const {
     preferenceController.open.value = true
   },
 )
+const roomAiPanelVisible = computed(
+  () => aiPanelOpen.value && activePage.value === 'chat' && Boolean(currentUser.value && selectedRoom.value),
+)
+const sidebarColumns = computed(() => {
+  if (roomAiPanelVisible.value) return '60px minmax(20rem,1fr) minmax(22rem,32rem)'
+  return sidebarCollapsed.value || activePage.value !== 'chat'
+    ? '60px minmax(0,1fr)'
+    : `${sidebarWidth.value}px minmax(0,1fr)`
+})
 const unreadSocket = useUnreadSocket(
   (states) => {
     rooms.value = rooms.value.map((room) => {
@@ -196,6 +198,7 @@ const {
   currentUser,
   token: sessionToken,
   password: roomPassword,
+  status: chat.status,
   rememberPasswords: () => preferences.value.rememberRoomPasswords,
   requireAccount,
   selectRoom: (room) => selectRoom(room),
@@ -277,6 +280,7 @@ function toggleSidebar(): void {
 }
 
 function openAssistant(): void {
+  aiPanelOpen.value = false
   activePage.value = 'assistant'
   mobileView.value = 'chat'
 }
@@ -284,25 +288,15 @@ function openAssistant(): void {
 const selectRoom = (room: Room, autoConnect = false) => roomActions.selectRoom(room, autoConnect)
 const selectConversation = (conversation: ConversationSummary, autoConnect = true) =>
   roomActions.selectConversation(conversation, autoConnect)
-
-async function openDirectConversation(userId: string): Promise<void> {
-  selectConversation(await startDirectChat(userId, sessionToken.value))
-}
-
-async function changeDirectAccess(userId: string, action: (id: string) => Promise<void>): Promise<void> {
-  await action(userId)
-  if (selectedConversation.value?.peer?.id === userId) clearSelection()
-  await conversationState.refresh()
-}
-
-async function setSelectedFriendRemark(userId: string, remark: string): Promise<void> {
-  await contacts.setRemark(userId, remark)
-  await conversationState.refresh()
-}
-function changeSelectedDirectAccess(action: (id: string) => Promise<void>): void {
-  const userId = selectedConversation.value?.peer?.id
-  if (userId) void changeDirectAccess(userId, action)
-}
+const { changeDirectAccess, changeSelectedDirectAccess, openDirectConversation, setSelectedFriendRemark } =
+  useDirectConversationActions({
+    token: sessionToken,
+    selectedConversation,
+    selectConversation,
+    clearSelection: () => clearSelection(),
+    refreshConversations: conversationState.refresh,
+    setRemark: contacts.setRemark,
+  })
 
 const history = useRoomHistory({
   room: selectedRoom,
@@ -339,17 +333,10 @@ const attachmentUpload = useAttachmentUpload({
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
 
-function openForward(messageIds: string[]): void {
-  if (!messageIds.length) return
-  forwardMessageIds.value = messageIds
-  forwardOpen.value = true
-}
-
-function handleForwarded(): void {
-  forwardOpen.value = false
+const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMessageForwarding(() => {
   showToast('已转发')
   void conversationState.refresh()
-}
+})
 </script>
 
 <template>
@@ -357,9 +344,7 @@ function handleForwarded(): void {
   <div
     v-else
     class="cr-app-shell cr-canvas-ambient relative grid h-dvh w-full overflow-hidden md:[grid-template-columns:var(--sidebar-cols)]"
-    :style="{
-      '--sidebar-cols': sidebarCollapsed ? '60px minmax(0,1fr)' : `${sidebarWidth}px minmax(0,1fr)`,
-    }"
+    :style="{ '--sidebar-cols': sidebarColumns }"
     data-testid="app-shell"
   >
     <NetworkErrorBanner :message="networkError" @retry="loadRoomList" />
@@ -371,8 +356,8 @@ function handleForwarded(): void {
       :user="currentUser"
       :loading="showColdSkeleton || conversationState.loading.value"
       :refreshing="refreshingRooms"
-      :visible="mobileView === 'rooms'"
-      :collapsed="sidebarCollapsed"
+      :visible="activePage === 'chat' && mobileView === 'rooms'"
+      :collapsed="sidebarCollapsed || activePage !== 'chat' || roomAiPanelVisible"
       :incoming-requests="contacts.incomingCount.value"
       :active-section="activePage"
       :set-alias="conversationState.setAlias"
@@ -399,8 +384,8 @@ function handleForwarded(): void {
     />
     <!-- prettier-ignore -->
     <WorkspacePages v-if="activePage === 'discover' || (activePage !== 'chat' && currentUser)"
-      :active-page="activePage" :user="currentUser" :token="sessionToken" :contacts="contacts" :favorites="favorites" :ai-status="aiStatus" :remember-room-passwords="preferences.rememberRoomPasswords"
-      :rooms="forwardRooms" :discover-loading="showColdSkeleton" :discover-joining-id="discoverJoiningId" :discover-error="discoverError"
+      :active-page="activePage" :user="currentUser" :token="sessionToken" :contacts="contacts" :favorites="favorites" :ai-status="aiStatus" :remember-room-passwords="preferences.rememberRoomPasswords" :max-upload-bytes="maxUploadBytes"
+      :rooms="forwardRooms" :discover-joining-id="discoverJoiningId" :discover-error="discoverError"
       :start-chat="openDirectConversation" :remove-friend="(id) => changeDirectAccess(id, contacts.remove)" :block-user="(id) => changeDirectAccess(id, contacts.block)" :join-room="joinDiscoveredRoom"
       @back="returnToChat" @preferences="preferenceController.open.value = true" @deleted="handleAccountDeleted" @updated="preferenceController.profileUpdated"
       @new-chat="newConversationOpen = true" @authenticate="authOpen = true" @conversations-changed="conversationState.refresh" @success="showToast" @error="toast.add({ severity: 'error', summary: $event, life: 3200 })" />
@@ -438,6 +423,7 @@ function handleForwarded(): void {
         :loading-older="history.loading.value"
         :has-more-history="history.hasMore.value"
         :ai-enabled="capabilities.ai"
+        :ai-panel-open="roomAiPanelVisible"
         :loading="showColdSkeleton"
         :ensure-message="history.ensureMessage"
         @back="mobileView = 'rooms'"
@@ -468,8 +454,21 @@ function handleForwarded(): void {
         @load-older="history.loadOlder"
         @remove-friend="changeSelectedDirectAccess(contacts.remove)"
         @block-user="changeSelectedDirectAccess(contacts.block)"
+        @assistant="aiPanelOpen = !aiPanelOpen"
       />
     </Transition>
+    <AiAssistantPage
+      v-if="roomAiPanelVisible && selectedRoom"
+      :key="`room-ai-${selectedRoom.id}`"
+      embedded
+      :initial-room-id="selectedRoom.id"
+      :token="sessionToken"
+      :rooms="forwardRooms"
+      :ai-status="aiStatus"
+      :remember-room-passwords="preferences.rememberRoomPasswords"
+      @back="aiPanelOpen = false"
+      @error="toast.add({ severity: 'error', summary: $event, life: 3200 })"
+    />
 
     <!-- prettier-ignore -->
     <AppDialogs

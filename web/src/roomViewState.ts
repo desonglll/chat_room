@@ -14,6 +14,8 @@ export function resolveRoomViewState(input: RoomViewInput): RoomViewState {
   if (!input.room) return input.loading ? 'loading' : 'empty'
   if (input.authenticated) return 'conversation'
   if (input.messageCount > 0 && ['connecting', 'offline'].includes(input.status)) return 'conversation'
-  if (input.room.membership_status === 'active' && input.status === 'connecting') return 'connecting'
+  if (input.room.membership_status === 'active' && ['idle', 'connecting', 'offline'].includes(input.status)) {
+    return 'connecting'
+  }
   return 'access'
 }

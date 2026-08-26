@@ -7,6 +7,7 @@ import type { MenuItem } from 'primevue/menuitem'
 import MessageAttachment from './MessageAttachment.vue'
 import MessageDeliveryStatus from './MessageDeliveryStatus.vue'
 import MessageHoverActions from './MessageHoverActions.vue'
+import MessageContent from './MessageContent.vue'
 import MessageReactionChips from './MessageReactionChips.vue'
 import PendingUploadMessage from './PendingUploadMessage.vue'
 import AppAvatar from './AppAvatar.vue'
@@ -28,6 +29,8 @@ const props = defineProps<{
   selecting: boolean
   selectedMessageIds: string[]
   favoriteMessageIds: string[]
+  pinnedMessageIds: string[]
+  canPin: boolean
   loadingOlder: boolean
   hasMoreHistory: boolean
   ensureMessage: (messageId: string) => Promise<boolean>
@@ -40,6 +43,7 @@ const emit = defineEmits<{
   edit: [message: BroadcastMessage]
   forward: [message: BroadcastMessage]
   favorite: [message: BroadcastMessage]
+  pin: [message: BroadcastMessage]
   toggleSelect: [messageId: string]
   previewImage: [attachment: Attachment]
   viewProfile: [userId: string]
@@ -65,6 +69,7 @@ function copyText(content: string): void {
 
 function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
   const isOwn = message.sender_id === props.currentUserId
+  const editsPinnedFavorite = Boolean(message.favorite_id && props.pinnedMessageIds.includes(message.message_id))
   const items: MenuItem[] = []
   if (!isSettled(message)) {
     if (message.delivery_state === 'failed') {
@@ -83,9 +88,15 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
       label: props.favoriteMessageIds.includes(message.message_id) ? '取消收藏' : '收藏',
       command: () => emit('favorite', message),
     })
+    if (props.canPin) {
+      items.push({
+        label: props.pinnedMessageIds.includes(message.message_id) ? '取消置顶' : '置顶',
+        command: () => emit('pin', message),
+      })
+    }
   }
-  if (isOwn && message.content && !message.recalled_at) {
-    items.push({ label: '编辑', command: () => emit('edit', message) })
+  if ((isOwn || editsPinnedFavorite) && message.content && !message.recalled_at) {
+    items.push({ label: message.favorite_id ? '编辑收藏' : '编辑', command: () => emit('edit', message) })
   }
   if (isOwn && !message.recalled_at) {
     items.push({ label: '撤回', command: () => emit('recall', message.message_id) })
@@ -323,6 +334,7 @@ onBeforeUnmount(() => {
             isGroupEnd(index) ? 'mb-3' : 'mb-0.5',
           ]"
           :data-message-id="message.message_id"
+          :id="`message-${message.message_id}`"
           @contextmenu.prevent="openContextMenu($event, message)"
         >
           <Checkbox
@@ -369,7 +381,7 @@ onBeforeUnmount(() => {
               <span class="mt-0.5 block truncate text-xs">{{ replySummary(message.reply_to) }}</span>
             </button>
             <div
-              v-if="!message.recalled_at && message.forwarded_from"
+              v-if="!message.recalled_at && message.forwarded_from && !message.favorite_id"
               class="mt-1 text-[11px] text-muted-color"
               :class="{ 'text-right': message.sender_id === currentUserId }"
             >
@@ -397,38 +409,23 @@ onBeforeUnmount(() => {
               :attachment="message.attachment"
               @preview-image="emit('previewImage', $event)"
             />
-            <p
+            <MessageContent
               v-if="message.content && !message.recalled_at"
-              class="cr-message-bubble mt-1 whitespace-pre-wrap break-words px-3 py-2.5 text-[15px] leading-6"
-              :class="
-                message.sender_id === currentUserId
-                  ? [
-                      'cr-bubble-outgoing cr-message-bubble--outgoing',
-                      isGroupEnd(index) ? 'cr-message-bubble--end rounded-br-sm' : '',
-                    ]
-                  : [
-                      'cr-bubble-incoming cr-message-bubble--incoming',
-                      isGroupEnd(index) ? 'cr-message-bubble--end rounded-bl-sm' : '',
-                    ]
-              "
-            >
-              <template v-for="(segment, index) in contentSegments(message.content)" :key="index">
-                <strong
-                  v-if="segment.mention"
-                  class="font-semibold text-primary"
-                  :class="{ 'text-inherit! underline': message.sender_id === currentUserId }"
-                  >{{ segment.text }}</strong
-                >
-                <template v-else>{{ segment.text }}</template>
-              </template>
-            </p>
+              :message="message"
+              :group-end="isGroupEnd(index)"
+              :segments="contentSegments(message.content)"
+              :current-user-id="currentUserId"
+            />
             <MessageHoverActions
               :enabled="!message.recalled_at && !selecting && isSettled(message)"
               :favorited="favoriteMessageIds.includes(message.message_id)"
+              :pinnable="canPin"
+              :pinned="pinnedMessageIds.includes(message.message_id)"
               @reaction="toggleReaction(message, $event)"
               @reply="emit('reply', message)"
               @forward="emit('forward', message)"
               @favorite="emit('favorite', message)"
+              @pin="emit('pin', message)"
             />
             <MessageReactionChips
               v-if="!message.recalled_at && isSettled(message)"

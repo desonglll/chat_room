@@ -112,6 +112,17 @@ export interface AiCitationSource {
   sender: string
   sent_at: string
   excerpt: string
+  score?: number | null
+  score_kind?: 'vector' | 'rerank' | string
+  attachment?: Attachment | null
+}
+
+export interface AiRunTraceStep {
+  key: string
+  label: string
+  detail: string
+  started_at: string
+  completed_at: string | null
 }
 
 export interface AiThreadMessage {
@@ -123,7 +134,10 @@ export interface AiThreadMessage {
   context_message_count: number | null
   retrieved_message_count: number | null
   sources: AiCitationSource[]
+  trace: AiRunTraceStep[]
   status: 'pending' | 'streaming' | 'completed' | 'failed'
+  stage: AiRunStage
+  stage_started_at: string | null
   revision: number
   created_at: string
   updated_at: string
@@ -152,8 +166,20 @@ export interface AiModelChoice {
   label: string
   provider: 'openai' | 'anthropic'
   model: string
+  fast_model: string | null
   ready: boolean
 }
+
+export type AiRunStage =
+  | 'queued'
+  | 'preparing_context'
+  | 'retrieving_context'
+  | 'connecting_model'
+  | 'waiting_for_model'
+  | 'reasoning'
+  | 'responding'
+  | 'completed'
+  | 'failed'
 
 export interface Attachment {
   id: string
@@ -291,6 +317,7 @@ export interface BroadcastMessage {
   recalled_at: string | null
   edited_at: string | null
   timestamp: string
+  favorite_id?: string | null
   forwarded_from: ForwardedFrom | null
   reactions: MessageReaction[]
   client_message_id?: string | null
@@ -310,8 +337,15 @@ export interface StoredMessage {
   recalled_at: string | null
   edited_at: string | null
   created_at: string
+  favorite_id?: string | null
   forwarded_from: ForwardedFrom | null
   reactions: MessageReaction[]
+}
+
+export interface RoomPin {
+  message: StoredMessage
+  pinned_by: string
+  pinned_at: string
 }
 
 export interface SystemMessage {

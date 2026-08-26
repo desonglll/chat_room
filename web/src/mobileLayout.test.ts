@@ -29,4 +29,21 @@ describe('mobile workspace layout contract', () => {
     expect(source('./components/AiAssistantToolbar.vue')).toContain('overflow-x-auto')
     expect(source('./components/AiThreadSidebar.vue')).toContain('overflow-x-auto')
   })
+
+  test('hides the conversation list while another workspace owns the sidebar', () => {
+    const app = source('./App.vue')
+    expect(app).toContain(':collapsed="sidebarCollapsed || activePage !== \'chat\' || roomAiPanelVisible"')
+    expect(app).toContain(":visible=\"activePage === 'chat' && mobileView === 'rooms'\"")
+  })
+
+  test('embeds the current room AI beside chat on desktop and as an overlay on mobile', () => {
+    const app = source('./App.vue')
+    const assistant = source('./components/AiAssistantPage.vue')
+    const header = source('./components/ChatRoomHeader.vue')
+    expect(app).toContain('60px minmax(20rem,1fr) minmax(22rem,32rem)')
+    expect(app).toContain(':initial-room-id="selectedRoom.id"')
+    expect(assistant).toContain('absolute inset-0 z-40')
+    expect(assistant).toContain('md:relative md:inset-auto')
+    expect(header).toContain("emit('assistant')")
+  })
 })

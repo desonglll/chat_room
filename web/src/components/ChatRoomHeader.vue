@@ -3,11 +3,13 @@ import { computed, ref } from 'vue'
 import {
   ArrowLeft,
   Ban,
+  Bot,
   Check,
   Copy,
   EllipsisVertical,
   ListChecks,
   LogOut,
+  Search,
   UserMinus,
   UserRound,
 } from 'lucide-vue-next'
@@ -31,6 +33,8 @@ const props = defineProps<{
   members: RoomMember[]
   currentUserId: string
   token: string
+  aiEnabled: boolean
+  aiPanelOpen: boolean
 }>()
 
 const emit = defineEmits<{
@@ -38,10 +42,12 @@ const emit = defineEmits<{
   manage: []
   leave: []
   files: []
+  search: []
   viewProfile: [userId: string]
   toggleSelection: []
   removeFriend: []
   blockUser: []
+  assistant: []
 }>()
 
 const memberPopover = ref()
@@ -225,6 +231,31 @@ async function copyRoomId(): Promise<void> {
         </div>
       </Popover>
       <AdminRoomLockButton :room-id="room.id" :token="token" />
+      <Button
+        v-if="authenticated && aiEnabled"
+        class="cr-header-action"
+        text
+        rounded
+        severity="secondary"
+        :aria-label="aiPanelOpen ? '关闭右侧 AI 助手' : '打开右侧 AI 助手'"
+        :title="aiPanelOpen ? '关闭 AI 助手' : '打开 AI 助手'"
+        :class="{ 'bg-primary-50! text-primary!': aiPanelOpen }"
+        @click="emit('assistant')"
+      >
+        <Bot :size="19" />
+      </Button>
+      <Button
+        v-if="authenticated"
+        class="cr-header-action cr-header-secondary"
+        text
+        rounded
+        severity="secondary"
+        aria-label="搜索聊天记录"
+        title="搜索聊天记录"
+        @click="emit('search')"
+      >
+        <Search :size="19" />
+      </Button>
       <Button
         v-if="kind === 'group'"
         class="cr-header-action cr-header-secondary"

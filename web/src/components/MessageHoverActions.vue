@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { Bookmark, CornerUpLeft, Forward } from 'lucide-vue-next'
+import { Bookmark, CornerUpLeft, Forward, Pin } from 'lucide-vue-next'
 import MessageReactionPicker from './MessageReactionPicker.vue'
 
-defineProps<{ enabled: boolean; favorited: boolean }>()
+defineProps<{ enabled: boolean; favorited: boolean; pinnable: boolean; pinned: boolean }>()
 const emit = defineEmits<{
   reaction: [emoji: string]
   reply: []
   forward: []
   favorite: []
+  pin: []
 }>()
 </script>
 
@@ -30,6 +31,18 @@ const emit = defineEmits<{
       @click="emit('favorite')"
     >
       <Bookmark :size="14" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
+    </button>
+    <button
+      v-if="pinnable"
+      type="button"
+      class="cr-message-inline-action"
+      :class="{ 'cr-message-inline-action--active': pinned }"
+      :aria-label="pinned ? '取消置顶' : '置顶消息'"
+      :title="pinned ? '取消置顶' : '置顶'"
+      :aria-pressed="pinned"
+      @click="emit('pin')"
+    >
+      <Pin :size="14" :fill="pinned ? 'currentColor' : 'none'" aria-hidden="true" />
     </button>
   </div>
 </template>

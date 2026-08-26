@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { canAutoConnectRoom, reconcileMembershipAuthFailure } from './roomMembershipState'
+import { canAutoConnectRoom, reconcileMembershipAuthFailure, shouldAutoConnectRoom } from './roomMembershipState'
 import type { Room, User } from './types'
 
 const activeRoom: Room = {
@@ -42,6 +42,12 @@ describe('automatic room reconnection', () => {
       false,
     )
     expect(canAutoConnectRoom(activeRoom, null, '', '')).toBe(false)
+  })
+
+  test('retries a restored active room only while its socket is idle', () => {
+    expect(shouldAutoConnectRoom(activeRoom, currentUser, 'session-token', '', 'idle')).toBe(true)
+    expect(shouldAutoConnectRoom(activeRoom, currentUser, 'session-token', '', 'connecting')).toBe(false)
+    expect(shouldAutoConnectRoom(activeRoom, currentUser, 'session-token', '', 'online')).toBe(false)
   })
 })
 

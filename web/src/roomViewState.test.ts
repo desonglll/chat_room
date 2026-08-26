@@ -23,6 +23,12 @@ describe('resolveRoomViewState', () => {
     ).toBe('connecting')
   })
 
+  test('does not ask an active member to join again before reconnection starts', () => {
+    expect(resolveRoomViewState({ room, status: 'idle', authenticated: false, loading: false, messageCount: 0 })).toBe(
+      'connecting',
+    )
+  })
+
   test('preserves messages while reconnecting or offline', () => {
     expect(
       resolveRoomViewState({ room, status: 'offline', authenticated: false, loading: false, messageCount: 4 }),

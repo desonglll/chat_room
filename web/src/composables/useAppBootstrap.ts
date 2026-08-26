@@ -19,8 +19,12 @@ interface AppBootstrapOptions {
   showToast: (message: string) => void
 }
 
-export function shouldReconnectRestoredRoom(routeName: unknown): boolean {
-  return routeName === 'room'
+export function shouldReconnectRestoredRoom(
+  routeName: unknown,
+  selectedRoomId = '',
+  routeRoomId = selectedRoomId,
+): boolean {
+  return routeName === 'room' && Boolean(selectedRoomId) && selectedRoomId === routeRoomId
 }
 
 export function useAppBootstrap(options: AppBootstrapOptions) {
@@ -42,13 +46,15 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   const capabilities = ref({ ai: false })
   const aiStatus = ref<AiRuntimeStatus>('disabled')
   let restoreAttempted = false
+  let restoredFromSnapshot = false
 
   function restoreCachedSelection(): void {
     if (restoreAttempted || !routeRoomId.value) return
     const restored = rooms.value.find((room) => room.id === routeRoomId.value)
     if (!restored) return
     restoreAttempted = true
-    options.selectRoom(restored, shouldReconnectRestoredRoom(route.name))
+    restoredFromSnapshot = true
+    options.selectRoom(restored, false)
   }
 
   async function loadRoomList(): Promise<void> {
@@ -66,7 +72,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
         restoreAttempted = true
         const activeId = routeRoomId.value
         const restored = nextRooms.find((room) => room.id === activeId)
-        if (restored) options.selectRoom(restored, shouldReconnectRestoredRoom(route.name))
+        if (restored) options.selectRoom(restored, shouldReconnectRestoredRoom(route.name, restored.id, activeId))
         else if (activeId && !sessionToken.value) void router.replace({ name: 'home' }).catch(() => {})
       }
     } catch (caught) {
@@ -151,6 +157,13 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     await Promise.all([restoreSession(), loadRuntimeConfig()])
     if (sessionToken.value) options.connectUnread(sessionToken.value)
     await loadRoomList()
+    if (
+      restoredFromSnapshot &&
+      selectedRoom.value &&
+      shouldReconnectRestoredRoom(route.name, selectedRoom.value.id, routeRoomId.value)
+    ) {
+      options.selectRoom(selectedRoom.value, true)
+    }
   })
 
   watch([sessionToken, currentUser, rooms], () => {

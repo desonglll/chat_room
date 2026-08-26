@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { UploadCloud } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import ChatAccessPanel from './ChatAccessPanel.vue'
 import ChatRoomHeader from './ChatRoomHeader.vue'
 import MessageComposer from './MessageComposer.vue'
@@ -9,7 +10,8 @@ import MessageSelectionBar from './MessageSelectionBar.vue'
 import RoomConnectingView from './RoomConnectingView.vue'
 import UploadStatusPanel from './UploadStatusPanel.vue'
 import { shouldFocusComposer } from '../composer'
-import { useMessageDeepLink } from '../composables/useMessageDeepLink'
+import { useRoomMessageNavigation } from '../composables/useRoomMessageNavigation'
+import { useMessageSelection } from '../composables/useMessageSelection'
 import { resolveRoomViewState } from '../roomViewState'
 import type {
   Attachment,
@@ -28,11 +30,11 @@ import type {
   User,
 } from '../types'
 import type { DownloadProgress } from '../attachmentDownloads'
-
 const ChatFilesDialog = defineAsyncComponent(() => import('./ChatFilesDialog.vue'))
 const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
 const ProfileCardDialog = defineAsyncComponent(() => import('./ProfileCardDialog.vue'))
-
+const RoomMessageSearchDialog = defineAsyncComponent(() => import('./RoomMessageSearchDialog.vue'))
+const RoomPinsBar = defineAsyncComponent(() => import('./RoomPinsBar.vue'))
 const props = defineProps<{
   room: Room | null
   conversation: ConversationSummary | null
@@ -65,10 +67,10 @@ const props = defineProps<{
   hasMoreHistory: boolean
   pendingUploads: AttachmentUploadSession[]
   aiEnabled: boolean
+  aiPanelOpen: boolean
   loading: boolean
   ensureMessage: (messageId: string) => Promise<boolean>
 }>()
-
 const emit = defineEmits<{
   back: []
   manage: []
@@ -96,6 +98,7 @@ const emit = defineEmits<{
   loadOlder: []
   removeFriend: []
   blockUser: []
+  assistant: []
   'update:password': [password: string]
   'update:rememberRoomPasswords': [remember: boolean]
 }>()
@@ -103,12 +106,12 @@ const emit = defineEmits<{
 const replyingTo = ref<BroadcastMessage | null>(null)
 const editingTo = ref<BroadcastMessage | null>(null)
 const filesOpen = ref(false)
-const selecting = ref(false)
-const selectedMessageIds = ref<string[]>([])
 const previewImageId = ref('')
 const viewProfileUserId = ref('')
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
 const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
+const roomPinsRef = ref<{ toggle: (messageId: string) => Promise<void> } | null>(null)
+const pinnedMessageIds = ref<string[]>([])
 const dragActive = ref(false)
 const shaking = ref(false)
 const viewState = computed(() =>
@@ -122,6 +125,34 @@ const viewState = computed(() =>
 )
 let dragDepth = 0
 let shakeTimer: number | undefined
+const router = useRouter()
+const canPin = computed(
+  () =>
+    props.conversation?.kind === 'direct' ||
+    (props.conversation?.kind === 'group' && ['owner', 'admin'].includes(props.room?.membership_role || '')),
+)
+const { searchOpen, locateMessage, locateSearchResult } = useRoomMessageNavigation({
+  roomId: () => props.room?.id || '',
+  ready: () => viewState.value === 'conversation' && props.historyReady,
+  visible: () => props.visible,
+  authenticated: () => props.authenticated,
+  messageList: () => messageListRef.value,
+  closeFiles: () => (filesOpen.value = false),
+})
+const {
+  closeSelection,
+  downloadSelected,
+  favoriteSelected,
+  forwardSelected,
+  selectedAttachments,
+  selectedMessageIds,
+  selecting,
+  toggleSelection,
+} = useMessageSelection(() => props.messages, {
+  download: (attachments) => emit('download', attachments),
+  favorite: (messageIds) => emit('favorite', messageIds),
+  forward: (messageIds) => emit('forward', messageIds),
+})
 
 watch(
   () => props.pokedAt,
@@ -137,13 +168,6 @@ watch(
     })
   },
 )
-const selectedAttachments = computed(() =>
-  props.messages.flatMap((message) =>
-    message.type === 'broadcast' && message.attachment && selectedMessageIds.value.includes(message.message_id)
-      ? [message.attachment]
-      : [],
-  ),
-)
 const galleryImages = computed(() =>
   props.messages.flatMap((message) =>
     message.type === 'broadcast' && message.attachment?.mime_type.startsWith('image/') && !message.recalled_at
@@ -158,6 +182,7 @@ watch(
     replyingTo.value = null
     editingTo.value = null
     filesOpen.value = false
+    pinnedMessageIds.value = []
     previewImageId.value = ''
     selecting.value = false
     selectedMessageIds.value = []
@@ -185,6 +210,10 @@ function startReply(message: BroadcastMessage): void {
 }
 
 function startEdit(message: BroadcastMessage): void {
+  if (message.favorite_id) {
+    void router.push({ name: 'favorites', query: { edit: message.favorite_id } }).catch(() => {})
+    return
+  }
   replyingTo.value = null
   editingTo.value = message
 }
@@ -193,43 +222,6 @@ function editMessage(messageId: string, content: string): void {
   emit('edit', messageId, content)
   editingTo.value = null
 }
-
-function toggleSelection(messageId: string): void {
-  selectedMessageIds.value = selectedMessageIds.value.includes(messageId)
-    ? selectedMessageIds.value.filter((id) => id !== messageId)
-    : [...selectedMessageIds.value, messageId]
-}
-
-function closeSelection(): void {
-  selecting.value = false
-  selectedMessageIds.value = []
-}
-
-function downloadSelected(): void {
-  emit('download', selectedAttachments.value)
-}
-
-function forwardSelected(): void {
-  emit('forward', [...selectedMessageIds.value])
-  closeSelection()
-}
-
-function favoriteSelected(): void {
-  emit('favorite', [...selectedMessageIds.value])
-  closeSelection()
-}
-
-async function locateMessage(messageId: string): Promise<boolean> {
-  filesOpen.value = false
-  await nextTick()
-  return (await messageListRef.value?.scrollToMessage(messageId)) || false
-}
-
-useMessageDeepLink(
-  () => props.room?.id || '',
-  () => viewState.value === 'conversation' && props.historyReady,
-  locateMessage,
-)
 
 function isEditableTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null
@@ -301,14 +293,18 @@ onBeforeUnmount(() => {
       :members="members"
       :current-user-id="currentUserId"
       :token="token"
+      :ai-enabled="aiEnabled"
+      :ai-panel-open="aiPanelOpen"
       @back="emit('back')"
       @manage="emit('manage')"
       @leave="emit('leave')"
       @files="filesOpen = true"
+      @search="searchOpen = true"
       @view-profile="viewProfileUserId = $event"
       @toggle-selection="selecting = !selecting"
       @remove-friend="emit('removeFriend')"
       @block-user="emit('blockUser')"
+      @assistant="emit('assistant')"
     />
 
     <ChatAccessPanel
@@ -353,6 +349,16 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </Transition>
+      <RoomPinsBar
+        v-if="conversation"
+        ref="roomPinsRef"
+        :room-id="room?.id || ''"
+        :token="token"
+        :can-pin="canPin"
+        @update:message-ids="pinnedMessageIds = $event"
+        @locate="locateMessage"
+        @edit-favorite="router.push({ name: 'favorites', query: { edit: $event } })"
+      />
       <MessageList
         ref="messageListRef"
         :room-id="room?.id || ''"
@@ -360,6 +366,8 @@ onBeforeUnmount(() => {
         :unread-count="room?.unread_count || 0"
         :messages="messages"
         :favorite-message-ids="favoriteMessageIds"
+        :pinned-message-ids="pinnedMessageIds"
+        :can-pin="canPin"
         :read-receipts="readReceipts"
         :participants="participants"
         :current-user-id="currentUserId"
@@ -376,6 +384,7 @@ onBeforeUnmount(() => {
         @edit="startEdit"
         @forward="(message) => emit('forward', [message.message_id])"
         @favorite="(message) => emit('favorite', [message.message_id])"
+        @pin="(message) => roomPinsRef?.toggle(message.message_id)"
         @toggle-select="toggleSelection"
         @load-older="emit('loadOlder')"
         @preview-image="previewImageId = $event.id"
@@ -451,6 +460,14 @@ onBeforeUnmount(() => {
       @download="emit('download', $event)"
       @cancel-download="emit('cancelDownload')"
       @locate-message="locateMessage"
+    />
+    <RoomMessageSearchDialog
+      :open="searchOpen"
+      :room-id="room?.id || ''"
+      :token="token"
+      :password="password"
+      @close="searchOpen = false"
+      @locate="locateSearchResult"
     />
     <ImageViewerGallery :images="galleryImages" :active-id="previewImageId" @close="previewImageId = ''" />
     <ProfileCardDialog

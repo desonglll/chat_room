@@ -1,5 +1,6 @@
 import { watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { LocationQueryRaw } from 'vue-router'
 import { saveRoomPassword } from '../roomPasswordVault'
 import type { Room } from '../types'
 
@@ -12,6 +13,10 @@ interface RoomRouteSyncOptions {
 
 export function shouldPromoteJoinRoute(online: boolean, routeName: unknown): boolean {
   return online && routeName === 'room-join'
+}
+
+export function promotedRoomRoute(roomId: string, query: LocationQueryRaw, hash: string) {
+  return { name: 'room' as const, params: { id: roomId }, query: { ...query }, hash }
 }
 
 export function useRoomRouteSync(options: RoomRouteSyncOptions): void {
@@ -27,7 +32,7 @@ export function useRoomRouteSync(options: RoomRouteSyncOptions): void {
     // transport state must never turn an existing room URL into a join URL.
     if (!room || !shouldPromoteJoinRoute(online, route.name)) return
 
-    const target = { name: 'room' as const, params: { id: room.id } }
+    const target = promotedRoomRoute(room.id, route.query, route.hash)
     if (router.resolve(target).fullPath !== route.fullPath) {
       void router.replace(target).catch(() => {})
     }
