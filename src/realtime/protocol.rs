@@ -16,6 +16,7 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         recalled_at: message.recalled_at,
         edited_at: message.edited_at,
         timestamp: message.created_at,
+        favorite_id: message.favorite_id,
         forwarded_from: message.forwarded_from,
         reactions: message.reactions,
     }

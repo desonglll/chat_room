@@ -25,6 +25,7 @@ interface ContactsController {
   blocked: Ref<SocialUser[]>
   loading: Ref<boolean>
   error: Ref<string>
+  refresh: () => Promise<void>
   respond: (userId: string, action: 'accept' | 'decline') => Promise<void>
   cancelRequest: (userId: string) => Promise<void>
   unblock: (userId: string) => Promise<void>
@@ -35,7 +36,9 @@ interface FavoritesController {
   items: Ref<FavoriteItem[]>
   loading: Ref<boolean>
   error: Ref<string>
+  refresh: () => Promise<void>
   create: (title: string, content: string) => Promise<FavoriteItem>
+  createAttachment: (file: File, title: string, content: string, maxUploadBytes: number) => Promise<FavoriteItem>
   update: (id: string, version: number, title: string, content: string) => Promise<FavoriteItem>
   remove: (id: string) => Promise<void>
   forward: (id: string, roomIds: string[]) => Promise<FavoriteForwardResult[]>
@@ -56,7 +59,7 @@ defineProps<{
   rooms: Room[]
   aiStatus: AiRuntimeStatus
   rememberRoomPasswords: boolean
-  discoverLoading: boolean
+  maxUploadBytes: number
   discoverJoiningId: string
   discoverError: string
   joinRoom: (room: Room) => Promise<void>
@@ -119,7 +122,10 @@ const emit = defineEmits<{
       :rooms="rooms"
       :loading="favorites.loading.value"
       :error="favorites.error.value"
+      :refresh="favorites.refresh"
       :create="favorites.create"
+      :create-attachment="favorites.createAttachment"
+      :max-upload-bytes="maxUploadBytes"
       :update="favorites.update"
       :remove="favorites.remove"
       :forward="favorites.forward"
@@ -142,9 +148,8 @@ const emit = defineEmits<{
     />
     <DiscoverRooms
       v-else-if="activePage === 'discover'"
-      :rooms="rooms"
       :user="user"
-      :loading="discoverLoading"
+      :token="token"
       :joining-id="discoverJoiningId"
       :error="discoverError"
       @back="emit('back')"

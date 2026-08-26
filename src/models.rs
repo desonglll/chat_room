@@ -61,6 +61,8 @@ pub struct StoredMessage {
     pub recalled_at: Option<DateTime<Utc>>,
     pub edited_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+    #[serde(default)]
+    pub favorite_id: Option<Uuid>,
     pub forwarded_from: Option<ForwardedFrom>,
     #[serde(default)]
     pub reactions: Vec<MessageReaction>,
@@ -363,6 +365,8 @@ pub enum ChatMessage {
         recalled_at: Option<DateTime<Utc>>,
         edited_at: Option<DateTime<Utc>>,
         timestamp: DateTime<Utc>,
+        #[serde(default)]
+        favorite_id: Option<Uuid>,
         forwarded_from: Option<ForwardedFrom>,
         #[serde(default)]
         reactions: Vec<MessageReaction>,

@@ -145,8 +145,20 @@ impl AppState {
                 None
             };
             if membership.role == "owner" && successor_id.is_none() {
-                transaction.rollback().await?;
-                return Ok(None);
+                let is_public: bool = sqlx::query_scalar(
+                    "SELECT password_hash = '' FROM rooms WHERE id = $1 AND deleted_at IS NULL",
+                )
+                .bind(room_id)
+                .fetch_one(&mut *transaction)
+                .await?;
+                if !is_public {
+                    transaction.rollback().await?;
+                    return Ok(None);
+                }
+                sqlx::query("UPDATE rooms SET creator_user_id = NULL WHERE id = $1")
+                    .bind(room_id)
+                    .execute(&mut *transaction)
+                    .await?;
             }
             if let Some(successor_id) = successor_id {
                 sqlx::query(
@@ -178,9 +190,9 @@ impl AppState {
             transaction.commit().await?;
             Ok::<_, sqlx::Error>(successor_id)
         })?;
-        if let Some(successor_id) = successor_id {
+        if membership.role == "owner" {
             if let Some(mut room) = self.room(room_id).await {
-                room.creator_user_id = Some(successor_id);
+                room.creator_user_id = successor_id;
                 self.cache_updated_room(room).await;
             }
         }

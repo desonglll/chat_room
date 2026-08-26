@@ -42,14 +42,47 @@ pub async fn list_rooms(
     } else {
         None
     };
-    if let Some(user) = &user {
-        state
-            .decorate_rooms_for_user(&mut rooms, user.id)
+    let Some(user) = user else {
+        return Ok(Json(Vec::new()));
+    };
+    state
+        .decorate_rooms_for_user(&mut rooms, user.id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    rooms.retain(|room| room.membership_status.as_deref() == Some("active"));
+    Ok(Json(rooms))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/rooms/discover",
+    params(("name" = Option<String>, Query, description = "Filter by exact room name")),
+    responses((status = 200, description = "Discoverable public rooms", body = Vec<Room>))
+)]
+pub async fn discover_rooms(
+    State(state): State<SharedState>,
+    Query(query): Query<ListQuery>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<Room>>, StatusCode> {
+    let direct_ids = state
+        .direct_room_ids()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut rooms = state.list_rooms(query.name.as_deref()).await;
+    rooms.retain(|room| !direct_ids.contains(&room.id) && !room.has_password);
+
+    if let Some(token) = optional_bearer_token(&headers) {
+        if let Some(user) = state
+            .session_user(token)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        rooms.retain(|room| !room.has_password || room.membership_status.is_some());
-    } else {
-        rooms.retain(|room| !room.has_password);
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        {
+            state
+                .decorate_rooms_for_user(&mut rooms, user.id)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            rooms.retain(|room| room.membership_status.as_deref() != Some("active"));
+        }
     }
     Ok(Json(rooms))
 }

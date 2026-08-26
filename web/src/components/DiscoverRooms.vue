@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ArrowLeft, Compass, LogIn, Search } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
+import { listDiscoverableRooms } from '../api'
 import { avatarColor } from '../avatarColor'
 import type { Room, User } from '../types'
 
 const props = defineProps<{
-  rooms: Room[]
   user: User | null
-  loading: boolean
+  token: string
   joiningId: string
   error: string
 }>()
@@ -24,19 +24,36 @@ const emit = defineEmits<{
 }>()
 
 const query = ref('')
+const rooms = ref<Room[]>([])
+const loading = ref(false)
+const loadError = ref('')
+const visibleError = computed(() => props.error || loadError.value)
 
 // Every room here is guaranteed password-free — private rooms the caller
 // hasn't joined never appear in the list the backend returns at all.
 const discoverable = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return props.rooms
-    .filter((room) => !room.membership_status)
-    .filter((room) => !needle || room.name.toLowerCase().includes(needle))
+  return rooms.value.filter((room) => !needle || room.name.toLowerCase().includes(needle))
 })
 
 function joinLabel(room: Room): string {
+  if (room.membership_status === 'pending') return '等待审核'
   return room.join_policy === 'approval' ? '申请加入' : '加入'
 }
+
+async function refresh(): Promise<void> {
+  loading.value = true
+  loadError.value = ''
+  try {
+    rooms.value = await listDiscoverableRooms(props.token)
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : '加载公开聊天室失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(() => props.token, refresh, { immediate: true })
 </script>
 
 <template>
@@ -66,7 +83,7 @@ function joinLabel(room: Room): string {
         />
       </IconField>
 
-      <Message v-if="error" severity="error" :closable="false" class="mt-4">{{ error }}</Message>
+      <Message v-if="visibleError" severity="error" :closable="false" class="mt-4">{{ visibleError }}</Message>
 
       <div v-if="loading" class="mt-4 divide-y divide-surface-100 border-y border-surface-200">
         <div v-for="index in 4" :key="index" class="h-[68px] animate-pulse bg-surface-50 motion-reduce:animate-none" />
@@ -102,7 +119,7 @@ function joinLabel(room: Room): string {
             v-if="user"
             size="small"
             :loading="joiningId === room.id"
-            :disabled="joiningId !== '' && joiningId !== room.id"
+            :disabled="room.membership_status === 'pending' || (joiningId !== '' && joiningId !== room.id)"
             @click="emit('join', room)"
           >
             {{ joinLabel(room) }}

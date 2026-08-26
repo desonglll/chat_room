@@ -229,18 +229,25 @@ async fn create_and_list_rooms() {
     let id2 = create_room(&base, "random", None).await.0;
     assert_ne!(id1, id2);
 
-    // Anonymous listing hides private rooms entirely (not just their password) —
-    // only the public "random" room is visible without authentication.
+    // The chat list is membership-only, including for anonymous visitors.
     let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", base))
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    assert_eq!(list.len(), 1);
-    assert_eq!(list[0]["name"], "random");
+    assert!(list.is_empty());
 
-    // An authenticated member of the private room sees both.
+    let discover: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms/discover", base))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(discover.len(), 1);
+    assert_eq!(discover[0]["name"], "random");
+
+    // An authenticated member sees only rooms they actually joined.
     let owner_token = session_token(&base, "owner-general").await;
     let authed_list: Vec<serde_json::Value> = reqwest::Client::new()
         .get(format!("{}/api/rooms", base))
@@ -251,7 +258,8 @@ async fn create_and_list_rooms() {
         .json()
         .await
         .unwrap();
-    assert_eq!(authed_list.len(), 2);
+    assert_eq!(authed_list.len(), 1);
+    assert_eq!(authed_list[0]["name"], "general");
 }
 
 /// Regression test: the room struct cached at creation time carries the
@@ -276,9 +284,10 @@ async fn list_rooms_does_not_leak_creator_membership_to_other_users() {
         .await
         .unwrap();
 
-    let public_room = list.iter().find(|room| room["id"] == public_id).unwrap();
-    assert!(public_room["membership_status"].is_null());
-    assert!(public_room["membership_role"].is_null());
+    assert!(
+        list.iter().all(|room| room["id"] != public_id),
+        "a public room the caller never joined belongs in discovery, not the chat list"
+    );
 
     assert!(
         list.iter().all(|room| room["id"] != private_id),

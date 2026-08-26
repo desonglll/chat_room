@@ -43,12 +43,16 @@ async fn account(base: &str, username: &str) -> (String, String) {
 }
 
 async fn create_room(base: &str, token: &str, name: &str) -> String {
+    create_room_with_password(base, token, name, "").await
+}
+
+async fn create_room_with_password(base: &str, token: &str, name: &str, password: &str) -> String {
     reqwest::Client::new()
         .post(format!("{base}/api/rooms"))
         .bearer_auth(token)
         .json(&serde_json::json!({
             "name": name,
-            "password": "",
+            "password": password,
             "join_policy": "open"
         }))
         .send()
@@ -114,10 +118,10 @@ async fn owner_leave_transfers_room_and_removes_the_old_conversation() {
 }
 
 #[tokio::test]
-async fn sole_owner_leave_is_rejected_without_removing_the_conversation() {
+async fn sole_owner_can_leave_a_public_room_without_deleting_it() {
     let server = start_server().await;
     let client = reqwest::Client::new();
-    let (owner_token, owner_id) = account(&server.base, "sole-owner").await;
+    let (owner_token, _) = account(&server.base, "sole-owner").await;
     let room_id = create_room(&server.base, &owner_token, "sole-owner-room").await;
 
     let leave = client
@@ -126,7 +130,7 @@ async fn sole_owner_leave_is_rejected_without_removing_the_conversation() {
         .send()
         .await
         .unwrap();
-    assert_eq!(leave.status(), StatusCode::CONFLICT);
+    assert_eq!(leave.status(), StatusCode::NO_CONTENT);
 
     let conversations: Vec<serde_json::Value> = client
         .get(format!("{}/api/conversations", server.base))
@@ -139,11 +143,67 @@ async fn sole_owner_leave_is_rejected_without_removing_the_conversation() {
         .unwrap();
     assert!(conversations
         .iter()
-        .any(|conversation| conversation["room_id"] == room_id));
+        .all(|conversation| conversation["room_id"] != room_id));
 
     let room: serde_json::Value = client
         .get(format!("{}/api/rooms/{room_id}", server.base))
         .bearer_auth(&owner_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(room["creator_user_id"].is_null());
+    assert!(room["membership_role"].is_null());
+
+    let (new_owner_token, new_owner_id) = account(&server.base, "replacement-owner").await;
+    let join = client
+        .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+        .bearer_auth(&new_owner_token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(join.status(), StatusCode::OK);
+    let adopted_room: serde_json::Value = client
+        .get(format!("{}/api/rooms/{room_id}", server.base))
+        .bearer_auth(&new_owner_token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(adopted_room["creator_user_id"], new_owner_id);
+    assert_eq!(adopted_room["membership_role"], "owner");
+}
+
+#[tokio::test]
+async fn sole_owner_cannot_leave_a_private_room() {
+    let server = start_server().await;
+    let client = reqwest::Client::new();
+    let (owner_token, owner_id) = account(&server.base, "private-sole-owner").await;
+    let room_id = create_room_with_password(
+        &server.base,
+        &owner_token,
+        "private-sole-owner-room",
+        "room-secret",
+    )
+    .await;
+
+    let leave = client
+        .delete(format!("{}/api/rooms/{room_id}/members/me", server.base))
+        .bearer_auth(&owner_token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(leave.status(), StatusCode::CONFLICT);
+
+    let room: serde_json::Value = client
+        .get(format!("{}/api/rooms/{room_id}", server.base))
+        .bearer_auth(&owner_token)
+        .header("x-room-password", "room-secret")
         .send()
         .await
         .unwrap()

@@ -144,6 +144,12 @@ export async function listRooms(token = ''): Promise<Room[]> {
   return response.json() as Promise<Room[]>
 }
 
+export async function listDiscoverableRooms(token = ''): Promise<Room[]> {
+  const response = await request('/api/rooms/discover', { headers: token ? authHeaders(token) : {} })
+  if (!response.ok) throw new Error(`公开房间列表返回 ${response.status}`)
+  return response.json() as Promise<Room[]>
+}
+
 export async function getRoom(roomId: string, token = ''): Promise<Room> {
   const response = await request(`/api/rooms/${encodeURIComponent(roomId)}`, {
     headers: token ? authHeaders(token) : {},
@@ -348,6 +354,7 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     recalled_at: message.recalled_at,
     edited_at: message.edited_at,
     timestamp: message.created_at,
+    favorite_id: message.favorite_id || null,
     forwarded_from: message.forwarded_from,
     reactions: message.reactions || [],
   }

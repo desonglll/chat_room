@@ -13,6 +13,7 @@ const ADMIN_PERMISSIONS: &[&str] = &[
     "message.send",
     "message.edit_own",
     "message.recall_own",
+    "message.pin",
     "room.settings",
     "members.review",
     "members.invite",
@@ -22,6 +23,7 @@ const OWNER_PERMISSIONS: &[&str] = &[
     "message.send",
     "message.edit_own",
     "message.recall_own",
+    "message.pin",
     "room.settings",
     "room.delete",
     "members.review",
@@ -241,13 +243,27 @@ impl AppState {
         auto_activate: bool,
     ) -> Result<RoomMembership, sqlx::Error> {
         let now = Utc::now();
-        with_pool!(self, |pool| {
+        let became_owner = with_pool!(self, |pool| {
+            let mut transaction = pool.begin().await?;
+            sqlx::query("UPDATE rooms SET creator_user_id = creator_user_id WHERE id = $1")
+                .bind(room_id)
+                .execute(&mut *transaction)
+                .await?;
+            let has_active_member: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM room_memberships \
+                 WHERE room_id = $1 AND status = 'active')",
+            )
+            .bind(room_id)
+            .fetch_one(&mut *transaction)
+            .await?;
+            let became_owner = !has_active_member;
             sqlx::query(
                 "INSERT INTO room_memberships \
              (room_id, user_id, role_id, status, requested_at, joined_at) \
              SELECT $1, $2, room_roles.id, $3, $4, $5 FROM room_roles \
-             WHERE room_roles.room_id = $6 AND room_roles.name = 'member' \
+             WHERE room_roles.room_id = $6 AND room_roles.name = $9 \
              ON CONFLICT(room_id, user_id) DO UPDATE SET \
+               role_id = CASE WHEN $10 THEN excluded.role_id ELSE room_memberships.role_id END, \
                status = CASE \
                  WHEN room_memberships.status IN ('active', 'invited') OR $7 THEN 'active' \
                  ELSE 'pending' END, \
@@ -259,16 +275,36 @@ impl AppState {
             )
             .bind(room_id)
             .bind(user_id)
-            .bind(if auto_activate { "active" } else { "pending" })
+            .bind(if auto_activate || became_owner {
+                "active"
+            } else {
+                "pending"
+            })
             .bind(now)
-            .bind(auto_activate.then_some(now))
+            .bind((auto_activate || became_owner).then_some(now))
             .bind(room_id)
-            .bind(auto_activate)
-            .bind(auto_activate)
-            .execute(pool)
-            .await
-            .map(|_| ())
+            .bind(auto_activate || became_owner)
+            .bind(auto_activate || became_owner)
+            .bind(if became_owner { "owner" } else { "member" })
+            .bind(became_owner)
+            .execute(&mut *transaction)
+            .await?;
+            if became_owner {
+                sqlx::query("UPDATE rooms SET creator_user_id = $1 WHERE id = $2")
+                    .bind(user_id)
+                    .bind(room_id)
+                    .execute(&mut *transaction)
+                    .await?;
+            }
+            transaction.commit().await?;
+            Ok::<_, sqlx::Error>(became_owner)
         })?;
+        if became_owner {
+            if let Some(mut room) = self.room(room_id).await {
+                room.creator_user_id = Some(user_id);
+                self.cache_updated_room(room).await;
+            }
+        }
         self.room_membership(room_id, user_id)
             .await?
             .ok_or(sqlx::Error::RowNotFound)

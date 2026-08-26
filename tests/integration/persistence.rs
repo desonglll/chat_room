@@ -61,9 +61,9 @@ async fn rooms_survive_sqlite_restart() {
     let state2 = Arc::new(AppState::open(&database).await.unwrap());
     let server2 = start_server_with_state(state2.clone()).await;
 
-    // Anonymous listing only surfaces the public room; the private room's owner
-    // still sees both, proving the private room's row itself survived the restart.
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", server2))
+    // Discovery still surfaces the public room after restart. The private room's
+    // owner sees their membership below, proving both room rows survived.
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms/discover", server2))
         .await
         .unwrap()
         .json()
@@ -87,7 +87,7 @@ async fn rooms_survive_sqlite_restart() {
         .filter_map(|room| room["id"].as_str())
         .collect();
     assert!(ids.contains(&private_id.as_str()));
-    assert!(ids.contains(&public_id.as_str()));
+    assert!(!ids.contains(&public_id.as_str()));
 
     let (_private_sink, _private_stream) =
         ws_connect(&server2, &private_id, "returning-user", Some("pw")).await;
@@ -248,7 +248,12 @@ async fn concurrent_duplicate_room_creation_returns_conflict() {
     statuses.sort_unstable();
     assert_eq!(statuses, vec![201, 409]);
 
-    let rooms: Vec<serde_json::Value> = reqwest::get(&url).await.unwrap().json().await.unwrap();
+    let rooms: Vec<serde_json::Value> = reqwest::get(format!("{url}/discover"))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert_eq!(rooms.len(), 1);
 }
 
@@ -259,8 +264,8 @@ async fn list_rooms_filter_by_name() {
     create_room(&base, "beta", Some("pw")).await;
     create_room(&base, "gamma", None).await;
 
-    // Anonymous listing excludes the private "beta" room entirely.
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", base))
+    // Anonymous discovery excludes the private "beta" room entirely.
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms/discover", base))
         .await
         .unwrap()
         .json()
@@ -268,7 +273,7 @@ async fn list_rooms_filter_by_name() {
         .unwrap();
     assert_eq!(list.len(), 2);
 
-    // "beta"'s owner can still find it by name, anonymous callers cannot.
+    // "beta"'s owner can still find it in their chat list; discovery cannot.
     let beta_owner_token = session_token(&base, "owner-beta").await;
     let list: Vec<serde_json::Value> = reqwest::Client::new()
         .get(format!("{}/api/rooms?name=beta", base))
@@ -283,7 +288,7 @@ async fn list_rooms_filter_by_name() {
     assert_eq!(list[0]["name"], "beta");
 
     let anonymous_beta: Vec<serde_json::Value> =
-        reqwest::get(format!("{}/api/rooms?name=beta", base))
+        reqwest::get(format!("{}/api/rooms/discover?name=beta", base))
             .await
             .unwrap()
             .json()
@@ -291,21 +296,23 @@ async fn list_rooms_filter_by_name() {
             .unwrap();
     assert!(anonymous_beta.is_empty());
 
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=nobody", base))
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let list: Vec<serde_json::Value> =
+        reqwest::get(format!("{}/api/rooms/discover?name=nobody", base))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
     assert!(list.is_empty());
 
     create_room(&base, "my room", None).await;
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms?name=my%20room", base))
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let list: Vec<serde_json::Value> =
+        reqwest::get(format!("{}/api/rooms/discover?name=my%20room", base))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
     assert_eq!(list.len(), 1);
     assert_eq!(list[0]["name"], "my room");
 }

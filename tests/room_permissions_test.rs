@@ -270,7 +270,7 @@ async fn owner_controls_requests_invitations_roles_and_active_roster() {
             .await
             .unwrap()
             .status(),
-        StatusCode::CONFLICT
+        StatusCode::NO_CONTENT
     );
 }
 

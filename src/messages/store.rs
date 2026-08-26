@@ -21,7 +21,7 @@ pub(super) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_mes
     reply.sender AS reply_sender, reply.content AS reply_content, \
     reply.recalled_at AS reply_recalled_at, \
     reply_attachment.file_name AS reply_attachment_file_name, \
-    messages.forwarded_from_sender, messages.forwarded_from_room_name FROM messages \
+    messages.favorite_id, messages.forwarded_from_sender, messages.forwarded_from_room_name FROM messages \
     LEFT JOIN attachments ON attachments.id = messages.attachment_id \
     LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
     LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
@@ -72,6 +72,7 @@ pub(super) struct MessageRow {
     reply_content: Option<String>,
     reply_recalled_at: Option<DateTime<Utc>>,
     reply_attachment_file_name: Option<String>,
+    favorite_id: Option<Uuid>,
     forwarded_from_sender: Option<String>,
     forwarded_from_room_name: Option<String>,
 }
@@ -135,6 +136,7 @@ impl MessageRow {
             recalled_at: self.recalled_at,
             edited_at: self.edited_at,
             created_at: self.created_at,
+            favorite_id: self.favorite_id,
             forwarded_from,
             reactions: Vec::new(),
         }
@@ -158,9 +160,9 @@ impl AppState {
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO messages \
-                 (id, room_id, sender_id, sender, content, attachment_id, \
+                 (id, room_id, sender_id, sender, content, attachment_id, favorite_id, \
                   forwarded_from_sender, forwarded_from_room_name, created_at) \
-                 SELECT $3, $4, $5, $6, source.content, source.attachment_id, source.sender, \
+                 SELECT $3, $4, $5, $6, source.content, source.attachment_id, source.favorite_id, source.sender, \
                    CASE WHEN direct.room_id IS NULL THEN source_room.name \
                      ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END, $7 \
                  FROM messages AS source \

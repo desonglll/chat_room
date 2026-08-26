@@ -1,7 +1,8 @@
-import { ref, type Ref } from 'vue'
+import { ref, watch, type Ref } from 'vue'
 import { requestRoomJoin } from '../api'
 import { saveRoomPassword } from '../roomPasswordVault'
-import type { Room, User } from '../types'
+import { shouldAutoConnectRoom } from '../roomMembershipState'
+import type { ChatStatus, Room, User } from '../types'
 
 interface RoomMembershipOptions {
   rooms: Ref<Room[]>
@@ -9,6 +10,7 @@ interface RoomMembershipOptions {
   currentUser: Ref<User | null>
   token: Ref<string>
   password: Ref<string>
+  status: Ref<ChatStatus>
   rememberPasswords: () => boolean
   requireAccount: (action: () => void) => void
   selectRoom: (room: Room) => void
@@ -123,6 +125,14 @@ export function useRoomMembership(options: RoomMembershipOptions) {
       options.setError(caught instanceof Error ? caught.message : '加入申请失败')
     }
   }
+
+  watch(
+    [options.selectedRoom, options.currentUser, options.token, options.password, options.status],
+    ([room, user, token, password, status]) => {
+      if (shouldAutoConnectRoom(room, user, token, password, status)) joinSelectedRoom()
+    },
+    { immediate: true },
+  )
 
   return {
     discoverError,
