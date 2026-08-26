@@ -181,6 +181,9 @@ async fn execute_run(state: SharedState, run_id: Uuid) -> anyhow::Result<()> {
             .fail_ai_run(
                 &execution,
                 &partial.content,
+                partial.context_message_count,
+                partial.retrieved_message_count,
+                &partial.sources,
                 "AI 助手当前不可用，请稍后重试",
             )
             .await?;
@@ -188,8 +191,9 @@ async fn execute_run(state: SharedState, run_id: Uuid) -> anyhow::Result<()> {
             &state,
             &execution,
             &partial.content,
-            0,
-            0,
+            partial.context_message_count,
+            partial.retrieved_message_count,
+            &partial.sources,
             partial.revision + 1,
             "failed",
         )
@@ -229,6 +233,7 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
                     &answer,
                     context.message_count,
                     context.retrieved_message_count,
+                    &context.sources,
                     revision,
                 )
                 .await?;
@@ -247,6 +252,7 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
             answer,
             context.message_count,
             context.retrieved_message_count,
+            &context.sources,
         )
         .await?;
     store_terminal_answer(
@@ -255,6 +261,7 @@ async fn generate_answer(state: &SharedState, execution: &AiRunExecution) -> any
         answer,
         context.message_count,
         context.retrieved_message_count,
+        &context.sources,
         revision + 1,
         "completed",
     )
@@ -268,6 +275,7 @@ async fn store_live_answer(
     content: &str,
     context_message_count: i64,
     retrieved_message_count: i64,
+    sources: &[super::models::AiCitationSource],
     revision: i64,
 ) -> anyhow::Result<()> {
     if let Some(cache) = state.redis_cache() {
@@ -275,6 +283,7 @@ async fn store_live_answer(
             content: content.to_owned(),
             context_message_count,
             retrieved_message_count,
+            sources: sources.to_vec(),
             revision,
             status: "streaming".into(),
             updated_at: chrono::Utc::now(),
@@ -300,6 +309,7 @@ async fn store_live_answer(
             content,
             context_message_count,
             retrieved_message_count,
+            sources,
         )
         .await?;
     Ok(())
@@ -327,6 +337,7 @@ async fn live_or_persisted_answer(
         content,
         context_message_count: 0,
         retrieved_message_count: 0,
+        sources: Vec::new(),
         revision: 0,
         status: "streaming".into(),
         updated_at: chrono::Utc::now(),
@@ -339,6 +350,7 @@ async fn store_terminal_answer(
     content: &str,
     context_message_count: i64,
     retrieved_message_count: i64,
+    sources: &[super::models::AiCitationSource],
     revision: i64,
     status: &str,
 ) {
@@ -349,6 +361,7 @@ async fn store_terminal_answer(
         content: content.to_owned(),
         context_message_count,
         retrieved_message_count,
+        sources: sources.to_vec(),
         revision,
         status: status.into(),
         updated_at: chrono::Utc::now(),

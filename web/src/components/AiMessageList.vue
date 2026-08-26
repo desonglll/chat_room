@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
-import { Bot } from 'lucide-vue-next'
-import { aiContextUsage, type AiUiMessage } from '../aiUi'
+import { Bot, LocateFixed } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
+import { aiContextUsage, aiSourceRoute, type AiUiMessage } from '../aiUi'
 import MarkdownContent from './MarkdownContent.vue'
 
 defineProps<{ messages: AiUiMessage[]; roomTitle: string }>()
@@ -27,6 +28,10 @@ function scrollToLatestSoon(): void {
 }
 
 defineExpose({ scrollToLatest, scrollToLatestSoon })
+
+function formatSourceTime(value: string): string {
+  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
+}
 </script>
 
 <template>
@@ -64,6 +69,33 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
             {{ message.status === 'streaming' ? '正在回答' : '正在连接' }}
           </div>
           <p v-else-if="message.status === 'failed'" class="text-sm text-red-600">AI 请求失败，请稍后重试</p>
+          <div
+            v-if="message.role === 'assistant' && message.sources.length"
+            class="mt-3 border-t border-surface-200 pt-3"
+          >
+            <p class="mb-1.5 text-xs font-medium text-surface-700">参考来源</p>
+            <ol class="divide-y divide-surface-200 overflow-hidden rounded-md border border-surface-200">
+              <li v-for="source in message.sources" :key="source.message_id">
+                <RouterLink
+                  :to="aiSourceRoute(source)"
+                  class="flex min-w-0 items-start gap-2 px-2.5 py-2 text-left transition-colors hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+                  :title="`定位到 ${source.label} 原文`"
+                >
+                  <span class="shrink-0 font-mono text-xs font-semibold text-primary">[{{ source.label }}]</span>
+                  <span class="min-w-0 flex-1">
+                    <span class="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-color">
+                      <span class="font-medium text-surface-700">{{ source.sender }}</span>
+                      <time :datetime="source.sent_at">{{ formatSourceTime(source.sent_at) }}</time>
+                    </span>
+                    <span class="mt-0.5 line-clamp-2 block break-words text-xs text-surface-600">{{
+                      source.excerpt
+                    }}</span>
+                  </span>
+                  <LocateFixed :size="14" class="mt-0.5 shrink-0 text-muted-color" aria-hidden="true" />
+                </RouterLink>
+              </li>
+            </ol>
+          </div>
           <p
             v-if="message.role === 'assistant' && (roomTitle || message.context_message_count)"
             class="mt-2 text-[10px] text-muted-color"

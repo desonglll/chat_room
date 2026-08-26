@@ -117,6 +117,7 @@ fn apply_cached_answer(message: &mut AiThreadMessage, answer: CachedAiAnswer) {
     message.content = answer.content;
     message.context_message_count = Some(answer.context_message_count);
     message.retrieved_message_count = Some(answer.retrieved_message_count);
+    message.sources = answer.sources.into();
     message.revision = answer.revision;
     message.status = answer.status;
     message.updated_at = answer.updated_at;

@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use super::client::ScoredMessageId;
 use super::{MessageIndex, RetrievedMessage};
+use crate::ai_threads::AiCitationSource;
 use crate::state::SharedState;
 
 const MAX_DOCUMENT_CHARS: usize = 2_000;
@@ -21,6 +22,7 @@ const RAG_CONTEXT_TEMPLATE: &str =
 pub(crate) struct RagContext {
     pub toon_context: String,
     pub message_count: usize,
+    pub sources: Vec<AiCitationSource>,
 }
 
 pub(crate) async fn retrieve_room_context(
@@ -130,6 +132,7 @@ fn render_rag_context(documents: Vec<Document>) -> anyhow::Result<RagContext> {
         return Ok(RagContext {
             toon_context: String::new(),
             message_count: 0,
+            sources: Vec::new(),
         });
     }
     let template = PromptTemplate::new(
@@ -142,9 +145,14 @@ fn render_rag_context(documents: Vec<Document>) -> anyhow::Result<RagContext> {
     let toon_context = template
         .format(variables)
         .map_err(|error| anyhow::anyhow!("format RAG context: {error}"))?;
+    let sources = evidence
+        .iter()
+        .filter_map(Evidence::citation_source)
+        .collect();
     Ok(RagContext {
         toon_context,
         message_count: evidence.len(),
+        sources,
     })
 }
 
@@ -152,6 +160,7 @@ fn render_rag_context(documents: Vec<Document>) -> anyhow::Result<RagContext> {
 struct Evidence {
     source: String,
     message_id: String,
+    room_id: String,
     score: f64,
     sent_at: String,
     sender: String,
@@ -163,10 +172,22 @@ impl Evidence {
         Some(Self {
             source: metadata_string(document, "source")?,
             message_id: metadata_string(document, "message_id")?,
+            room_id: metadata_string(document, "room_id")?,
             score: (document.score * 1_000.0).round() / 1_000.0,
             sent_at: metadata_string(document, "sent_at")?,
             sender: metadata_string(document, "sender")?,
             content: document.page_content.clone(),
+        })
+    }
+
+    fn citation_source(&self) -> Option<AiCitationSource> {
+        Some(AiCitationSource {
+            label: self.source.clone(),
+            room_id: Uuid::parse_str(&self.room_id).ok()?,
+            message_id: Uuid::parse_str(&self.message_id).ok()?,
+            sender: self.sender.clone(),
+            sent_at: self.sent_at.parse().ok()?,
+            excerpt: truncate_chars(&self.content, 280),
         })
     }
 }
@@ -233,8 +254,9 @@ mod tests {
     #[test]
     fn rag_context_is_structured_for_source_citations() {
         let id = Uuid::new_v4();
+        let documents_room_id = Uuid::new_v4();
         let documents = documents_from_messages(
-            Uuid::new_v4(),
+            documents_room_id,
             vec![ScoredMessageId { id, score: 0.8764 }],
             vec![message(id, "The launch date is Friday")],
             &HashSet::new(),
@@ -244,6 +266,12 @@ mod tests {
         let context = render_rag_context(documents).unwrap();
 
         assert_eq!(context.message_count, 1);
+        assert_eq!(context.sources.len(), 1);
+        assert_eq!(context.sources[0].label, "S1");
+        assert_eq!(context.sources[0].room_id, documents_room_id);
+        assert_eq!(context.sources[0].message_id, id);
+        assert_eq!(context.sources[0].sender, "Ada");
+        assert_eq!(context.sources[0].excerpt, "The launch date is Friday");
         assert!(context.toon_context.contains("retrieved_evidence"));
         assert!(context.toon_context.contains("S1"));
         assert!(context.toon_context.contains("0.876"));

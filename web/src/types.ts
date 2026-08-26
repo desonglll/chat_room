@@ -133,6 +133,15 @@ export interface AiThread {
   updated_at: string
 }
 
+export interface AiCitationSource {
+  label: string
+  room_id: string
+  message_id: string
+  sender: string
+  sent_at: string
+  excerpt: string
+}
+
 export interface AiThreadMessage {
   id: string
   thread_id: string
@@ -141,6 +150,7 @@ export interface AiThreadMessage {
   room_id: string | null
   context_message_count: number | null
   retrieved_message_count: number | null
+  sources: AiCitationSource[]
   status: 'pending' | 'streaming' | 'completed' | 'failed'
   revision: number
   created_at: string

@@ -1,7 +1,8 @@
 use chrono::{Duration, Utc};
+use sqlx::types::Json;
 use uuid::Uuid;
 
-use super::models::{AiRun, AiThreadMessage};
+use super::models::{AiCitationSource, AiRun, AiThreadMessage};
 use crate::{
     ai::{model_options::ResolvedAiModel, AiAssistant, AiConfig},
     state::{with_pool, AppState},
@@ -112,7 +113,8 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT m.id, m.thread_id, m.role, m.content, m.room_id, \
-                 m.context_message_count, m.retrieved_message_count, m.status, m.revision, m.created_at, \
+                 m.context_message_count, m.retrieved_message_count, m.sources, \
+                 m.status, m.revision, m.created_at, \
                  COALESCE(m.updated_at, m.created_at) AS updated_at \
                  FROM ai_thread_messages m JOIN ai_runs r ON r.assistant_message_id = m.id \
                  WHERE r.id = $1 AND r.user_id = $2",
@@ -208,6 +210,7 @@ impl AppState {
         content: &str,
         context_message_count: i64,
         retrieved_message_count: i64,
+        sources: &[AiCitationSource],
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
         let lease = now + Duration::seconds(60);
@@ -216,11 +219,12 @@ impl AppState {
             sqlx::query(
                 "UPDATE ai_thread_messages SET content = $1, status = 'streaming', \
                  context_message_count = $2, retrieved_message_count = $3, \
-                 revision = revision + 1, updated_at = $4 WHERE id = $5",
+                 sources = $4, revision = revision + 1, updated_at = $5 WHERE id = $6",
             )
             .bind(content)
             .bind(context_message_count)
             .bind(retrieved_message_count)
+            .bind(Json(sources))
             .bind(now)
             .bind(execution.assistant_message_id)
             .execute(&mut *transaction)
@@ -275,6 +279,7 @@ impl AppState {
         content: &str,
         context_message_count: i64,
         retrieved_message_count: i64,
+        sources: &[AiCitationSource],
     ) -> Result<(), sqlx::Error> {
         self.set_ai_run_terminal(
             execution,
@@ -282,6 +287,7 @@ impl AppState {
             content,
             context_message_count,
             retrieved_message_count,
+            sources,
             None,
         )
         .await
@@ -291,10 +297,21 @@ impl AppState {
         &self,
         execution: &AiRunExecution,
         content: &str,
+        context_message_count: i64,
+        retrieved_message_count: i64,
+        sources: &[AiCitationSource],
         error_message: &str,
     ) -> Result<(), sqlx::Error> {
-        self.set_ai_run_terminal(execution, "failed", content, 0, 0, Some(error_message))
-            .await
+        self.set_ai_run_terminal(
+            execution,
+            "failed",
+            content,
+            context_message_count,
+            retrieved_message_count,
+            sources,
+            Some(error_message),
+        )
+        .await
     }
 
     async fn set_ai_run_terminal(
@@ -304,6 +321,7 @@ impl AppState {
         content: &str,
         context_message_count: i64,
         retrieved_message_count: i64,
+        sources: &[AiCitationSource],
         error_message: Option<&str>,
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
@@ -311,12 +329,14 @@ impl AppState {
             let mut transaction = pool.begin().await?;
             sqlx::query(
                 "UPDATE ai_thread_messages SET content = $1, status = $2, context_message_count = $3, \
-                 retrieved_message_count = $4, revision = revision + 1, updated_at = $5 WHERE id = $6",
+                 retrieved_message_count = $4, sources = $5, \
+                 revision = revision + 1, updated_at = $6 WHERE id = $7",
             )
             .bind(content)
             .bind(if status == "completed" { "completed" } else { "failed" })
             .bind(context_message_count)
             .bind(retrieved_message_count)
+            .bind(Json(sources))
             .bind(now)
             .bind(execution.assistant_message_id)
             .execute(&mut *transaction)

@@ -79,8 +79,9 @@ Values such as `redis://127.0.0.1:6379/` in `.env` are for a host-local
 
 ## Use a published image
 
-The GitHub Actions workflow tests Rust and Vue changes on pull requests. Pushes
-to `main` and `v*` tags publish the same image to GitHub Container Registry
+The GitHub Actions workflow tests Rust and Vue changes while building the
+container image in parallel. After both jobs pass, pushes to `main` and `v*`
+tags publish the same image to GitHub Container Registry
 and, when configured, Docker Hub. Set one of these in `.env` to use a published
 image instead of the local image name:
 

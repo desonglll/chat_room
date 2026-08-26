@@ -9,7 +9,7 @@ use axum::{
     routing::post,
     Router,
 };
-use chat_room::{ai::SaveAiModelOption, config::AppConfig};
+use chat_room::{ai::SaveAiModelOption, ai_threads::AiCitationSource, config::AppConfig};
 use chat_room::{build_app, state::AppState};
 use reqwest::{Client, StatusCode};
 use tokio::net::TcpListener;
@@ -105,12 +105,12 @@ async fn ai_threads_are_persistent_editable_and_private() {
 
     let owner_token = uuid::Uuid::parse_str(&owner).unwrap();
     let owner_user = state.session_user(owner_token).await.unwrap().unwrap();
-    state
+    let user_message = state
         .append_ai_thread_message(owner_user.id, thread_id, "user", "第一问", None, None)
         .await
         .unwrap()
         .unwrap();
-    state
+    let assistant_message = state
         .append_ai_thread_message(
             owner_user.id,
             thread_id,
@@ -122,6 +122,38 @@ async fn ai_threads_are_persistent_editable_and_private() {
         .await
         .unwrap()
         .unwrap();
+    let tied_at = chrono::Utc::now();
+    let user_message_id = uuid::Uuid::parse_str("ffffffff-ffff-4fff-8fff-ffffffffffff").unwrap();
+    let assistant_message_id =
+        uuid::Uuid::parse_str("00000000-0000-4000-8000-000000000001").unwrap();
+    sqlx::query("UPDATE ai_thread_messages SET id = $1, created_at = $2 WHERE id = $3")
+        .bind(user_message_id)
+        .bind(tied_at)
+        .bind(user_message.id)
+        .execute(state.pool())
+        .await
+        .unwrap();
+    sqlx::query("UPDATE ai_thread_messages SET id = $1, created_at = $2 WHERE id = $3")
+        .bind(assistant_message_id)
+        .bind(tied_at)
+        .bind(assistant_message.id)
+        .execute(state.pool())
+        .await
+        .unwrap();
+    let source_message_id = uuid::Uuid::new_v4();
+    sqlx::query("UPDATE ai_thread_messages SET sources = $1 WHERE id = $2")
+        .bind(sqlx::types::Json(vec![AiCitationSource {
+            label: "S1".into(),
+            room_id: uuid::Uuid::new_v4(),
+            message_id: source_message_id,
+            sender: "Ada".into(),
+            sent_at: tied_at,
+            excerpt: "原始消息摘要".into(),
+        }]))
+        .bind(assistant_message_id)
+        .execute(state.pool())
+        .await
+        .unwrap();
     let messages = client
         .get(format!("{base}/api/ai/threads/{thread_id}/messages"))
         .bearer_auth(&owner)
@@ -132,8 +164,15 @@ async fn ai_threads_are_persistent_editable_and_private() {
         .await
         .unwrap();
     assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["role"], "user");
+    assert_eq!(messages[1]["role"], "assistant");
     assert_eq!(messages[0]["content"], "第一问");
     assert_eq!(messages[1]["content"], "第一答");
+    assert_eq!(messages[1]["sources"][0]["label"], "S1");
+    assert_eq!(
+        messages[1]["sources"][0]["message_id"],
+        source_message_id.to_string()
+    );
 
     assert_eq!(
         client
@@ -298,6 +337,7 @@ async fn ai_run_continues_without_a_browser_stream() {
     let completed = completed.unwrap();
     assert_eq!(completed["content"], "你好");
     assert_eq!(completed["retrieved_message_count"], 0);
+    assert_eq!(completed["sources"], serde_json::json!([]));
     let event_body = tokio::time::timeout(std::time::Duration::from_secs(3), events_task)
         .await
         .unwrap()

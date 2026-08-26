@@ -6,6 +6,7 @@ use crate::knowledge::retrieve_room_context;
 use crate::knowledge_graph::retrieve_graph_context;
 use crate::state::SharedState;
 
+use super::models::AiCitationSource;
 use super::run_store::AiRunExecution;
 
 const MEMORY_TURNS: i64 = 26;
@@ -16,6 +17,7 @@ pub(super) struct GenerationContext {
     pub toon_context: Option<String>,
     pub message_count: i64,
     pub retrieved_message_count: i64,
+    pub sources: Vec<AiCitationSource>,
 }
 
 pub(super) async fn prepare_generation_context(
@@ -50,6 +52,7 @@ pub(super) async fn prepare_generation_context(
             .as_ref()
             .map(|context| context.toon_context.clone()),
         retrieved_message_count: 0,
+        sources: Vec::new(),
     };
     let Some(room_id) = execution.room_id else {
         return Ok(context);
@@ -98,6 +101,7 @@ pub(super) async fn prepare_generation_context(
         Some(Ok(Ok(rag_context))) if rag_context.message_count > 0 => {
             context.message_count += rag_context.message_count as i64;
             context.retrieved_message_count += rag_context.message_count as i64;
+            context.sources = rag_context.sources;
             append_context(&mut context.toon_context, &rag_context.toon_context);
         }
         Some(Ok(Ok(_))) => {}
