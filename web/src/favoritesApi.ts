@@ -8,7 +8,7 @@ async function favoriteRequest(path: string, token: string, options: RequestInit
     ...options,
     headers: {
       ...authHeaders(token),
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   })
@@ -29,6 +29,25 @@ export async function createFavorite(title: string, content: string, token: stri
   })
   if (response.status === 400) throw new Error('请输入收藏标题或内容')
   if (!response.ok) throw new Error(`创建收藏失败：${response.status}`)
+  return response.json() as Promise<FavoriteItem>
+}
+
+export async function createFavoriteAttachment(
+  file: File,
+  title: string,
+  content: string,
+  token: string,
+  maxUploadBytes: number,
+): Promise<FavoriteItem> {
+  if (file.size > maxUploadBytes) throw new Error(`文件不能超过 ${Math.ceil(maxUploadBytes / 1024 / 1024)} MiB`)
+  const body = new FormData()
+  body.append('title', title)
+  body.append('content', content)
+  body.append('file', file, file.name)
+  const response = await favoriteRequest('/api/favorites/attachments', token, { method: 'POST', body })
+  if (response.status === 413) throw new Error('文件超过服务器上传限制')
+  if (response.status === 400) throw new Error('文件、标题或内容不符合要求')
+  if (!response.ok) throw new Error(`添加收藏文件失败：${response.status}`)
   return response.json() as Promise<FavoriteItem>
 }
 

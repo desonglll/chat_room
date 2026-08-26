@@ -90,6 +90,7 @@ impl AppState {
                 recalled_at: None,
                 edited_at: None,
                 created_at,
+                favorite_id: None,
                 forwarded_from: None,
                 reactions: Vec::new(),
             },

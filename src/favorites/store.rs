@@ -108,7 +108,12 @@ impl AppState {
             "{FAVORITE_SELECT} WHERE favorites.user_id = $1 OR EXISTS \
              (SELECT 1 FROM favorite_collaborators AS visible_collaborator \
               WHERE visible_collaborator.favorite_id = favorites.id \
-                AND visible_collaborator.user_id = $1) \
+                AND visible_collaborator.user_id = $1) OR EXISTS \
+             (SELECT 1 FROM room_pins \
+              JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
+              JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+                AND pinned_membership.user_id = $1 AND pinned_membership.status = 'active' \
+              WHERE pinned_message.favorite_id = favorites.id) \
              ORDER BY favorites.created_at DESC, favorites.id DESC LIMIT 500"
         );
         let rows: Vec<FavoriteRow> = with_pool!(self, |pool| {
@@ -127,7 +132,12 @@ impl AppState {
              (favorites.user_id = $1 OR EXISTS \
               (SELECT 1 FROM favorite_collaborators AS visible_collaborator \
                WHERE visible_collaborator.favorite_id = favorites.id \
-                 AND visible_collaborator.user_id = $1))"
+                 AND visible_collaborator.user_id = $1) OR EXISTS \
+              (SELECT 1 FROM room_pins \
+               JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
+               JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+                 AND pinned_membership.user_id = $1 AND pinned_membership.status = 'active' \
+               WHERE pinned_message.favorite_id = favorites.id))"
         );
         let row: Option<FavoriteRow> = with_pool!(self, |pool| {
             sqlx::query_as(&query)
@@ -275,11 +285,12 @@ impl AppState {
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO messages \
-                 (id, room_id, sender_id, sender, content, attachment_id, \
+                 (id, room_id, sender_id, sender, content, attachment_id, favorite_id, \
                   forwarded_from_sender, forwarded_from_room_name, created_at) \
                  SELECT $1, $2, $3, $4, \
                    CASE WHEN favorites.kind = 'manual' AND favorites.content = '' \
                      THEN favorites.title ELSE favorites.content END, favorites.attachment_id, \
+                   favorites.id, \
                    CASE WHEN favorites.kind = 'manual' THEN '我的收藏' \
                      ELSE favorites.source_sender END, \
                    CASE WHEN favorites.kind = 'manual' THEN '个人收藏' \
@@ -287,8 +298,13 @@ impl AppState {
                  FROM favorites WHERE favorites.id = $5 AND \
                    (favorites.user_id = $3 OR EXISTS \
                      (SELECT 1 FROM favorite_collaborators \
-                      WHERE favorite_collaborators.favorite_id = favorites.id \
-                        AND favorite_collaborators.user_id = $3)) \
+                     WHERE favorite_collaborators.favorite_id = favorites.id \
+                        AND favorite_collaborators.user_id = $3) OR EXISTS \
+                     (SELECT 1 FROM room_pins \
+                      JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
+                      JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+                        AND pinned_membership.user_id = $3 AND pinned_membership.status = 'active' \
+                      WHERE pinned_message.favorite_id = favorites.id)) \
                    AND EXISTS (SELECT 1 FROM room_memberships \
                      JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
                      JOIN rooms ON rooms.id = room_memberships.room_id AND rooms.deleted_at IS NULL \

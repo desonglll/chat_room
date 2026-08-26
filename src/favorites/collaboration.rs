@@ -19,13 +19,19 @@ impl AppState {
         title: &str,
         content: &str,
     ) -> Result<FavoriteUpdateOutcome, sqlx::Error> {
-        let updated = with_pool!(self, |pool| {
-            sqlx::query(
+        let (updated, affected_rooms): (bool, Vec<Uuid>) = with_pool!(self, |pool| {
+            let mut transaction = pool.begin().await?;
+            let updated = sqlx::query(
                 "UPDATE favorites SET title = $1, content = $2, version = version + 1, \
                  updated_at = $3 WHERE id = $4 AND version = $5 AND \
                  (user_id = $6 OR EXISTS (SELECT 1 FROM favorite_collaborators \
                    WHERE favorite_collaborators.favorite_id = favorites.id \
-                     AND favorite_collaborators.user_id = $6))",
+                     AND favorite_collaborators.user_id = $6) OR EXISTS \
+                  (SELECT 1 FROM room_pins \
+                   JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
+                   JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+                     AND pinned_membership.user_id = $6 AND pinned_membership.status = 'active' \
+                   WHERE pinned_message.favorite_id = favorites.id))",
             )
             .bind(title)
             .bind(content)
@@ -33,11 +39,35 @@ impl AppState {
             .bind(favorite_id)
             .bind(version)
             .bind(user_id)
-            .execute(pool)
-            .await
-            .map(|result| result.rows_affected() > 0)
+            .execute(&mut *transaction)
+            .await?
+            .rows_affected()
+                > 0;
+            let affected_rooms = if updated {
+                sqlx::query(
+                    "UPDATE messages SET content = (SELECT CASE \
+                       WHEN favorites.kind = 'manual' AND favorites.content = '' THEN favorites.title \
+                       ELSE favorites.content END FROM favorites WHERE favorites.id = $1), \
+                     edited_at = $2 WHERE favorite_id = $1 AND recalled_at IS NULL",
+                )
+                .bind(favorite_id)
+                .bind(Utc::now())
+                .execute(&mut *transaction)
+                .await?;
+                sqlx::query_scalar("SELECT DISTINCT room_id FROM messages WHERE favorite_id = $1")
+                    .bind(favorite_id)
+                    .fetch_all(&mut *transaction)
+                    .await?
+            } else {
+                Vec::new()
+            };
+            transaction.commit().await?;
+            Ok::<_, sqlx::Error>((updated, affected_rooms))
         })?;
         if updated {
+            for room_id in &affected_rooms {
+                self.invalidate_message_cache(*room_id).await;
+            }
             return self
                 .favorite_by_id(user_id, favorite_id)
                 .await?

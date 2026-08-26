@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import {
   createFavorite as createFavoriteRequest,
+  createFavoriteAttachment as createFavoriteAttachmentRequest,
   addFavoriteCollaborator,
   deleteFavorite as deleteFavoriteRequest,
   favoriteMessages as favoriteMessagesRequest,
@@ -39,6 +40,17 @@ export function useFavorites(token: Ref<string>) {
 
   async function create(title: string, content: string): Promise<FavoriteItem> {
     const item = await createFavoriteRequest(title, content, token.value)
+    items.value = [item, ...items.value]
+    return item
+  }
+
+  async function createAttachment(
+    file: File,
+    title: string,
+    content: string,
+    maxUploadBytes: number,
+  ): Promise<FavoriteItem> {
+    const item = await createFavoriteAttachmentRequest(file, title, content, token.value, maxUploadBytes)
     items.value = [item, ...items.value]
     return item
   }
@@ -101,6 +113,7 @@ export function useFavorites(token: Ref<string>) {
     error,
     refresh,
     create,
+    createAttachment,
     update,
     addMessages,
     toggleMessage,

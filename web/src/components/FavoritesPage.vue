@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
   Bookmark,
@@ -26,6 +26,8 @@ import Skeleton from 'primevue/skeleton'
 import Textarea from 'primevue/textarea'
 import type { FavoriteCollaborator, FavoriteForwardResult, FavoriteItem, Room, SocialUser, User } from '../types'
 import { favoriteKindLabel, matchesFavoriteFilter, type FavoriteFilter } from '../favoriteView'
+import FavoriteCreateDialog from './FavoriteCreateDialog.vue'
+import MarkdownContent from './MarkdownContent.vue'
 import MessageAttachment from './MessageAttachment.vue'
 
 const props = defineProps<{
@@ -35,7 +37,10 @@ const props = defineProps<{
   rooms: Room[]
   loading: boolean
   error: string
+  refresh: () => Promise<void>
   create: (title: string, content: string) => Promise<FavoriteItem>
+  createAttachment: (file: File, title: string, content: string, maxUploadBytes: number) => Promise<FavoriteItem>
+  maxUploadBytes: number
   update: (id: string, version: number, title: string, content: string) => Promise<FavoriteItem>
   remove: (id: string) => Promise<void>
   forward: (id: string, roomIds: string[]) => Promise<FavoriteForwardResult[]>
@@ -44,6 +49,7 @@ const props = defineProps<{
   removeCollaborator: (id: string, userId: string) => Promise<void>
 }>()
 const emit = defineEmits<{ back: []; changed: []; success: [message: string]; error: [message: string] }>()
+const route = useRoute()
 const router = useRouter()
 const filter = ref<FavoriteFilter>('all')
 const createOpen = ref(false)
@@ -53,8 +59,6 @@ const collaborationItem = ref<FavoriteItem | null>(null)
 const collaborators = ref<FavoriteCollaborator[]>([])
 const selectedFriendId = ref('')
 const collaboratorsLoading = ref(false)
-const title = ref('')
-const content = ref('')
 const editTitle = ref('')
 const editContent = ref('')
 const selectedRoomIds = ref<string[]>([])
@@ -71,6 +75,7 @@ const availableFriends = computed(() => {
   const existing = new Set(collaborators.value.map((collaborator) => collaborator.user_id))
   return props.friends.filter((friend) => friend.id !== collaborationItem.value?.owner_id && !existing.has(friend.id))
 })
+onMounted(() => void props.refresh())
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -82,26 +87,12 @@ function openSource(item: FavoriteItem): void {
     name: 'room',
     params: { id: item.source_room_id },
     query: { message: item.source_message_id },
+    hash: `#message-${item.source_message_id}`,
   })
 }
 
 function previewAttachment(url: string): void {
   window.open(url, '_blank', 'noopener')
-}
-
-async function submitCreate(): Promise<void> {
-  busy.value = true
-  try {
-    await props.create(title.value, content.value)
-    title.value = ''
-    content.value = ''
-    createOpen.value = false
-    emit('success', '收藏已创建')
-  } catch (caught) {
-    emit('error', caught instanceof Error ? caught.message : '创建收藏失败')
-  } finally {
-    busy.value = false
-  }
 }
 
 async function remove(item: FavoriteItem): Promise<void> {
@@ -120,12 +111,27 @@ function openEdit(item: FavoriteItem): void {
   editContent.value = item.content
 }
 
+function closeEdit(): void {
+  editItem.value = null
+  if (route.query.edit) void router.replace({ query: { ...route.query, edit: undefined } }).catch(() => {})
+}
+
+watch(
+  () => [route.query.edit, props.items] as const,
+  ([value]) => {
+    const id = Array.isArray(value) ? value[0] : value
+    const item = id ? props.items.find((candidate) => candidate.id === id) : null
+    if (item && editItem.value?.id !== item.id) openEdit(item)
+  },
+  { immediate: true },
+)
+
 async function submitEdit(): Promise<void> {
   if (!editItem.value) return
   busy.value = true
   try {
     await props.update(editItem.value.id, editItem.value.version, editTitle.value, editContent.value)
-    editItem.value = null
+    closeEdit()
     emit('success', '收藏已更新')
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : '更新收藏失败'
@@ -277,9 +283,11 @@ async function submitForward(): Promise<void> {
                   :attachment="item.attachment"
                   @preview-image="previewAttachment($event.download_url)"
                 />
-                <p v-if="item.content" class="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-surface-800">
-                  {{ item.content }}
-                </p>
+                <MarkdownContent
+                  v-if="item.content"
+                  :content="item.content"
+                  class="mt-3 text-sm leading-6 text-surface-800"
+                />
               </div>
               <div class="ml-12 flex w-full shrink-0 justify-end gap-1 sm:ml-0 sm:w-auto">
                 <Button text rounded severity="secondary" aria-label="编辑收藏" title="编辑" @click="openEdit(item)">
@@ -327,26 +335,14 @@ async function submitForward(): Promise<void> {
       </ol>
     </div>
 
-    <Dialog v-model:visible="createOpen" modal header="新建收藏" class="w-[min(92vw,520px)]" :draggable="false">
-      <form class="space-y-4" @submit.prevent="submitCreate">
-        <div>
-          <label for="favorite-title" class="mb-2 block text-sm font-medium">标题</label
-          ><InputText id="favorite-title" v-model="title" maxlength="120" fluid />
-        </div>
-        <div>
-          <label for="favorite-content" class="mb-2 block text-sm font-medium">内容</label
-          ><Textarea id="favorite-content" v-model="content" maxlength="8000" rows="7" auto-resize fluid />
-        </div>
-        <div class="flex justify-end gap-2">
-          <Button type="button" label="取消" severity="secondary" text @click="createOpen = false" /><Button
-            type="submit"
-            label="创建"
-            :loading="busy"
-            :disabled="!title.trim() && !content.trim()"
-          />
-        </div>
-      </form>
-    </Dialog>
+    <FavoriteCreateDialog
+      v-model:visible="createOpen"
+      :create="create"
+      :create-attachment="createAttachment"
+      :max-upload-bytes="maxUploadBytes"
+      @success="emit('success', $event)"
+      @error="emit('error', $event)"
+    />
 
     <Dialog
       :visible="Boolean(editItem)"
@@ -354,7 +350,7 @@ async function submitForward(): Promise<void> {
       header="编辑收藏"
       class="w-[min(92vw,560px)]"
       :draggable="false"
-      @update:visible="!$event && (editItem = null)"
+      @update:visible="!$event && closeEdit()"
     >
       <form class="space-y-4" @submit.prevent="submitEdit">
         <div>
@@ -367,7 +363,7 @@ async function submitForward(): Promise<void> {
         </div>
         <p class="text-xs text-muted-color">版本 {{ editItem?.version }} · 保存时会检查其他协作者的修改</p>
         <div class="flex justify-end gap-2">
-          <Button type="button" label="取消" severity="secondary" text @click="editItem = null" />
+          <Button type="button" label="取消" severity="secondary" text @click="closeEdit" />
           <Button
             type="submit"
             label="保存"

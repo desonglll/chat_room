@@ -219,7 +219,7 @@ pub async fn download_attachment(
     response
 }
 
-async fn stream_to_staging(
+pub(crate) async fn stream_to_staging(
     state: &SharedState,
     mut field: axum::extract::multipart::Field<'_>,
 ) -> Result<crate::attachment_storage::StagedUpload, StatusCode> {
@@ -293,7 +293,7 @@ async fn authorize_upload(
     Ok((room, user))
 }
 
-fn normalize_file_name(value: &str) -> Result<String, StatusCode> {
+pub(crate) fn normalize_file_name(value: &str) -> Result<String, StatusCode> {
     let name = value
         .rsplit(['/', '\\'])
         .next()
@@ -316,7 +316,7 @@ fn normalize_caption(value: String) -> Result<String, StatusCode> {
     Ok(content)
 }
 
-fn normalized_mime(supplied: Option<&str>, file_name: &str) -> String {
+pub(crate) fn normalized_mime(supplied: Option<&str>, file_name: &str) -> String {
     supplied
         .filter(|value| {
             !value.is_empty()

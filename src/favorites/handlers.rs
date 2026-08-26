@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Multipart, Path, State},
     http::{HeaderMap, StatusCode},
     Json,
 };
@@ -11,6 +11,7 @@ use crate::favorites::models::{
     FavoriteForwardResult, FavoriteItem, FavoriteMessagesRequest, ForwardFavoriteRequest,
     UpdateFavoriteRequest,
 };
+use crate::message_store::NewAttachment;
 use crate::models::User;
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
@@ -73,6 +74,83 @@ pub async fn create_favorite(
         .await
         .map(|favorite| (StatusCode::CREATED, Json(favorite)))
         .map_err(internal_error)
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/favorites/attachments",
+    responses(
+        (status = 201, description = "Favorite attachment created", body = FavoriteItem),
+        (status = 400, description = "Missing or invalid file, title, or content"),
+        (status = 413, description = "File exceeds the configured upload limit")
+    )
+)]
+pub async fn upload_favorite_attachment(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Result<(StatusCode, Json<FavoriteItem>), StatusCode> {
+    let user = current_user(&state, &headers).await?;
+    let mut title = String::new();
+    let mut content = String::new();
+    let mut file_name = None;
+    let mut mime_type = None;
+    let mut staged = None;
+    let mut is_sensitive = false;
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|error| error.status())?
+    {
+        match field.name() {
+            Some("file") if staged.is_none() => {
+                let name = crate::attachment_handlers::normalize_file_name(
+                    field.file_name().unwrap_or("file"),
+                )?;
+                let supplied_mime = field.content_type().map(str::to_string);
+                mime_type = Some(crate::attachment_handlers::normalized_mime(
+                    supplied_mime.as_deref(),
+                    &name,
+                ));
+                file_name = Some(name);
+                staged = Some(crate::attachment_handlers::stream_to_staging(&state, field).await?);
+            }
+            Some("title") => title = field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?,
+            Some("content") => content = field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?,
+            Some("is_sensitive") => {
+                is_sensitive = field.text().await.map_err(|_| StatusCode::BAD_REQUEST)? == "true";
+            }
+            _ => {}
+        }
+    }
+    let file_name = file_name.ok_or(StatusCode::BAD_REQUEST)?;
+    title = title.trim().to_string();
+    content = content.trim().to_string();
+    if title.chars().count() > 120 || content.chars().count() > 8_000 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    if title.is_empty() {
+        title.clone_from(&file_name);
+    }
+    let upload = NewAttachment {
+        file_name,
+        mime_type: mime_type.ok_or(StatusCode::BAD_REQUEST)?,
+        is_sensitive,
+        staged: staged.ok_or(StatusCode::BAD_REQUEST)?,
+    };
+    let _permit = state
+        .work_queue()
+        .upload()
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    state
+        .create_attachment_favorite(user.id, &title, &content, upload)
+        .await
+        .map(|favorite| (StatusCode::CREATED, Json(favorite)))
+        .map_err(|error| {
+            tracing::error!("persist favorite attachment failed: {error:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 #[utoipa::path(
