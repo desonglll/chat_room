@@ -208,7 +208,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = "==0.136.3" },
     { name = "graphiti-core", extras = ["falkordb"], specifier = "==0.29.3" },
-    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "pydantic-settings", specifier = "==2.10.1" },
     { name = "redis", specifier = ">=6.4,<8" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.45.0" },

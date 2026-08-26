@@ -2,12 +2,14 @@ FROM python:3.12.11-slim-bookworm AS build
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.31 /uv /uvx /bin/
 
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_INDEX_URL=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 WORKDIR /app
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock uv.toml ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY room_graph ./room_graph
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev && .venv/bin/python -c "import room_graph.app"
 
 FROM python:3.12.11-slim-bookworm
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
