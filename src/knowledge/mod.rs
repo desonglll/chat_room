@@ -128,10 +128,12 @@ mod tests {
 
     use super::*;
 
+    type FakeServiceCalls = Arc<Mutex<Vec<(Method, String, serde_json::Value)>>>;
+
     #[tokio::test]
     async fn openai_compatible_embeddings_drive_room_filtered_qdrant_search() {
         async fn fake_services(
-            State(calls): State<Arc<Mutex<Vec<(Method, String, serde_json::Value)>>>>,
+            State(calls): State<FakeServiceCalls>,
             method: Method,
             uri: Uri,
             payload: Option<Json<serde_json::Value>>,

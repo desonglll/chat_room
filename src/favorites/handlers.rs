@@ -191,7 +191,7 @@ pub async fn update_favorite(
         .await
         .map_err(internal_error)?
     {
-        FavoriteUpdateOutcome::Updated(favorite) => Ok(Json(favorite)),
+        FavoriteUpdateOutcome::Updated(favorite) => Ok(Json(*favorite)),
         FavoriteUpdateOutcome::Conflict => Err(StatusCode::CONFLICT),
         FavoriteUpdateOutcome::NotFound => Err(StatusCode::NOT_FOUND),
     }

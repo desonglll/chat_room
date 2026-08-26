@@ -5,7 +5,7 @@ use crate::favorites::models::{FavoriteCollaborator, FavoriteItem};
 use crate::state::{with_pool, AppState};
 
 pub(crate) enum FavoriteUpdateOutcome {
-    Updated(FavoriteItem),
+    Updated(Box<FavoriteItem>),
     Conflict,
     NotFound,
 }
@@ -71,6 +71,7 @@ impl AppState {
             return self
                 .favorite_by_id(user_id, favorite_id)
                 .await?
+                .map(Box::new)
                 .map(FavoriteUpdateOutcome::Updated)
                 .ok_or(sqlx::Error::RowNotFound);
         }

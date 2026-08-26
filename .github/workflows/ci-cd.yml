@@ -14,14 +14,31 @@ concurrency:
 env:
   BUN_VERSION: 1.3.14
   RUST_VERSION: 1.97.1
+  UV_VERSION: 0.11.31
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   test:
-    name: Test
+    name: Quality gates
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TEST_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
     services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
       redis:
         image: redis:7-alpine
         ports:
@@ -44,18 +61,34 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy,rustfmt
           rustup default "$RUST_VERSION"
 
-      - name: Install cargo-nextest
-        run: cargo install cargo-nextest --locked --version 0.9.140
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
       - name: Install web dependencies
         working-directory: web
         run: bun install --frozen-lockfile
 
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: uv sync --locked --extra dev
+
+      - name: Audit source file sizes
+        run: python3 scripts/check_file_sizes.py
+
+      - name: Check migration parity
+        run: python3 scripts/check_migration_parity.py
+
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Check web formatting
         working-directory: web
@@ -69,8 +102,27 @@ jobs:
         working-directory: web
         run: bun test
 
+      - name: Build web client
+        working-directory: web
+        run: bun run build
+
+      - name: Check web entry bundle size
+        run: python3 scripts/check_web_bundle.py
+
+      - name: Run desktop tests
+        working-directory: desktop
+        run: uv run pytest
+
+      - name: Lint desktop client
+        working-directory: desktop
+        run: uv run ruff check src tests
+
+      - name: Check desktop formatting
+        working-directory: desktop
+        run: uv run ruff format --check src tests main.py
+
       - name: Run Rust tests
-        run: cargo nextest run --locked --all-targets
+        run: cargo test --all-targets
 
   image:
     name: Build container image

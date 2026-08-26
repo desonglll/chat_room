@@ -103,7 +103,7 @@ async fn prepare_suggestion(
     room_id: Uuid,
     headers: &HeaderMap,
 ) -> Result<(AiAssistant, String, Vec<AiContextMessage>), StatusCode> {
-    let token = bearer_token(&headers)?;
+    let token = bearer_token(headers)?;
     let user = state
         .session_user(token)
         .await
@@ -119,7 +119,7 @@ async fn prepare_suggestion(
     if !can_send {
         return Err(StatusCode::FORBIDDEN);
     }
-    require_room_password(&room, &headers)?;
+    require_room_password(&room, headers)?;
     let Some(assistant) = state.ai_assistant().cloned() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
