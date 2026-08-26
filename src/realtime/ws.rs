@@ -8,17 +8,14 @@ use axum::{
     response::IntoResponse,
 };
 use futures_util::{SinkExt, StreamExt};
-use tokio::{
-    sync::broadcast,
-    time::{interval, timeout, MissedTickBehavior},
-};
+use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::message_store::MessageCursor;
 use crate::models::ChatMessage;
-use crate::realtime::protocol::{advance_message_cursor, stored_message_to_chat};
-use crate::realtime::system_lock::{close_if_locked, reject_locked_auth};
-use crate::state::{RoomEvent, SharedState};
+use crate::realtime::outbound::{spawn_room_forwarder, OutboundCursors};
+use crate::realtime::protocol::stored_message_to_chat;
+use crate::realtime::system_lock::reject_locked_auth;
+use crate::state::SharedState;
 use crate::ws_auth::authenticate;
 use crate::ws_inbound::handle_client_message;
 
@@ -179,7 +176,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         return;
     }
 
-    let Some(mut room_messages) = state.subscribe(room_id).await else {
+    let Some(room_messages) = state.subscribe(room_id).await else {
         state.member_disconnected(room_id, user.id).await;
         return;
     };
@@ -283,163 +280,18 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             .await;
     }
 
-    let forwarding_state = state.clone();
-    let forwarding_user_id = user.id;
-    let poll_interval = Duration::from_millis(state.realtime_config().poll_interval_ms);
-    let heartbeat_interval = Duration::from_secs(state.realtime_config().heartbeat_interval_secs);
-    let message_poll_limit = state.realtime_config().message_poll_limit;
-    let forwarder = tokio::spawn(async move {
-        let mut message_cursor = history_boundary;
-        let mut recall_cursor = recall_boundary;
-        let mut edit_cursor = edit_boundary;
-        let mut message_poll = interval(poll_interval);
-        let mut heartbeat = interval(heartbeat_interval);
-        message_poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
-        heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
-        heartbeat.tick().await;
-
-        loop {
-            tokio::select! {
-                event = room_messages.recv() => match event {
-                    Ok(RoomEvent::Message(message)) => {
-                        advance_message_cursor(&mut message_cursor, &message);
-                        if send_json(&mut sink, &message).await.is_err() {
-                            break;
-                        }
-                    }
-                    Ok(RoomEvent::Disconnect { reason }) => {
-                        let _ = send_json(
-                            &mut sink,
-                            &ChatMessage::System {
-                                content: reason,
-                                members: None,
-                                participants: None,
-                            },
-                        )
-                        .await;
-                        let _ = sink.close().await;
-                        break;
-                    }
-                    Ok(RoomEvent::DisconnectUser { user_id, reason }) => {
-                        if user_id == forwarding_user_id {
-                            let _ = send_json(
-                                &mut sink,
-                                &ChatMessage::System {
-                                    content: reason,
-                                    members: None,
-                                    participants: None,
-                                },
-                            )
-                            .await;
-                            let _ = sink.close().await;
-                            break;
-                        }
-                    }
-                    Err(broadcast::error::RecvError::Lagged(count)) => {
-                        tracing::warn!("client lagged by {} messages", count);
-                    }
-                    Err(broadcast::error::RecvError::Closed) => break,
-                },
-                _ = message_poll.tick() => {
-                    match forwarding_state.is_room_participant(room_id, forwarding_user_id).await {
-                        Ok(true) => {}
-                        Ok(false) => {
-                            let _ = send_json(
-                                &mut sink,
-                                &ChatMessage::System {
-                                    content: "membership left".into(),
-                                    members: None,
-                                    participants: None,
-                                },
-                            ).await;
-                            let _ = sink.close().await;
-                            return;
-                        }
-                        Err(error) => tracing::warn!("check room membership failed: {}", error),
-                    }
-                    match forwarding_state
-                        .messages_after(
-                            room_id,
-                            message_cursor.as_ref(),
-                            message_poll_limit,
-                            Some(forwarding_user_id),
-                        )
-                        .await
-                    {
-                        Ok(messages) => {
-                            for message in messages {
-                                message_cursor = Some(MessageCursor {
-                                    created_at: message.created_at,
-                                    id: message.id,
-                                });
-                                if send_json(&mut sink, &stored_message_to_chat(message)).await.is_err() {
-                                    return;
-                                }
-                            }
-                        }
-                        Err(error) => {
-                            tracing::warn!("poll room messages failed: {}", error);
-                        }
-                    }
-                    match forwarding_state
-                        .recalls_after(room_id, recall_cursor.as_ref(), message_poll_limit)
-                        .await
-                    {
-                        Ok(recalls) => {
-                            for recalled in recalls {
-                                recall_cursor = Some(recalled.clone());
-                                if send_json(
-                                    &mut sink,
-                                    &ChatMessage::MessageRecalled {
-                                        message_id: recalled.id,
-                                        recalled_at: recalled.recalled_at,
-                                    },
-                                )
-                                .await
-                                .is_err()
-                                {
-                                    return;
-                                }
-                            }
-                        }
-                        Err(error) => tracing::warn!("poll recalled messages failed: {}", error),
-                    }
-                    match forwarding_state
-                        .edits_after(room_id, edit_cursor.as_ref(), message_poll_limit)
-                        .await
-                    {
-                        Ok(edits) => {
-                            for edited in edits {
-                                edit_cursor = Some(edited.clone());
-                                if send_json(
-                                    &mut sink,
-                                    &ChatMessage::MessageEdited {
-                                        message_id: edited.id,
-                                        content: edited.content,
-                                        edited_at: edited.edited_at,
-                                    },
-                                )
-                                .await
-                                .is_err()
-                                {
-                                    return;
-                                }
-                            }
-                        }
-                        Err(error) => tracing::warn!("poll edited messages failed: {}", error),
-                    }
-                },
-                _ = heartbeat.tick() => {
-                    if close_if_locked(&forwarding_state, room_id, &mut sink).await {
-                        return;
-                    }
-                    if sink.send(Message::Ping(Vec::new())).await.is_err() {
-                        break;
-                    }
-                },
-            }
-        }
-    });
+    let forwarder = spawn_room_forwarder(
+        state.clone(),
+        room_id,
+        user.id,
+        sink,
+        room_messages,
+        OutboundCursors {
+            messages: history_boundary,
+            recalls: recall_boundary,
+            edits: edit_boundary,
+        },
+    );
 
     while let Some(frame) = stream.next().await {
         let text = match frame {
