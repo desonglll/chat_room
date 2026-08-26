@@ -1,18 +1,19 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
-from typing import Protocol
+from typing import Protocol, TypedDict
 from uuid import UUID
 
 from graphiti_core import Graphiti
-from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
 from graphiti_core.driver.falkordb_driver import FalkorDriver
 from graphiti_core.edges import EntityEdge
 from graphiti_core.embedder import OpenAIEmbedder, OpenAIEmbedderConfig
 from graphiti_core.errors import NodeNotFoundError
-from graphiti_core.llm_client import LLMConfig, OpenAIClient
+from graphiti_core.llm_client import LLMConfig
+from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
 from graphiti_core.nodes import EntityNode, EpisodeType, EpisodicNode
 
 from .models import EpisodeUpsert, GraphFact, GraphNode, GraphSnapshot
+from .reranker import EmbeddingRerankerClient
 from .settings import Settings
 
 
@@ -26,6 +27,12 @@ class GraphEngine(Protocol):
     async def search(self, room_id: UUID, query: str, limit: int) -> list[GraphFact]: ...
 
     async def snapshot(self, room_id: UUID, limit: int) -> GraphSnapshot: ...
+
+
+class StoredEpisode(TypedDict):
+    uuid: str
+    content: str
+    indexed: bool
 
 
 def room_graph_id(room_id: UUID) -> str:
@@ -42,8 +49,7 @@ class GraphitiEngine:
             small_model=settings.llm_model,
             temperature=0,
         )
-        self._llm = OpenAIClient(llm_config)
-        self._cross_encoder = OpenAIRerankerClient(config=llm_config, client=self._llm)
+        self._llm = OpenAIGenericClient(llm_config, structured_output_mode='json_object')
         self._embedder = OpenAIEmbedder(
             OpenAIEmbedderConfig(
                 api_key=settings.resolved_embedding_key,
@@ -52,6 +58,7 @@ class GraphitiEngine:
                 embedding_dim=settings.embedding_dimensions,
             )
         )
+        self._cross_encoder = EmbeddingRerankerClient(self._embedder)
 
     def _driver(self, room_id: UUID) -> FalkorDriver:
         password = self._settings.falkordb_password
@@ -94,7 +101,7 @@ class GraphitiEngine:
         body = f'{_actor(episode.sender)}: {episode.content}'
         async with self._client(episode.room_id) as graphiti:
             existing = await _episodes_for_message(graphiti, episode.room_id, message_id)
-            if len(existing) == 1 and existing[0]['content'] == body:
+            if len(existing) == 1 and existing[0]['content'] == body and existing[0]['indexed']:
                 return 'unchanged'
             for stored in existing:
                 await graphiti.remove_episode(stored['uuid'])
@@ -107,6 +114,7 @@ class GraphitiEngine:
                 group_id=room_graph_id(episode.room_id),
                 update_communities=False,
             )
+            await _mark_episode_indexed(graphiti, episode.room_id, message_id)
         return 'indexed'
 
     async def delete(self, room_id: UUID, message_id: UUID) -> str:
@@ -154,15 +162,31 @@ def _node(node: EntityNode) -> GraphNode:
 
 async def _episodes_for_message(
     graphiti: Graphiti, room_id: UUID, message_id: UUID
-) -> list[dict[str, str]]:
+) -> list[StoredEpisode]:
     records, _, _ = await graphiti.driver.execute_query(
         'MATCH (e:Episodic {name: $name, group_id: $group_id}) '
-        'RETURN e.uuid AS uuid, e.content AS content ORDER BY e.created_at ASC',
+        'RETURN e.uuid AS uuid, e.content AS content, '
+        'coalesce(e.chat_room_indexed, false) AS indexed ORDER BY e.created_at ASC',
         name=f'message:{message_id}',
         group_id=room_graph_id(room_id),
         routing_='r',
     )
-    return [{'uuid': str(record['uuid']), 'content': str(record['content'])} for record in records]
+    return [
+        {
+            'uuid': str(record['uuid']),
+            'content': str(record['content']),
+            'indexed': bool(record['indexed']),
+        }
+        for record in records
+    ]
+
+
+async def _mark_episode_indexed(graphiti: Graphiti, room_id: UUID, message_id: UUID) -> None:
+    await graphiti.driver.execute_query(
+        'MATCH (e:Episodic {name: $name, group_id: $group_id}) SET e.chat_room_indexed = true',
+        name=f'message:{message_id}',
+        group_id=room_graph_id(room_id),
+    )
 
 
 async def _source_message_ids(graphiti: Graphiti, edges: list[EntityEdge]) -> dict[str, UUID]:
