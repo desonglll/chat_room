@@ -6,6 +6,7 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "fastapi==0.136.3",
     "graphiti-core[falkordb]==0.29.3",
+    "httpx>=0.28.1",
     "pydantic-settings==2.10.1",
     "redis>=6.4,<8",
     "uvicorn[standard]==0.45.0",
