@@ -211,7 +211,9 @@ onBeforeUnmount(() => window.clearInterval(timer))
           :services="overview.services"
           :rooms="overview.top_rooms"
           :token="token"
+          :message-count="overview.totals.messages"
           @error="error = $event"
+          @synced="loadOverview(true)"
         />
 
         <AdminAiModelsPanel :token="token" @error="error = $event" />

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test'
-import { AdminApiError, exportAdminBackup, restoreAdminBackup } from './adminApi'
+import { AdminApiError, exportAdminBackup, restoreAdminBackup, syncAdminIndex } from './adminApi'
 
 const originalFetch = globalThis.fetch
 
@@ -40,6 +40,8 @@ describe('admin backup API', () => {
         included_files: false,
         previous_files_preserved: false,
         redis_keys_cleared: 0,
+        vector_messages_queued: 0,
+        graph_messages_queued: 0,
         chat_rooms_locked: true,
       })
     })
@@ -65,4 +67,18 @@ describe('admin backup API', () => {
       expect((error as Error).message).toBe('备份清单或文件校验失败')
     }
   })
+})
+
+test('queues an admin index synchronization', async () => {
+  const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.method).toBe('POST')
+    expect(init?.body).toBe(JSON.stringify({ target: 'graph' }))
+    return Response.json({ target: 'graph', queued_messages: 1043 })
+  })
+  globalThis.fetch = fetchMock as typeof fetch
+
+  const result = await syncAdminIndex('graph', 'admin-token')
+
+  expect(result).toEqual({ target: 'graph', queued_messages: 1043 })
+  expect(fetchMock).toHaveBeenCalledWith('/api/admin/indexes/sync', expect.any(Object))
 })

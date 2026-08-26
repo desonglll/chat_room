@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use utoipa::ToSchema;
 
-use super::{backup_transfer::WorkDirectory, metrics::require_admin};
+use super::{backup_transfer::WorkDirectory, indexes, metrics::require_admin};
 use crate::{backup, state::SharedState};
 
 const RESTORE_REASON: &str = "database restore in progress";
@@ -40,6 +40,8 @@ pub struct RestoreBackupResult {
     included_files: bool,
     previous_files_preserved: bool,
     redis_keys_cleared: usize,
+    vector_messages_queued: u64,
+    graph_messages_queued: u64,
     chat_rooms_locked: bool,
 }
 
@@ -279,6 +281,10 @@ pub async fn restore(
     if let Err(error) = state.reload_room_cache().await {
         return internal_error("刷新服务状态", error);
     }
+    let index_sync = match indexes::sync_enabled(&state).await {
+        Ok(result) => result,
+        Err(error) => return internal_error("重新同步派生索引", error.into()),
+    };
     drop(maintenance);
 
     Json(RestoreBackupResult {
@@ -286,6 +292,8 @@ pub async fn restore(
         included_files: outcome.includes_files,
         previous_files_preserved: outcome.previous_attachments.is_some(),
         redis_keys_cleared: outcome.redis_keys_cleared,
+        vector_messages_queued: index_sync.vector_messages,
+        graph_messages_queued: index_sync.graph_messages,
         chat_rooms_locked: true,
     })
     .into_response()

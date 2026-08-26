@@ -5,6 +5,8 @@ import type {
   AdminSystemLockStatus,
   AdminVectorProbeResult,
   AdminAiModelOption,
+  AdminIndexSyncResult,
+  AdminIndexSyncTarget,
   AdminRestoreBackupResult,
   SaveAdminAiModelOption,
 } from './adminTypes'
@@ -108,6 +110,12 @@ export async function probeAdminVectorSearch(
   return (
     await adminRequest('/api/admin/vector/probe', token, 'POST', { room_id: roomId, query })
   ).json() as Promise<AdminVectorProbeResult>
+}
+
+export async function syncAdminIndex(target: AdminIndexSyncTarget, token: string): Promise<AdminIndexSyncResult> {
+  return (
+    await adminRequest('/api/admin/indexes/sync', token, 'POST', { target })
+  ).json() as Promise<AdminIndexSyncResult>
 }
 
 export async function setAdminChatLock(locked: boolean, token: string): Promise<AdminSystemLockStatus> {

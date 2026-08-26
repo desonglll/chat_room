@@ -458,6 +458,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             "/api/admin/maintenance/purge",
             axum::routing::post(admin_metrics::purge),
         )
+        .merge(admin::indexes::routes())
         .merge(admin_backups::routes())
         .route(
             "/api/admin/chat-lock",

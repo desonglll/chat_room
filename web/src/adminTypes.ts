@@ -71,6 +71,13 @@ export interface AdminVectorProbeResult {
   matches: AdminVectorProbeMatch[]
 }
 
+export type AdminIndexSyncTarget = 'vector' | 'graph'
+
+export interface AdminIndexSyncResult {
+  target: AdminIndexSyncTarget
+  queued_messages: number
+}
+
 export interface AdminAiModelOption {
   id: string
   label: string
@@ -130,5 +137,7 @@ export interface AdminRestoreBackupResult {
   included_files: boolean
   previous_files_preserved: boolean
   redis_keys_cleared: number
+  vector_messages_queued: number
+  graph_messages_queued: number
   chat_rooms_locked: boolean
 }

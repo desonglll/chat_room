@@ -304,8 +304,9 @@ Restore uses `pg_restore --clean --if-exists --no-owner --no-privileges
 untouched. A complete restore preserves the previous durable local files under
 `.pre-restore-*` in the attachment directory before activating the restored
 files. Redis cache keys are cleared, the in-process room cache is rebuilt, and
-the chat system remains locked after a successful restore. Verify the restored
-state in `/admin`, then unlock chat manually.
+the enabled Qdrant and knowledge-graph indexes are repopulated asynchronously
+from restored messages. The chat system remains locked after a successful
+restore. Verify the restored state in `/admin`, then unlock chat manually.
 
 Online dashboard backup and restore currently require PostgreSQL. Database-only
 backup remains available with OSS, but file backup and restore do not. The
@@ -332,6 +333,11 @@ The offline commands intentionally produce a complete package and reject SQLite
 and OSS-backed attachment configurations. Neither dashboard nor command-line
 packages include Qdrant or FalkorDB. Treat those services as rebuildable derived
 state, or back them up separately when recovery time requires it.
+
+The `/admin` dependency section can also enqueue a full vector or knowledge-
+graph synchronization manually. This resets failed retries and is safe to run
+while workers are active; knowledge-graph synchronization may make one or more
+model calls for every message that has not already completed extraction.
 
 The system dashboard is available at `/admin`. Access requires a normal logged
 in account whose username appears in `admin.usernames` (case-insensitive).

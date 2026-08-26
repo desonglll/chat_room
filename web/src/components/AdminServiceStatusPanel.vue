@@ -1,25 +1,38 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowUpRight, Bot, BrainCircuit, Boxes, Database, Network, Search, Server } from 'lucide-vue-next'
+import { ArrowUpRight, Bot, BrainCircuit, Boxes, Database, Network, RefreshCw, Search, Server } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Select from 'primevue/select'
-import { AdminApiError, probeAdminVectorSearch } from '../adminApi'
-import type { AdminServiceOverview, AdminServiceState, AdminTopRoom, AdminVectorProbeResult } from '../adminTypes'
+import { AdminApiError, probeAdminVectorSearch, syncAdminIndex } from '../adminApi'
+import type {
+  AdminIndexSyncTarget,
+  AdminServiceOverview,
+  AdminServiceState,
+  AdminTopRoom,
+  AdminVectorProbeResult,
+} from '../adminTypes'
 
 const props = defineProps<{
   services: AdminServiceOverview
   rooms: AdminTopRoom[]
   token: string
+  messageCount: number
 }>()
-const emit = defineEmits<{ error: [message: string] }>()
+const emit = defineEmits<{ error: [message: string]; synced: [] }>()
 
 const roomId = ref('')
 const query = ref('')
 const probing = ref(false)
+const syncing = ref<AdminIndexSyncTarget | null>(null)
+const syncMessage = ref('')
 const result = ref<AdminVectorProbeResult | null>(null)
 const vectorEnabled = computed(() =>
   props.services.items.some((item) => item.id === 'vector_store' && item.state !== 'disabled'),
+)
+const graphEnabled = computed(() =>
+  props.services.items.some((item) => item.id === 'knowledge_graph' && item.state !== 'disabled'),
 )
 const icons = {
   database: Database,
@@ -62,6 +75,36 @@ async function runProbe(): Promise<void> {
   }
 }
 
+async function runSync(target: AdminIndexSyncTarget): Promise<void> {
+  if (syncing.value) return
+  const confirmed = window.confirm(
+    target === 'graph'
+      ? '将全部消息重新加入知识图谱队列？未完成的消息会调用模型处理，可能需要较长时间。'
+      : '将全部消息重新加入向量索引队列？',
+  )
+  if (!confirmed) return
+  syncing.value = target
+  syncMessage.value = ''
+  try {
+    const synced = await syncAdminIndex(target, props.token)
+    syncMessage.value = `已将 ${synced.queued_messages.toLocaleString('zh-CN')} 条消息变更加入${
+      target === 'graph' ? '图谱' : '向量'
+    }队列。`
+    emit('synced')
+  } catch (caught) {
+    emit(
+      'error',
+      caught instanceof AdminApiError && caught.status === 409
+        ? target === 'graph'
+          ? '知识图谱尚未启用'
+          : '向量检索尚未启用'
+        : `${target === 'graph' ? '图谱' : '向量'}同步失败`,
+    )
+  } finally {
+    syncing.value = null
+  }
+}
+
 function openMessage(messageId: string): void {
   window.location.assign(`/rooms/${roomId.value}?message=${encodeURIComponent(messageId)}`)
 }
@@ -75,9 +118,11 @@ function openMessage(messageId: string): void {
         <p class="mt-1 text-xs text-muted-color">连接状态、探测耗时与派生索引积压</p>
       </div>
       <p class="text-xs text-muted-color">
-        向量 {{ services.vector_index.points ?? '—' }} · 待处理 {{ services.vector_index.pending_jobs }} · 重试
+        向量 {{ services.vector_index.points ?? '—' }} / 消息 {{ messageCount }} · 待处理
+        {{ services.vector_index.pending_jobs }} · 重试
         {{ services.vector_index.retrying_jobs }}
-        · 图谱待处理 {{ services.graph_index.pending_jobs }} · 重试 {{ services.graph_index.retrying_jobs }}
+        · 图谱待处理 {{ services.graph_index.pending_jobs }} / {{ messageCount }} · 重试
+        {{ services.graph_index.retrying_jobs }}
       </p>
     </div>
 
@@ -103,6 +148,31 @@ function openMessage(messageId: string): void {
     <p v-if="services.graph_index.last_error" class="mt-2 break-words text-xs text-danger">
       最近图谱错误：{{ services.graph_index.last_error }}
     </p>
+
+    <Message v-if="syncMessage" severity="success" closable class="mt-4" @close="syncMessage = ''">
+      {{ syncMessage }}
+    </Message>
+
+    <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-surface-200 pt-5">
+      <Button
+        outlined
+        severity="secondary"
+        :loading="syncing === 'vector'"
+        :disabled="!vectorEnabled || syncing !== null"
+        @click="runSync('vector')"
+      >
+        <RefreshCw v-if="syncing !== 'vector'" :size="17" />同步向量索引
+      </Button>
+      <Button
+        outlined
+        severity="secondary"
+        :loading="syncing === 'graph'"
+        :disabled="!graphEnabled || syncing !== null"
+        @click="runSync('graph')"
+      >
+        <RefreshCw v-if="syncing !== 'graph'" :size="17" />同步知识图谱
+      </Button>
+    </div>
 
     <div class="mt-6 border-t border-surface-200 pt-5">
       <div class="grid items-end gap-3 md:grid-cols-[minmax(180px,0.7fr)_minmax(240px,1.3fr)_auto]">
