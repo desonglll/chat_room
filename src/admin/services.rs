@@ -29,10 +29,18 @@ pub struct VectorIndexStatus {
     last_error: Option<String>,
 }
 
+#[derive(Debug, Default, Serialize, ToSchema)]
+pub struct GraphIndexStatus {
+    pending_jobs: i64,
+    retrying_jobs: i64,
+    last_error: Option<String>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ServiceOverview {
     items: Vec<ServiceStatus>,
     vector_index: VectorIndexStatus,
+    graph_index: GraphIndexStatus,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -66,12 +74,40 @@ pub(crate) async fn collect_service_overview(state: &AppState) -> ServiceOvervie
         state.config.vector_store.enabled,
         state.config.vector_store.embedding_model.clone(),
     );
+    let graph_service = probe_graph_service(state).await;
     let ai_provider = ai_service(state).await;
     let mut vector_index = index_queue_status(state).await;
     vector_index.points = points;
     ServiceOverview {
-        items: vec![database, redis, vector_store, embedding, ai_provider],
+        items: vec![
+            database,
+            redis,
+            vector_store,
+            embedding,
+            graph_service,
+            ai_provider,
+        ],
         vector_index,
+        graph_index: graph_queue_status(state).await,
+    }
+}
+
+async fn probe_graph_service(state: &AppState) -> ServiceStatus {
+    if !state.config.knowledge_graph.enabled {
+        return disabled("knowledge_graph", "Knowledge Graph");
+    }
+    let Some(graph) = state.knowledge_graph() else {
+        return degraded("knowledge_graph", "Knowledge Graph", None, "配置或凭据无效");
+    };
+    let started = Instant::now();
+    match tokio::time::timeout(Duration::from_secs(2), graph.health()).await {
+        Ok(result) => status_from_result("knowledge_graph", "Knowledge Graph", started, result),
+        Err(_) => degraded(
+            "knowledge_graph",
+            "Knowledge Graph",
+            Some(started.elapsed()),
+            "探测超时",
+        ),
     }
 }
 
@@ -167,6 +203,29 @@ async fn index_queue_status(state: &AppState) -> VectorIndexStatus {
         Err(error) => VectorIndexStatus {
             last_error: Some(concise_error(&error)),
             ..VectorIndexStatus::default()
+        },
+    }
+}
+
+async fn graph_queue_status(state: &AppState) -> GraphIndexStatus {
+    let result: Result<(i64, i64, Option<String>), sqlx::Error> = with_pool!(state, |pool| {
+        sqlx::query_as(
+            "SELECT COUNT(*) AS pending_jobs, \
+             COUNT(CASE WHEN attempt_count > 0 THEN 1 END) AS retrying_jobs, \
+             MAX(last_error) AS last_error FROM message_graph_outbox",
+        )
+        .fetch_one(pool)
+        .await
+    });
+    match result {
+        Ok((pending_jobs, retrying_jobs, last_error)) => GraphIndexStatus {
+            pending_jobs,
+            retrying_jobs,
+            last_error,
+        },
+        Err(error) => GraphIndexStatus {
+            last_error: Some(concise_error(&error)),
+            ..GraphIndexStatus::default()
         },
     }
 }

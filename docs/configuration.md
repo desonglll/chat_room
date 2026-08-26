@@ -238,9 +238,50 @@ by default and stores its data in `qdrant_data`. Containers use
 `QDRANT_HTTP_PORT` and `QDRANT_GRPC_PORT`. Configure an API key and TLS before
 making Qdrant reachable beyond the local host.
 
+The room knowledge graph is also strictly opt-in. Set
+`knowledge_graph.enabled = true` or `CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED=true`,
+and place a long random shared secret in the environment variable named by
+`knowledge_graph.api_token_env`. The Rust application never sends graph data
+until both settings are present. It remains the authorization boundary; the
+internal graph service cannot decide whether a user may read a room.
+
+Every active text message is projected to Graphiti as one Episode. A dedicated
+SQL outbox backfills existing messages and tracks new messages, edits, recalls,
+and deletes. Jobs for one room run in order, different rooms can run in
+parallel, and failures retry with exponential backoff. Graph indexing is
+eventually consistent because extraction calls an LLM. The admin dashboard
+shows pending and retrying graph jobs separately from Qdrant jobs.
+
+Graph search contributes bounded `G1`, `G2`, ... relationship facts alongside
+Qdrant's `S1`, `S2`, ... source messages. Before a fact reaches a browser or an
+AI prompt, every referenced Episode is mapped back to an active, non-recalled
+message in the same room and current membership is rechecked. If any source is
+no longer authorized, the complete fact is discarded. Node summaries are not
+exposed because Graphiti summaries do not carry sufficiently granular source
+authorization metadata.
+
+The sidecar pins `graphiti-core==0.29.3`, uses one FalkorDB graph named from
+each room UUID, and only exposes bearer-authenticated `/v1` routes. Graphiti's
+own sample server is not used: it acknowledges an in-memory queue before graph
+commit, which is not compatible with the durable SQL outbox. The custom
+sidecar waits for completion before returning success and reconciles retries by
+the deterministic `message:<UUID>` Episode name.
+
+`search_timeout_ms` bounds graph evidence retrieval for an AI answer. A timeout
+or outage only removes graph evidence from that answer; recent history and
+Qdrant remain available. `request_timeout_secs` is longer because LLM-backed
+indexing may take minutes. Disabling the feature stops workers and retrieval
+without deleting the outbox or graph data, so re-enabling resumes convergence.
+
+FalkorDB 4.18.8 is pinned in Compose and stores data in `falkordb_data`. Its
+SSPLv1 license requires deployment review. Back up that volume together with
+PostgreSQL when graph state should be restorable without re-indexing; otherwise
+the graph can be rebuilt from authoritative messages by clearing the derived
+store and re-enqueuing active messages.
+
 ## Complete PostgreSQL backup and restore
 
-Stop the chat server while taking a maintenance backup so the PostgreSQL
+Stop the chat server and graph worker while taking a maintenance backup so the PostgreSQL
 snapshot and attachment directory describe the same point in time. PostgreSQL
 client tools (`pg_dump` and `pg_restore`) must be installed and match the
 server's major version.
@@ -264,6 +305,8 @@ are activated, so it remains available for manual rollback. When Redis is
 enabled, restore requires Redis to be reachable and clears this application's
 cache namespace before replacing the database. The commands intentionally reject SQLite and
 OSS-backed attachment configurations rather than producing a partial backup.
+These commands do not include FalkorDB; copy or snapshot `falkordb_data`
+separately, or plan to rebuild the derived graph from PostgreSQL.
 
 The system dashboard is available at `/admin`. Access requires a normal logged
 in account whose username appears in `admin.usernames` (case-insensitive).

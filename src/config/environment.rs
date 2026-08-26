@@ -57,6 +57,18 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         &mut config.vector_store.top_k,
         value("CHAT_ROOM_VECTOR_TOP_K"),
     );
+    set_bool(
+        &mut config.knowledge_graph.enabled,
+        value("CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED"),
+    );
+    set_string(
+        &mut config.knowledge_graph.url,
+        value("CHAT_ROOM_KNOWLEDGE_GRAPH_URL"),
+    );
+    set_number(
+        &mut config.knowledge_graph.max_facts,
+        value("CHAT_ROOM_KNOWLEDGE_GRAPH_MAX_FACTS"),
+    );
 }
 
 fn nonempty(value: Option<String>) -> Option<String> {
@@ -98,6 +110,8 @@ mod tests {
                 ("CHAT_ROOM_EMBEDDING_MODEL", "embed-from-env"),
                 ("CHAT_ROOM_EMBEDDING_BASE_URL", "https://embed.example/v1"),
                 ("CHAT_ROOM_EMBEDDING_DIMENSIONS", "768"),
+                ("CHAT_ROOM_KNOWLEDGE_GRAPH_ENABLED", "true"),
+                ("CHAT_ROOM_KNOWLEDGE_GRAPH_URL", "http://graph:8000"),
             ]
             .into_iter()
             .find_map(|(key, value)| (key == name).then(|| value.to_owned()))
@@ -111,5 +125,7 @@ mod tests {
         assert!(config.vector_store.enabled);
         assert_eq!(config.vector_store.embedding_model, "embed-from-env");
         assert_eq!(config.vector_store.dimensions, 768);
+        assert!(config.knowledge_graph.enabled);
+        assert_eq!(config.knowledge_graph.url, "http://graph:8000");
     }
 }

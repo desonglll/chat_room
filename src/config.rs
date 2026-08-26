@@ -14,11 +14,13 @@ use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 mod environment;
+mod knowledge_graph;
 mod performance;
 #[cfg(test)]
 mod tests;
 mod vector_store;
 
+pub use knowledge_graph::KnowledgeGraphConfig;
 pub use performance::{RedisConfig, WorkQueueConfig};
 pub use vector_store::VectorStoreConfig;
 
@@ -38,6 +40,7 @@ pub struct AppConfig {
     pub redis: RedisConfig,
     pub work_queue: WorkQueueConfig,
     pub vector_store: VectorStoreConfig,
+    pub knowledge_graph: KnowledgeGraphConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -374,6 +377,26 @@ impl AppConfig {
                 );
             }
         }
+        if self.knowledge_graph.enabled {
+            if self.knowledge_graph.url.trim().is_empty()
+                || self.knowledge_graph.api_token_env.trim().is_empty()
+            {
+                bail!("knowledge_graph requires url and api_token_env when enabled");
+            }
+            if self.knowledge_graph.max_facts == 0 || self.knowledge_graph.max_facts > 50 {
+                bail!("knowledge_graph.max_facts must be between 1 and 50");
+            }
+            if self.knowledge_graph.graph_limit == 0 || self.knowledge_graph.graph_limit > 1_000 {
+                bail!("knowledge_graph.graph_limit must be between 1 and 1000");
+            }
+            if self.knowledge_graph.worker_interval_ms == 0
+                || self.knowledge_graph.request_timeout_secs == 0
+                || self.knowledge_graph.search_timeout_ms == 0
+                || self.knowledge_graph.worker_concurrency == 0
+            {
+                bail!("knowledge_graph timeouts and worker concurrency must be greater than zero");
+            }
+        }
         self.max_upload_bytes()?;
         self.chunk_size_bytes()?;
         Ok(self)
@@ -403,6 +426,7 @@ pub struct PublicConfig {
     max_upload_bytes: usize,
     ai_enabled: bool,
     ai_status: AiRuntimeStatus,
+    knowledge_graph_enabled: bool,
 }
 
 pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfig> {
@@ -418,5 +442,6 @@ pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfi
         max_upload_bytes: state.max_upload_bytes(),
         ai_enabled: ai_status == AiRuntimeStatus::Ready,
         ai_status,
+        knowledge_graph_enabled: state.knowledge_graph().is_some(),
     })
 }

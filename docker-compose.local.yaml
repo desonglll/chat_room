@@ -46,7 +46,48 @@ services:
       timeout: 3s
       retries: 20
 
+  falkordb:
+    image: falkordb/falkordb-server:v4.18.8
+    profiles: ["knowledge-graph"]
+    restart: unless-stopped
+    environment:
+      REDIS_ARGS: --requirepass ${FALKORDB_PASSWORD:-}
+      FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${FALKORDB_PORT:-6380}:6379"
+    volumes:
+      - falkordb_data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${FALKORDB_PASSWORD}\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  graph-service:
+    build:
+      context: ./graph-service
+      dockerfile: Dockerfile
+    profiles: ["knowledge-graph"]
+    restart: unless-stopped
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      GRAPH_API_TOKEN: ${CHAT_ROOM_KNOWLEDGE_GRAPH_TOKEN:-}
+      GRAPH_FALKORDB_HOST: falkordb
+      GRAPH_FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:-}
+      GRAPH_LLM_API_KEY: ${CHAT_ROOM_AI_API_KEY:-}
+      GRAPH_LLM_BASE_URL: ${GRAPH_LLM_BASE_URL:-https://api.openai.com/v1}
+      GRAPH_LLM_MODEL: ${GRAPH_LLM_MODEL:-gpt-4.1-mini}
+      GRAPH_EMBEDDING_API_KEY: ${CHAT_ROOM_AI_API_KEY:-}
+      GRAPH_EMBEDDING_BASE_URL: ${GRAPH_EMBEDDING_BASE_URL:-https://api.openai.com/v1}
+      GRAPH_EMBEDDING_MODEL: ${GRAPH_EMBEDDING_MODEL:-text-embedding-3-small}
+      GRAPH_EMBEDDING_DIMENSIONS: ${GRAPH_EMBEDDING_DIMENSIONS:-1536}
+    ports:
+      - "127.0.0.1:${GRAPH_SERVICE_PORT:-8090}:8000"
+
 volumes:
   postgres_data:
   redis_data:
   qdrant_data:
+  falkordb_data:
