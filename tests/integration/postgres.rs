@@ -7,43 +7,10 @@
 
 use super::*;
 use chat_room::config::{AdminConfig, AppConfig};
-use sqlx::postgres::PgPoolOptions;
 
-async fn connect_postgres_admin(test_name: &str) -> Option<(String, sqlx::PgPool)> {
-    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
-    let admin_url = configured
-        .clone()
-        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".to_string());
-    match PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&admin_url)
-        .await
-    {
-        Ok(pool) => Some((admin_url, pool)),
-        Err(error) if configured.is_some() => {
-            panic!("{test_name}: required PostgreSQL at {admin_url} is unavailable: {error}")
-        }
-        Err(error) => {
-            eprintln!("skipping {test_name}: could not reach PostgreSQL at {admin_url}: {error}");
-            None
-        }
-    }
-}
-
-/// Create a fresh, empty database on the same server as `admin_url` and
-/// return its connection URL. The caller is responsible for dropping it.
-async fn create_scratch_database(admin_pool: &sqlx::PgPool, admin_url: &str) -> (String, String) {
-    let db_name = format!("chat_room_test_{}", uuid::Uuid::new_v4().simple());
-    sqlx::query(&format!(r#"CREATE DATABASE "{db_name}""#))
-        .execute(admin_pool)
-        .await
-        .unwrap();
-    let base = admin_url
-        .rsplit_once('/')
-        .map(|(head, _)| head)
-        .unwrap_or(admin_url);
-    (db_name.clone(), format!("{base}/{db_name}"))
-}
+#[path = "postgres_database.rs"]
+mod postgres_database;
+use postgres_database::{connect_postgres_admin, create_scratch_database, drop_scratch_database};
 
 #[tokio::test]
 async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
@@ -90,6 +57,34 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
 
     let (room_id, has_password) = create_room(&server, "pg-integration-room", None).await;
     assert!(!has_password);
+    let owner_token = session_token(&server, "owner-pg-integration-room").await;
+    let preferences: serde_json::Value = reqwest::Client::new()
+        .patch(format!("{server}/api/conversations/{room_id}/preferences"))
+        .bearer_auth(&owner_token)
+        .json(&serde_json::json!({
+            "is_pinned": true,
+            "notification_level": "mentions",
+            "muted_until": "2030-01-02T03:04:05Z"
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(preferences["is_pinned"], true);
+    assert_eq!(preferences["notification_level"], "mentions");
+    let conversation: serde_json::Value = reqwest::Client::new()
+        .get(format!("{server}/api/conversations"))
+        .bearer_auth(&owner_token)
+        .send()
+        .await
+        .unwrap()
+        .json::<Vec<serde_json::Value>>()
+        .await
+        .unwrap()
+        .remove(0);
+    assert_eq!(conversation["preferences"], preferences);
 
     let (mut sink_a, mut stream_a) = ws_connect(&server, &room_id, "alice", None).await;
     let (_sink_b, mut stream_b) = ws_connect(&server, &room_id, "bob", None).await;
@@ -122,23 +117,7 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
     state.postgres_pool().unwrap().close().await;
     drop(state);
 
-    // `server.shutdown()` aborts the top-level accept loop, but hyper spawns
-    // each already-open connection (including each WS handler's DB-polling
-    // loop) as its own independent task, so a couple of scratch-DB sessions
-    // can still be winding down here — terminate them before dropping.
-    sqlx::query(
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
-         WHERE datname = $1 AND pid <> pg_backend_pid()",
-    )
-    .bind(&db_name)
-    .execute(&admin_pool)
-    .await
-    .ok();
-
-    sqlx::query(&format!(r#"DROP DATABASE IF EXISTS "{db_name}""#))
-        .execute(&admin_pool)
-        .await
-        .expect("drop scratch database");
+    drop_scratch_database(&admin_pool, &db_name).await;
 }
 
 /// `migrations/` (SQLite) and `migrations-postgres/` (Postgres) are maintained
@@ -218,19 +197,7 @@ async fn sqlite_and_postgres_migrations_produce_matching_schemas() {
     pg_state.postgres_pool().unwrap().close().await;
     drop(pg_state);
 
-    sqlx::query(
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
-         WHERE datname = $1 AND pid <> pg_backend_pid()",
-    )
-    .bind(&db_name)
-    .execute(&admin_pool)
-    .await
-    .ok();
-
-    sqlx::query(&format!(r#"DROP DATABASE IF EXISTS "{db_name}""#))
-        .execute(&admin_pool)
-        .await
-        .expect("drop scratch database");
+    drop_scratch_database(&admin_pool, &db_name).await;
 }
 
 #[tokio::test]
@@ -383,13 +350,5 @@ async fn postgres_friendship_creates_one_private_direct_conversation() {
     server.shutdown().await;
     state.postgres_pool().unwrap().close().await;
     drop(state);
-    sqlx::query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1")
-        .bind(&db_name)
-        .execute(&admin_pool)
-        .await
-        .ok();
-    sqlx::query(&format!(r#"DROP DATABASE IF EXISTS "{db_name}""#))
-        .execute(&admin_pool)
-        .await
-        .expect("drop social scratch database");
+    drop_scratch_database(&admin_pool, &db_name).await;
 }

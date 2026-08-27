@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::conversations::models::{ConversationSummary, MessagePreview};
+use crate::conversations::models::{
+    ConversationPreferences, ConversationSummary, MessagePreview, NotificationLevel,
+};
 use crate::models::{Room, UserSummary};
 use crate::state::{with_pool, AppState};
 
@@ -24,6 +26,11 @@ struct ConversationRow {
     unread_count: i64,
     pending_join_requests: i64,
     pending_join_requested_at: Option<DateTime<Utc>>,
+    is_pinned: bool,
+    is_archived: bool,
+    notification_level: String,
+    muted_until: Option<DateTime<Utc>>,
+    preferences_updated_at: DateTime<Utc>,
     created_at: DateTime<Utc>,
     last_activity_at: DateTime<Utc>,
     peer_id: Option<Uuid>,
@@ -90,6 +97,14 @@ impl ConversationRow {
             peer,
             unread_count: self.unread_count,
             pending_join_requests: self.pending_join_requests,
+            preferences: ConversationPreferences {
+                room_id: self.room_id,
+                is_pinned: self.is_pinned,
+                is_archived: self.is_archived,
+                notification_level: NotificationLevel::from_database(&self.notification_level),
+                muted_until: self.muted_until,
+                updated_at: self.preferences_updated_at,
+            },
             last_message,
             last_activity_at,
             created_at: self.created_at,
@@ -133,7 +148,10 @@ impl AppState {
                  CASE WHEN review.role_id IS NULL THEN NULL ELSE \
                    (SELECT MAX(requests.requested_at) FROM room_memberships AS requests \
                      WHERE requests.room_id = rooms.id AND requests.status = 'pending') \
-                   END AS pending_join_requested_at, rooms.created_at, \
+                   END AS pending_join_requested_at, \
+                 memberships.is_pinned, memberships.is_archived, \
+                 memberships.notification_level, memberships.muted_until, \
+                 memberships.preferences_updated_at, rooms.created_at, \
                  COALESCE(last_message.created_at, rooms.created_at) AS last_activity_at, \
                  peer.id AS peer_id, peer.username AS peer_username, \
                  peer.avatar_emoji AS peer_avatar, peer.display_name AS peer_display_name, \
@@ -160,7 +178,9 @@ impl AppState {
                  LEFT JOIN attachments ON attachments.id = last_message.attachment_id \
                  WHERE memberships.user_id = $1 AND memberships.status = 'active' \
                    AND ($2 IS NULL OR rooms.id = $2) \
-                 ORDER BY last_activity_at DESC, rooms.id",
+                 ORDER BY memberships.is_archived ASC, \
+                   CASE WHEN memberships.is_archived THEN FALSE ELSE memberships.is_pinned END DESC, \
+                   last_activity_at DESC, rooms.id",
             )
             .bind(user_id)
             .bind(room_id)

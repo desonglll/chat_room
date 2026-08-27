@@ -199,6 +199,11 @@ pub(crate) fn api_routes(
             axum::routing::put(conversations::handlers::update_conversation_alias),
         )
         .route(
+            "/api/conversations/:room_id/preferences",
+            get(conversations::handlers::get_conversation_preferences)
+                .patch(conversations::handlers::update_conversation_preferences),
+        )
+        .route(
             "/api/messages/forward",
             axum::routing::post(forward_handlers::forward_messages),
         )

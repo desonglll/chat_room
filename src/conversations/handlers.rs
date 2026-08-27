@@ -6,7 +6,10 @@ use axum::{
 
 use uuid::Uuid;
 
-use crate::conversations::models::{ConversationSummary, UpdateConversationAliasRequest};
+use crate::conversations::models::{
+    ConversationPreferences, ConversationSummary, UpdateConversationAliasRequest,
+    UpdateConversationPreferencesRequest,
+};
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
@@ -81,6 +84,72 @@ pub async fn update_conversation_alias(
         .await
         .map_err(|error| {
             tracing::error!("load updated conversation alias failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .map(Json)
+        .ok_or(StatusCode::NOT_FOUND)
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/conversations/{room_id}/preferences",
+    params(("room_id" = Uuid, Path, description = "Conversation room ID")),
+    responses(
+        (status = 200, description = "Viewer conversation preferences", body = ConversationPreferences),
+        (status = 401, description = "Missing or expired session"),
+        (status = 404, description = "Conversation is not active for this account")
+    )
+)]
+pub async fn get_conversation_preferences(
+    State(state): State<SharedState>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<ConversationPreferences>, StatusCode> {
+    let token = bearer_token(&headers)?;
+    let user = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    state
+        .get_preferences(user.id, room_id)
+        .await
+        .map_err(|error| {
+            tracing::error!("get conversation preferences failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .map(Json)
+        .ok_or(StatusCode::NOT_FOUND)
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/conversations/{room_id}/preferences",
+    params(("room_id" = Uuid, Path, description = "Conversation room ID")),
+    request_body = UpdateConversationPreferencesRequest,
+    responses(
+        (status = 200, description = "Updated viewer conversation preferences", body = ConversationPreferences),
+        (status = 401, description = "Missing or expired session"),
+        (status = 404, description = "Conversation is not active for this account")
+    )
+)]
+pub async fn update_conversation_preferences(
+    State(state): State<SharedState>,
+    Path(room_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateConversationPreferencesRequest>,
+) -> Result<Json<ConversationPreferences>, StatusCode> {
+    let token = bearer_token(&headers)?;
+    let user = state
+        .session_user(token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    state
+        .update_preferences(user.id, room_id, &payload)
+        .await
+        .map_err(|error| {
+            tracing::error!("update conversation preferences failed: {error}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .map(Json)
