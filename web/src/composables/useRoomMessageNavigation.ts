@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { useMessageDeepLink } from './useMessageDeepLink'
 
 interface MessageListTarget {
+  isReady: () => boolean
   scrollToMessage: (messageId: string) => Promise<boolean>
 }
 
@@ -40,7 +41,7 @@ export function useRoomMessageNavigation(options: {
     searchOpen.value = true
   }
 
-  useMessageDeepLink(options.roomId, options.ready, locateMessage)
+  useMessageDeepLink(options.roomId, () => options.ready() && options.messageList()?.isReady() === true, locateMessage)
   watch(options.roomId, () => (searchOpen.value = false))
   onMounted(() => document.addEventListener('keydown', handleShortcut))
   onBeforeUnmount(() => document.removeEventListener('keydown', handleShortcut))

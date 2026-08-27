@@ -20,6 +20,12 @@ describe('mobile workspace layout contract', () => {
     expect(workspace).toContain('.cr-sidebar--nav-only')
   })
 
+  test('fills the workspace with the semantic theme surface on notifications', () => {
+    const notifications = source('./components/NotificationsPage.vue')
+    expect(notifications).toMatch(/<main[^>]*class="[^"]*cr-page[^"]*flex-1[^"]*"/s)
+    expect(notifications).not.toContain('dark:bg-surface-950')
+  })
+
   test('does not let the mobile navigation shell cover an open room', () => {
     const workspace = source('./workspace.css')
     expect(workspace).toMatch(/\.cr-sidebar--nav-only\s*{[^}]*background:\s*transparent;/s)

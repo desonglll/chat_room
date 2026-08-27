@@ -95,11 +95,9 @@ async function openSource(item: NotificationItem): Promise<void> {
 </script>
 
 <template>
-  <main id="workspace-main" class="h-full min-h-0 overflow-y-auto bg-surface-0 dark:bg-surface-950">
+  <main id="workspace-main" class="cr-page h-full min-h-0 min-w-0 flex-1 overflow-y-auto">
     <div class="mx-auto flex min-h-full w-full max-w-5xl flex-col">
-      <header
-        class="sticky top-0 z-10 border-b border-surface-200 bg-surface-0/95 px-4 py-3 backdrop-blur dark:border-surface-800 dark:bg-surface-950/95 sm:px-6"
-      >
+      <header class="cr-page-header sticky top-0 z-10 px-4 py-3 sm:px-6">
         <div class="flex min-h-10 items-center gap-3">
           <Button
             text
@@ -168,7 +166,7 @@ async function openSource(item: NotificationItem): Promise<void> {
       </Message>
 
       <section aria-live="polite" :aria-busy="loading" class="flex-1 px-4 pb-8 sm:px-6">
-        <div v-if="loading && !items.length" class="divide-y divide-surface-200 dark:divide-surface-800">
+        <div v-if="loading && !items.length" class="divide-y divide-[var(--cr-border)]">
           <div v-for="index in 6" :key="index" class="flex min-h-24 items-center gap-3 py-4">
             <Skeleton shape="circle" size="2.5rem" />
             <div class="flex-1 space-y-2"><Skeleton width="32%" height="0.8rem" /><Skeleton width="72%" /></div>
@@ -180,7 +178,7 @@ async function openSource(item: NotificationItem): Promise<void> {
             <p class="font-medium">暂无通知</p>
           </div>
         </div>
-        <ol v-else class="divide-y divide-surface-200 dark:divide-surface-800">
+        <ol v-else class="divide-y divide-[var(--cr-border)]">
           <li v-for="item in items" :key="item.id" class="group relative flex min-h-24 gap-3 py-4 sm:gap-4">
             <span
               v-if="!item.read_at"
@@ -195,7 +193,7 @@ async function openSource(item: NotificationItem): Promise<void> {
             />
             <span
               v-else
-              class="grid size-10 shrink-0 place-items-center rounded-full bg-surface-100 text-muted-color dark:bg-surface-800"
+              class="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--cr-surface-subtle)] text-muted-color"
             >
               <component :is="kindIcon(item.kind)" :size="18" aria-hidden="true" />
             </span>

@@ -280,7 +280,7 @@ async function scrollToMessage(messageId: string): Promise<boolean> {
   return true
 }
 
-defineExpose({ scrollToMessage })
+defineExpose({ isReady: () => viewportReady.value, scrollToMessage })
 
 onBeforeUnmount(() => {
   window.clearTimeout(highlightTimer)
