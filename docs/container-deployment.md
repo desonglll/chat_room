@@ -22,7 +22,7 @@ the application container so startup reloads the configuration:
 
 ```sh
 docker compose up -d --force-recreate chatroom
-curl http://localhost:3000/api/config
+curl http://localhost:3000/health/ready
 ```
 
 When `[ai].enabled = true`, set the environment variable named by
@@ -89,7 +89,15 @@ Inspect logs and health status with:
 ```sh
 docker compose logs -f chatroom
 docker compose ps
+curl http://localhost:3000/health/live
+curl http://localhost:3000/health/ready
+curl http://localhost:3000/metrics
 ```
+
+The image healthcheck uses readiness, so a required database or dependency
+failure marks the container unhealthy. Configure optional dependency policy
+with `CHAT_ROOM_REQUIRED_DEPENDENCIES=redis,vector_store,ai_provider`. Enable
+newline-delimited JSON logs with `CHAT_ROOM_OBSERVABILITY_JSON_LOGS=true`.
 
 Stop containers without deleting stored data:
 

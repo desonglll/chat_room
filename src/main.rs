@@ -90,17 +90,10 @@ impl Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "chat_room=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     let args = Args::parse();
     let listen_addr = args.listen_addr();
     let config = AppConfig::load(&args.config)?;
+    init_tracing(config.observability.json_logs);
     let database_type = args.database_type.unwrap_or_else(|| {
         if config.database.kind == "postgres" {
             DatabaseType::Postgres
@@ -170,6 +163,24 @@ async fn main() -> Result<()> {
     )
     .await
     .context("serve chat room")
+}
+
+fn init_tracing(json_logs: bool) {
+    let filter = || {
+        tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| "chat_room=debug".into())
+    };
+    if json_logs {
+        tracing_subscriber::registry()
+            .with(filter())
+            .with(tracing_subscriber::fmt::layer().json())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(filter())
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 }
 
 async fn open_state(

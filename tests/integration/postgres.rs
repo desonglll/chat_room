@@ -16,6 +16,8 @@ mod audit_postgres;
 mod device_sessions_postgres;
 #[path = "global_search_postgres.rs"]
 mod global_search_postgres;
+#[path = "observability_postgres.rs"]
+mod observability_postgres;
 #[path = "postgres_database.rs"]
 mod postgres_database;
 #[path = "room_tasks_postgres.rs"]

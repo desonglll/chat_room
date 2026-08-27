@@ -68,7 +68,7 @@ impl RuntimeMetrics {
         }
     }
 
-    fn snapshot(&self) -> RuntimeSnapshot {
+    pub(crate) fn snapshot(&self) -> RuntimeSnapshot {
         let requests = self.requests.load(Ordering::Relaxed);
         let total = self.total_latency_micros.load(Ordering::Relaxed);
         RuntimeSnapshot {
@@ -101,12 +101,12 @@ pub async fn track_request(
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RuntimeSnapshot {
-    uptime_seconds: u64,
-    requests: u64,
-    failures: u64,
-    active_requests: u64,
-    average_latency_ms: f64,
-    max_latency_ms: f64,
+    pub(crate) uptime_seconds: u64,
+    pub(crate) requests: u64,
+    pub(crate) failures: u64,
+    pub(crate) active_requests: u64,
+    pub(crate) average_latency_ms: f64,
+    pub(crate) max_latency_ms: f64,
 }
 
 #[derive(Debug, Serialize, ToSchema, FromRow)]

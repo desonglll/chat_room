@@ -49,6 +49,11 @@ sqlite_path = "chat_rooms.db"
 postgres_url = ""
 max_connections = 10
 
+[observability]
+json_logs = false
+# Supported values: redis, vector_store, ai_provider. Database is always required.
+required_dependencies = []
+
 [redis]
 enabled = false
 url = "redis://127.0.0.1:6379/"
@@ -165,6 +170,22 @@ any storage setting.
 
 `database.kind` accepts `sqlite` or `postgres`. The CLI `--database-type` and
 `--database` options override the selected backend and connection path/URL.
+
+`GET /health/live` reports only that the process can serve HTTP. `GET
+/health/ready` probes the database and configured Redis, Qdrant, and AI model
+adapters. The database is always required. An unavailable optional dependency
+returns HTTP 200 with `status = "degraded"`; an unavailable dependency listed in
+`observability.required_dependencies` returns HTTP 503 with `status =
+"not_ready"`. `GET /metrics` exposes Prometheus text with aggregate request,
+latency, connection, and fixed dependency gauges. It never labels metrics with
+Room IDs, account IDs, message content, raw URLs, or request IDs.
+
+Every HTTP response includes `x-request-id`. A caller-supplied identifier is
+accepted only when it is short and uses a restricted ASCII character set;
+otherwise the server generates a UUID. Request logs contain that ID, the HTTP
+method, the matched route template, status, and latency, but no query string or
+body. Set `observability.json_logs = true` or
+`CHAT_ROOM_OBSERVABILITY_JSON_LOGS=true` for structured JSON log lines.
 
 Redis is an optional read-through cache for bearer-session lookups and paged
 message history; PostgreSQL/SQLite remains the source of truth. Set

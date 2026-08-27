@@ -20,6 +20,7 @@ pub mod knowledge;
 pub mod messages;
 pub mod models;
 pub mod notifications;
+pub mod observability;
 pub mod push_notifications;
 pub mod realtime;
 pub mod rooms;
@@ -58,7 +59,6 @@ pub use rooms::{
     query_handlers as room_query_handlers,
 };
 use std::sync::Arc;
-use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 
 use crate::state::AppState;
@@ -344,6 +344,6 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     ))
     .layer(cors)
     .layer(axum::middleware::from_fn(security::security_headers))
-    .layer(TraceLayer::new_for_http())
+    .layer(axum::middleware::from_fn(observability::request_context))
     .with_state(state)
 }

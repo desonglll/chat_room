@@ -199,7 +199,10 @@ async fn room_governance_is_audited_filtered_and_manager_only() {
         .await
         .unwrap();
     assert_eq!(unbanned.status(), 200);
-    assert_eq!(unbanned.json::<serde_json::Value>().await.unwrap()["status"], "banned");
+    assert_eq!(
+        unbanned.json::<serde_json::Value>().await.unwrap()["status"],
+        "banned"
+    );
     assert_eq!(
         client
             .post(&join_url)

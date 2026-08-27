@@ -67,6 +67,8 @@ fn all_runtime_sections_can_come_from_the_environment() {
         ("CHAT_ROOM_REDIS_KEY_PREFIX", "chat-test"),
         ("CHAT_ROOM_WORK_QUEUE_MESSAGE_CONCURRENCY", "12"),
         ("CHAT_ROOM_ADMIN_ORPHAN_RETENTION_HOURS", "72"),
+        ("CHAT_ROOM_OBSERVABILITY_JSON_LOGS", "true"),
+        ("CHAT_ROOM_REQUIRED_DEPENDENCIES", "redis, ai_provider"),
     ]);
 
     assert_eq!(config.uploads.max_file_size_mib, 2048);
@@ -98,4 +100,9 @@ fn all_runtime_sections_can_come_from_the_environment() {
     assert_eq!(config.redis.key_prefix, "chat-test");
     assert_eq!(config.work_queue.message_concurrency, 12);
     assert_eq!(config.admin.orphan_retention_hours, 72);
+    assert!(config.observability.json_logs);
+    assert_eq!(
+        config.observability.required_dependencies,
+        ["redis", "ai_provider"]
+    );
 }

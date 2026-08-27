@@ -14,9 +14,9 @@ const VECTOR_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ServiceStatus {
-    id: String,
+    pub(crate) id: String,
     label: String,
-    state: String,
+    pub(crate) state: String,
     latency_ms: Option<u64>,
     detail: String,
 }
@@ -31,7 +31,7 @@ pub struct VectorIndexStatus {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ServiceOverview {
-    items: Vec<ServiceStatus>,
+    pub(crate) items: Vec<ServiceStatus>,
     vector_index: VectorIndexStatus,
 }
 

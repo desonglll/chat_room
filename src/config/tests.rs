@@ -189,3 +189,21 @@ fn vector_store_is_opt_in_and_requires_a_complete_embedding_profile() {
     .unwrap();
     assert!(incomplete_rerank.validate().is_err());
 }
+
+#[test]
+fn observability_accepts_only_fixed_dependency_names() {
+    let configured: AppConfig = toml::from_str(
+        "[observability]\njson_logs = true\nrequired_dependencies = ['redis', 'vector_store', 'ai_provider']",
+    )
+    .unwrap();
+    assert!(configured.observability.json_logs);
+    assert!(configured.validate().is_ok());
+
+    for dependencies in ["['database']", "['redis', 'redis']", "['room-123']"] {
+        let config: AppConfig = toml::from_str(&format!(
+            "[observability]\nrequired_dependencies = {dependencies}"
+        ))
+        .unwrap();
+        assert!(config.validate().is_err());
+    }
+}

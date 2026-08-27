@@ -36,6 +36,18 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         config.admin.deleted_room_retention_days,
         "CHAT_ROOM_ADMIN_DELETED_ROOM_RETENTION_DAYS"
     );
+    parse!(
+        config.observability.json_logs,
+        "CHAT_ROOM_OBSERVABILITY_JSON_LOGS"
+    );
+    if let Some(dependencies) = value("CHAT_ROOM_REQUIRED_DEPENDENCIES") {
+        config.observability.required_dependencies = dependencies
+            .split(',')
+            .map(str::trim)
+            .filter(|dependency| !dependency.is_empty())
+            .map(str::to_string)
+            .collect();
+    }
 
     parse!(
         config.uploads.max_file_size_mib,

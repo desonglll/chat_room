@@ -13,8 +13,8 @@ use crate::{
     ai_threads, attachment_handlers, attachment_upload_handlers, audit, avatar_handlers, config,
     conversations, direct_conversations, favorites, file_handlers, forward_handlers, handlers,
     membership_handlers, message_global_search, message_pins, message_search, notifications,
-    push_notifications, registration, room_query_handlers, sessions, social, state::AppState,
-    tasks, user_handlers, ws,
+    observability, push_notifications, registration, room_query_handlers, sessions, social,
+    state::AppState, tasks, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -22,6 +22,7 @@ pub(crate) fn api_routes(
     chunk_body_limit: usize,
 ) -> Router<Arc<AppState>> {
     Router::new()
+        .merge(observability::routes())
         .route("/api/config", get(config::public_config))
         .route(
             "/api/rooms",

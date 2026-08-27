@@ -48,12 +48,12 @@ WORKDIR /app
 COPY --from=builder --chown=chatroom:chatroom /tmp/chat-room /usr/local/bin/chat-room
 
 USER chatroom
-ENV RUST_LOG="chat_room=info,tower_http=info"
+ENV RUST_LOG="chat_room=info"
 
 EXPOSE 3000
 VOLUME ["/app/chat_attachments"]
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
-    CMD curl --fail --silent --show-error http://127.0.0.1:3000/api/config >/dev/null || exit 1
+    CMD curl --fail --silent --show-error http://127.0.0.1:3000/health/ready >/dev/null || exit 1
 
 ENTRYPOINT ["/usr/local/bin/chat-room"]
 CMD ["--database-type", "postgres"]

@@ -43,6 +43,12 @@ sqlite_path = "chat_rooms.db"
 postgres_url = "postgresql://postgres:postgres@localhost:52735/chatroom"
 max_connections = 10
 
+[observability]
+# Emit one structured JSON object per log line for container log collectors.
+json_logs = false
+# Database readiness is always required. Optional dependencies can be promoted here.
+required_dependencies = []
+
 [ai]
 # The magic-wand button: summarizes a room's recent messages and suggests
 # replies. Disabled by default. `api_key_env` should normally be the name of
