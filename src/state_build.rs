@@ -155,6 +155,7 @@ impl AppState {
             ai_extraction_dispatcher_started: AtomicBool::new(false),
             message_index,
             message_index_worker_started: AtomicBool::new(false),
+            push_dispatcher_started: AtomicBool::new(false),
             backup_runtime: crate::state_backup::BackupRuntime::default(),
         };
         let imported = state

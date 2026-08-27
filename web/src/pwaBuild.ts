@@ -58,5 +58,46 @@ self.addEventListener('message', (event) => {
     event.waitUntil(caches.keys().then((names) => Promise.all(names.filter((name) => name.startsWith(CACHE_PREFIX)).map((name) => caches.delete(name)))));
   }
 });
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try { payload = event.data?.json() || {}; } catch { payload = {}; }
+  const url = typeof payload.url === 'string' && payload.url.startsWith('/') && !payload.url.startsWith('//')
+    ? payload.url
+    : '/notifications';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      if (windows.some((client) => client.visibilityState === 'visible')) return;
+      return self.registration.showNotification(
+        typeof payload.title === 'string' ? payload.title : 'Echo Gate',
+        {
+          body: typeof payload.body === 'string' ? payload.body : '你有一条新通知',
+          icon: '/pwa-192.png',
+          badge: '/pwa-192.png',
+          tag: typeof payload.tag === 'string' ? payload.tag : 'echo-gate-notification',
+          data: { url },
+        },
+      );
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const candidate = event.notification.data?.url;
+  const url = typeof candidate === 'string' && candidate.startsWith('/') && !candidate.startsWith('//')
+    ? candidate
+    : '/notifications';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
+      const client = windows[0];
+      if (client) {
+        await client.navigate(url);
+        return client.focus();
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
 `
 }

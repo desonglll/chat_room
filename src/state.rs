@@ -85,6 +85,7 @@ pub struct AppState {
     pub(crate) ai_extraction_dispatcher_started: AtomicBool,
     pub(crate) message_index: Option<MessageIndex>,
     pub(crate) message_index_worker_started: AtomicBool,
+    pub(crate) push_dispatcher_started: AtomicBool,
     pub(crate) backup_runtime: crate::state_backup::BackupRuntime,
 }
 

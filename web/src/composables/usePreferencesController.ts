@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { updateCurrentUser } from '../api'
 import { storePreferences } from '../preferences'
+import { syncWebPushSubscription } from '../pushNotificationsApi'
 import type { ChatPreferences, User } from '../types'
 
 interface PreferenceOptions {
@@ -24,6 +25,9 @@ export function usePreferencesController(options: PreferenceOptions) {
         const permission =
           Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
         if (permission !== 'granted') throw new Error('浏览器没有授予通知权限')
+      }
+      if (options.token.value) {
+        await syncWebPushSubscription(options.token.value, next.notificationsEnabled, next.notificationDetails)
       }
       if (options.user.value && options.token.value && next.avatarEmoji !== options.user.value.avatar_emoji) {
         options.user.value = await updateCurrentUser(options.token.value, {

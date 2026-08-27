@@ -136,6 +136,8 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         "CHAT_ROOM_WORK_QUEUE_WAIT_TIMEOUT_SECS"
     );
 
+    super::environment_web_push::apply(config, &mut value);
+
     parse!(
         config.realtime.poll_interval_ms,
         "CHAT_ROOM_REALTIME_POLL_INTERVAL_MS"

@@ -1,5 +1,6 @@
 pub mod handlers;
 pub mod models;
+mod projection;
 mod store;
 
 pub use models::{

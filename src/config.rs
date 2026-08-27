@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     ai::{AiConfig, AiRuntimeStatus},
+    push_notifications::WebPushConfig,
     state::SharedState,
 };
 use anyhow::{bail, Context, Result};
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 mod auth;
 mod environment;
+mod environment_web_push;
 mod performance;
 mod security;
 #[cfg(test)]
@@ -43,6 +45,7 @@ pub struct AppConfig {
     pub redis: RedisConfig,
     pub work_queue: WorkQueueConfig,
     pub vector_store: VectorStoreConfig,
+    pub web_push: WebPushConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -260,6 +263,7 @@ impl AppConfig {
         }
         self.auth.validate()?;
         self.security.validate()?;
+        self.web_push.validate()?;
         if self.admin.orphan_retention_hours <= 0 {
             bail!("admin.orphan_retention_hours must be greater than zero");
         }

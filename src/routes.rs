@@ -10,7 +10,8 @@ use crate::{
     ai_threads, attachment_handlers, attachment_upload_handlers, avatar_handlers, config,
     conversations, direct_conversations, favorites, file_handlers, forward_handlers, handlers,
     membership_handlers, message_global_search, message_pins, message_search, notifications,
-    registration, room_query_handlers, social, state::AppState, tasks, user_handlers, ws,
+    push_notifications, registration, room_query_handlers, social, state::AppState, tasks,
+    user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -249,6 +250,15 @@ pub(crate) fn api_routes(
         .route(
             "/api/notifications/:id/read",
             axum::routing::post(notifications::handlers::mark_read),
+        )
+        .route(
+            "/api/push/config",
+            get(push_notifications::handlers::public_config),
+        )
+        .route(
+            "/api/push/subscriptions",
+            axum::routing::post(push_notifications::handlers::save_subscription)
+                .delete(push_notifications::handlers::delete_subscription),
         )
         .route(
             "/api/messages/forward",

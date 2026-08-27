@@ -14,6 +14,9 @@ describe('PWA service worker build', () => {
     expect(worker).not.toContain('/api/')
     expect(worker).not.toContain('/ws')
     expect(worker).not.toContain('cache.put')
+    expect(worker).toContain("self.addEventListener('push'")
+    expect(worker).toContain("self.addEventListener('notificationclick'")
+    expect(worker).toContain("'/notifications'")
   })
 
   test('changes the cache version when asset content changes', () => {

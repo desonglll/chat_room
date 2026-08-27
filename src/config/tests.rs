@@ -57,6 +57,27 @@ fn rejects_invalid_cache_and_work_queue_limits() {
 }
 
 #[test]
+fn web_push_is_opt_in_and_validates_delivery_settings() {
+    let default = AppConfig::default();
+    assert!(!default.web_push.enabled);
+    assert!(default.validate().is_ok());
+
+    let missing_keys: AppConfig =
+        toml::from_str("[web_push]\nenabled = true\nsubject = 'mailto:admin@example.com'").unwrap();
+    assert!(missing_keys.validate().is_err());
+
+    let complete: AppConfig = toml::from_str(
+        "[web_push]\nenabled = true\npublic_key = 'public'\nprivate_key = \
+         'IQ9Ur0ykXoHS9gzfYX0aBjy9lvdrjx_PFUXmie9YRcY'\nsubject = 'mailto:admin@example.com'",
+    )
+    .unwrap();
+    assert!(complete.validate().is_ok());
+
+    let invalid_retry: AppConfig = toml::from_str("[web_push]\nmax_attempts = 0").unwrap();
+    assert!(invalid_retry.validate().is_err());
+}
+
+#[test]
 fn parses_realtime_and_auth_overrides() {
     let parsed: AppConfig = toml::from_str(
         "[realtime]\npoll_interval_ms = 500\nmessage_poll_limit = 50\n[auth]\nsession_lifetime_days = 7\nregistration_mode = 'invite_only'",

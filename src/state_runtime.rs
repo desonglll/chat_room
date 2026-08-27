@@ -141,6 +141,10 @@ impl AppState {
         &self.config.auth.registration_mode
     }
 
+    pub(crate) fn web_push_config(&self) -> &crate::push_notifications::WebPushConfig {
+        &self.config.web_push
+    }
+
     pub(crate) fn orphan_retention_hours(&self) -> i64 {
         self.config.admin.orphan_retention_hours
     }

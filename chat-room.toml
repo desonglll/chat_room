@@ -137,6 +137,24 @@ message_concurrency = 32
 upload_concurrency = 4
 wait_timeout_secs = 30
 
+[web_push]
+# Disabled until a matching URL-safe, unpadded VAPID key pair is configured.
+enabled = false
+public_key = ""
+private_key = ""
+# Required when enabled. Use a monitored mailto: address or an HTTPS contact URL.
+subject = ""
+# Exact hosts or parent domains for trusted browser Push services.
+allowed_endpoint_hosts = [
+  "fcm.googleapis.com",
+  "updates.push.services.mozilla.com",
+  "web.push.apple.com",
+  "notify.windows.com",
+]
+poll_interval_ms = 1000
+request_timeout_secs = 10
+max_attempts = 5
+
 [admin]
 # System-wide operations are disabled until at least one existing account is
 # allowlisted here. Matching is case-insensitive.

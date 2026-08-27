@@ -4,6 +4,7 @@ import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, listRooms, l
 import { storageGet, storageSet } from '../browserStorage'
 import { clearBootstrapSnapshot, readBootstrapSnapshot, writeBootstrapSnapshot } from '../bootstrapSnapshot'
 import { clearPwaCaches } from '../pwa'
+import { removeWebPushSubscription } from '../pushNotificationsApi'
 import { useDelayedVisibility } from './useDelayedVisibility'
 import type { AiRuntimeStatus, AuthSession, Room, User } from '../types'
 
@@ -104,6 +105,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     try {
       currentUser.value = await getCurrentUser(sessionToken.value)
     } catch {
+      await removeWebPushSubscription()
       sessionToken.value = ''
       currentUser.value = null
       rooms.value = []
@@ -127,6 +129,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   async function handleLogout(): Promise<void> {
     const token = sessionToken.value
     options.closeChat()
+    await removeWebPushSubscription(token).catch(() => {})
     sessionToken.value = ''
     currentUser.value = null
     options.closeUnread()
@@ -145,8 +148,10 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
   }
 
   async function handleAccountDeleted(): Promise<void> {
+    const token = sessionToken.value
     options.closeChat()
     options.closeUnread()
+    await removeWebPushSubscription(token).catch(() => {})
     sessionToken.value = ''
     currentUser.value = null
     clearBootstrapSnapshot(window.sessionStorage)

@@ -19,6 +19,7 @@ pub mod knowledge;
 pub mod messages;
 pub mod models;
 pub mod notifications;
+pub mod push_notifications;
 pub mod realtime;
 pub mod rooms;
 mod routes;
@@ -83,6 +84,9 @@ use crate::state::AppState;
         notifications::handlers::unread_count,
         notifications::handlers::mark_read,
         notifications::handlers::mark_all_read,
+        push_notifications::handlers::public_config,
+        push_notifications::handlers::save_subscription,
+        push_notifications::handlers::delete_subscription,
         attachment_handlers::upload_attachment,
         attachment_handlers::download_attachment,
         attachment_upload_handlers::create_upload,
@@ -207,6 +211,11 @@ use crate::state::AppState;
         notifications::NotificationView,
         notifications::NotificationPage,
         notifications::UnreadCount,
+        push_notifications::handlers::WebPushPublicConfig,
+        push_notifications::SavePushSubscriptionRequest,
+        push_notifications::DeletePushSubscriptionRequest,
+        push_notifications::PushSubscriptionKeys,
+        push_notifications::PushSubscriptionView,
         favorites::models::FavoriteItem,
         favorites::models::CreateFavoriteRequest,
         favorites::models::UpdateFavoriteRequest,
@@ -291,6 +300,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     ai_threads::runs::ensure_dispatcher(state.clone());
     ai_extractions::ensure_dispatcher(state.clone());
     knowledge::ensure_worker(state.clone());
+    push_notifications::delivery::ensure_dispatcher(state.clone());
     let multipart_body_limit = state
         .max_upload_bytes()
         .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);
