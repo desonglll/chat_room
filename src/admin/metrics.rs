@@ -20,10 +20,11 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    admin::services::{collect_service_overview, ServiceOverview},
-    models::User,
+    admin::{
+        access::require_admin,
+        services::{collect_service_overview, ServiceOverview},
+    },
     state::{with_pool, AppState, SharedState},
-    user_handlers::bearer_token,
 };
 
 pub(crate) struct RuntimeMetrics {
@@ -174,22 +175,6 @@ struct OrphanGroup {
     query_key: String,
     storage_key: Option<String>,
     size_bytes: i64,
-}
-
-pub(crate) async fn require_admin(
-    state: &AppState,
-    headers: &HeaderMap,
-) -> Result<User, StatusCode> {
-    let token = bearer_token(headers)?;
-    let user = state
-        .session_user(token)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    state
-        .is_system_admin(&user.username)
-        .then_some(user)
-        .ok_or(StatusCode::FORBIDDEN)
 }
 
 #[utoipa::path(

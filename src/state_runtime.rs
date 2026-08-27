@@ -129,12 +129,8 @@ impl AppState {
         }
     }
 
-    pub(crate) fn is_system_admin(&self, username: &str) -> bool {
-        self.config
-            .admin
-            .usernames
-            .iter()
-            .any(|allowed| allowed.eq_ignore_ascii_case(username))
+    pub(crate) fn registration_mode(&self) -> &str {
+        &self.config.auth.registration_mode
     }
 
     pub(crate) fn orphan_retention_hours(&self) -> i64 {

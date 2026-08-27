@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::metrics::require_admin;
+use super::access::require_admin;
 use crate::state::{with_pool, AppState, SharedState};
 
 const VECTOR_PROBE_TIMEOUT: Duration = Duration::from_secs(5);

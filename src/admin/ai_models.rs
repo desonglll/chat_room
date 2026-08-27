@@ -7,7 +7,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use super::metrics::require_admin;
+use super::access::require_admin;
 use crate::{
     ai::{model_options::validate_model_option, AiModelOptionView, SaveAiModelOption},
     state::SharedState,

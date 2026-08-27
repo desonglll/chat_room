@@ -3,7 +3,7 @@
 use axum::{extract::State, http::HeaderMap, http::StatusCode, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
 
-use super::metrics::require_admin;
+use super::access::require_admin;
 use crate::state::{with_pool, AppState, SharedState};
 
 const VECTOR_SYNC_SQL: &str = "INSERT INTO message_index_outbox \

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use utoipa::ToSchema;
 
-use super::{backup_transfer::WorkDirectory, indexes, metrics::require_admin};
+use super::{access::require_admin, backup_transfer::WorkDirectory, indexes};
 use crate::{backup, state::SharedState};
 
 const RESTORE_REASON: &str = "database restore in progress";

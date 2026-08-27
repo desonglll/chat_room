@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::metrics::require_admin;
+use super::access::require_admin;
 use crate::state::{with_pool, AppState, SharedState};
 
 pub const SYSTEM_LOCK_REASON: &str = "system locked";

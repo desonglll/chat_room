@@ -24,19 +24,22 @@ const MAX_DISPLAY_NAME_CHARS: usize = 48;
 const MAX_SIGNATURE_CHARS: usize = 160;
 const MAX_HOMEPAGE_CHARS: usize = 240;
 
-fn normalize_credentials(request: AuthRequest) -> Result<(String, String), StatusCode> {
-    let username = request.username.trim().to_string();
-    let password_chars = request.password.chars().count();
+pub(super) fn normalize_credentials(
+    username: String,
+    password: String,
+) -> Result<(String, String), StatusCode> {
+    let username = username.trim().to_string();
+    let password_chars = password.chars().count();
     if username.is_empty()
         || username.chars().count() > MAX_USERNAME_CHARS
         || !(MIN_PASSWORD_CHARS..=MAX_PASSWORD_CHARS).contains(&password_chars)
     {
         return Err(StatusCode::BAD_REQUEST);
     }
-    Ok((username, request.password))
+    Ok((username, password))
 }
 
-async fn hash_password(password: String) -> Result<String, StatusCode> {
+pub(super) async fn hash_password(password: String) -> Result<String, StatusCode> {
     tokio::task::spawn_blocking(move || {
         let salt = SaltString::encode_b64(Uuid::new_v4().as_bytes())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -78,43 +81,6 @@ pub(crate) fn optional_bearer_token(headers: &HeaderMap) -> Option<Uuid> {
         .and_then(|value| value.parse().ok())
 }
 
-/// Register an account and immediately issue a login session.
-#[utoipa::path(
-    post,
-    path = "/api/users/register",
-    request_body = AuthRequest,
-    responses(
-        (status = 201, description = "Account registered", body = AuthSession),
-        (status = 400, description = "Invalid username or password"),
-        (status = 409, description = "Username already exists")
-    )
-)]
-pub async fn register(
-    State(state): State<SharedState>,
-    Json(request): Json<AuthRequest>,
-) -> Result<(StatusCode, Json<AuthSession>), StatusCode> {
-    let (username, password) = normalize_credentials(request)?;
-    let password_hash = hash_password(password).await?;
-    let user = match state.insert_user(&username, &password_hash).await {
-        Ok(user) => user,
-        Err(sqlx::Error::Database(error)) if error.is_unique_violation() => {
-            return Err(StatusCode::CONFLICT)
-        }
-        Err(error) => {
-            tracing::error!("register user failed: {}", error);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    state
-        .create_session(user)
-        .await
-        .map(|session| (StatusCode::CREATED, Json(session)))
-        .map_err(|error| {
-            tracing::error!("create registration session failed: {}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
-}
-
 /// Authenticate an account and issue a new login session.
 #[utoipa::path(
     post,
@@ -130,7 +96,7 @@ pub async fn login(
     State(state): State<SharedState>,
     Json(request): Json<AuthRequest>,
 ) -> Result<Json<AuthSession>, StatusCode> {
-    let (username, password) = normalize_credentials(request)?;
+    let (username, password) = normalize_credentials(request.username, request.password)?;
     let Some((user, password_hash)) = state.user_credentials(&username).await.map_err(|error| {
         tracing::error!("load login credentials failed: {}", error);
         StatusCode::INTERNAL_SERVER_ERROR
@@ -365,6 +331,16 @@ pub async fn verify_password(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/users/me",
+    request_body = DeleteAccountRequest,
+    responses(
+        (status = 204, description = "Account deleted"),
+        (status = 401, description = "Incorrect password or expired session"),
+        (status = 409, description = "System administrators must have their role revoked first")
+    )
+)]
 pub async fn delete_account(
     State(state): State<SharedState>,
     headers: HeaderMap,
@@ -385,6 +361,12 @@ pub async fn delete_account(
     };
     if !password_matches(request.current_password, password_hash).await {
         return Err(StatusCode::UNAUTHORIZED);
+    }
+    if state.is_system_admin(current.id).await.map_err(|error| {
+        tracing::error!("check administrator before account deletion failed: {error}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })? {
+        return Err(StatusCode::CONFLICT);
     }
 
     for room in state.list_rooms(None).await {

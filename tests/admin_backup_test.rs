@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 use uuid::Uuid;
 
 mod support;
-use support::session_token;
+use support::{session_token, system_admin_token};
 
 struct Server {
     base: String,
@@ -55,10 +55,11 @@ async fn backup_endpoints_require_admin_and_report_sqlite_as_unsupported() {
         },
         ..AppConfig::default()
     };
-    let server = start(Arc::new(AppState::new_with_config(&config).await.unwrap())).await;
+    let state = Arc::new(AppState::new_with_config(&config).await.unwrap());
+    let server = start(state.clone()).await;
     let client = Client::new();
     let regular = session_token(&server.base, "backup-regular").await;
-    let admin = session_token(&server.base, "backup-admin").await;
+    let admin = system_admin_token(&state, &server.base, "backup-admin").await;
 
     assert_eq!(
         client
@@ -142,7 +143,7 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     );
     let server = start(state.clone()).await;
     let client = Client::new();
-    let admin = session_token(&server.base, "backup-admin").await;
+    let admin = system_admin_token(&state, &server.base, "backup-admin").await;
     let invalid_restore = restore_archive(
         &client,
         &server.base,

@@ -55,6 +55,7 @@ fn all_runtime_sections_can_come_from_the_environment() {
         ("CHAT_ROOM_VECTOR_SCORE_THRESHOLD", "0.7"),
         ("CHAT_ROOM_REALTIME_POLL_INTERVAL_MS", "500"),
         ("CHAT_ROOM_AUTH_SESSION_LIFETIME_DAYS", "14"),
+        ("CHAT_ROOM_AUTH_REGISTRATION_MODE", "disabled"),
         ("CHAT_ROOM_REDIS_KEY_PREFIX", "chat-test"),
         ("CHAT_ROOM_WORK_QUEUE_MESSAGE_CONCURRENCY", "12"),
         ("CHAT_ROOM_ADMIN_ORPHAN_RETENTION_HOURS", "72"),
@@ -77,6 +78,7 @@ fn all_runtime_sections_can_come_from_the_environment() {
     assert_eq!(config.vector_store.score_threshold, 0.7);
     assert_eq!(config.realtime.poll_interval_ms, 500);
     assert_eq!(config.auth.session_lifetime_days, 14);
+    assert_eq!(config.auth.registration_mode, "disabled");
     assert_eq!(config.redis.key_prefix, "chat-test");
     assert_eq!(config.work_queue.message_concurrency, 12);
     assert_eq!(config.admin.orphan_retention_hours, 72);

@@ -106,6 +106,8 @@ poke_cooldown_secs = 5
 
 [auth]
 session_lifetime_days = 30
+# open, invite_only, or disabled
+registration_mode = "open"
 
 [redis]
 # Redis accelerates bearer-session lookups and message history pages.

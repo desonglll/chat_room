@@ -3,7 +3,10 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
-use chat_room::{backup, build_app_with_web, config::AppConfig, state::AppState};
+use chat_room::{
+    admin_system_admins::AdminRoleError, backup, build_app_with_web, config::AppConfig,
+    state::AppState,
+};
 use clap::{Parser, Subcommand, ValueEnum};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -67,6 +70,12 @@ enum MaintenanceCommand {
         #[arg(short, long, value_name = "DIRECTORY")]
         input: PathBuf,
     },
+    /// Grant the first persistent system administrator from the local database.
+    BootstrapAdmin {
+        /// Existing account username to grant.
+        #[arg(long)]
+        username: String,
+    },
 }
 
 impl Args {
@@ -100,12 +109,10 @@ async fn main() -> Result<()> {
         }
     });
     if let Some(command) = &args.command {
-        if !matches!(database_type, DatabaseType::Postgres) {
-            anyhow::bail!("export and restore require PostgreSQL; select --database-type postgres");
-        }
-        let url = postgres_url(&args, &config)?;
         match command {
             MaintenanceCommand::Export { output } => {
+                require_postgres(database_type)?;
+                let url = postgres_url(&args, &config)?;
                 let manifest = backup::export_postgres(&config, &url, output).await?;
                 let bytes: u64 = manifest.files.iter().map(|file| file.size_bytes).sum();
                 println!(
@@ -116,6 +123,8 @@ async fn main() -> Result<()> {
                 );
             }
             MaintenanceCommand::Restore { input } => {
+                require_postgres(database_type)?;
+                let url = postgres_url(&args, &config)?;
                 let outcome = backup::restore_postgres(&config, &url, input).await?;
                 println!("backup restored from {}", input.display());
                 if let Some(previous) = outcome.previous_attachments {
@@ -125,23 +134,21 @@ async fn main() -> Result<()> {
                     println!("cleared {} Redis cache keys", outcome.redis_keys_cleared);
                 }
             }
+            MaintenanceCommand::BootstrapAdmin { username } => {
+                let state = open_state(&args, &config, database_type).await?;
+                let admin = state
+                    .bootstrap_system_admin(username)
+                    .await
+                    .map_err(bootstrap_error)?;
+                println!(
+                    "system administrator granted to {} ({})",
+                    admin.user.username, admin.user.id
+                );
+            }
         }
         return Ok(());
     }
-    let state = Arc::new(match database_type {
-        DatabaseType::Sqlite => {
-            let path = args
-                .database
-                .or_else(|| std::env::var("CHAT_ROOM_DATABASE_PATH").ok())
-                .map(PathBuf::from)
-                .unwrap_or_else(|| config.database.sqlite_path.clone());
-            AppState::open_with_config(&path, &config).await?
-        }
-        DatabaseType::Postgres => {
-            let url = postgres_url(&args, &config)?;
-            AppState::open_postgres(&url, &config).await?
-        }
-    });
+    let state = Arc::new(open_state(&args, &config, database_type).await?);
     let web_enabled = !args.no_web;
     let app = build_app_with_web(state, web_enabled);
 
@@ -158,6 +165,50 @@ async fn main() -> Result<()> {
     }
 
     axum::serve(listener, app).await.context("serve chat room")
+}
+
+async fn open_state(
+    args: &Args,
+    config: &AppConfig,
+    database_type: DatabaseType,
+) -> Result<AppState> {
+    match database_type {
+        DatabaseType::Sqlite => {
+            let path = args
+                .database
+                .clone()
+                .or_else(|| std::env::var("CHAT_ROOM_DATABASE_PATH").ok())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| config.database.sqlite_path.clone());
+            AppState::open_with_config(&path, config).await
+        }
+        DatabaseType::Postgres => {
+            let url = postgres_url(args, config)?;
+            AppState::open_postgres(&url, config).await
+        }
+    }
+}
+
+fn require_postgres(database_type: DatabaseType) -> Result<()> {
+    if !matches!(database_type, DatabaseType::Postgres) {
+        anyhow::bail!("export and restore require PostgreSQL; select --database-type postgres");
+    }
+    Ok(())
+}
+
+fn bootstrap_error(error: AdminRoleError) -> anyhow::Error {
+    match error {
+        AdminRoleError::UserNotFound => anyhow::anyhow!("bootstrap account does not exist"),
+        AdminRoleError::BootstrapUnavailable => {
+            anyhow::anyhow!("system administrator bootstrap has already completed")
+        }
+        AdminRoleError::Database(error) => anyhow::Error::new(error),
+        AdminRoleError::AdministratorNotFound
+        | AdminRoleError::Forbidden
+        | AdminRoleError::LastAdministrator => {
+            anyhow::anyhow!("system administrator bootstrap is unavailable")
+        }
+    }
 }
 
 fn postgres_url(args: &Args, config: &AppConfig) -> Result<String> {
@@ -235,6 +286,20 @@ mod tests {
             restore.command,
             Some(MaintenanceCommand::Restore { input })
                 if input.as_path() == std::path::Path::new("backups/complete")
+        ));
+
+        let bootstrap = Args::try_parse_from([
+            "server",
+            "bootstrap-admin",
+            "--username",
+            "ops-admin",
+            "--database",
+            "rooms.sqlite",
+        ])
+        .unwrap();
+        assert!(matches!(
+            bootstrap.command,
+            Some(MaintenanceCommand::BootstrapAdmin { username }) if username == "ops-admin"
         ));
     }
 }

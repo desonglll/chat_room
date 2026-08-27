@@ -164,6 +164,10 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         config.auth.session_lifetime_days,
         "CHAT_ROOM_AUTH_SESSION_LIFETIME_DAYS"
     );
+    string!(
+        config.auth.registration_mode,
+        "CHAT_ROOM_AUTH_REGISTRATION_MODE"
+    );
 
     parse!(config.ai.enabled, "CHAT_ROOM_AI_ENABLED");
     string!(config.ai.provider, "CHAT_ROOM_AI_PROVIDER");

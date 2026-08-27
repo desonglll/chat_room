@@ -11,13 +11,14 @@ use tokio::net::TcpListener;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 mod support;
-use support::session_token;
+use support::{session_token, system_admin_token};
 
 type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 struct Server {
     base: String,
+    state: Arc<AppState>,
     task: tokio::task::JoinHandle<()>,
 }
 
@@ -38,10 +39,11 @@ async fn start() -> Server {
     let state = Arc::new(AppState::new_with_config(&config).await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let task = tokio::spawn(async move {
-        axum::serve(listener, build_app(state)).await.unwrap();
+    let task = tokio::spawn({
+        let state = state.clone();
+        async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
-    Server { base, task }
+    Server { base, state, task }
 }
 
 async fn next_json(socket: &mut Socket) -> serde_json::Value {
@@ -108,7 +110,7 @@ async fn set_room_lock(
 async fn administrators_can_lock_and_unlock_every_chat_room() {
     let server = start().await;
     let client = Client::new();
-    let admin = session_token(&server.base, "ops-admin").await;
+    let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
     let regular = session_token(&server.base, "lock-regular").await;
     let visitor = session_token(&server.base, "lock-visitor").await;
     let room: serde_json::Value = client
@@ -218,7 +220,7 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
 async fn administrators_can_lock_one_room_without_affecting_others() {
     let server = start().await;
     let client = Client::new();
-    let admin = session_token(&server.base, "ops-admin").await;
+    let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
     let regular = session_token(&server.base, "room-lock-regular").await;
     let visitor = session_token(&server.base, "room-lock-visitor").await;
     let first: serde_json::Value = client

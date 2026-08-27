@@ -38,7 +38,7 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
     );
     let server = start_server_with_state(state.clone()).await;
 
-    let admin_token = session_token(&server, "pg-admin").await;
+    let admin_token = super::support::system_admin_token(&state, &server, "pg-admin").await;
     let overview_response = reqwest::Client::new()
         .get(format!("{server}/api/admin/overview"))
         .bearer_auth(admin_token)

@@ -12,7 +12,7 @@ use tokio::net::TcpListener;
 use uuid::Uuid;
 
 mod support;
-use support::session_token;
+use support::{session_token, system_admin_token};
 
 struct Server {
     base: String,
@@ -64,7 +64,7 @@ async fn overview_requires_allowlisted_authenticated_account() {
     let server = start().await;
     let client = reqwest::Client::new();
     let regular = session_token(&server.base, "regular-user").await;
-    let admin = session_token(&server.base, "ops-admin").await;
+    let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
     create_room(&server.base, &admin, "admin-visible-room").await;
 
     assert_eq!(
@@ -158,7 +158,7 @@ async fn unavailable_vector_store_is_reported_without_stopping_the_server() {
         async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
     let server = Server { base, state, task };
-    let admin = session_token(&server.base, "vector-admin").await;
+    let admin = system_admin_token(&server.state, &server.base, "vector-admin").await;
     let overview: serde_json::Value = reqwest::Client::new()
         .get(format!("{}/api/admin/overview", server.base))
         .bearer_auth(admin)
@@ -179,7 +179,7 @@ async fn unavailable_vector_store_is_reported_without_stopping_the_server() {
 async fn purge_removes_only_data_older_than_configured_retention() {
     let server = start().await;
     let client = reqwest::Client::new();
-    let admin = session_token(&server.base, "OPS-ADMIN").await;
+    let admin = system_admin_token(&server.state, &server.base, "OPS-ADMIN").await;
     let room = create_room(&server.base, &admin, "retention-room").await;
     let room_id = Uuid::parse_str(room["id"].as_str().unwrap()).unwrap();
     let part = multipart::Part::bytes(b"expired-orphan".to_vec())
@@ -269,7 +269,7 @@ async fn purge_removes_only_data_older_than_configured_retention() {
 async fn purge_preserves_a_deleted_room_while_its_video_is_favorited() {
     let server = start().await;
     let client = reqwest::Client::new();
-    let admin = session_token(&server.base, "ops-admin").await;
+    let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
     let room = create_room(&server.base, &admin, "favorited-retention-room").await;
     let room_id = Uuid::parse_str(room["id"].as_str().unwrap()).unwrap();
     let part = multipart::Part::bytes(b"favorite-video".to_vec())

@@ -9,7 +9,7 @@ use reqwest::{Client, StatusCode};
 use tokio::net::TcpListener;
 
 mod support;
-use support::session_token;
+use support::{session_token, system_admin_token};
 
 #[tokio::test]
 async fn admins_manage_model_options_and_users_select_only_enabled_models() {
@@ -23,11 +23,12 @@ async fn admins_manage_model_options_and_users_select_only_enabled_models() {
     let state = Arc::new(AppState::new_with_config(&config).await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let server = tokio::spawn(async move {
-        axum::serve(listener, build_app(state)).await.unwrap();
+    let server = tokio::spawn({
+        let state = state.clone();
+        async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
     let client = Client::new();
-    let admin = session_token(&base, "model-admin").await;
+    let admin = system_admin_token(&state, &base, "model-admin").await;
     let regular = session_token(&base, "model-regular").await;
 
     assert_eq!(

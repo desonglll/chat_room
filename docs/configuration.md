@@ -98,9 +98,14 @@ rerank_score_threshold = 0.35
 worker_interval_ms = 500
 
 [admin]
+# Deprecated one-time upgrade import; persistent roles use user IDs.
 usernames = []
 orphan_retention_hours = 168
 deleted_room_retention_days = 30
+
+[auth]
+session_lifetime_days = 30
+registration_mode = "open"
 ```
 
 `max_file_size_mib` is the maximum size of one file, measured in MiB. It must
@@ -306,14 +311,29 @@ The `/admin` dependency section can also enqueue a full vector synchronization
 manually. This resets failed retries and is safe to run while the worker is
 active.
 
-The system dashboard is available at `/admin`. Access requires a normal logged
-in account whose username appears in `admin.usernames` (case-insensitive).
-An environment variable can override the list at startup without changing the
-file:
+The system dashboard is available at `/admin`. Access requires a persistent
+system-administrator role tied to the account ID. For a new deployment, first
+register the account while registration is open, stop the server, and grant the
+first role through local database access:
 
 ```sh
-CHAT_ROOM_ADMIN_USERNAMES=ops-admin,on-call cargo run --bin server
+cargo run --bin server -- bootstrap-admin --username ops-admin
 ```
+
+The command succeeds only once and never sends a bootstrap secret over HTTP.
+Afterward, an administrator can grant or revoke other administrators through
+`/api/admin/system-admins`; the last administrator cannot be revoked or delete
+their account.
+
+`admin.usernames` and `CHAT_ROOM_ADMIN_USERNAMES` are deprecated upgrade aids.
+On the first startup with this schema, matching accounts that already exist are
+imported once and the setting is permanently ignored afterward. Registering an
+unclaimed configured name later never grants authority.
+
+Set `auth.registration_mode` (or `CHAT_ROOM_AUTH_REGISTRATION_MODE`) to `open`,
+`invite_only`, or `disabled`. In invite-only mode, an administrator creates a
+one-time invitation at `POST /api/admin/registration-invites`; only its hash is
+stored, it expires, and the bearer value is returned only in that response.
 
 The dashboard reports request latency, connections, rooms, messages, sessions,
 and logical/physical attachment usage. Its maintenance action permanently

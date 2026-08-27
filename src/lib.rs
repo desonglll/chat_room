@@ -28,10 +28,11 @@ pub mod storage;
 pub mod web;
 mod work_queue;
 
-pub use accounts::{account_ws, avatar_handlers, user_handlers, users};
+pub use accounts::{account_ws, avatar_handlers, registration, user_handlers, users};
 pub use admin::{
     ai_models as admin_ai_models, backups as admin_backups, metrics as admin_metrics,
-    services as admin_services, system_lock as admin_system_lock,
+    services as admin_services, system_admins as admin_system_admins,
+    system_lock as admin_system_lock,
 };
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
@@ -86,12 +87,13 @@ use crate::state::AppState;
         attachment_upload_handlers::list_uploads,
         attachment_upload_handlers::cancel_upload,
         file_handlers::list_room_files,
-        user_handlers::register,
+        registration::register,
         user_handlers::login,
         user_handlers::me,
         user_handlers::verify_password,
         user_handlers::get_user,
         user_handlers::update_me,
+        user_handlers::delete_account,
         avatar_handlers::upload_avatar,
         avatar_handlers::download_avatar,
         user_handlers::logout,
@@ -145,6 +147,10 @@ use crate::state::AppState;
         admin_system_lock::update,
         admin_system_lock::room_status,
         admin_system_lock::update_room,
+        admin_system_admins::handlers::list,
+        admin_system_admins::handlers::grant,
+        admin_system_admins::handlers::revoke,
+        admin_system_admins::handlers::create_invite,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -202,6 +208,7 @@ use crate::state::AppState;
         models::User,
         models::UserSummary,
         models::AuthRequest,
+        registration::RegisterRequest,
         models::AuthSession,
         models::UpdateProfileRequest,
         models::ChangePasswordRequest,
@@ -230,6 +237,9 @@ use crate::state::AppState;
         admin_system_lock::SystemLockStatus,
         admin_system_lock::UpdateSystemLockRequest,
         admin_system_lock::RoomLockStatus,
+        admin_system_admins::SystemAdminView,
+        admin_system_admins::CreateRegistrationInviteRequest,
+        admin_system_admins::RegistrationInviteSecret,
     ))
 )]
 pub struct ApiDoc;

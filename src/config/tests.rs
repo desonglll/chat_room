@@ -27,6 +27,7 @@ fn defaults_match_the_previous_hardcoded_constants() {
     assert_eq!(config.realtime.message_poll_limit, 200);
     assert_eq!(config.realtime.poke_cooldown_secs, 5);
     assert_eq!(config.auth.session_lifetime_days, 30);
+    assert_eq!(config.auth.registration_mode, "open");
     assert!(config.admin.usernames.is_empty());
     assert_eq!(config.admin.orphan_retention_hours, 168);
     assert_eq!(config.ai.request_timeout_secs, 60);
@@ -53,17 +54,20 @@ fn rejects_invalid_cache_and_work_queue_limits() {
 #[test]
 fn parses_realtime_and_auth_overrides() {
     let parsed: AppConfig = toml::from_str(
-        "[realtime]\npoll_interval_ms = 500\nmessage_poll_limit = 50\n[auth]\nsession_lifetime_days = 7",
+        "[realtime]\npoll_interval_ms = 500\nmessage_poll_limit = 50\n[auth]\nsession_lifetime_days = 7\nregistration_mode = 'invite_only'",
     )
     .unwrap();
     let config = parsed.validate().unwrap();
     assert_eq!(config.realtime.poll_interval_ms, 500);
     assert_eq!(config.realtime.message_poll_limit, 50);
     assert_eq!(config.auth.session_lifetime_days, 7);
+    assert_eq!(config.auth.registration_mode, "invite_only");
     assert_eq!(config.realtime.heartbeat_interval_secs, 15);
 
     let invalid: AppConfig = toml::from_str("[auth]\nsession_lifetime_days = 0").unwrap();
     assert!(invalid.validate().is_err());
+    let invalid_mode: AppConfig = toml::from_str("[auth]\nregistration_mode = 'private'").unwrap();
+    assert!(invalid_mode.validate().is_err());
 }
 
 #[test]

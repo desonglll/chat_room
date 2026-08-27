@@ -13,12 +13,14 @@ use anyhow::{bail, Context, Result};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
+mod auth;
 mod environment;
 mod performance;
 #[cfg(test)]
 mod tests;
 mod vector_store;
 
+pub use auth::AuthConfig;
 pub use performance::{RedisConfig, WorkQueueConfig};
 pub use vector_store::VectorStoreConfig;
 
@@ -173,22 +175,8 @@ impl Default for RealtimeConfig {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
-pub struct AuthConfig {
-    pub session_lifetime_days: i64,
-}
-
-impl Default for AuthConfig {
-    fn default() -> Self {
-        Self {
-            session_lifetime_days: 30,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(default)]
 pub struct AdminConfig {
-    /// Case-insensitive usernames allowed to access system-wide operations.
+    /// Deprecated one-time import of existing accounts into persistent roles.
     pub usernames: Vec<String>,
     pub orphan_retention_hours: i64,
     pub deleted_room_retention_days: i64,
@@ -269,6 +257,12 @@ impl AppConfig {
         }
         if self.auth.session_lifetime_days <= 0 {
             bail!("auth.session_lifetime_days must be greater than zero");
+        }
+        if !matches!(
+            self.auth.registration_mode.as_str(),
+            "open" | "invite_only" | "disabled"
+        ) {
+            bail!("auth.registration_mode must be open, invite_only, or disabled");
         }
         if self.admin.orphan_retention_hours <= 0 {
             bail!("admin.orphan_retention_hours must be greater than zero");
@@ -422,6 +416,7 @@ pub struct PublicConfig {
     max_upload_bytes: usize,
     ai_enabled: bool,
     ai_status: AiRuntimeStatus,
+    registration_mode: String,
 }
 
 pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfig> {
@@ -437,5 +432,6 @@ pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfi
         max_upload_bytes: state.max_upload_bytes(),
         ai_enabled: ai_status == AiRuntimeStatus::Ready,
         ai_status,
+        registration_mode: state.registration_mode().to_string(),
     })
 }

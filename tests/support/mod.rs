@@ -21,3 +21,21 @@ pub async fn session_token(base: &str, username: &str) -> String {
         .unwrap()
         .to_string()
 }
+
+#[allow(dead_code)]
+pub async fn system_admin_token(
+    state: &chat_room::state::AppState,
+    base: &str,
+    username: &str,
+) -> String {
+    let token = session_token(base, username).await;
+    let user = state
+        .session_user(uuid::Uuid::parse_str(&token).unwrap())
+        .await
+        .unwrap()
+        .unwrap();
+    if !state.is_system_admin(user.id).await.unwrap() {
+        state.bootstrap_system_admin(username).await.unwrap();
+    }
+    token
+}

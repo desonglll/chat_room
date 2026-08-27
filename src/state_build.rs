@@ -153,6 +153,16 @@ impl AppState {
             message_index_worker_started: AtomicBool::new(false),
             backup_runtime: crate::state_backup::BackupRuntime::default(),
         };
+        let imported = state
+            .import_legacy_system_admins(&state.config.admin.usernames)
+            .await
+            .context("import legacy system administrators")?;
+        if imported > 0 {
+            tracing::warn!(
+                imported,
+                "imported deprecated admin.usernames entries as persistent administrators"
+            );
+        }
         state.backfill_attachment_content_hashes().await?;
         Ok(state)
     }

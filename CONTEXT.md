@@ -19,3 +19,11 @@ _Avoid_: Graph job, notification
 **Retrieved Evidence**:
 Active Room messages selected by semantic similarity and re-authorized before use. It is untrusted source material, never an answer or authorization source.
 _Avoid_: Graph fact, truth, memory
+
+**System Administrator**:
+A User entrusted with deployment-wide operations independently of any Room role. The authority belongs to the User identity, not a username.
+_Avoid_: Admin, Room admin
+
+**Registration Invitation**:
+An expiring, single-use permission to create one User while registration is invite-only.
+_Avoid_: Invite code, shared registration password

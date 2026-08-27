@@ -76,11 +76,13 @@ export interface AuthSession {
 }
 
 export type AiRuntimeStatus = 'disabled' | 'missing_credentials' | 'ready'
+export type RegistrationMode = 'open' | 'invite_only' | 'disabled'
 
 export interface PublicConfig {
   max_upload_bytes: number
   ai_enabled: boolean
   ai_status: AiRuntimeStatus
+  registration_mode: RegistrationMode
 }
 
 export interface AiSuggestions {

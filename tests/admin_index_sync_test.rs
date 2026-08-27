@@ -12,7 +12,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use uuid::Uuid;
 
 mod support;
-use support::session_token;
+use support::{session_token, system_admin_token};
 
 type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
@@ -177,7 +177,7 @@ async fn admin_can_resync_the_vector_outbox() {
     .unwrap();
     assert_eq!(graph_tables, 0);
     let client = reqwest::Client::new();
-    let admin_token = session_token(&server.base, "index-admin").await;
+    let admin_token = system_admin_token(&server.state, &server.base, "index-admin").await;
     let regular_token = session_token(&server.base, "index-user").await;
     let admin = server
         .state

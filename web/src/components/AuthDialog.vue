@@ -6,9 +6,10 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import SelectButton from 'primevue/selectbutton'
-import { loginUser, registerUser } from '../api'
+import { getPublicConfig } from '../api'
+import { loginUser, registerUser } from '../accountAuthApi'
 import ScopedPasswordField from './ScopedPasswordField.vue'
-import type { AuthSession } from '../types'
+import type { AuthSession, RegistrationMode } from '../types'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -19,12 +20,14 @@ const emit = defineEmits<{
 const mode = ref<'login' | 'register'>('login')
 const username = ref('')
 const password = ref('')
+const inviteToken = ref('')
 const error = ref('')
 const busy = ref(false)
-const modeOptions = [
+const registrationMode = ref<RegistrationMode>('open')
+const modeOptions = computed(() => [
   { label: '登录', value: 'login' },
-  { label: '注册', value: 'register' },
-]
+  ...(registrationMode.value === 'disabled' ? [] : [{ label: '注册', value: 'register' as const }]),
+])
 const visible = computed({
   get: () => props.open,
   set: (value: boolean) => {
@@ -37,7 +40,14 @@ watch(
   (open) => {
     if (!open) return
     password.value = ''
+    inviteToken.value = ''
     error.value = ''
+    void getPublicConfig()
+      .then((config) => {
+        registrationMode.value = config.registration_mode
+        if (config.registration_mode === 'disabled') mode.value = 'login'
+      })
+      .catch(() => {})
   },
 )
 
@@ -62,7 +72,7 @@ async function submit(): Promise<void> {
   try {
     const session =
       mode.value === 'register'
-        ? await registerUser(normalizedUsername, password.value)
+        ? await registerUser(normalizedUsername, password.value, inviteToken.value.trim())
         : await loginUser(normalizedUsername, password.value)
     emit('authenticated', session)
   } catch (caught) {
@@ -82,7 +92,8 @@ async function submit(): Promise<void> {
         option-label="label"
         option-value="value"
         :allow-empty="false"
-        class="grid grid-cols-2"
+        class="grid"
+        :class="registrationMode === 'disabled' ? 'grid-cols-1' : 'grid-cols-2'"
       />
 
       <div class="flex flex-col gap-2">
@@ -108,6 +119,19 @@ async function submit(): Promise<void> {
           :name="mode === 'register' ? 'account-new-password' : 'account-current-password'"
           :scope="mode === 'register' ? 'account-new' : 'account-current'"
           required
+        />
+      </div>
+
+      <div v-if="mode === 'register' && registrationMode === 'invite_only'" class="flex flex-col gap-2">
+        <label for="accountInvite" class="text-sm font-medium">一次性邀请码</label>
+        <InputText
+          id="accountInvite"
+          v-model="inviteToken"
+          name="account-invite"
+          autocomplete="off"
+          spellcheck="false"
+          required
+          fluid
         />
       </div>
 

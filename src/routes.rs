@@ -6,11 +6,11 @@ use axum::{routing::get, Router};
 
 use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
-    admin_system_lock, ai, ai_handlers, ai_threads, attachment_handlers,
+    admin_system_admins, admin_system_lock, ai, ai_handlers, ai_threads, attachment_handlers,
     attachment_upload_handlers, avatar_handlers, config, conversations, direct_conversations,
     favorites, file_handlers, forward_handlers, handlers, membership_handlers,
-    message_global_search, message_pins, message_search, notifications, room_query_handlers,
-    social, state::AppState, user_handlers, ws,
+    message_global_search, message_pins, message_search, notifications, registration,
+    room_query_handlers, social, state::AppState, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -133,7 +133,7 @@ pub(crate) fn api_routes(
         )
         .route(
             "/api/users/register",
-            axum::routing::post(user_handlers::register),
+            axum::routing::post(registration::register),
         )
         .route(
             "/api/users/login",
@@ -261,6 +261,15 @@ pub(crate) fn api_routes(
             axum::routing::post(user_handlers::logout),
         )
         .route("/api/admin/overview", get(admin_metrics::overview))
+        .route("/api/admin/system-admins", get(admin_system_admins::list))
+        .route(
+            "/api/admin/system-admins/:user_id",
+            axum::routing::put(admin_system_admins::grant).delete(admin_system_admins::revoke),
+        )
+        .route(
+            "/api/admin/registration-invites",
+            axum::routing::post(admin_system_admins::create_invite),
+        )
         .route(
             "/api/admin/vector/probe",
             axum::routing::post(admin_services::probe_vector_search),
