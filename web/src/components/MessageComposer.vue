@@ -10,7 +10,8 @@ import { shouldSubmitMessage } from '../composer'
 import { formatUploadLimit } from '../api'
 import { useAiComposerSuggestions } from '../composables/useAiComposerSuggestions'
 import { useComposerMentions } from '../composables/useComposerMentions'
-import type { BroadcastMessage, RoomMember, SendShortcut } from '../types'
+import { useConversationDraft, type ConversationDraftContext } from '../composables/useConversationDraft'
+import type { BroadcastMessage, DisplayMessage, RoomMember, SendShortcut } from '../types'
 
 const EmojiPicker = defineAsyncComponent(() => import('./EmojiPicker.vue'))
 
@@ -27,7 +28,9 @@ const props = defineProps<{
   sendShortcut: SendShortcut
   maxUploadBytes: number
   participants: RoomMember[]
+  draftContext: ConversationDraftContext
   roomId: string
+  messages: DisplayMessage[]
   token: string
   password: string
   aiEnabled: boolean
@@ -39,8 +42,8 @@ const emit = defineEmits<{
   upload: [files: File[], content: string, replyTo: string, isSensitive: boolean]
   edit: [messageId: string, content: string]
   typing: [content: string]
-  cancelReply: []
   cancelEdit: []
+  'update:replyingTo': [message: BroadcastMessage | null]
 }>()
 
 const messageInput = ref<{ $el: HTMLTextAreaElement } | null>(null)
@@ -87,24 +90,21 @@ const canSend = computed(() => !props.disabled && Boolean(draft.value.trim() || 
 
 watch(draft, (content) => emit('typing', content))
 
+useConversationDraft(props, {
+  draft,
+  updateReply: (message) => emit('update:replyingTo', message),
+  editingLoaded: () => {
+    clearFiles()
+    const input = messageInput.value?.$el
+    input?.focus()
+    input?.setSelectionRange(input.value.length, input.value.length)
+  },
+})
+
 watch(
   () => props.replyingTo?.message_id,
   (messageId) => {
     if (messageId) void nextTick(() => messageInput.value?.$el.focus())
-  },
-)
-
-watch(
-  () => props.editingTo?.message_id,
-  (messageId) => {
-    if (!messageId || !props.editingTo) return
-    clearFiles()
-    draft.value = props.editingTo.content
-    void nextTick(() => {
-      const input = messageInput.value?.$el
-      input?.focus()
-      input?.setSelectionRange(input.value.length, input.value.length)
-    })
   },
 )
 
@@ -176,7 +176,7 @@ function submitMessage(): void {
   }
   draft.value = ''
   clearFiles()
-  emit('cancelReply')
+  emit('update:replyingTo', null)
 }
 
 function onComposerKeydown(event: KeyboardEvent): void {
@@ -260,7 +260,7 @@ defineExpose({ addFiles, focus })
       :editing="editingTo"
       :replying="replyingTo"
       @cancel-edit="cancelEditing"
-      @cancel-reply="emit('cancelReply')"
+      @cancel-reply="emit('update:replyingTo', null)"
     />
     <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
 

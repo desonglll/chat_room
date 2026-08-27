@@ -118,9 +118,7 @@ const viewState = computed(() =>
 )
 const router = useRouter()
 const canPin = computed(
-  () =>
-    props.conversation?.kind === 'direct' ||
-    (props.conversation?.kind === 'group' && ['owner', 'admin'].includes(props.room?.membership_role || '')),
+  () => props.conversation?.kind === 'direct' || ['owner', 'admin'].includes(props.room?.membership_role || ''),
 )
 const { searchOpen, locateMessage, locateSearchResult } = useRoomMessageNavigation({
   roomId: () => props.room?.id || '',
@@ -345,17 +343,18 @@ watch(
         <MessageComposer
           ref="composerRef"
           :key="room?.id || ''"
-          :replying-to="replyingTo"
+          v-model:replying-to="replyingTo"
           :editing-to="editingTo"
           :send-shortcut="sendShortcut"
           :max-upload-bytes="maxUploadBytes"
           :participants="participants"
+          :draft-context="{ userId: currentUserId, ready: historyReady }"
           :room-id="room?.id || ''"
+          :messages="messages"
           :token="token"
           :password="password"
           :ai-enabled="aiEnabled"
           :disabled="!authenticated"
-          @cancel-reply="replyingTo = null"
           @cancel-edit="editingTo = null"
           @send="sendMessage"
           @edit="editMessage"
