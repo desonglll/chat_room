@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import { Archive, BellOff, Pin } from 'lucide-vue-next'
 import { avatarColor } from '../avatarColor'
-import { conversationAttentionCount, conversationDisplayTitle, conversationPreview } from '../conversationState'
+import {
+  conversationAttentionCount,
+  conversationDisplayTitle,
+  conversationPreview,
+  isConversationMuted,
+} from '../conversationState'
 import type { ConversationSummary } from '../types'
 import IconSprite from './IconSprite.vue'
 
@@ -77,6 +83,18 @@ function formatActivity(value: string): string {
         <IconSprite :name="conversation.kind === 'direct' ? 'message' : 'rooms'" :size="13" />
         {{ conversation.kind === 'direct' ? '私聊' : '群聊' }}
       </small>
+      <span
+        v-if="
+          conversation.preferences.is_pinned ||
+          conversation.preferences.is_archived ||
+          isConversationMuted(conversation)
+        "
+        class="flex shrink-0 items-center gap-1 text-muted-color"
+      >
+        <Pin v-if="conversation.preferences.is_pinned" :size="12" aria-label="已置顶" />
+        <Archive v-if="conversation.preferences.is_archived" :size="12" aria-label="已归档" />
+        <BellOff v-if="isConversationMuted(conversation)" :size="12" aria-label="已静音" />
+      </span>
       <span
         v-if="conversationAttentionCount(conversation) > 0"
         class="cr-unread-badge grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[10px] font-semibold leading-5"

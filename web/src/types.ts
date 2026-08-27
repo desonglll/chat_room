@@ -43,15 +43,7 @@ export interface FriendRequest {
   created_at: string
 }
 
-export interface MessagePreview {
-  message_id: string
-  sender_id: string | null
-  sender: string
-  content: string
-  attachment_file_name: string | null
-  recalled: boolean
-  created_at: string
-}
+export type { MessagePreview } from './conversationTypes'
 
 export interface ConversationSummary {
   room_id: string
@@ -64,7 +56,8 @@ export interface ConversationSummary {
   peer: UserSummary | null
   unread_count: number
   pending_join_requests: number
-  last_message: MessagePreview | null
+  preferences: import('./conversationPreferencesApi').ConversationPreferences
+  last_message: import('./conversationTypes').MessagePreview | null
   last_activity_at: string
   created_at: string
 }

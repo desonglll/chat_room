@@ -36,6 +36,12 @@ describe('mobile workspace layout contract', () => {
     expect(app).toContain(":visible=\"activePage === 'chat' && mobileView === 'rooms'\"")
   })
 
+  test('keeps conversation actions visible and named on mobile', () => {
+    const sidebar = source('./components/RoomSidebar.vue')
+    expect(sidebar).toContain('max-md:opacity-100')
+    expect(sidebar).toContain('的更多操作')
+  })
+
   test('embeds the current room AI beside chat on desktop and as an overlay on mobile', () => {
     const app = source('./App.vue')
     const assistant = source('./components/AiAssistantPage.vue')

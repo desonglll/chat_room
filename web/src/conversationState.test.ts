@@ -5,6 +5,7 @@ import {
   conversationPreview,
   conversationDisplayTitle,
   conversationToRoom,
+  isConversationMuted,
   removeConversation,
   shouldRevealConversationPreview,
   sortConversations,
@@ -23,6 +24,14 @@ function conversation(overrides: Partial<ConversationSummary> = {}): Conversatio
     peer: null,
     unread_count: 0,
     pending_join_requests: 0,
+    preferences: {
+      room_id: 'room-1',
+      is_pinned: false,
+      is_archived: false,
+      notification_level: 'all',
+      muted_until: null,
+      updated_at: '2026-08-19T08:00:00Z',
+    },
     last_message: null,
     last_activity_at: '2026-08-19T08:00:00Z',
     created_at: '2026-08-18T08:00:00Z',
@@ -45,6 +54,43 @@ describe('conversation state', () => {
 
     expect(sortConversations(source).map((item) => item.room_id)).toEqual(['newer', 'older'])
     expect(source).toEqual([older, newer])
+  })
+
+  it('sorts active pinned conversations first and archived conversations last', () => {
+    const pinned = conversation({
+      room_id: 'pinned',
+      preferences: { ...conversation().preferences, room_id: 'pinned', is_pinned: true },
+    })
+    const recent = conversation({ room_id: 'recent', last_activity_at: '2026-08-20T09:00:00Z' })
+    const archived = conversation({
+      room_id: 'archived',
+      last_activity_at: '2026-08-21T09:00:00Z',
+      preferences: { ...conversation().preferences, room_id: 'archived', is_archived: true, is_pinned: true },
+    })
+
+    expect(sortConversations([archived, recent, pinned]).map((item) => item.room_id)).toEqual([
+      'pinned',
+      'recent',
+      'archived',
+    ])
+  })
+
+  it('recognizes explicit and time-bound mute settings', () => {
+    expect(
+      isConversationMuted(conversation({ preferences: { ...conversation().preferences, notification_level: 'none' } })),
+    ).toBe(true)
+    expect(
+      isConversationMuted(
+        conversation({ preferences: { ...conversation().preferences, muted_until: '2030-01-01T00:00:00Z' } }),
+        Date.parse('2029-01-01T00:00:00Z'),
+      ),
+    ).toBe(true)
+    expect(
+      isConversationMuted(
+        conversation({ preferences: { ...conversation().preferences, muted_until: '2028-01-01T00:00:00Z' } }),
+        Date.parse('2029-01-01T00:00:00Z'),
+      ),
+    ).toBe(false)
   })
 
   it('removes a room immediately after a successful leave', () => {
@@ -75,6 +121,31 @@ describe('conversation state', () => {
     expect(result[0]).toMatchObject({ room_id: 'room-1', kind: 'direct', title: '小林' })
     expect(result[0].last_message).toMatchObject({ message_id: 'message-2', content: '晚上见' })
     expect(result[0].unread_count).toBe(1)
+  })
+
+  it('keeps an archived conversation archived when a new message arrives', () => {
+    const archived = conversation({
+      preferences: { ...conversation().preferences, is_archived: true },
+    })
+    const event: AccountMessageEvent = {
+      type: 'new_message',
+      message_id: 'message-archived',
+      room_id: archived.room_id,
+      room_name: archived.title,
+      conversation_kind: 'group',
+      conversation_title: archived.title,
+      sender_id: 'member-1',
+      sender: '成员',
+      content: '归档后的新消息',
+      attachment_file_name: null,
+      timestamp: '2026-08-20T10:00:00Z',
+      is_mention: false,
+    }
+
+    const result = applyAccountMessage([archived], event)
+
+    expect(result[0]?.preferences.is_archived).toBe(true)
+    expect(result[0]?.unread_count).toBe(1)
   })
 
   it('projects a direct conversation into an active two-person room view', () => {

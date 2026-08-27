@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { EllipsisVertical, PencilLine, Search, SquarePen } from 'lucide-vue-next'
+import { EllipsisVertical, Search, SquarePen } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import ContextMenu from 'primevue/contextmenu'
 import IconField from 'primevue/iconfield'
@@ -10,6 +10,8 @@ import Menu from 'primevue/menu'
 import Skeleton from 'primevue/skeleton'
 import type { MenuItem } from 'primevue/menuitem'
 import { useSidebarWidth } from '../composables/useSidebarWidth'
+import { conversationPreferenceMenuItems } from '../conversationPreferenceMenu'
+import type { ConversationPreferencesPatch } from '../conversationPreferencesApi'
 import { conversationDisplayTitle, shouldRevealConversationPreview } from '../conversationState'
 import type { ConversationSummary, Room, User } from '../types'
 import ConversationAliasDialog from './ConversationAliasDialog.vue'
@@ -27,6 +29,7 @@ const props = defineProps<{
   incomingRequests: number
   activeSection: string
   setAlias: (roomId: string, alias: string) => Promise<ConversationSummary>
+  updatePreferences: (roomId: string, patch: ConversationPreferencesPatch) => Promise<unknown>
 }>()
 const emit = defineEmits<{
   select: [conversation: ConversationSummary]
@@ -49,6 +52,8 @@ const emit = defineEmits<{
   resize: [width: number]
   manage: [room: Room]
   leaveRoom: [room: Room]
+  success: [message: string]
+  error: [message: string]
 }>()
 
 const { width: sidebarWidth, resizing, startResize, resizeBy } = useSidebarWidth()
@@ -58,9 +63,28 @@ const visibleConversations = computed(() => {
   const needle = query.value.trim().toLowerCase()
   return props.conversations.filter((item) => !needle || `${item.alias} ${item.title}`.toLowerCase().includes(needle))
 })
+const conversationSections = computed(() => [
+  {
+    key: 'pinned',
+    label: '置顶',
+    items: visibleConversations.value.filter((item) => item.preferences.is_pinned && !item.preferences.is_archived),
+  },
+  {
+    key: 'recent',
+    label: '最近',
+    items: visibleConversations.value.filter((item) => !item.preferences.is_pinned && !item.preferences.is_archived),
+  },
+  {
+    key: 'archived',
+    label: '已归档',
+    items: visibleConversations.value.filter((item) => item.preferences.is_archived),
+  },
+])
 const revealPreview = computed(() => shouldRevealConversationPreview(props.activeSection, props.selectedId))
 const contextMenu = ref()
 const contextItems = ref<MenuItem[]>([])
+const rowMenu = ref()
+const updatingRoomId = ref('')
 const aliasConversation = ref<ConversationSummary | null>(null)
 const aliasOpen = ref(false)
 const menu = ref()
@@ -72,17 +96,49 @@ const menuItems = computed<MenuItem[]>(() => [
 ])
 
 function openContextMenu(event: MouseEvent, conversation: ConversationSummary): void {
+  contextItems.value = conversationMenuItems(conversation)
+  contextMenu.value?.show(event)
+}
+
+function openRowMenu(event: MouseEvent, conversation: ConversationSummary): void {
+  contextItems.value = conversationMenuItems(conversation)
+  rowMenu.value?.toggle(event)
+}
+
+function conversationMenuItems(conversation: ConversationSummary): MenuItem[] {
   const items: MenuItem[] = [
     { label: '打开会话', command: () => emit('select', conversation) },
     { label: conversation.alias ? '修改备注' : '设置备注', command: () => openAlias(conversation) },
+    { separator: true },
+    ...conversationPreferenceMenuItems(
+      conversation,
+      updatingRoomId.value === conversation.room_id,
+      (patch, success) => void savePreference(conversation, patch, success),
+    ),
   ]
   const room = conversation.group
   if (room && ['owner', 'admin'].includes(room.membership_role || '')) {
     items.push({ label: '管理群聊', command: () => emit('manage', room) })
   }
   if (room?.membership_role) items.push({ label: '退出群聊', command: () => emit('leaveRoom', room) })
-  contextItems.value = items
-  contextMenu.value?.show(event)
+  return items
+}
+
+async function savePreference(
+  conversation: ConversationSummary,
+  patch: ConversationPreferencesPatch,
+  success: string,
+): Promise<void> {
+  if (updatingRoomId.value) return
+  updatingRoomId.value = conversation.room_id
+  try {
+    await props.updatePreferences(conversation.room_id, patch)
+    emit('success', success)
+  } catch (caught) {
+    emit('error', caught instanceof Error ? caught.message : '无法保存会话设置')
+  } finally {
+    updatingRoomId.value = ''
+  }
 }
 
 function openAlias(conversation: ConversationSummary): void {
@@ -193,37 +249,45 @@ function handleResizeKeydown(event: KeyboardEvent): void {
           </Button>
         </div>
         <template v-else>
-          <div v-for="conversation in visibleConversations" :key="conversation.room_id" class="group relative">
-            <button
-              type="button"
-              class="cr-conversation-row pr-11!"
-              :class="conversation.room_id === selectedId ? 'cr-conversation-row--active' : 'cr-conversation-row--idle'"
-              :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
-              :title="
-                conversation.alias
-                  ? `${conversationDisplayTitle(conversation)}（原名：${conversation.title}）`
-                  : conversation.title
-              "
-              @click="emit('select', conversation)"
-              @contextmenu.prevent="openContextMenu($event, conversation)"
-            >
-              <ConversationRow
-                :conversation="conversation"
-                :selected="conversation.room_id === selectedId"
-                :collapsed="false"
-                :reveal-preview="revealPreview"
-              />
-            </button>
-            <button
-              type="button"
-              class="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-color opacity-0 outline-none transition-[opacity,color,background-color,transform] duration-[var(--cr-motion-fast)] hover:bg-surface-100 hover:text-primary focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 motion-reduce:transition-none"
-              :class="{ 'opacity-100': conversation.room_id === selectedId }"
-              :aria-label="`${conversation.alias ? '修改' : '设置'}${conversationDisplayTitle(conversation)}的备注`"
-              :title="conversation.alias ? '修改备注' : '设置备注'"
-              @click.stop="openAlias(conversation)"
-            >
-              <PencilLine :size="15" aria-hidden="true" />
-            </button>
+          <div v-for="section in conversationSections" :key="section.key">
+            <template v-if="section.items.length">
+              <h2 class="px-2 pb-1 pt-3 text-[11px] font-semibold text-muted-color">{{ section.label }}</h2>
+              <div v-for="conversation in section.items" :key="conversation.room_id" class="group relative">
+                <button
+                  type="button"
+                  class="cr-conversation-row pr-11!"
+                  :class="
+                    conversation.room_id === selectedId ? 'cr-conversation-row--active' : 'cr-conversation-row--idle'
+                  "
+                  :aria-current="conversation.room_id === selectedId ? 'true' : undefined"
+                  :title="
+                    conversation.alias
+                      ? `${conversationDisplayTitle(conversation)}（原名：${conversation.title}）`
+                      : conversation.title
+                  "
+                  @click="emit('select', conversation)"
+                  @contextmenu.prevent="openContextMenu($event, conversation)"
+                >
+                  <ConversationRow
+                    :conversation="conversation"
+                    :selected="conversation.room_id === selectedId"
+                    :collapsed="false"
+                    :reveal-preview="revealPreview"
+                  />
+                </button>
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-color opacity-0 outline-none transition-[opacity,color,background-color,transform] duration-[var(--cr-motion-fast)] hover:bg-surface-100 hover:text-primary focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 max-md:opacity-100 motion-reduce:transition-none"
+                  :class="{ 'opacity-100': conversation.room_id === selectedId }"
+                  :aria-label="`${conversationDisplayTitle(conversation)}的更多操作`"
+                  title="更多操作"
+                  :disabled="updatingRoomId === conversation.room_id"
+                  @click.stop="openRowMenu($event, conversation)"
+                >
+                  <EllipsisVertical :size="16" aria-hidden="true" />
+                </button>
+              </div>
+            </template>
           </div>
           <button
             type="button"
@@ -252,6 +316,7 @@ function handleResizeKeydown(event: KeyboardEvent): void {
       <span :class="{ 'opacity-100': resizing }" />
     </div>
     <ContextMenu ref="contextMenu" :model="contextItems" />
+    <Menu ref="rowMenu" :model="contextItems" :popup="true" />
     <ConversationAliasDialog
       :open="aliasOpen"
       :conversation="aliasConversation"

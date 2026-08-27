@@ -9,9 +9,21 @@ export interface ConversationAccountState {
 
 export function sortConversations(conversations: readonly ConversationSummary[]): ConversationSummary[] {
   return [...conversations].sort((left, right) => {
+    if (left.preferences.is_archived !== right.preferences.is_archived) {
+      return Number(left.preferences.is_archived) - Number(right.preferences.is_archived)
+    }
+    if (!left.preferences.is_archived && left.preferences.is_pinned !== right.preferences.is_pinned) {
+      return Number(right.preferences.is_pinned) - Number(left.preferences.is_pinned)
+    }
     const activity = right.last_activity_at.localeCompare(left.last_activity_at)
     return activity || left.room_id.localeCompare(right.room_id)
   })
+}
+
+export function isConversationMuted(conversation: ConversationSummary, now = Date.now()): boolean {
+  if (conversation.preferences.notification_level === 'none') return true
+  const mutedUntil = conversation.preferences.muted_until
+  return Boolean(mutedUntil && Date.parse(mutedUntil) > now)
 }
 
 export function removeConversation(

@@ -1,7 +1,9 @@
 import { computed, ref, watch, type Ref } from 'vue'
+import type { ConversationPreferencesPatch } from '../conversationPreferencesApi'
 import { applyAccountMessage, applyAccountStates, removeConversation, sortConversations } from '../conversationState'
 import { listConversations, setConversationAlias } from '../socialApi'
 import type { AccountMessageEvent, ConversationSummary } from '../types'
+import { useConversationPreferences } from './useConversationPreferences'
 
 interface UnreadState {
   unread_count: number
@@ -14,6 +16,7 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
   const conversations = ref<ConversationSummary[]>([])
   const loading = ref(false)
   const error = ref('')
+  const preferences = useConversationPreferences(conversations, token)
   let requestVersion = 0
 
   async function refresh(): Promise<void> {
@@ -67,6 +70,10 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
     return updated
   }
 
+  function updatePreferences(roomId: string, patch: ConversationPreferencesPatch) {
+    return preferences.update(roomId, patch)
+  }
+
   watch(token, () => void refresh(), { immediate: true })
 
   return {
@@ -79,6 +86,7 @@ export function useConversations(token: Ref<string>, activeRoomId: Ref<string | 
     remove,
     refresh,
     setAlias,
+    updatePreferences,
     upsert,
   }
 }

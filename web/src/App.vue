@@ -350,6 +350,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
     <NetworkErrorBanner :message="networkError" @retry="loadRoomList" />
     <!-- prettier-ignore -->
     <a class="cr-skip-link" :href="activePage === 'chat' && mobileView === 'rooms' ? '#conversation-list' : '#workspace-main'">跳到主要内容</a>
+    <!-- prettier-ignore -->
     <RoomSidebar
       :conversations="conversationState.conversations.value"
       :selected-id="selectedId"
@@ -359,8 +360,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
       :visible="activePage === 'chat' && mobileView === 'rooms'"
       :collapsed="sidebarCollapsed || activePage !== 'chat' || roomAiPanelVisible"
       :incoming-requests="contacts.incomingCount.value"
-      :active-section="activePage"
-      :set-alias="conversationState.setAlias"
+      :active-section="activePage" :set-alias="conversationState.setAlias" :update-preferences="conversationState.updatePreferences"
       @select="selectConversation"
       @clear="clearSelection"
       @refresh="refreshWorkspace"
@@ -380,7 +380,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
       @toggle-collapse="toggleSidebar"
       @resize="sidebarWidth = $event"
       @manage="openRoomManage"
-      @leave-room="handleLeaveRoom"
+      @leave-room="handleLeaveRoom" @success="showToast" @error="toast.add({ severity: 'error', summary: $event, life: 3200 })"
     />
     <!-- prettier-ignore -->
     <WorkspacePages v-if="activePage === 'discover' || (activePage !== 'chat' && currentUser)"
