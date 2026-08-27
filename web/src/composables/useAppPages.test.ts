@@ -36,6 +36,10 @@ describe('app page routes', () => {
     expect(resolveTarget('favorites', room, true)).toEqual({ name: 'favorites' })
   })
 
+  test('routes global search independently from the selected room', () => {
+    expect(resolveTarget('search', room, true)).toEqual({ name: 'search' })
+  })
+
   test('routes the AI workspace independently from the selected room', () => {
     expect(resolveTarget('assistant', room, true)).toEqual({ name: 'assistant' })
   })

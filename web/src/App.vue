@@ -368,7 +368,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
       @create="requestCreateRoom"
       @join="openJoinRoom"
       @discover="openDiscover"
-      @contacts="openContacts"
+      @contacts="openContacts" @search="activePage = 'search'; mobileView = 'chat'"
       @favorites="openFavorites"
       @assistant="openAssistant"
       @chat="returnToChat"

@@ -10,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Search,
   Settings,
   UsersRound,
 } from 'lucide-vue-next'
@@ -28,6 +29,7 @@ const emit = defineEmits<{
   chat: []
   contacts: []
   favorites: []
+  search: []
   assistant: []
   discover: []
   create: []
@@ -51,6 +53,11 @@ function openFavorites(): void {
 
 function openAssistant(): void {
   if (props.user) emit('assistant')
+  else emit('authenticate')
+}
+
+function openSearch(): void {
+  if (props.user) emit('search')
   else emit('authenticate')
 }
 </script>
@@ -85,6 +92,18 @@ function openAssistant(): void {
       >
         <Bookmark :size="20" aria-hidden="true" />
         <span>收藏</span>
+      </button>
+      <button
+        type="button"
+        class="cr-rail-action"
+        :class="{ 'cr-rail-action--active': activeSection === 'search' }"
+        :aria-current="activeSection === 'search' ? 'page' : undefined"
+        aria-label="搜索"
+        title="搜索"
+        @click="openSearch"
+      >
+        <Search :size="20" aria-hidden="true" />
+        <span>搜索</span>
       </button>
       <button
         type="button"

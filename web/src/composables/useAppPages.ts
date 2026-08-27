@@ -2,7 +2,7 @@ import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { User, Room } from '../types'
 
-type AppPage = 'chat' | 'profile' | 'settings' | 'discover' | 'contacts' | 'favorites' | 'assistant'
+type AppPage = 'chat' | 'profile' | 'settings' | 'discover' | 'contacts' | 'favorites' | 'search' | 'assistant'
 
 // Membership survives refreshes and short WebSocket reconnects.  Route access
 // follows that durable state; the live socket only fills gaps in old snapshots.
@@ -12,6 +12,7 @@ export function resolveTarget(page: AppPage, selectedRoom: Room | null, authenti
   if (page === 'discover') return { name: 'discover' as const }
   if (page === 'contacts') return { name: 'contacts' as const }
   if (page === 'favorites') return { name: 'favorites' as const }
+  if (page === 'search') return { name: 'search' as const }
   if (page === 'assistant') return { name: 'assistant' as const }
   if (!selectedRoom) return { name: 'home' as const }
   return authenticated || selectedRoom.membership_status === 'active'
@@ -37,6 +38,7 @@ export function useAppPages(
       if (route.name === 'discover') return 'discover'
       if (route.name === 'contacts') return 'contacts'
       if (route.name === 'favorites') return 'favorites'
+      if (route.name === 'search') return 'search'
       if (route.name === 'assistant' || route.name === 'assistant-sources') return 'assistant'
       return 'chat'
     },

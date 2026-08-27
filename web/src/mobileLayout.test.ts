@@ -8,6 +8,7 @@ function source(path: string): string {
 describe('mobile workspace layout contract', () => {
   test('keeps profile and global navigation reachable on workspace pages', () => {
     expect(source('./components/WorkspaceRail.vue')).toContain('cr-rail-mobile-profile')
+    expect(source('./components/WorkspaceRail.vue')).toContain("activeSection === 'search'")
     expect(source('./components/WorkspacePages.vue')).toContain('cr-workspace-pages')
     expect(source('./components/RoomSidebar.vue')).toContain('cr-sidebar--nav-only')
   })

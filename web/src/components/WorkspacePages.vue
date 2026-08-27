@@ -14,6 +14,7 @@ import type {
 const ContactsPage = defineAsyncComponent(() => import('./ContactsPage.vue'))
 const DiscoverRooms = defineAsyncComponent(() => import('./DiscoverRooms.vue'))
 const FavoritesPage = defineAsyncComponent(() => import('./FavoritesPage.vue'))
+const GlobalSearchPage = defineAsyncComponent(() => import('./GlobalSearchPage.vue'))
 const AiAssistantPage = defineAsyncComponent(() => import('./AiAssistantPage.vue'))
 const ProfilePage = defineAsyncComponent(() => import('./ProfilePage.vue'))
 const SettingsPage = defineAsyncComponent(() => import('./SettingsPage.vue'))
@@ -113,6 +114,14 @@ const emit = defineEmits<{
       @new-chat="emit('newChat')"
       @changed="emit('conversationsChanged')"
       @error="emit('error', $event)"
+    />
+    <GlobalSearchPage
+      v-else-if="activePage === 'search' && user"
+      :token="token"
+      :user="user"
+      :friends="contacts.friends.value"
+      :rooms="rooms"
+      @back="emit('back')"
     />
     <FavoritesPage
       v-else-if="activePage === 'favorites' && user"
