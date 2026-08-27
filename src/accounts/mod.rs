@@ -5,5 +5,6 @@ pub mod avatar_handlers;
 mod avatars;
 mod credentials;
 pub mod registration;
+pub mod sessions;
 pub mod user_handlers;
 pub mod users;

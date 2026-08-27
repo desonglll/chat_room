@@ -22,6 +22,7 @@ use crate::{
 use super::{
     auth_limits::require_auth_capacity,
     credentials::{hash_password, normalize_credentials},
+    sessions::SessionMetadata,
 };
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -146,8 +147,9 @@ pub async fn register(
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
+    let metadata = SessionMetadata::from_request(&headers, peer, state.trust_proxy_headers());
     state
-        .create_session(user)
+        .create_session_with_metadata(user, metadata)
         .await
         .map(|session| (StatusCode::CREATED, Json(session)))
         .map_err(|error| {

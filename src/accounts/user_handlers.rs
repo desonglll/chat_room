@@ -21,6 +21,7 @@ use super::{
         hash_password, normalize_credentials, password_matches, MAX_PASSWORD_CHARS,
         MIN_PASSWORD_CHARS,
     },
+    sessions::SessionMetadata,
 };
 
 const MAX_DISPLAY_NAME_CHARS: usize = 48;
@@ -58,10 +59,15 @@ pub async fn login(
     if !password_matches(password, password_hash).await {
         return Err(StatusCode::UNAUTHORIZED);
     }
-    state.create_session(user).await.map(Json).map_err(|error| {
-        tracing::error!("create login session failed: {}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })
+    let metadata = SessionMetadata::from_request(&headers, peer, state.trust_proxy_headers());
+    state
+        .create_session_with_metadata(user, metadata)
+        .await
+        .map(Json)
+        .map_err(|error| {
+            tracing::error!("create login session failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 /// Return the account represented by the bearer session token.
@@ -104,7 +110,15 @@ pub async fn get_user(
     headers: HeaderMap,
     Path(user_id): Path<uuid::Uuid>,
 ) -> Result<Json<User>, StatusCode> {
-    bearer_token(&headers)?;
+    let token = bearer_token(&headers)?;
+    state
+        .session_user(token)
+        .await
+        .map_err(|error| {
+            tracing::error!("validate session for public profile failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
     state
         .user_by_id(user_id)
         .await

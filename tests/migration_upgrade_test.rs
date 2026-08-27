@@ -122,6 +122,14 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(governed_runs, 2);
+    let session_columns: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name IN \
+         ('management_id', 'device_name', 'ip_hint', 'last_used_at')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(session_columns, 4);
 
     state.pool().close().await;
     remove_sqlite_files(&database);
@@ -244,6 +252,15 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(governed_runs, 2);
+    let session_columns: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' \
+         AND table_name = 'sessions' AND column_name IN \
+         ('management_id', 'device_name', 'ip_hint', 'last_used_at')",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(session_columns, 4);
 
     postgres.close().await;
     drop(state);

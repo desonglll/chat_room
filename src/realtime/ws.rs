@@ -74,13 +74,14 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     };
 
-    let user = match authenticate(&state, &room, first_message).await {
-        Ok(user) => user,
+    let authenticated = match authenticate(&state, &room, first_message).await {
+        Ok(authenticated) => authenticated,
         Err(reason) => {
             let _ = send_json(&mut sink, &ChatMessage::AuthFail { reason }).await;
             return;
         }
     };
+    let user = authenticated.user;
     if reject_locked_auth(&state, room_id, &mut sink).await {
         return;
     }
@@ -284,6 +285,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         state.clone(),
         room_id,
         user.id,
+        authenticated.session_id,
         sink,
         room_messages,
         OutboundCursors {

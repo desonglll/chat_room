@@ -30,6 +30,7 @@ pub(super) fn spawn_room_forwarder(
     state: SharedState,
     room_id: Uuid,
     user_id: Uuid,
+    session_id: Uuid,
     mut sink: SplitSink<WebSocket, Message>,
     mut room_messages: broadcast::Receiver<RoomEvent>,
     mut cursors: OutboundCursors,
@@ -81,6 +82,7 @@ pub(super) fn spawn_room_forwarder(
                         &state,
                         room_id,
                         user_id,
+                        session_id,
                         message_poll_limit,
                         &mut cursors,
                         &mut sink,
@@ -105,10 +107,29 @@ async fn poll_database_updates(
     state: &SharedState,
     room_id: Uuid,
     user_id: Uuid,
+    session_id: Uuid,
     limit: i64,
     cursors: &mut OutboundCursors,
     sink: &mut SplitSink<WebSocket, Message>,
 ) -> bool {
+    match state.session_active(session_id).await {
+        Ok(true) => {}
+        Ok(false) => {
+            let _ = send_json(
+                sink,
+                &ChatMessage::System {
+                    content: "session revoked".into(),
+                    members: None,
+                    participants: None,
+                },
+            )
+            .await;
+            let _ = sink.close().await;
+            return false;
+        }
+        Err(error) => tracing::warn!("validate live room session failed: {error}"),
+    }
+
     match state.is_room_participant(room_id, user_id).await {
         Ok(true) => {}
         Ok(false) => {

@@ -6,6 +6,8 @@ use uuid::Uuid;
 use crate::models::{AuthSession, User};
 use crate::state::{with_pool, AppState};
 
+use super::sessions::SessionMetadata;
+
 #[derive(sqlx::FromRow)]
 struct UserCredentialRow {
     id: Uuid,
@@ -107,15 +109,29 @@ impl AppState {
     }
 
     pub async fn create_session(&self, user: User) -> Result<AuthSession, sqlx::Error> {
+        self.create_session_with_metadata(user, SessionMetadata::default())
+            .await
+    }
+
+    pub(crate) async fn create_session_with_metadata(
+        &self,
+        user: User,
+        metadata: SessionMetadata,
+    ) -> Result<AuthSession, sqlx::Error> {
         let token = Uuid::new_v4();
+        let management_id = Uuid::new_v4().simple().to_string();
         let created_at = Utc::now();
         let expires_at = created_at + Duration::days(self.session_lifetime_days());
         with_pool!(self, |pool| {
             sqlx::query(
-                "INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO sessions (id, user_id, management_id, device_name, ip_hint, \
+                 created_at, last_used_at, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $6, $7)",
             )
             .bind(token)
             .bind(user.id)
+            .bind(management_id)
+            .bind(metadata.device_name)
+            .bind(metadata.ip_hint)
             .bind(created_at)
             .bind(expires_at)
             .execute(pool)
@@ -137,12 +153,36 @@ impl AppState {
     }
 
     pub async fn session_user(&self, token: Uuid) -> Result<Option<User>, sqlx::Error> {
-        if let Some(cache) = self.redis_cache() {
+        let cached = if let Some(cache) = self.redis_cache() {
             match cache.get_session(token).await {
-                Ok(Some(user)) => return Ok(Some(user)),
-                Ok(None) => {}
-                Err(error) => tracing::warn!("read Redis session cache failed: {error:#}"),
+                Ok(user) => user,
+                Err(error) => {
+                    tracing::warn!("read Redis session cache failed: {error:#}");
+                    None
+                }
             }
+        } else {
+            None
+        };
+        let now = Utc::now();
+        let touched = with_pool!(self, |pool| {
+            sqlx::query("UPDATE sessions SET last_used_at = $1 WHERE id = $2 AND expires_at > $1")
+                .bind(now)
+                .bind(token)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected())
+        })?;
+        if touched == 0 {
+            if let (Some(cache), Some(user)) = (self.redis_cache(), cached.as_ref()) {
+                if let Err(error) = cache.delete_session(token, user.id).await {
+                    tracing::warn!("delete stale Redis session failed: {error:#}");
+                }
+            }
+            return Ok(None);
+        }
+        if cached.is_some() {
+            return Ok(cached);
         }
         let row: Option<SessionUserRow> = with_pool!(self, |pool| {
             sqlx::query_as(
@@ -152,7 +192,7 @@ impl AppState {
                  WHERE sessions.id = $1 AND sessions.expires_at > $2",
             )
             .bind(token)
-            .bind(Utc::now())
+            .bind(now)
             .fetch_optional(pool)
             .await
         })?;
@@ -162,6 +202,18 @@ impl AppState {
             }
         }
         Ok(row.map(|row| row.user()))
+    }
+
+    pub(crate) async fn session_active(&self, token: Uuid) -> Result<bool, sqlx::Error> {
+        with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM sessions WHERE id = $1 AND expires_at > $2)",
+            )
+            .bind(token)
+            .bind(Utc::now())
+            .fetch_one(pool)
+            .await
+        })
     }
 
     pub async fn user_by_id(&self, user_id: Uuid) -> Result<Option<User>, sqlx::Error> {

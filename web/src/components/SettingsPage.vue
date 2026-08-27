@@ -6,6 +6,7 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import { changeAccountPassword, deleteAccount } from '../api'
+import DeviceSessionsPanel from './DeviceSessionsPanel.vue'
 import ScopedPasswordField from './ScopedPasswordField.vue'
 import type { User } from '../types'
 
@@ -23,6 +24,7 @@ const deletePassword = ref('')
 const deleteConfirmation = ref('')
 const deleting = ref(false)
 const deleteError = ref('')
+const sessionsPanel = ref<InstanceType<typeof DeviceSessionsPanel> | null>(null)
 
 async function savePassword(): Promise<void> {
   passwordError.value = ''
@@ -38,6 +40,7 @@ async function savePassword(): Promise<void> {
     newPassword.value = ''
     confirmPassword.value = ''
     passwordSaved.value = true
+    await sessionsPanel.value?.refresh()
   } catch (caught) {
     passwordError.value = caught instanceof Error ? caught.message : '修改密码失败'
   } finally {
@@ -98,6 +101,8 @@ async function confirmDelete(): Promise<void> {
           <Button class="w-full sm:w-auto" as="a" href="/admin" severity="secondary" outlined>打开</Button>
         </div>
       </section>
+
+      <DeviceSessionsPanel ref="sessionsPanel" :token="token" />
 
       <form autocomplete="on" class="cr-form-section space-y-5 py-7" @submit.prevent="savePassword">
         <div class="flex items-center gap-2 text-sm font-semibold">

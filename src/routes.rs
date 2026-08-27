@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post, put},
+    Router,
+};
 
 use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
@@ -10,8 +13,8 @@ use crate::{
     ai_threads, attachment_handlers, attachment_upload_handlers, avatar_handlers, config,
     conversations, direct_conversations, favorites, file_handlers, forward_handlers, handlers,
     membership_handlers, message_global_search, message_pins, message_search, notifications,
-    push_notifications, registration, room_query_handlers, social, state::AppState, tasks,
-    user_handlers, ws,
+    push_notifications, registration, room_query_handlers, sessions, social, state::AppState,
+    tasks, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -161,14 +164,8 @@ pub(crate) fn api_routes(
             "/api/attachments/uploads/:id",
             axum::routing::delete(attachment_upload_handlers::cancel_upload),
         )
-        .route(
-            "/api/users/register",
-            axum::routing::post(registration::register),
-        )
-        .route(
-            "/api/users/login",
-            axum::routing::post(user_handlers::login),
-        )
+        .route("/api/users/register", post(registration::register))
+        .route("/api/users/login", post(user_handlers::login))
         .route(
             "/api/users/me",
             get(user_handlers::me)
@@ -177,8 +174,9 @@ pub(crate) fn api_routes(
         )
         .route(
             "/api/users/me/password",
-            axum::routing::put(user_handlers::change_password),
+            put(user_handlers::change_password),
         )
+        .merge(sessions::routes())
         .route(
             "/api/users/me/avatar",
             axum::routing::post(avatar_handlers::upload_avatar).layer(

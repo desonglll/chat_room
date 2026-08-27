@@ -34,7 +34,7 @@ pub mod tasks;
 pub mod web;
 mod work_queue;
 
-pub use accounts::{account_ws, avatar_handlers, registration, user_handlers, users};
+pub use accounts::{account_ws, avatar_handlers, registration, sessions, user_handlers, users};
 pub use admin::{
     ai_models as admin_ai_models, backups as admin_backups, metrics as admin_metrics,
     services as admin_services, system_admins as admin_system_admins,
@@ -98,6 +98,9 @@ use crate::state::AppState;
         registration::register,
         user_handlers::login,
         user_handlers::me,
+        sessions::list,
+        sessions::revoke,
+        sessions::revoke_others,
         user_handlers::verify_password,
         user_handlers::get_user,
         user_handlers::update_me,
@@ -251,6 +254,7 @@ use crate::state::AppState;
         tasks::CreateRoomTaskRequest,
         tasks::UpdateRoomTaskRequest,
         models::AuthSession,
+        sessions::DeviceSession,
         models::UpdateProfileRequest,
         models::ChangePasswordRequest,
         models::DeleteAccountRequest,

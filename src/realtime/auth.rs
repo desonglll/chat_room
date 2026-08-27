@@ -8,11 +8,16 @@ use crate::state::SharedState;
 const MAX_MESSAGE_CHARS: usize = 4096;
 const MAX_PASSWORD_CHARS: usize = 256;
 
+pub(crate) struct AuthenticatedUser {
+    pub user: User,
+    pub session_id: uuid::Uuid,
+}
+
 pub(crate) async fn authenticate(
     state: &SharedState,
     room: &Room,
     message: ChatMessage,
-) -> Result<User, String> {
+) -> Result<AuthenticatedUser, String> {
     let token = if room.has_password {
         match message {
             ChatMessage::Auth { token, password } => {
@@ -39,14 +44,18 @@ pub(crate) async fn authenticate(
         }
     };
 
-    state
+    let user = state
         .session_user(token)
         .await
         .map_err(|error| {
             tracing::error!("validate WebSocket session failed: {}", error);
             "authentication unavailable".to_string()
         })?
-        .ok_or_else(|| "login required".to_string())
+        .ok_or_else(|| "login required".to_string())?;
+    Ok(AuthenticatedUser {
+        user,
+        session_id: token,
+    })
 }
 
 pub(crate) fn normalize_message(content: String) -> Option<String> {

@@ -89,6 +89,16 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
         }
         tokio::select! {
             _ = refresh.tick() => {
+                match state.session_active(auth.token).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        let _ = socket.close().await;
+                        return;
+                    }
+                    Err(error) => {
+                        tracing::warn!("validate live account session failed: {error}");
+                    }
+                }
                 let events = match state.account_messages_after(user.id, message_cursor.as_ref()).await {
                     Ok(events) => events,
                     Err(error) => {
