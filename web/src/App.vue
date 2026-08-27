@@ -7,6 +7,7 @@ import AiAssistantPage from './components/AiAssistantPage.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import NetworkErrorBanner from './components/NetworkErrorBanner.vue'
 import PrivacyLockScreen from './components/PrivacyLockScreen.vue'
+import PwaStatusBar from './components/PwaStatusBar.vue'
 import RoomSidebar from './components/RoomSidebar.vue'
 import WorkspacePages from './components/WorkspacePages.vue'
 import { createBrowserNotifier } from './browserNotifications'
@@ -340,6 +341,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
 })
 </script>
 <template>
+  <PwaStatusBar />
   <RouterView v-if="route.name === 'admin'" />
   <div
     v-else

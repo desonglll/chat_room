@@ -12,6 +12,10 @@ const ICON_SPRITE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/icons/icon
 const ECHO_GATE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/brand/echo-gate.svg"));
 const EMOJI_DATA_ZH: &str = include_str!(concat!(env!("OUT_DIR"), "/web/emoji-data-zh.json"));
 const THEME_BOOTSTRAP: &str = include_str!(concat!(env!("OUT_DIR"), "/web/theme-bootstrap.js"));
+const WEB_MANIFEST: &str = include_str!(concat!(env!("OUT_DIR"), "/web/manifest.webmanifest"));
+const SERVICE_WORKER: &str = include_str!(concat!(env!("OUT_DIR"), "/web/sw.js"));
+const PWA_ICON_192: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/web/pwa-192.png"));
+const PWA_ICON_512: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/web/pwa-512.png"));
 include!(concat!(env!("OUT_DIR"), "/web_assets.rs"));
 
 pub async fn index() -> impl IntoResponse {
@@ -48,6 +52,36 @@ pub async fn theme_bootstrap() -> impl IntoResponse {
         "public, max-age=86400",
         THEME_BOOTSTRAP,
     )
+}
+
+pub async fn manifest() -> impl IntoResponse {
+    asset(
+        "application/manifest+json; charset=utf-8",
+        "no-cache",
+        WEB_MANIFEST,
+    )
+}
+
+pub async fn service_worker() -> impl IntoResponse {
+    (
+        [
+            (header::CONTENT_TYPE, "text/javascript; charset=utf-8"),
+            (header::CACHE_CONTROL, "no-cache"),
+            (
+                header::HeaderName::from_static("service-worker-allowed"),
+                "/",
+            ),
+        ],
+        SERVICE_WORKER,
+    )
+}
+
+pub async fn pwa_icon_192() -> Response {
+    asset_bytes("image/png", PWA_ICON_192)
+}
+
+pub async fn pwa_icon_512() -> Response {
+    asset_bytes("image/png", PWA_ICON_512)
 }
 
 fn asset(

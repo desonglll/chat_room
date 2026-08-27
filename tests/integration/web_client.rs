@@ -26,6 +26,36 @@ async fn web_client_is_only_served_when_enabled() {
     assert!(html.contains("/assets/app.css"));
     assert!(html.contains("/assets/app.js"));
     assert!(html.contains("<script src=\"/theme-bootstrap.js\"></script>"));
+    assert!(html.contains("rel=\"manifest\" href=\"/manifest.webmanifest\""));
+
+    let manifest = reqwest::get(format!("{}/manifest.webmanifest", web))
+        .await
+        .unwrap();
+    assert_eq!(manifest.status(), 200);
+    assert_eq!(
+        manifest.headers()[reqwest::header::CONTENT_TYPE],
+        "application/manifest+json; charset=utf-8"
+    );
+    let manifest: serde_json::Value = manifest.json().await.unwrap();
+    assert_eq!(manifest["display"], "standalone");
+    assert_eq!(manifest["icons"][0]["src"], "/pwa-192.png");
+
+    let worker = reqwest::get(format!("{}/sw.js", web)).await.unwrap();
+    assert_eq!(worker.status(), 200);
+    assert_eq!(worker.headers()[reqwest::header::CACHE_CONTROL], "no-cache");
+    assert_eq!(worker.headers()["service-worker-allowed"], "/");
+    let worker = worker.text().await.unwrap();
+    assert!(worker.contains("echo-gate-static-"));
+    assert!(worker.contains("/assets/app.js"));
+    assert!(!worker.contains("/api/"));
+    assert!(!worker.contains("/ws"));
+
+    let pwa_icon = reqwest::get(format!("{}/pwa-192.png", web)).await.unwrap();
+    assert_eq!(pwa_icon.status(), 200);
+    assert_eq!(
+        pwa_icon.headers()[reqwest::header::CONTENT_TYPE],
+        "image/png"
+    );
 
     let theme_bootstrap = reqwest::get(format!("{}/theme-bootstrap.js", web))
         .await

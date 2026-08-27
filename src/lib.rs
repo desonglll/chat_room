@@ -303,6 +303,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         app = app
             .route("/", get(web::index))
             .route("/favicon.svg", get(web::favicon))
+            .route("/manifest.webmanifest", get(web::manifest))
+            .route("/sw.js", get(web::service_worker))
+            .route("/pwa-192.png", get(web::pwa_icon_192))
+            .route("/pwa-512.png", get(web::pwa_icon_512))
             .route("/assets/*path", get(web::bundled_asset))
             .route("/icons/icon-sprite.svg", get(web::icon_sprite))
             .route("/brand/echo-gate.svg", get(web::echo_gate))

@@ -3,6 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, listRooms, logoutUser } from '../api'
 import { storageGet, storageSet } from '../browserStorage'
 import { clearBootstrapSnapshot, readBootstrapSnapshot, writeBootstrapSnapshot } from '../bootstrapSnapshot'
+import { clearPwaCaches } from '../pwa'
 import { useDelayedVisibility } from './useDelayedVisibility'
 import type { AiRuntimeStatus, AuthSession, Room, User } from '../types'
 
@@ -108,6 +109,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
       rooms.value = []
       clearBootstrapSnapshot(window.sessionStorage)
       storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
+      await clearPwaCaches()
     }
   }
 
@@ -130,6 +132,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     options.closeUnread()
     clearBootstrapSnapshot(window.sessionStorage)
     storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
+    await clearPwaCaches()
     if (token) {
       try {
         await logoutUser(token)
@@ -148,6 +151,7 @@ export function useAppBootstrap(options: AppBootstrapOptions) {
     currentUser.value = null
     clearBootstrapSnapshot(window.sessionStorage)
     storageSet(window.localStorage, SESSION_TOKEN_KEY, '')
+    await clearPwaCaches()
     options.afterAccountDeleted()
     await loadRoomList()
     options.showToast('账户已注销')

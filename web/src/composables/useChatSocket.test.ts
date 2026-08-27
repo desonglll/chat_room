@@ -166,4 +166,51 @@ describe('room socket switching', () => {
     expect(payload.client_message_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
     chat.close()
   })
+
+  test('does not queue or resend a pending message after reconnect', async () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        clearTimeout,
+        crypto: globalThis.crypto,
+        location: { host: 'localhost:3000', protocol: 'http:' },
+        setTimeout,
+      },
+    })
+    Object.defineProperty(globalThis, 'WebSocket', { configurable: true, value: FakeWebSocket })
+    const room: Room = {
+      id: 'room-1',
+      name: '重连聊天室',
+      has_password: false,
+      creator_user_id: 'user-1',
+      join_policy: 'open',
+      avatar_emoji: '',
+      description: '',
+      membership_status: 'active',
+      membership_role: 'member',
+      unread_count: 0,
+      created_at: '2026-08-27T00:00:00Z',
+    }
+    const warning = spyOn(console, 'warn').mockImplementation(() => {})
+    const chat = useChatSocket()
+    warning.mockRestore()
+    chat.connect(room, 'session-token', 'user-1', '')
+    const firstSocket = FakeWebSocket.instances[0]
+    firstSocket?.onmessage?.({ data: JSON.stringify({ type: 'auth_ok', participants: [] }) } as MessageEvent<string>)
+
+    expect(chat.send('只发送一次')).toBe(true)
+    firstSocket?.onclose?.()
+    expect((chat.messages.value[0] as BroadcastMessage).delivery_state).toBe('failed')
+
+    await new Promise((resolve) => setTimeout(resolve, 550))
+    const reconnectedSocket = FakeWebSocket.instances[1]
+    reconnectedSocket?.onopen?.()
+    reconnectedSocket?.onmessage?.({
+      data: JSON.stringify({ type: 'auth_ok', participants: [] }),
+    } as MessageEvent<string>)
+
+    expect(reconnectedSocket?.sent.map((payload) => JSON.parse(payload).type)).toEqual(['join'])
+    expect(chat.messages.value.filter((message) => message.type === 'broadcast')).toHaveLength(1)
+    chat.close()
+  })
 })
