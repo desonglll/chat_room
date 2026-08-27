@@ -50,6 +50,7 @@ const emit = defineEmits<{
   blockUser: []
   assistant: []
   catchUp: []
+  extraction: []
   tasks: []
 }>()
 
@@ -73,6 +74,9 @@ const moreMenuItems = computed(() => [
     ? [{ label: '查看资料', icon: 'profile', command: () => emit('viewProfile', props.peer!.id) }]
     : []),
   { label: '多选消息', icon: 'select', command: () => emit('toggleSelection') },
+  ...(props.authenticated && props.aiEnabled
+    ? [{ label: '提取决定与待办', icon: 'extract', command: () => emit('extraction') }]
+    : []),
   ...(props.kind === 'group' && canManage.value
     ? [{ label: '管理聊天室', icon: 'manage', command: () => emit('manage') }]
     : []),
@@ -323,6 +327,7 @@ async function copyRoomId(): Promise<void> {
         <template #item="{ item, props: itemProps }">
           <button type="button" v-bind="itemProps.action" :class="{ 'text-danger!': item.danger }">
             <ListChecks v-if="item.icon === 'select'" :size="17" />
+            <Sparkles v-else-if="item.icon === 'extract'" :size="17" />
             <UserRound v-else-if="item.icon === 'profile'" :size="17" />
             <EllipsisVertical v-else-if="item.icon === 'manage'" :size="17" />
             <LogOut v-else-if="item.icon === 'leave'" :size="17" />

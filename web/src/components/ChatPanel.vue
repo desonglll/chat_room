@@ -21,6 +21,7 @@ const RoomPinsBar = defineAsyncComponent(() => import('./RoomPinsBar.vue'))
 const props = defineProps<ChatPanelProps>()
 const emit = defineEmits<ChatPanelEmits>()
 const filesOpen = ref(false)
+const extractionOpen = ref(false)
 const taskPanel = ref<true | BroadcastMessage | null>(null)
 const viewProfileUserId = ref('')
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
@@ -94,6 +95,7 @@ watch(
   () => {
     resetTargets()
     filesOpen.value = false
+    extractionOpen.value = false
     taskPanel.value = null
     pinnedMessageIds.value = []
     previewImageId.value = ''
@@ -140,6 +142,7 @@ watch(
       @block-user="emit('blockUser')"
       @assistant="emit('assistant')"
       @catch-up="emit('catchUp')"
+      @extraction="extractionOpen = true"
       @tasks="taskPanel = true"
     />
     <ChatAccessPanel
@@ -287,6 +290,7 @@ watch(
     <ChatPanelDialogs
       :files-open="filesOpen"
       :search-open="searchOpen"
+      :extraction-open="extractionOpen"
       :tasks-open="Boolean(taskPanel)"
       :task-source="taskPanel === true ? null : taskPanel"
       :participants="participants"
@@ -304,6 +308,7 @@ watch(
       :set-friend-remark="setFriendRemark"
       @close-files="filesOpen = false"
       @close-search="searchOpen = false"
+      @close-extraction="extractionOpen = false"
       @close-tasks="taskPanel = null"
       @close-image="previewImageId = ''"
       @close-profile="viewProfileUserId = ''"
@@ -311,6 +316,7 @@ watch(
       @cancel-download="emit('cancelDownload')"
       @locate-message="((taskPanel = null), locateMessage($event))"
       @locate-search="locateSearchResult"
+      @locate-extraction="((extractionOpen = false), locateMessage($event))"
       @remove-friend="emit('removeFriend')"
       @block-user="emit('blockUser')"
     />

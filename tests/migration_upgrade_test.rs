@@ -96,6 +96,15 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(room_tasks, 1);
+    let extraction_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN \
+         ('ai_extraction_runs', 'ai_extraction_candidates', \
+          'ai_extraction_candidate_sources', 'ai_extraction_run_candidates')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(extraction_tables, 4);
 
     state.pool().close().await;
     remove_sqlite_files(&database);
@@ -191,6 +200,15 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
             .await
             .unwrap();
     assert_eq!(room_tasks.as_deref(), Some("room_tasks"));
+    let extraction_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' \
+         AND table_name IN ('ai_extraction_runs', 'ai_extraction_candidates', \
+          'ai_extraction_candidate_sources', 'ai_extraction_run_candidates')",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(extraction_tables, 4);
 
     postgres.close().await;
     drop(state);

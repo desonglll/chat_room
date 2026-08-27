@@ -6,11 +6,11 @@ use axum::{routing::get, Router};
 
 use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
-    admin_system_admins, admin_system_lock, ai, ai_handlers, ai_threads, attachment_handlers,
-    attachment_upload_handlers, avatar_handlers, config, conversations, direct_conversations,
-    favorites, file_handlers, forward_handlers, handlers, membership_handlers,
-    message_global_search, message_pins, message_search, notifications, registration,
-    room_query_handlers, social, state::AppState, tasks, user_handlers, ws,
+    admin_system_admins, admin_system_lock, ai, ai_extractions, ai_handlers, ai_threads,
+    attachment_handlers, attachment_upload_handlers, avatar_handlers, config, conversations,
+    direct_conversations, favorites, file_handlers, forward_handlers, handlers,
+    membership_handlers, message_global_search, message_pins, message_search, notifications,
+    registration, room_query_handlers, social, state::AppState, tasks, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -91,6 +91,18 @@ pub(crate) fn api_routes(
             axum::routing::post(ai_threads::catch_up::create_catch_up),
         )
         .route("/api/ai/runs/:id", get(ai_threads::runs::get_run))
+        .route(
+            "/api/rooms/:id/ai/extractions",
+            axum::routing::post(ai_extractions::handlers::create),
+        )
+        .route(
+            "/api/ai/extractions/:id",
+            get(ai_extractions::handlers::get),
+        )
+        .route(
+            "/api/ai/extraction-candidates/:id",
+            axum::routing::patch(ai_extractions::handlers::update_candidate),
+        )
         .route(
             "/api/ai/runs/:id/events",
             get(ai_threads::events::stream_run_events),

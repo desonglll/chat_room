@@ -31,3 +31,11 @@ _Avoid_: Invite code, shared registration password
 **Catch-up Run**:
 A durable personal AI Run whose unread-message boundaries are frozen by the server from the requesting User's Room read cursor.
 _Avoid_: Client-selected summary range, Room summary message
+
+**Extraction Run**:
+A durable personal AI analysis over a User-selected time range in one Room. Its message context and every cited source are re-authorized by the server.
+_Avoid_: Background task creation, cross-Room analysis
+
+**Extraction Candidate**:
+A deduplicated proposed decision or task that remains a projection until its User confirms it. Confirmation creates a personal Favorite or a new unassigned `open` Room Task; it never changes an existing Task.
+_Avoid_: AI decision, AI-owned Task, source message

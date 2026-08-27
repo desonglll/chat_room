@@ -152,6 +152,7 @@ impl AppState {
             redis_cache,
             work_queue,
             ai_run_dispatcher_started: AtomicBool::new(false),
+            ai_extraction_dispatcher_started: AtomicBool::new(false),
             message_index,
             message_index_worker_started: AtomicBool::new(false),
             backup_runtime: crate::state_backup::BackupRuntime::default(),

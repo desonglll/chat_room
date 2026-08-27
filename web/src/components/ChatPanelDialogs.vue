@@ -4,6 +4,7 @@ import type { DownloadProgress } from '../attachmentDownloads'
 import type { Attachment, BroadcastMessage, RoomMember, SocialUser } from '../types'
 
 const ChatFilesDialog = defineAsyncComponent(() => import('./ChatFilesDialog.vue'))
+const AiExtractionPanel = defineAsyncComponent(() => import('./AiExtractionPanel.vue'))
 const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
 const ProfileCardDialog = defineAsyncComponent(() => import('./ProfileCardDialog.vue'))
 const RoomMessageSearchDialog = defineAsyncComponent(() => import('./RoomMessageSearchDialog.vue'))
@@ -12,6 +13,7 @@ const RoomTasksPanel = defineAsyncComponent(() => import('./RoomTasksPanel.vue')
 defineProps<{
   filesOpen: boolean
   searchOpen: boolean
+  extractionOpen: boolean
   tasksOpen: boolean
   taskSource: BroadcastMessage | null
   participants: RoomMember[]
@@ -34,11 +36,13 @@ const emit = defineEmits<{
   closeImage: []
   closeProfile: []
   closeSearch: []
+  closeExtraction: []
   closeTasks: []
   download: [attachments: Attachment[]]
   cancelDownload: []
   locateMessage: [messageId: string]
   locateSearch: [messageId: string]
+  locateExtraction: [messageId: string]
   removeFriend: []
   blockUser: []
 }>()
@@ -64,6 +68,15 @@ const emit = defineEmits<{
     :password="password"
     @close="emit('closeSearch')"
     @locate="emit('locateSearch', $event)"
+  />
+  <AiExtractionPanel
+    v-if="extractionOpen"
+    :open="extractionOpen"
+    :room-id="roomId"
+    :token="token"
+    :password="password"
+    @close="emit('closeExtraction')"
+    @locate="emit('locateExtraction', $event)"
   />
   <RoomTasksPanel
     :open="tasksOpen"

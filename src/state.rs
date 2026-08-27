@@ -82,6 +82,7 @@ pub struct AppState {
     pub(crate) redis_cache: Option<RedisCache>,
     pub(crate) work_queue: WorkQueue,
     pub(crate) ai_run_dispatcher_started: AtomicBool,
+    pub(crate) ai_extraction_dispatcher_started: AtomicBool,
     pub(crate) message_index: Option<MessageIndex>,
     pub(crate) message_index_worker_started: AtomicBool,
     pub(crate) backup_runtime: crate::state_backup::BackupRuntime,

@@ -3,6 +3,7 @@
 pub mod accounts;
 pub mod admin;
 pub mod ai;
+pub mod ai_extractions;
 pub mod ai_handlers;
 pub mod ai_threads;
 pub mod attachments;
@@ -137,6 +138,9 @@ use crate::state::AppState;
         ai_threads::catch_up::create_catch_up,
         ai_threads::runs::get_run,
         ai_threads::events::stream_run_events,
+        ai_extractions::handlers::create,
+        ai_extractions::handlers::get,
+        ai_extractions::handlers::update_candidate,
         tasks::handlers::list,
         tasks::handlers::create,
         tasks::handlers::update,
@@ -216,6 +220,11 @@ use crate::state::AppState;
         models::AuthRequest,
         registration::RegisterRequest,
         ai_threads::CreateCatchUpRunRequest,
+        ai_extractions::AiExtractionSource,
+        ai_extractions::AiExtractionCandidate,
+        ai_extractions::AiExtractionRun,
+        ai_extractions::CreateAiExtractionRequest,
+        ai_extractions::UpdateAiExtractionCandidateRequest,
         tasks::RoomTask,
         tasks::RoomTaskSource,
         tasks::CreateRoomTaskRequest,
@@ -268,6 +277,7 @@ pub fn build_app(state: Arc<AppState>) -> Router {
 /// Build the axum router and optionally serve the embedded browser client.
 pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     ai_threads::runs::ensure_dispatcher(state.clone());
+    ai_extractions::ensure_dispatcher(state.clone());
     knowledge::ensure_worker(state.clone());
     let multipart_body_limit = state
         .max_upload_bytes()

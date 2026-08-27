@@ -4,19 +4,19 @@
 //! (genai infers the adapter from the model name, e.g. `gpt-*` vs `claude-*`).
 
 mod config;
+pub(crate) mod extraction;
 pub mod model_handlers;
 pub mod model_options;
 mod stream;
 
 pub use config::{AiConfig, AiRuntimeStatus};
-pub use model_options::{AiModelChoice, AiModelOptionView, SaveAiModelOption};
-pub use stream::{AiStreamItem, AiTextStream};
-
 use genai::adapter::AdapterKind;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
 use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{Client, ModelIden, ServiceTarget};
+pub use model_options::{AiModelChoice, AiModelOptionView, SaveAiModelOption};
 use serde::{Deserialize, Serialize};
+pub use stream::{AiStreamItem, AiTextStream};
 use toon_format::encode_default;
 use utoipa::ToSchema;
 

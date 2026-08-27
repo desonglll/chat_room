@@ -29,6 +29,9 @@ fn in_progress_features_are_present_in_the_openapi_contract() {
         ("/api/ai/runs/{id}", &["get"][..]),
         ("/api/ai/runs/{id}/events", &["get"][..]),
         ("/api/rooms/{room_id}/tasks", &["get", "post"][..]),
+        ("/api/rooms/{room_id}/ai/extractions", &["post"][..]),
+        ("/api/ai/extractions/{id}", &["get"][..]),
+        ("/api/ai/extraction-candidates/{id}", &["patch"][..]),
         (
             "/api/rooms/{room_id}/tasks/{task_id}",
             &["patch", "delete"][..],

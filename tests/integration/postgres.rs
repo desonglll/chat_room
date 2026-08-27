@@ -8,6 +8,8 @@
 use super::*;
 use chat_room::config::{AdminConfig, AppConfig};
 
+#[path = "ai_extraction_postgres.rs"]
+mod ai_extraction_postgres;
 #[path = "global_search_postgres.rs"]
 mod global_search_postgres;
 #[path = "postgres_database.rs"]
