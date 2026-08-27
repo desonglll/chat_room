@@ -11,6 +11,7 @@ const FAVICON: &str = include_str!(concat!(env!("OUT_DIR"), "/web/favicon.svg"))
 const ICON_SPRITE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/icons/icon-sprite.svg"));
 const ECHO_GATE: &str = include_str!(concat!(env!("OUT_DIR"), "/web/brand/echo-gate.svg"));
 const EMOJI_DATA_ZH: &str = include_str!(concat!(env!("OUT_DIR"), "/web/emoji-data-zh.json"));
+const THEME_BOOTSTRAP: &str = include_str!(concat!(env!("OUT_DIR"), "/web/theme-bootstrap.js"));
 include!(concat!(env!("OUT_DIR"), "/web_assets.rs"));
 
 pub async fn index() -> impl IntoResponse {
@@ -39,6 +40,14 @@ pub async fn echo_gate() -> impl IntoResponse {
 
 pub async fn emoji_data_zh() -> impl IntoResponse {
     asset("application/json", "public, max-age=86400", EMOJI_DATA_ZH)
+}
+
+pub async fn theme_bootstrap() -> impl IntoResponse {
+    asset(
+        "text/javascript; charset=utf-8",
+        "public, max-age=86400",
+        THEME_BOOTSTRAP,
+    )
 }
 
 fn asset(

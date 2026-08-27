@@ -86,6 +86,14 @@ impl AppState {
         self.config.auth.session_lifetime_days
     }
 
+    pub(crate) fn auth_rate_limits(&self) -> &crate::security::AuthRateLimits {
+        &self.auth_rate_limits
+    }
+
+    pub(crate) fn trust_proxy_headers(&self) -> bool {
+        self.config.security.trust_proxy_headers
+    }
+
     pub(crate) fn redis_cache(&self) -> Option<&crate::cache::RedisCache> {
         self.redis_cache.as_ref()
     }

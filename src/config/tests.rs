@@ -28,6 +28,11 @@ fn defaults_match_the_previous_hardcoded_constants() {
     assert_eq!(config.realtime.poke_cooldown_secs, 5);
     assert_eq!(config.auth.session_lifetime_days, 30);
     assert_eq!(config.auth.registration_mode, "open");
+    assert_eq!(config.auth.rate_limit_window_secs, 60);
+    assert_eq!(config.auth.rate_limit_ip_attempts, 60);
+    assert_eq!(config.auth.rate_limit_account_attempts, 10);
+    assert!(config.security.cors_allowed_origins.is_empty());
+    assert!(!config.security.trust_proxy_headers);
     assert!(config.admin.usernames.is_empty());
     assert_eq!(config.admin.orphan_retention_hours, 168);
     assert_eq!(config.ai.request_timeout_secs, 60);
@@ -68,6 +73,12 @@ fn parses_realtime_and_auth_overrides() {
     assert!(invalid.validate().is_err());
     let invalid_mode: AppConfig = toml::from_str("[auth]\nregistration_mode = 'private'").unwrap();
     assert!(invalid_mode.validate().is_err());
+    let invalid_limit: AppConfig =
+        toml::from_str("[auth]\nrate_limit_account_attempts = 0").unwrap();
+    assert!(invalid_limit.validate().is_err());
+    let wildcard_cors: AppConfig =
+        toml::from_str("[security]\ncors_allowed_origins = ['*']").unwrap();
+    assert!(wildcard_cors.validate().is_err());
 }
 
 #[test]

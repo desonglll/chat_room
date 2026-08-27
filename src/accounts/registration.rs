@@ -1,6 +1,12 @@
 //! Registration policy, one-time invitation consumption, and HTTP entry point.
 
-use axum::{extract::State, http::StatusCode, Json};
+use std::net::SocketAddr;
+
+use axum::{
+    extract::{ConnectInfo, State},
+    http::{HeaderMap, StatusCode},
+    Json,
+};
 use chrono::Utc;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -9,10 +15,14 @@ use uuid::Uuid;
 use crate::{
     admin::system_admins::token_hash,
     models::{AuthSession, User},
+    security::AuthAction,
     state::{with_pool, AppState, SharedState},
 };
 
-use super::user_handlers::{hash_password, normalize_credentials};
+use super::{
+    auth_limits::require_auth_capacity,
+    user_handlers::{hash_password, normalize_credentials},
+};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct RegisterRequest {
@@ -105,14 +115,18 @@ impl AppState {
         (status = 201, description = "Account registered", body = AuthSession),
         (status = 400, description = "Invalid username or password"),
         (status = 403, description = "Registration disabled or invitation invalid"),
-        (status = 409, description = "Username already exists")
+        (status = 409, description = "Username already exists"),
+        (status = 429, description = "Too many registration attempts")
     )
 )]
 pub async fn register(
     State(state): State<SharedState>,
+    peer: Option<ConnectInfo<SocketAddr>>,
+    headers: HeaderMap,
     Json(request): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<AuthSession>), StatusCode> {
     let (username, password) = normalize_credentials(request.username, request.password)?;
+    require_auth_capacity(&state, &headers, peer, AuthAction::Register, &username).await?;
     let password_hash = hash_password(password).await?;
     let user = match state
         .register_user(&username, &password_hash, request.invite_token.as_deref())

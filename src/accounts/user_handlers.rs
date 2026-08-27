@@ -5,17 +5,21 @@ use argon2::{
     Argon2,
 };
 use axum::{
-    extract::{Path, State},
+    extract::{ConnectInfo, Path, State},
     http::{header::AUTHORIZATION, HeaderMap, StatusCode},
     Json,
 };
+use std::net::SocketAddr;
 use uuid::Uuid;
 
 use crate::models::{
     AuthRequest, AuthSession, ChangePasswordRequest, DeleteAccountRequest, UpdateProfileRequest,
     User, VerifyPasswordRequest,
 };
+use crate::security::AuthAction;
 use crate::state::SharedState;
+
+use super::auth_limits::require_auth_capacity;
 
 const MAX_USERNAME_CHARS: usize = 48;
 const MIN_PASSWORD_CHARS: usize = 8;
@@ -89,19 +93,24 @@ pub(crate) fn optional_bearer_token(headers: &HeaderMap) -> Option<Uuid> {
     responses(
         (status = 200, description = "Login succeeded", body = AuthSession),
         (status = 400, description = "Invalid username or password format"),
-        (status = 401, description = "Incorrect username or password")
+        (status = 401, description = "Incorrect username or password"),
+        (status = 429, description = "Too many login attempts")
     )
 )]
 pub async fn login(
     State(state): State<SharedState>,
+    peer: Option<ConnectInfo<SocketAddr>>,
+    headers: HeaderMap,
     Json(request): Json<AuthRequest>,
 ) -> Result<Json<AuthSession>, StatusCode> {
     let (username, password) = normalize_credentials(request.username, request.password)?;
+    require_auth_capacity(&state, &headers, peer, AuthAction::Login, &username).await?;
     let Some((user, password_hash)) = state.user_credentials(&username).await.map_err(|error| {
         tracing::error!("load login credentials failed: {}", error);
         StatusCode::INTERNAL_SERVER_ERROR
     })?
     else {
+        hash_password(password).await?;
         return Err(StatusCode::UNAUTHORIZED);
     };
     if !password_matches(password, password_hash).await {
@@ -301,11 +310,13 @@ pub async fn change_password(
     responses(
         (status = 204, description = "Password verified"),
         (status = 400, description = "Invalid password format"),
-        (status = 401, description = "Incorrect password or expired session")
+        (status = 401, description = "Incorrect password or expired session"),
+        (status = 429, description = "Too many password verification attempts")
     )
 )]
 pub async fn verify_password(
     State(state): State<SharedState>,
+    peer: Option<ConnectInfo<SocketAddr>>,
     headers: HeaderMap,
     Json(request): Json<VerifyPasswordRequest>,
 ) -> Result<StatusCode, StatusCode> {
@@ -318,6 +329,14 @@ pub async fn verify_password(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    require_auth_capacity(
+        &state,
+        &headers,
+        peer,
+        AuthAction::VerifyPassword,
+        &current.id.to_string(),
+    )
+    .await?;
     let Some((_, password_hash)) = state
         .user_credentials(&current.username)
         .await

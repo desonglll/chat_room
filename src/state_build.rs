@@ -17,6 +17,7 @@ use crate::cache::RedisCache;
 use crate::config::AppConfig;
 use crate::knowledge::MessageIndex;
 use crate::models::Room;
+use crate::security::AuthRateLimits;
 use crate::social::rate_limits::SocialRateLimits;
 use crate::state::{AppState, RoomChannel, SELECT_ROOMS};
 use crate::storage;
@@ -115,6 +116,7 @@ impl AppState {
         } else {
             None
         };
+        let auth_rate_limits = AuthRateLimits::new(&config.auth, redis_cache.clone());
         let message_index = match MessageIndex::connect(&config.vector_store).await {
             Ok(index) => index,
             Err(error) => {
@@ -144,6 +146,7 @@ impl AppState {
             runtime_metrics: RuntimeMetrics::default(),
             action_cooldowns: RwLock::new(HashMap::new()),
             social_rate_limits: SocialRateLimits::default(),
+            auth_rate_limits,
             ai_assistant,
             config,
             redis_cache,

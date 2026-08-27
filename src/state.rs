@@ -17,6 +17,7 @@ use crate::cache::RedisCache;
 use crate::config::AppConfig;
 use crate::knowledge::MessageIndex;
 use crate::models::{ChatMessage, Room, RoomMember, User};
+use crate::security::AuthRateLimits;
 use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
 use crate::work_queue::WorkQueue;
@@ -75,6 +76,7 @@ pub struct AppState {
     /// actions (poke, AI suggestions) that don't need database persistence.
     pub(crate) action_cooldowns: RwLock<HashMap<(Uuid, Uuid, Uuid), Instant>>,
     pub(crate) social_rate_limits: SocialRateLimits,
+    pub(crate) auth_rate_limits: AuthRateLimits,
     pub(crate) ai_assistant: Option<AiAssistant>,
     pub(crate) config: AppConfig,
     pub(crate) redis_cache: Option<RedisCache>,

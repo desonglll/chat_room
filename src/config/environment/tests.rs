@@ -56,6 +56,14 @@ fn all_runtime_sections_can_come_from_the_environment() {
         ("CHAT_ROOM_REALTIME_POLL_INTERVAL_MS", "500"),
         ("CHAT_ROOM_AUTH_SESSION_LIFETIME_DAYS", "14"),
         ("CHAT_ROOM_AUTH_REGISTRATION_MODE", "disabled"),
+        ("CHAT_ROOM_AUTH_RATE_LIMIT_WINDOW_SECS", "120"),
+        ("CHAT_ROOM_AUTH_RATE_LIMIT_IP_ATTEMPTS", "80"),
+        ("CHAT_ROOM_AUTH_RATE_LIMIT_ACCOUNT_ATTEMPTS", "8"),
+        (
+            "CHAT_ROOM_CORS_ALLOWED_ORIGINS",
+            "https://chat.example.com, http://localhost:5173",
+        ),
+        ("CHAT_ROOM_TRUST_PROXY_HEADERS", "true"),
         ("CHAT_ROOM_REDIS_KEY_PREFIX", "chat-test"),
         ("CHAT_ROOM_WORK_QUEUE_MESSAGE_CONCURRENCY", "12"),
         ("CHAT_ROOM_ADMIN_ORPHAN_RETENTION_HOURS", "72"),
@@ -79,6 +87,14 @@ fn all_runtime_sections_can_come_from_the_environment() {
     assert_eq!(config.realtime.poll_interval_ms, 500);
     assert_eq!(config.auth.session_lifetime_days, 14);
     assert_eq!(config.auth.registration_mode, "disabled");
+    assert_eq!(config.auth.rate_limit_window_secs, 120);
+    assert_eq!(config.auth.rate_limit_ip_attempts, 80);
+    assert_eq!(config.auth.rate_limit_account_attempts, 8);
+    assert_eq!(
+        config.security.cors_allowed_origins,
+        ["https://chat.example.com", "http://localhost:5173"]
+    );
+    assert!(config.security.trust_proxy_headers);
     assert_eq!(config.redis.key_prefix, "chat-test");
     assert_eq!(config.work_queue.message_concurrency, 12);
     assert_eq!(config.admin.orphan_retention_hours, 72);

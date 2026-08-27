@@ -164,7 +164,12 @@ async fn main() -> Result<()> {
         tracing::info!("web client enabled at http://{}/", listen_addr);
     }
 
-    axum::serve(listener, app).await.context("serve chat room")
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .context("serve chat room")
 }
 
 async fn open_state(

@@ -168,6 +168,30 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         config.auth.registration_mode,
         "CHAT_ROOM_AUTH_REGISTRATION_MODE"
     );
+    parse!(
+        config.auth.rate_limit_window_secs,
+        "CHAT_ROOM_AUTH_RATE_LIMIT_WINDOW_SECS"
+    );
+    parse!(
+        config.auth.rate_limit_ip_attempts,
+        "CHAT_ROOM_AUTH_RATE_LIMIT_IP_ATTEMPTS"
+    );
+    parse!(
+        config.auth.rate_limit_account_attempts,
+        "CHAT_ROOM_AUTH_RATE_LIMIT_ACCOUNT_ATTEMPTS"
+    );
+    if let Some(origins) = value("CHAT_ROOM_CORS_ALLOWED_ORIGINS") {
+        config.security.cors_allowed_origins = origins
+            .split(',')
+            .map(str::trim)
+            .filter(|origin| !origin.is_empty())
+            .map(str::to_string)
+            .collect();
+    }
+    parse!(
+        config.security.trust_proxy_headers,
+        "CHAT_ROOM_TRUST_PROXY_HEADERS"
+    );
 
     parse!(config.ai.enabled, "CHAT_ROOM_AI_ENABLED");
     string!(config.ai.provider, "CHAT_ROOM_AI_PROVIDER");

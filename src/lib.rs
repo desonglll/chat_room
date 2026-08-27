@@ -19,6 +19,7 @@ pub mod notifications;
 pub mod realtime;
 pub mod rooms;
 mod routes;
+mod security;
 pub mod social;
 pub mod state;
 mod state_backup;
@@ -53,7 +54,6 @@ pub use rooms::{
 
 use axum::{routing::get, Json, Router};
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 
@@ -262,6 +262,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         .max_upload_bytes()
         .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);
     let chunk_body_limit = state.chunk_body_limit_bytes();
+    let cors = security::cors_layer(&state.config.security);
     let mut app = routes::api_routes(multipart_body_limit, chunk_body_limit)
         .route("/api-docs/openapi.json", get(openapi_json));
 
@@ -273,6 +274,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             .route("/icons/icon-sprite.svg", get(web::icon_sprite))
             .route("/brand/echo-gate.svg", get(web::echo_gate))
             .route("/emoji-data-zh.json", get(web::emoji_data_zh))
+            .route("/theme-bootstrap.js", get(web::theme_bootstrap))
             // The Vue client uses history-mode client-side routing (/rooms/:id, /profile,
             // /settings) — any path not matched above is a client route, not a 404.
             .fallback(get(web::index));
@@ -286,7 +288,8 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         state.clone(),
         admin_backups::reject_during_restore,
     ))
-    .layer(CorsLayer::permissive())
+    .layer(cors)
+    .layer(axum::middleware::from_fn(security::security_headers))
     .layer(TraceLayer::new_for_http())
     .with_state(state)
 }

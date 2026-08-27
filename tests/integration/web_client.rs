@@ -25,6 +25,21 @@ async fn web_client_is_only_served_when_enabled() {
     assert!(html.contains("<div id=\"app\"></div>"));
     assert!(html.contains("/assets/app.css"));
     assert!(html.contains("/assets/app.js"));
+    assert!(html.contains("<script src=\"/theme-bootstrap.js\"></script>"));
+
+    let theme_bootstrap = reqwest::get(format!("{}/theme-bootstrap.js", web))
+        .await
+        .unwrap();
+    assert_eq!(theme_bootstrap.status(), 200);
+    assert_eq!(
+        theme_bootstrap.headers()[reqwest::header::CONTENT_TYPE],
+        "text/javascript; charset=utf-8"
+    );
+    assert!(theme_bootstrap
+        .text()
+        .await
+        .unwrap()
+        .contains("localStorage"));
 
     let favicon = reqwest::get(format!("{}/favicon.svg", web)).await.unwrap();
     assert_eq!(favicon.status(), 200);

@@ -106,6 +106,13 @@ deleted_room_retention_days = 30
 [auth]
 session_lifetime_days = 30
 registration_mode = "open"
+rate_limit_window_secs = 60
+rate_limit_ip_attempts = 60
+rate_limit_account_attempts = 10
+
+[security]
+cors_allowed_origins = []
+trust_proxy_headers = false
 ```
 
 `max_file_size_mib` is the maximum size of one file, measured in MiB. It must
@@ -334,6 +341,19 @@ Set `auth.registration_mode` (or `CHAT_ROOM_AUTH_REGISTRATION_MODE`) to `open`,
 `invite_only`, or `disabled`. In invite-only mode, an administrator creates a
 one-time invitation at `POST /api/admin/registration-invites`; only its hash is
 stored, it expires, and the bearer value is returned only in that response.
+
+Authentication attempts are limited independently by IP digest and normalized
+account digest before Argon2 work. Defaults allow 60 attempts per IP and 10 per
+account in 60 seconds. When Redis is enabled and reachable, all instances share
+the counters; otherwise each process uses an in-memory fallback. Metrics expose
+only aggregate allowed, blocked, and Redis fallback counts.
+
+`security.cors_allowed_origins` accepts exact `http://` or `https://` origins
+without a path, for example `https://chat.example.com`. An empty list is the
+same-origin default; wildcard origins are rejected. The equivalent environment
+variable is a comma-separated `CHAT_ROOM_CORS_ALLOWED_ORIGINS` list. Keep
+`security.trust_proxy_headers` false unless a trusted reverse proxy removes
+client-supplied `X-Forwarded-For` and `X-Real-IP` values before forwarding.
 
 The dashboard reports request latency, connections, rooms, messages, sessions,
 and logical/physical attachment usage. Its maintenance action permanently

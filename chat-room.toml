@@ -108,6 +108,16 @@ poke_cooldown_secs = 5
 session_lifetime_days = 30
 # open, invite_only, or disabled
 registration_mode = "open"
+# Fixed-window authentication abuse controls, enforced for both IP and account.
+rate_limit_window_secs = 60
+rate_limit_ip_attempts = 60
+rate_limit_account_attempts = 10
+
+[security]
+# Exact cross-origin browser origins. Empty keeps the API same-origin only.
+cors_allowed_origins = []
+# Enable only behind a proxy that removes client-supplied forwarding headers.
+trust_proxy_headers = false
 
 [redis]
 # Redis accelerates bearer-session lookups and message history pages.

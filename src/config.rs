@@ -16,12 +16,14 @@ use serde::{Deserialize, Serialize};
 mod auth;
 mod environment;
 mod performance;
+mod security;
 #[cfg(test)]
 mod tests;
 mod vector_store;
 
 pub use auth::AuthConfig;
 pub use performance::{RedisConfig, WorkQueueConfig};
+pub use security::SecurityConfig;
 pub use vector_store::VectorStoreConfig;
 
 pub const DEFAULT_MAX_UPLOAD_MIB: u64 = 512;
@@ -36,6 +38,7 @@ pub struct AppConfig {
     pub ai: AiConfig,
     pub realtime: RealtimeConfig,
     pub auth: AuthConfig,
+    pub security: SecurityConfig,
     pub admin: AdminConfig,
     pub redis: RedisConfig,
     pub work_queue: WorkQueueConfig,
@@ -258,11 +261,25 @@ impl AppConfig {
         if self.auth.session_lifetime_days <= 0 {
             bail!("auth.session_lifetime_days must be greater than zero");
         }
+        if self.auth.rate_limit_window_secs == 0
+            || self.auth.rate_limit_ip_attempts == 0
+            || self.auth.rate_limit_account_attempts == 0
+        {
+            bail!("auth rate limit values must be greater than zero");
+        }
         if !matches!(
             self.auth.registration_mode.as_str(),
             "open" | "invite_only" | "disabled"
         ) {
             bail!("auth.registration_mode must be open, invite_only, or disabled");
+        }
+        if self
+            .security
+            .cors_allowed_origins
+            .iter()
+            .any(|origin| !security::is_exact_origin(origin))
+        {
+            bail!("security.cors_allowed_origins must contain exact http/https origins");
         }
         if self.admin.orphan_retention_hours <= 0 {
             bail!("admin.orphan_retention_hours must be greater than zero");

@@ -13,9 +13,9 @@ use crate::models::{StoredMessage, User};
 
 #[derive(Clone)]
 pub(crate) struct RedisCache {
-    manager: ConnectionManager,
-    key_prefix: String,
-    command_timeout: Duration,
+    pub(crate) manager: ConnectionManager,
+    pub(crate) key_prefix: String,
+    pub(crate) command_timeout: Duration,
     message_ttl_secs: u64,
 }
 
