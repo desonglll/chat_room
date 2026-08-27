@@ -81,6 +81,7 @@ export async function createAiRun(
   password: string,
   clientRequestId: string,
   modelOptionId: string | null,
+  messageIds: string[] = [],
 ): Promise<AiRun> {
   const response = await fetch(`/api/ai/threads/${encodeURIComponent(threadId)}/runs`, {
     method: 'POST',
@@ -90,6 +91,7 @@ export async function createAiRun(
       room_id: roomId,
       client_request_id: clientRequestId,
       model_option_id: modelOptionId,
+      message_ids: messageIds,
     }),
   })
   assertAiResponse(response)

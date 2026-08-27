@@ -26,6 +26,7 @@ struct RunInput<'a> {
     room_id: Option<Uuid>,
     client_request_id: Uuid,
     source: Option<CatchUpRunSource>,
+    selected_message_ids: &'a [Uuid],
     model: &'a ResolvedAiModel,
     admission: AiAdmission,
 }
@@ -34,6 +35,7 @@ pub(super) struct NewAiRun<'a> {
     pub question: &'a str,
     pub room_id: Option<Uuid>,
     pub client_request_id: Uuid,
+    pub selected_message_ids: &'a [Uuid],
     pub model: &'a ResolvedAiModel,
     pub admission: AiAdmission,
 }
@@ -62,6 +64,7 @@ impl AppState {
                 room_id: input.room_id,
                 client_request_id: input.client_request_id,
                 source: None,
+                selected_message_ids: input.selected_message_ids,
                 model: input.model,
                 admission: input.admission,
             },
@@ -84,6 +87,7 @@ impl AppState {
                 room_id: Some(input.room_id),
                 client_request_id: input.client_request_id,
                 source: Some(input.source),
+                selected_message_ids: &[],
                 model: input.model,
                 admission: input.admission,
             },
@@ -170,6 +174,17 @@ impl AppState {
             .bind(now)
             .execute(&mut *transaction)
             .await?;
+            for (ordinal, message_id) in input.selected_message_ids.iter().enumerate() {
+                sqlx::query(
+                    "INSERT INTO ai_run_selected_messages (run_id, message_id, ordinal) \
+                     VALUES ($1, $2, $3)",
+                )
+                .bind(run_id)
+                .bind(message_id)
+                .bind(i64::try_from(ordinal).unwrap_or(i64::MAX))
+                .execute(&mut *transaction)
+                .await?;
+            }
             sqlx::query("UPDATE ai_threads SET updated_at = $1 WHERE id = $2")
                 .bind(now)
                 .bind(thread_id)

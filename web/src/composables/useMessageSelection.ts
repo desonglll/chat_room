@@ -5,6 +5,7 @@ interface MessageSelectionActions {
   download: (attachments: Attachment[]) => void
   favorite: (messageIds: string[]) => void
   forward: (messageIds: string[]) => void
+  assistant: (messageIds: string[]) => void
 }
 
 export function useMessageSelection(messages: MaybeRefOrGetter<DisplayMessage[]>, actions: MessageSelectionActions) {
@@ -43,8 +44,14 @@ export function useMessageSelection(messages: MaybeRefOrGetter<DisplayMessage[]>
     closeSelection()
   }
 
+  function askSelected(): void {
+    actions.assistant([...selectedMessageIds.value])
+    closeSelection()
+  }
+
   return {
     closeSelection,
+    askSelected,
     downloadSelected,
     favoriteSelected,
     forwardSelected,

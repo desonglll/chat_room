@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import Message from 'primevue/message'
 import {
   createCatchUpRun,
@@ -17,20 +17,21 @@ import {
   conversationMentionCandidates,
   insertConversationMention,
   parseAssistantPrompt,
-  type ConversationMentionRange,
   type MentionableConversation,
 } from '../assistantMentions'
-import type { AiUiMessage } from '../aiUi'
+import type { AiSelectedMessage } from '../aiSelectedContext'
 import { hasActiveAiMessage, pollAiThreadMessages } from '../aiRunPolling'
 import { shouldSubmitMessage } from '../composer'
 import { useAiSourceDetails } from '../composables/useAiSourceDetails'
+import { useAiAssistantState } from '../composables/useAiAssistantState'
 import { createRandomUuid } from '../randomUuid'
 import { readRoomPassword } from '../roomPasswordVault'
-import type { AiModelChoice, AiRuntimeStatus, AiThread, FavoriteItem, Room } from '../types'
+import type { AiRuntimeStatus, AiThread, FavoriteItem, Room } from '../types'
 import AiAssistantHeader from './AiAssistantHeader.vue'
 import AiAssistantToolbar from './AiAssistantToolbar.vue'
 import AiMessageList from './AiMessageList.vue'
 import AiPromptComposer from './AiPromptComposer.vue'
+import AiSelectedContextBar from './AiSelectedContextBar.vue'
 import AiSourceDetailsPage from './AiSourceDetailsPage.vue'
 import AiThreadSidebar from './AiThreadSidebar.vue'
 
@@ -42,6 +43,7 @@ const props = defineProps<{
   embedded?: boolean
   initialRoomId?: string
   catchUpRequest?: number
+  selectedMessages?: AiSelectedMessage[]
   saveFavorite: (title: string, content: string) => Promise<FavoriteItem>
 }>()
 const emit = defineEmits<{
@@ -49,23 +51,11 @@ const emit = defineEmits<{
   error: [message: string]
   success: [message: string]
   catchUpFinished: []
+  clearSelectedMessages: []
 }>()
 
-const threads = ref<AiThread[]>([])
-const activeThreadId = ref('')
-const messages = ref<AiUiMessage[]>([])
-const modelOptions = ref<AiModelChoice[]>([])
-const selectedModelId = ref('')
-const roomPassword = ref('')
-const prompt = ref('')
-const loading = ref(false)
-const loadingThreads = ref(false)
-const promptInput = ref<{ focusAt: (caret: number) => Promise<void> } | null>(null)
-const messageList = ref<{ scrollToLatest: (smooth?: boolean) => Promise<void>; scrollToLatestSoon: () => void } | null>(
-  null,
-)
-const mentionRange = ref<ConversationMentionRange | null>(null)
-const mentionIndex = ref(0)
+// prettier-ignore
+const { activeThreadId, loading, loadingThreads, mentionIndex, mentionRange, messageList, messages, modelOptions, prompt, promptInput, roomPassword, selectedModelId, threads } = useAiAssistantState()
 let pollGeneration = 0
 let runStream: AbortController | null = null
 let handledCatchUpRequest = 0
@@ -331,6 +321,7 @@ async function submit(quickQuestion = ''): Promise<void> {
       room?.has_password ? roomPassword.value : '',
       createRandomUuid(),
       selectedModelId.value || null,
+      (props.selectedMessages || []).map((message) => message.messageId),
     )
     const generation = ++pollGeneration
     messages.value = await listAiThreadMessages(props.token, session.id)
@@ -442,7 +433,7 @@ onUnmounted(() => {
         :room-title="activeRoom?.name || ''"
         @back="closeSourceDetails"
       />
-      <div v-else class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
+      <div v-else class="grid min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto]">
         <AiAssistantToolbar
           v-model:password="roomPassword"
           :models="modelOptions"
@@ -457,6 +448,11 @@ onUnmounted(() => {
           @thinking="setThinking"
           @model="selectedModelId = $event"
           @quick="submit"
+        />
+        <AiSelectedContextBar
+          v-if="selectedMessages?.length"
+          :messages="selectedMessages"
+          @clear="emit('clearSelectedMessages')"
         />
         <AiMessageList
           ref="messageList"

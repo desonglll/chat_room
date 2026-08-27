@@ -11,6 +11,7 @@ use super::models::AiCitationSource;
 use super::planner::{AgentPlan, ContextScope};
 use super::progress::{RunProgress, RunStage, RunStep};
 use super::run_store::AiRunExecution;
+use super::selected_context::prepare_selected_context;
 
 const MEMORY_TURNS: i64 = 26;
 const SEMANTIC_SEARCH_TIMEOUT: Duration = Duration::from_secs(5);
@@ -32,6 +33,28 @@ pub(super) async fn prepare_generation_context(
     if execution.is_catch_up() {
         return prepare_catch_up_context(state, execution).await;
     }
+    let selected_message_ids = state.ai_run_selected_message_ids(execution.id).await?;
+    if !selected_message_ids.is_empty() {
+        let mut context = prepare_selected_context(state, execution, selected_message_ids).await?;
+        context.history = completed_thread_history(state, execution).await?;
+        progress
+            .publish_step(
+                state,
+                execution,
+                RunStep::new(
+                    RunStage::PreparingContext,
+                    "selected_message_scope",
+                    "使用所选聊天记录",
+                    format!(
+                        "仅使用用户明确选择的 {} 条消息，不扩展房间范围",
+                        context.message_count
+                    ),
+                ),
+                "",
+            )
+            .await?;
+        return Ok(context);
+    }
     let context_limit = match plan.context_scope {
         ContextScope::None => None,
         ContextScope::Recent => Some(state.ai_max_context_messages()),
@@ -45,17 +68,7 @@ pub(super) async fn prepare_generation_context(
         ),
         _ => None,
     };
-    let history = state
-        .ai_thread_messages(execution.user_id, execution.thread_id, MEMORY_TURNS)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("AI thread no longer exists"))?
-        .into_iter()
-        .filter(|message| !execution.excludes(message) && message.status == "completed")
-        .map(|message| AiConversationTurn {
-            role: message.role,
-            content: message.content,
-        })
-        .collect();
+    let history = completed_thread_history(state, execution).await?;
     let attachment_sources = room_context
         .as_ref()
         .map(|context| context.sources.clone())
@@ -255,6 +268,23 @@ pub(super) async fn prepare_generation_context(
         )
         .await?;
     Ok(context)
+}
+
+async fn completed_thread_history(
+    state: &SharedState,
+    execution: &AiRunExecution,
+) -> anyhow::Result<Vec<AiConversationTurn>> {
+    Ok(state
+        .ai_thread_messages(execution.user_id, execution.thread_id, MEMORY_TURNS)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("AI thread no longer exists"))?
+        .into_iter()
+        .filter(|message| !execution.excludes(message) && message.status == "completed")
+        .map(|message| AiConversationTurn {
+            role: message.role,
+            content: message.content,
+        })
+        .collect())
 }
 
 fn truncate_detail(value: &str, limit: usize) -> String {

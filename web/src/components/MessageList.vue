@@ -13,6 +13,7 @@ import PendingUploadMessage from './PendingUploadMessage.vue'
 import AppAvatar from './AppAvatar.vue'
 import ReadReceiptStatus from './ReadReceiptStatus.vue'
 import { useMessageViewport } from '../composables/useMessageViewport'
+import { useMessageContextMenu } from '../composables/useMessageContextMenu'
 import { preferredScrollBehavior } from '../motionPreference'
 import type { Attachment, BroadcastMessage, DisplayMessage, ReadReceipt, ReplyPreview, RoomMember } from '../types'
 
@@ -34,6 +35,7 @@ const props = defineProps<{
   loadingOlder: boolean
   hasMoreHistory: boolean
   ensureMessage: (messageId: string) => Promise<boolean>
+  aiEnabled: boolean
 }>()
 
 const emit = defineEmits<{
@@ -54,65 +56,30 @@ const emit = defineEmits<{
   loadOlder: []
   reaction: [messageId: string, emoji: string, active: boolean]
   task: [message: BroadcastMessage]
+  askAi: [messageId: string]
 }>()
 const messageList = ref<HTMLElement | null>(null)
 const highlightedId = ref('')
-const contextMenu = ref()
-const contextMenuItems = ref<MenuItem[]>([])
 const avatarContextMenu = ref()
 const avatarContextMenuItems = ref<MenuItem[]>([])
 let highlightTimer: number | undefined
 
-function copyText(content: string): void {
-  void navigator.clipboard.writeText(content).catch(() => window.prompt('复制消息内容', content))
-}
-
-function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
-  const isOwn = message.sender_id === props.currentUserId
-  const editsPinnedFavorite = Boolean(message.favorite_id && props.pinnedMessageIds.includes(message.message_id))
-  const items: MenuItem[] = []
-  if (!isSettled(message)) {
-    if (message.delivery_state === 'failed') {
-      items.push({ label: '重新发送', command: () => emit('retry', message.message_id) })
-    }
-    if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
-    contextMenuItems.value = items
-    contextMenu.value?.show(event)
-    return
-  }
-  if (!message.recalled_at) {
-    items.push({ label: '回复', command: () => emit('reply', message) })
-    if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
-    items.push({ label: '转发', command: () => emit('forward', message) })
-    items.push({ label: '设为待办', command: () => emit('task', message) })
-    items.push({
-      label: props.favoriteMessageIds.includes(message.message_id) ? '取消收藏' : '收藏',
-      command: () => emit('favorite', message),
-    })
-    if (props.canPin) {
-      items.push({
-        label: props.pinnedMessageIds.includes(message.message_id) ? '取消置顶' : '置顶',
-        command: () => emit('pin', message),
-      })
-    }
-  }
-  if ((isOwn || editsPinnedFavorite) && message.content && !message.recalled_at) {
-    items.push({ label: message.favorite_id ? '编辑收藏' : '编辑', command: () => emit('edit', message) })
-  }
-  if (isOwn && !message.recalled_at) {
-    items.push({ label: '撤回', command: () => emit('recall', message.message_id) })
-  }
-  if (isOwn && message.recalled_at) {
-    items.push({ label: '重新编辑', command: () => emit('edit', message) })
-  }
-  if (!items.length) return
-  contextMenuItems.value = items
-  contextMenu.value?.show(event)
-}
-
-function isSettled(message: BroadcastMessage): boolean {
-  return !message.delivery_state || message.delivery_state === 'sent'
-}
+const { contextMenu, contextMenuItems, isSettled, openContextMenu } = useMessageContextMenu({
+  currentUserId: () => props.currentUserId,
+  favoriteMessageIds: () => props.favoriteMessageIds,
+  pinnedMessageIds: () => props.pinnedMessageIds,
+  canPin: () => props.canPin,
+  aiEnabled: () => props.aiEnabled,
+  retry: (messageId) => emit('retry', messageId),
+  reply: (message) => emit('reply', message),
+  askAi: (messageId) => emit('askAi', messageId),
+  forward: (message) => emit('forward', message),
+  task: (message) => emit('task', message),
+  favorite: (message) => emit('favorite', message),
+  pin: (message) => emit('pin', message),
+  edit: (message) => emit('edit', message),
+  recall: (messageId) => emit('recall', messageId),
+})
 
 function toggleReaction(message: BroadcastMessage, emoji: string): void {
   const active = !(message.reactions || [])

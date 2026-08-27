@@ -28,6 +28,7 @@ import { usePreferencesController } from './composables/usePreferencesController
 import { useRoomMembership } from './composables/useRoomMembership'
 import { useRoomHistory } from './composables/useRoomHistory'
 import { useRoomActions } from './composables/useRoomActions'
+import { useRoomAiPanel } from './composables/useRoomAiPanel'
 import { useTheme } from './composables/useTheme'
 import { useRoomRouteSync } from './composables/useRoomRouteSync'
 import { loadPreferences } from './preferences'
@@ -37,16 +38,11 @@ import { clearRoomPassword } from './roomPasswordVault'
 import { createRoomSystemEventHandler } from './roomSystemEvents'
 import type { ConversationSummary, Room } from './types'
 
-const route = useRoute()
-const router = useRouter()
+const [route, router] = [useRoute(), useRouter()]
 const roomPassword = ref('')
-const createOpen = ref(false)
-const newConversationOpen = ref(false)
-const manageOpen = ref(false)
-const authOpen = ref(false)
+const [createOpen, newConversationOpen, manageOpen, authOpen] = [ref(false), ref(false), ref(false), ref(false)]
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const sidebarCollapsed = ref(storageGet(window.localStorage, 'chat-room.sidebar-collapsed') === 'true')
-const [aiPanelOpen, catchUpRequest] = [ref(false), ref(0)]
 const notificationUnreadCount = ref(0)
 const preferences = ref(loadPreferences())
 const privacyLockScreen = ref<{ lock: () => void } | null>(null)
@@ -117,6 +113,8 @@ const handleSystemEvent = createRoomSystemEventHandler({
 })
 
 const chat = useChatSocket(handleSystemEvent)
+// prettier-ignore
+const { aiContextMessages, aiPanelOpen, catchUpRequest, clearAiContext, handleAssistant, requestCatchUp } = useRoomAiPanel(chat.messages, selectedId)
 const notifier = createBrowserNotifier((roomId) => {
   const conversation = conversationState.conversations.value.find((candidate) => candidate.room_id === roomId)
   if (conversation) selectConversation(conversation)
@@ -456,16 +454,16 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
         @load-older="history.loadOlder"
         @remove-friend="changeSelectedDirectAccess(contacts.remove)"
         @block-user="changeSelectedDirectAccess(contacts.block)"
-        @assistant="aiPanelOpen = !aiPanelOpen"
-        @catch-up="((aiPanelOpen = true), (catchUpRequest += 1))"
+        @assistant="handleAssistant"
+        @catch-up="requestCatchUp"
       />
     </Transition>
     <!-- prettier-ignore -->
     <AiAssistantPage
       v-if="roomAiPanelVisible && selectedRoom" :key="`room-ai-${selectedRoom.id}`" embedded
       :initial-room-id="selectedRoom.id" :token="sessionToken" :rooms="forwardRooms" :ai-status="aiStatus"
-      :remember-room-passwords="preferences.rememberRoomPasswords" :catch-up-request="catchUpRequest" :save-favorite="favorites.create"
-      @back="aiPanelOpen = false"
+      :remember-room-passwords="preferences.rememberRoomPasswords" :catch-up-request="catchUpRequest" :selected-messages="aiContextMessages" :save-favorite="favorites.create"
+      @back="aiPanelOpen = false" @clear-selected-messages="clearAiContext"
       @success="showToast" @catch-up-finished="catchUpRequest = 0"
       @error="toast.add({ severity: 'error', summary: $event, life: 3200 })"
     />

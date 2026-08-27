@@ -51,6 +51,7 @@ const { searchOpen, locateMessage, locateSearchResult } = useRoomMessageNavigati
 })
 const {
   closeSelection,
+  askSelected,
   downloadSelected,
   favoriteSelected,
   forwardSelected,
@@ -60,6 +61,7 @@ const {
   toggleSelection,
 } = useMessageSelection(() => props.messages, {
   download: (attachments) => emit('download', attachments),
+  assistant: (messageIds) => emit('assistant', messageIds),
   favorite: (messageIds) => emit('favorite', messageIds),
   forward: (messageIds) => emit('forward', messageIds),
 })
@@ -214,6 +216,7 @@ watch(
         :loading-older="loadingOlder"
         :has-more-history="hasMoreHistory"
         :ensure-message="ensureMessage"
+        :ai-enabled="aiEnabled"
         @read="emit('read', $event)"
         @reply="startReply"
         @recall="recallMessage"
@@ -231,6 +234,7 @@ watch(
         @cancel-upload="emit('cancelUploadTask', $event)"
         @retry-upload="emit('retryUploadTask', $event)"
         @task="taskPanel = $event"
+        @ask-ai="emit('assistant', [$event])"
       />
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
@@ -252,11 +256,13 @@ watch(
         :attachment-count="selectedAttachments.length"
         :downloading="downloading"
         :download-progress="downloadProgress"
+        :ai-enabled="aiEnabled"
         @close="closeSelection"
         @forward="forwardSelected"
         @favorite="favoriteSelected"
         @download="downloadSelected"
         @cancel-download="emit('cancelDownload')"
+        @assistant="askSelected"
       />
       <template v-else>
         <UploadStatusPanel

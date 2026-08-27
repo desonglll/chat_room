@@ -120,6 +120,9 @@ pub struct CreateAiRunRequest {
     pub room_id: Option<Uuid>,
     pub model_option_id: Option<Uuid>,
     pub client_request_id: Uuid,
+    #[serde(default)]
+    #[schema(max_items = 50)]
+    pub message_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

@@ -79,7 +79,7 @@ export type ChatPanelEmits = {
   loadOlder: []
   removeFriend: []
   blockUser: []
-  assistant: []
+  assistant: [messageIds?: string[]]
   catchUp: []
   'update:password': [password: string]
   'update:rememberRoomPasswords': [remember: boolean]

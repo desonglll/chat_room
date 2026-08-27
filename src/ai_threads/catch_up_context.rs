@@ -38,10 +38,10 @@ pub(super) async fn prepare_catch_up_context(
             state.ai_analysis_context_messages(),
         )
         .await?;
-    build_context(room_id, &conversation.title, messages)
+    build_message_context(room_id, &conversation.title, messages)
 }
 
-fn build_context(
+pub(super) fn build_message_context(
     room_id: uuid::Uuid,
     room_title: &str,
     messages: Vec<StoredMessage>,

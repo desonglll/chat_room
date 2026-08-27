@@ -10,6 +10,7 @@ mod planner;
 mod progress;
 mod run_store;
 pub mod runs;
+mod selected_context;
 mod store;
 
 pub use models::{

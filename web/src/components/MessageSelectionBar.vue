@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bookmark, Download, Forward, X } from 'lucide-vue-next'
+import { Bookmark, Download, Forward, Sparkles, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import ProgressBar from 'primevue/progressbar'
 import type { DownloadProgress } from '../attachmentDownloads'
@@ -9,6 +9,7 @@ defineProps<{
   attachmentCount: number
   downloading: boolean
   downloadProgress: DownloadProgress | null
+  aiEnabled: boolean
 }>()
 const emit = defineEmits<{
   close: []
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   favorite: []
   download: []
   cancelDownload: []
+  assistant: []
 }>()
 </script>
 
@@ -34,6 +36,17 @@ const emit = defineEmits<{
         <Button size="small" text severity="danger" aria-label="取消下载" @click="emit('cancelDownload')">取消</Button>
       </div>
     </div>
+    <Button
+      :disabled="!selectedCount || !aiEnabled"
+      severity="secondary"
+      outlined
+      class="size-10! p-0! sm:w-auto! sm:px-3!"
+      aria-label="询问 AI"
+      title="询问 AI"
+      @click="emit('assistant')"
+    >
+      <Sparkles :size="17" /><span class="hidden sm:inline">询问 AI</span>
+    </Button>
     <Button
       :disabled="!selectedCount"
       severity="secondary"

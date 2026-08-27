@@ -13,6 +13,7 @@ use super::handlers::{current_user, internal_error, validate_room_access, DEFAUL
 use super::models::{AiRun, AiRunTraceStep, CreateAiRunRequest};
 use super::pipeline::generate_answer;
 use super::run_store::{AiRunExecution, FailedAiRun};
+use super::selected_context::validate_selected_messages;
 use crate::ai_governance::{estimate_tokens, AiAdmissionRequest};
 use crate::ai_handlers::room_context_for_user;
 use crate::cache::CachedAiAnswer;
@@ -65,12 +66,6 @@ pub async fn create_run(
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if !state
-        .check_action_cooldown(thread_id, user.id, thread_id, state.ai_suggest_cooldown())
-        .await
-    {
-        return Err(StatusCode::TOO_MANY_REQUESTS);
-    }
     if let Some(room_id) = payload.room_id {
         validate_room_access(&state, user.id, Some(room_id)).await?;
         thread = state
@@ -88,6 +83,13 @@ pub async fn create_run(
     let room_id = payload.room_id.or(thread.room_id);
     if let Some(room_id) = room_id {
         room_context_for_user(&state, user.id, room_id, &headers).await?;
+    }
+    validate_selected_messages(&state, user.id, room_id, &payload.message_ids).await?;
+    if !state
+        .check_action_cooldown(thread_id, user.id, thread_id, state.ai_suggest_cooldown())
+        .await
+    {
+        return Err(StatusCode::TOO_MANY_REQUESTS);
     }
     if thread.title == DEFAULT_TITLE {
         let title = title_from_question(question);
@@ -122,6 +124,7 @@ pub async fn create_run(
                 question,
                 room_id,
                 client_request_id: payload.client_request_id,
+                selected_message_ids: &payload.message_ids,
                 model: &selected_model,
                 admission,
             },
