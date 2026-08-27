@@ -16,11 +16,11 @@ class NotificationManager(QObject):
         self._enabled = self._settings.value("notifications/enabled", True, bool)
         self._latest_room_id = ""
         self._tray = QSystemTrayIcon(icon, parent)
-        self._tray.setToolTip("Echo Chat")
+        self._tray.setToolTip("Echo Gate")
         self._tray.messageClicked.connect(self._message_clicked)
         self._tray.activated.connect(self._tray_activated)
         menu = QMenu(parent)
-        open_action = QAction("打开 Echo Chat", menu)
+        open_action = QAction("打开 Echo Gate", menu)
         open_action.triggered.connect(self.open_requested)
         menu.addAction(open_action)
         self._notification_action = QAction("桌面通知", menu)
@@ -65,7 +65,7 @@ class NotificationManager(QObject):
     def show_background_hint(self) -> None:
         if self.available and self._enabled:
             self._tray.showMessage(
-                "Echo Chat 在后台运行",
+                "Echo Gate 在后台运行",
                 "新消息会继续通过系统通知提醒你。",
                 QSystemTrayIcon.MessageIcon.Information,
                 3500,

@@ -4,6 +4,9 @@
 > 适用范围：Rust/Axum 后端、SQLite/PostgreSQL、Vue Web、PySide6 Desktop、Docker 运维  
 > 用途：产品决策、任务拆分、Agent 分派、集成与验收的唯一计划来源  
 > 状态：建议稿；任何功能进入开发前，由产品负责人确认对应任务卡
+> 执行更新（2026-08-27）：FND-001 至 FND-004 已全绿并归档；FND-005
+> 已进入交付。第 1.1 节保留为执行前基线，不代表当前门禁状态。参见
+> `docs/archive/foundation-fnd-001-004.md`。
 
 ## 0. 结论先行
 

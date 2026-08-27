@@ -1,4 +1,4 @@
-# Chat Room Search Knowledge
+# Echo Gate Search Knowledge
 
 This context defines how conversations become searchable knowledge without changing the room's authorization boundary. Original messages remain the source of truth.
 

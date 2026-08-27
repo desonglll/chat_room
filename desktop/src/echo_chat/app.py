@@ -11,7 +11,7 @@ from .theme import application_stylesheet
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Echo Chat native desktop client")
+    parser = argparse.ArgumentParser(description="Echo Gate native desktop client")
     parser.add_argument("--server", default="", help="Default server URL, for example http://127.0.0.1:3000")
     return parser
 
@@ -20,7 +20,7 @@ def create_application(argv: list[str] | None = None) -> tuple[QApplication, Mai
     arguments = list(sys.argv if argv is None else argv)
     options = build_parser().parse_args(arguments[1:])
     QCoreApplication.setOrganizationName("Echo Gate")
-    QCoreApplication.setApplicationName("Echo Chat")
+    QCoreApplication.setApplicationName("Echo Gate")
     app = QApplication(arguments)
     app.setStyle("Fusion")
     app.setStyleSheet(application_stylesheet())

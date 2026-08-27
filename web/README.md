@@ -1,6 +1,6 @@
-# Chat Room Web
+# Echo Gate Web
 
-Vue 3 + Vite + TypeScript browser client for the Rust chat server.
+Vue 3 + Vite + TypeScript browser client for the Echo Gate Rust server.
 
 From the repository root, `cargo run` installs missing web
 dependencies with Bun, builds the Vite bundle, and serves the web app together

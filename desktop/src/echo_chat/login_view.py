@@ -39,7 +39,7 @@ class LoginView(QWidget):
         pixmap = QPixmap(str(Path(__file__).parent / "assets" / "app-icon.png"))
         icon.setPixmap(pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         form.addWidget(icon)
-        title = QLabel("Echo Chat", objectName="brandTitle", alignment=Qt.AlignCenter)
+        title = QLabel("Echo Gate", objectName="brandTitle", alignment=Qt.AlignCenter)
         form.addWidget(title)
         subtitle = QLabel("登录到你的聊天工作区", objectName="muted", alignment=Qt.AlignCenter)
         form.addWidget(subtitle)

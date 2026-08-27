@@ -18,7 +18,7 @@ export function createBrowserNotifier(onActivate: (roomId: string) => void) {
     )
       return
 
-    const title = showDetails ? `${message.sender} · ${message.room_name}` : 'Chat Room'
+    const title = showDetails ? `${message.sender} · ${message.room_name}` : 'Echo Gate'
     const body = showDetails
       ? message.content ||
         (message.attachment_file_name ? `发送了附件：${message.attachment_file_name}` : '发来一条消息')

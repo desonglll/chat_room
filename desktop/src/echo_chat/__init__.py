@@ -1,3 +1,3 @@
-"""Echo Chat native desktop client."""
+"""Echo Gate native desktop client."""
 
 __version__ = "0.1.0"

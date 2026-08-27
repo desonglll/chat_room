@@ -1,6 +1,6 @@
-# Echo Chat Desktop
+# Echo Gate Desktop
 
-Native PySide6 client for the Chat Room server. It uses the same HTTP and WebSocket contracts as the web client; direct messages remain two-person rooms.
+Native PySide6 client for Echo Gate. It uses the same HTTP and WebSocket contracts as the web client; direct messages remain two-person rooms.
 
 ## Included
 

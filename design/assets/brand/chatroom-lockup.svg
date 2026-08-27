@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 112" role="img" aria-labelledby="title desc">
-  <title id="title">ChatRoom logo</title>
-  <desc id="desc">Echo Gate symbol with the ChatRoom wordmark and Chinese tagline.</desc>
+  <title id="title">Echo Gate logo</title>
+  <desc id="desc">Echo Gate symbol with the Echo Gate wordmark and Chinese tagline.</desc>
   <g transform="translate(4 4) scale(.8)">
     <path fill="#087F6B" d="M16 108V55C16 29.6 36.6 9 62 9h4c25.4 0 46 20.6 46 46v53c0 6.1-4.9 11-11 11H27c-6.1 0-11-4.9-11-11Z"/>
     <path fill="#F7FAF9" d="M39 106V56c0-14.4 11.6-26 26-26s26 11.6 26 26v50H39Z"/>
     <path fill="#FF6B57" d="M56 44 91 34v72l-15-12-20 7V44Z"/>
     <circle cx="78" cy="68" r="5.5" fill="#F4B942"/>
   </g>
-  <text x="122" y="57" fill="#172321" font-family="Inter, PingFang SC, system-ui, sans-serif" font-size="39" font-weight="700" letter-spacing="0">ChatRoom</text>
+  <text x="122" y="57" fill="#172321" font-family="Inter, PingFang SC, system-ui, sans-serif" font-size="39" font-weight="700" letter-spacing="0">Echo Gate</text>
   <text x="124" y="83" fill="#52615D" font-family="Inter, PingFang SC, system-ui, sans-serif" font-size="15" font-weight="500" letter-spacing="0">进入房间，认真说话</text>
 </svg>

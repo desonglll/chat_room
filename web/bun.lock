@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "chat-room-vue-scaffold-20260814",
+      "name": "echo-gate-web",
       "dependencies": {
         "@noble/hashes": "2.3.0",
         "@primeuix/themes": "1.2.5",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
   "meta": {
-    "name": "ChatRoom Echo Gate",
+    "name": "Echo Gate",
     "version": "1.0.0"
   },
   "color": {

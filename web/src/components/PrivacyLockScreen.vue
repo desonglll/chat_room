@@ -126,7 +126,7 @@ defineExpose({ lock })
             ><LockKeyhole :size="21"
           /></span>
           <div class="min-w-0">
-            <h1 id="privacy-lock-title" class="text-lg font-semibold">Chat Room 已锁定</h1>
+            <h1 id="privacy-lock-title" class="text-lg font-semibold">Echo Gate 已锁定</h1>
             <p class="mt-0.5 text-sm text-muted-color">会话内容已隐藏</p>
           </div>
         </div>

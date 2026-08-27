@@ -34,7 +34,7 @@ from .workspace_responses import WorkspaceResponsesMixin
 class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
     def __init__(self, server_url: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Echo Chat")
+        self.setWindowTitle("Echo Gate")
         self.resize(1220, 790)
         self.setMinimumSize(880, 600)
         self._settings = QSettings()
