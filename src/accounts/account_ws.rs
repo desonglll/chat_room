@@ -43,6 +43,14 @@ struct SocialChanged {
     incoming_request_count: usize,
 }
 
+#[derive(Serialize)]
+struct NotificationsChanged {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    unread_count: i64,
+    latest_notification_id: Option<String>,
+}
+
 pub async fn account_ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<SharedState>,
@@ -72,6 +80,7 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
 
     let mut previous = None;
     let mut previous_social = None;
+    let mut previous_notifications = None;
     let mut refresh = interval(Duration::from_millis(750));
     refresh.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
@@ -138,6 +147,25 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                     let payload = SocialChanged {
                         kind: "social_changed",
                         incoming_request_count: social.incoming_request_count,
+                    };
+                    let Ok(json) = serde_json::to_string(&payload) else { continue };
+                    if socket.send(Message::Text(json)).await.is_err() {
+                        break;
+                    }
+                }
+                let notifications = match state.notification_account_state(user.id).await {
+                    Ok(notifications) => notifications,
+                    Err(error) => {
+                        tracing::warn!("load notification account state failed: {error}");
+                        continue;
+                    }
+                };
+                if previous_notifications.as_ref() != Some(&notifications) {
+                    previous_notifications = Some(notifications.clone());
+                    let payload = NotificationsChanged {
+                        kind: "notifications_changed",
+                        unread_count: notifications.unread_count,
+                        latest_notification_id: notifications.latest_notification_id,
                     };
                     let Ok(json) = serde_json::to_string(&payload) else { continue };
                     if socket.send(Message::Text(json)).await.is_err() {

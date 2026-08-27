@@ -9,8 +9,8 @@ use crate::{
     admin_system_lock, ai, ai_handlers, ai_threads, attachment_handlers,
     attachment_upload_handlers, avatar_handlers, config, conversations, direct_conversations,
     favorites, file_handlers, forward_handlers, handlers, membership_handlers,
-    message_global_search, message_pins, message_search, room_query_handlers, social,
-    state::AppState, user_handlers, ws,
+    message_global_search, message_pins, message_search, notifications, room_query_handlers,
+    social, state::AppState, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -207,6 +207,19 @@ pub(crate) fn api_routes(
             "/api/conversations/:room_id/preferences",
             get(conversations::handlers::get_conversation_preferences)
                 .patch(conversations::handlers::update_conversation_preferences),
+        )
+        .route("/api/notifications", get(notifications::handlers::list))
+        .route(
+            "/api/notifications/unread-count",
+            get(notifications::handlers::unread_count),
+        )
+        .route(
+            "/api/notifications/read-all",
+            axum::routing::post(notifications::handlers::mark_all_read),
+        )
+        .route(
+            "/api/notifications/:id/read",
+            axum::routing::post(notifications::handlers::mark_read),
         )
         .route(
             "/api/messages/forward",

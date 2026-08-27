@@ -15,6 +15,7 @@ pub mod favorites;
 pub mod knowledge;
 pub mod messages;
 pub mod models;
+pub mod notifications;
 pub mod realtime;
 pub mod rooms;
 mod routes;
@@ -73,6 +74,10 @@ use crate::state::AppState;
         message_search::search_messages,
         message_search::message_context,
         message_global_search::handlers::search_visible_messages,
+        notifications::handlers::list,
+        notifications::handlers::unread_count,
+        notifications::handlers::mark_read,
+        notifications::handlers::mark_all_read,
         attachment_handlers::upload_attachment,
         attachment_handlers::download_attachment,
         attachment_upload_handlers::create_upload,
@@ -174,6 +179,11 @@ use crate::state::AppState;
         message_global_search::models::SearchContentType,
         message_global_search::models::GlobalMessageSearchResult,
         message_global_search::models::GlobalMessageSearchPage,
+        notifications::NotificationActor,
+        notifications::NotificationKind,
+        notifications::NotificationView,
+        notifications::NotificationPage,
+        notifications::UnreadCount,
         favorites::models::FavoriteItem,
         favorites::models::CreateFavoriteRequest,
         favorites::models::UpdateFavoriteRequest,

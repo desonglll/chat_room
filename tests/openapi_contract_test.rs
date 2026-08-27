@@ -15,6 +15,10 @@ fn in_progress_features_are_present_in_the_openapi_contract() {
         ),
         ("/api/rooms/{id}/messages/search", &["get"][..]),
         ("/api/messages/search", &["get"][..]),
+        ("/api/notifications", &["get"][..]),
+        ("/api/notifications/unread-count", &["get"][..]),
+        ("/api/notifications/{id}/read", &["post"][..]),
+        ("/api/notifications/read-all", &["post"][..]),
         (
             "/api/rooms/{id}/messages/{message_id}/context",
             &["get"][..],
