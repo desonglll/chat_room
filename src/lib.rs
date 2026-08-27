@@ -38,8 +38,9 @@ pub use attachments::{
     upload_handlers as attachment_upload_handlers, upload_sessions as attachment_upload_sessions,
 };
 pub use messages::{
-    actions as message_actions, forward_handlers, pins as message_pins,
-    reactions as message_reactions, read_store, search as message_search, store as message_store,
+    actions as message_actions, forward_handlers, global_search as message_global_search,
+    pins as message_pins, reactions as message_reactions, read_store, search as message_search,
+    store as message_store,
 };
 pub use realtime::ws;
 pub(crate) use realtime::{auth as ws_auth, inbound as ws_inbound};
@@ -71,6 +72,7 @@ use crate::state::AppState;
         handlers::list_messages,
         message_search::search_messages,
         message_search::message_context,
+        message_global_search::handlers::search_visible_messages,
         attachment_handlers::upload_attachment,
         attachment_handlers::download_attachment,
         attachment_upload_handlers::create_upload,
@@ -169,6 +171,9 @@ use crate::state::AppState;
         models::MessageReaction,
         models::ForwardMessagesRequest,
         models::ForwardResult,
+        message_global_search::models::SearchContentType,
+        message_global_search::models::GlobalMessageSearchResult,
+        message_global_search::models::GlobalMessageSearchPage,
         favorites::models::FavoriteItem,
         favorites::models::CreateFavoriteRequest,
         favorites::models::UpdateFavoriteRequest,

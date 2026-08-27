@@ -9,6 +9,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use uuid::Uuid;
 
+use super::search_pattern::like_pattern;
 use super::store::{MessageCursor, MessageRow, MESSAGE_SELECT};
 use crate::{
     models::{StoredMessage, User},
@@ -279,25 +280,7 @@ async fn message_cursor(
     }))
 }
 
-fn like_pattern(text: &str) -> String {
-    let escaped = text
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_");
-    format!("%{escaped}%")
-}
-
 fn internal_error(error: sqlx::Error) -> StatusCode {
     tracing::error!("room message search failed: {error}");
     StatusCode::INTERNAL_SERVER_ERROR
-}
-
-#[cfg(test)]
-mod tests {
-    use super::like_pattern;
-
-    #[test]
-    fn search_pattern_escapes_sql_wildcards() {
-        assert_eq!(like_pattern(r"50%_done\ok"), r"%50\%\_done\\ok%");
-    }
 }

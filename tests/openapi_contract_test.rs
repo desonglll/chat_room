@@ -14,6 +14,7 @@ fn in_progress_features_are_present_in_the_openapi_contract() {
             &["post", "delete"][..],
         ),
         ("/api/rooms/{id}/messages/search", &["get"][..]),
+        ("/api/messages/search", &["get"][..]),
         (
             "/api/rooms/{id}/messages/{message_id}/context",
             &["get"][..],

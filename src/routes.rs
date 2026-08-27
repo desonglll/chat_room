@@ -8,8 +8,9 @@ use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
     admin_system_lock, ai, ai_handlers, ai_threads, attachment_handlers,
     attachment_upload_handlers, avatar_handlers, config, conversations, direct_conversations,
-    favorites, file_handlers, forward_handlers, handlers, membership_handlers, message_pins,
-    message_search, room_query_handlers, social, state::AppState, user_handlers, ws,
+    favorites, file_handlers, forward_handlers, handlers, membership_handlers,
+    message_global_search, message_pins, message_search, room_query_handlers, social,
+    state::AppState, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -41,6 +42,10 @@ pub(crate) fn api_routes(
         .route(
             "/api/rooms/:id/messages/search",
             get(message_search::search_messages),
+        )
+        .route(
+            "/api/messages/search",
+            get(message_global_search::handlers::search_visible_messages),
         )
         .route(
             "/api/rooms/:id/messages/:message_id/context",

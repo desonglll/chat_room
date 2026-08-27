@@ -8,6 +8,8 @@
 use super::*;
 use chat_room::config::{AdminConfig, AppConfig};
 
+#[path = "global_search_postgres.rs"]
+mod global_search_postgres;
 #[path = "postgres_database.rs"]
 mod postgres_database;
 use postgres_database::{connect_postgres_admin, create_scratch_database, drop_scratch_database};

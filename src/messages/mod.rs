@@ -1,8 +1,10 @@
 pub mod actions;
 pub mod forward_handlers;
+pub mod global_search;
 pub mod pins;
 pub mod reactions;
 pub mod read_store;
 pub mod search;
+mod search_pattern;
 pub mod store;
 mod text_store;
