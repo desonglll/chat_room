@@ -17,7 +17,6 @@ import type { ConversationSummary, Room, User } from '../types'
 import ConversationAliasDialog from './ConversationAliasDialog.vue'
 import ConversationRow from './ConversationRow.vue'
 import WorkspaceRail from './WorkspaceRail.vue'
-
 const props = defineProps<{
   conversations: ConversationSummary[]
   selectedId?: string
@@ -27,6 +26,7 @@ const props = defineProps<{
   visible: boolean
   collapsed: boolean
   incomingRequests: number
+  notificationUnreadCount: number
   activeSection: string
   setAlias: (roomId: string, alias: string) => Promise<ConversationSummary>
   updatePreferences: (roomId: string, patch: ConversationPreferencesPatch) => Promise<unknown>
@@ -41,6 +41,7 @@ const emit = defineEmits<{
   discover: []
   contacts: []
   favorites: []
+  notifications: []
   search: []
   assistant: []
   chat: []
@@ -56,7 +57,6 @@ const emit = defineEmits<{
   success: [message: string]
   error: [message: string]
 }>()
-
 const { width: sidebarWidth, resizing, startResize, resizeBy } = useSidebarWidth()
 watch(sidebarWidth, (width) => emit('resize', width), { immediate: true })
 const query = ref('')
@@ -95,12 +95,10 @@ const menuItems = computed<MenuItem[]>(() => [
   { label: '通过 ID 加入', command: () => emit('join') },
   { label: '刷新会话', command: () => emit('refresh') },
 ])
-
 function openContextMenu(event: MouseEvent, conversation: ConversationSummary): void {
   contextItems.value = conversationMenuItems(conversation)
   contextMenu.value?.show(event)
 }
-
 function openRowMenu(event: MouseEvent, conversation: ConversationSummary): void {
   contextItems.value = conversationMenuItems(conversation)
   rowMenu.value?.toggle(event)
@@ -163,10 +161,12 @@ function handleResizeKeydown(event: KeyboardEvent): void {
       :active-section="activeSection"
       :user="user"
       :incoming-requests="incomingRequests"
+      :notification-unread-count="notificationUnreadCount"
       :collapsed="collapsed"
       @chat="emit('chat')"
       @contacts="emit('contacts')"
       @favorites="emit('favorites')"
+      @notifications="emit('notifications')"
       @search="emit('search')"
       @assistant="emit('assistant')"
       @discover="emit('discover')"

@@ -11,6 +11,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/contacts', name: 'contacts', component: Empty },
   { path: '/favorites', name: 'favorites', component: Empty },
   { path: '/search', name: 'search', component: Empty },
+  { path: '/notifications', name: 'notifications', component: Empty },
   { path: '/assistant', name: 'assistant', component: Empty },
   {
     path: '/assistant/:threadId/messages/:messageId/sources',

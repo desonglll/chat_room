@@ -38,7 +38,10 @@
 }
 
 .cr-rail-primary {
+  min-height: 0;
+  overflow-y: auto;
   padding-top: 0.375rem;
+  scrollbar-width: none;
 }
 
 .cr-rail-account {
@@ -155,7 +158,8 @@
   .cr-rail-primary {
     display: grid;
     height: 3.1rem;
-    grid-template-columns: repeat(auto-fit, minmax(2.5rem, 1fr));
+    overflow: visible;
+    grid-template-columns: repeat(auto-fit, minmax(2rem, 1fr));
     gap: 0.25rem;
     padding: 0;
   }

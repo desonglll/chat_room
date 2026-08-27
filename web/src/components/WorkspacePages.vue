@@ -15,6 +15,7 @@ const ContactsPage = defineAsyncComponent(() => import('./ContactsPage.vue'))
 const DiscoverRooms = defineAsyncComponent(() => import('./DiscoverRooms.vue'))
 const FavoritesPage = defineAsyncComponent(() => import('./FavoritesPage.vue'))
 const GlobalSearchPage = defineAsyncComponent(() => import('./GlobalSearchPage.vue'))
+const NotificationsPage = defineAsyncComponent(() => import('./NotificationsPage.vue'))
 const AiAssistantPage = defineAsyncComponent(() => import('./AiAssistantPage.vue'))
 const ProfilePage = defineAsyncComponent(() => import('./ProfilePage.vue'))
 const SettingsPage = defineAsyncComponent(() => import('./SettingsPage.vue'))
@@ -123,6 +124,7 @@ const emit = defineEmits<{
       :rooms="rooms"
       @back="emit('back')"
     />
+    <NotificationsPage v-else-if="activePage === 'notifications' && user" :token="token" @back="emit('back')" />
     <FavoritesPage
       v-else-if="activePage === 'favorites' && user"
       :items="favorites.items.value"

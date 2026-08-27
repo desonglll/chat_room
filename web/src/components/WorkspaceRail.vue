@@ -6,6 +6,7 @@ import {
   LogOut,
   MessageCircle,
   Bookmark,
+  Bell,
   Bot,
   PanelLeftClose,
   PanelLeftOpen,
@@ -22,6 +23,7 @@ const props = defineProps<{
   activeSection: string
   user: User | null
   incomingRequests: number
+  notificationUnreadCount: number
   collapsed: boolean
 }>()
 
@@ -29,6 +31,7 @@ const emit = defineEmits<{
   chat: []
   contacts: []
   favorites: []
+  notifications: []
   search: []
   assistant: []
   discover: []
@@ -51,6 +54,11 @@ function openFavorites(): void {
   else emit('authenticate')
 }
 
+function openNotifications(): void {
+  if (props.user) emit('notifications')
+  else emit('authenticate')
+}
+
 function openAssistant(): void {
   if (props.user) emit('assistant')
   else emit('authenticate')
@@ -69,6 +77,24 @@ function openSearch(): void {
     </button>
 
     <div class="cr-rail-primary">
+      <button
+        type="button"
+        class="cr-rail-action"
+        :class="{ 'cr-rail-action--active': activeSection === 'notifications' }"
+        :aria-current="activeSection === 'notifications' ? 'page' : undefined"
+        aria-label="通知"
+        title="通知"
+        @click="openNotifications"
+      >
+        <Bell :size="20" aria-hidden="true" />
+        <span>通知</span>
+        <Badge
+          v-if="user && notificationUnreadCount"
+          :value="notificationUnreadCount > 99 ? '99+' : String(notificationUnreadCount)"
+          severity="danger"
+          class="cr-rail-badge"
+        />
+      </button>
       <button
         type="button"
         class="cr-rail-action"

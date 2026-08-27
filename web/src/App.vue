@@ -46,6 +46,7 @@ const authOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const sidebarCollapsed = ref(storageGet(window.localStorage, 'chat-room.sidebar-collapsed') === 'true')
 const aiPanelOpen = ref(false)
+const notificationUnreadCount = ref(0)
 const preferences = ref(loadPreferences())
 const privacyLockScreen = ref<{ lock: () => void } | null>(null)
 useTheme(computed(() => preferences.value.theme))
@@ -182,6 +183,7 @@ const unreadSocket = useUnreadSocket(
     notifier.notify(message)
   },
   () => void contacts.refresh(),
+  (event) => (notificationUnreadCount.value = event.unread_count),
 )
 const {
   discoverError,
@@ -332,13 +334,11 @@ const attachmentUpload = useAttachmentUpload({
   remove: chat.removeUpload,
   showError: (message) => toast.add({ severity: 'error', summary: message, life: 3200 }),
 })
-
 const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMessageForwarding(() => {
   showToast('已转发')
   void conversationState.refresh()
 })
 </script>
-
 <template>
   <RouterView v-if="route.name === 'admin'" />
   <div
@@ -359,7 +359,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
       :refreshing="refreshingRooms"
       :visible="activePage === 'chat' && mobileView === 'rooms'"
       :collapsed="sidebarCollapsed || activePage !== 'chat' || roomAiPanelVisible"
-      :incoming-requests="contacts.incomingCount.value"
+      :incoming-requests="contacts.incomingCount.value" :notification-unread-count="notificationUnreadCount"
       :active-section="activePage" :set-alias="conversationState.setAlias" :update-preferences="conversationState.updatePreferences"
       @select="selectConversation"
       @clear="clearSelection"
@@ -368,7 +368,7 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
       @create="requestCreateRoom"
       @join="openJoinRoom"
       @discover="openDiscover"
-      @contacts="openContacts" @search="activePage = 'search'; mobileView = 'chat'"
+      @contacts="openContacts" @search="activePage = 'search'; mobileView = 'chat'" @notifications="activePage = 'notifications'; mobileView = 'chat'"
       @favorites="openFavorites"
       @assistant="openAssistant"
       @chat="returnToChat"

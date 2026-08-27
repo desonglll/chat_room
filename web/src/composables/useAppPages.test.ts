@@ -40,6 +40,10 @@ describe('app page routes', () => {
     expect(resolveTarget('search', room, true)).toEqual({ name: 'search' })
   })
 
+  test('routes notifications independently from the selected room', () => {
+    expect(resolveTarget('notifications', room, true)).toEqual({ name: 'notifications' })
+  })
+
   test('routes the AI workspace independently from the selected room', () => {
     expect(resolveTarget('assistant', room, true)).toEqual({ name: 'assistant' })
   })

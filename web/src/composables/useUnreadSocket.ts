@@ -1,4 +1,5 @@
 import { onBeforeUnmount } from 'vue'
+import { NOTIFICATIONS_CHANGED_EVENT, type NotificationsChangedSignal } from '../notificationsApi'
 import type { AccountMessageEvent } from '../types'
 
 interface UnreadSnapshot {
@@ -18,10 +19,20 @@ interface SocialChangedEvent {
   incoming_request_count: number
 }
 
+export function publishNotificationSignal(
+  message: NotificationsChangedSignal,
+  onChanged: (event: NotificationsChangedSignal) => void,
+  target: EventTarget = window,
+): void {
+  onChanged(message)
+  target.dispatchEvent(new CustomEvent(NOTIFICATIONS_CHANGED_EVENT, { detail: message }))
+}
+
 export function useUnreadSocket(
   onSnapshot: (counts: Map<string, UnreadSnapshot['rooms'][number]>) => void,
   onMessage: (message: AccountMessageEvent) => void,
   onSocialChanged: (event: SocialChangedEvent) => void = () => {},
+  onNotificationsChanged: (event: NotificationsChangedSignal) => void = () => {},
 ) {
   let socket: WebSocket | null = null
   let reconnectTimer: number | undefined
@@ -55,12 +66,19 @@ export function useUnreadSocket(
     next.onmessage = (event: MessageEvent<string>) => {
       if (socket !== next) return
       try {
-        const message = JSON.parse(event.data) as UnreadSnapshot | AccountMessageEvent | SocialChangedEvent
+        const message = JSON.parse(event.data) as
+          | UnreadSnapshot
+          | AccountMessageEvent
+          | SocialChangedEvent
+          | NotificationsChangedSignal
         if (message.type === 'unread_counts') {
           onSnapshot(new Map(message.rooms.map((room) => [room.room_id, room])))
         }
         if (message.type === 'new_message') onMessage(message)
         if (message.type === 'social_changed') onSocialChanged(message)
+        if (message.type === 'notifications_changed') {
+          publishNotificationSignal(message, onNotificationsChanged)
+        }
       } catch {
         // Ignore malformed account events and keep the room connection alive.
       }
