@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::{admin::access::require_admin, state::SharedState};
+use crate::{admin::access::require_admin, audit::AuditEventDraft, state::SharedState};
 
 use super::{AdminRoleError, SystemAdminView};
 
@@ -59,6 +59,12 @@ pub async fn grant(
 ) -> Result<Json<SystemAdminView>, StatusCode> {
     let actor = require_admin(&state, &headers).await?;
     state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "system_admin.grant_requested").target("user", user_id),
+        )
+        .await
+        .map_err(required_audit_failed)?;
+    state
         .grant_system_admin(actor.id, user_id)
         .await
         .map(Json)
@@ -81,6 +87,13 @@ pub async fn revoke(
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
     let actor = require_admin(&state, &headers).await?;
+    state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "system_admin.revoke_requested")
+                .target("user", user_id),
+        )
+        .await
+        .map_err(required_audit_failed)?;
     state
         .revoke_system_admin(actor.id, user_id)
         .await
@@ -108,6 +121,14 @@ pub async fn create_invite(
         return Err(StatusCode::BAD_REQUEST);
     }
     state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "registration_invite.create_requested")
+                .target_type("registration_invite")
+                .detail("lifetime_hours", lifetime_hours),
+        )
+        .await
+        .map_err(required_audit_failed)?;
+    state
         .create_registration_invite(actor.id, lifetime_hours)
         .await
         .map(|(token, expires_at)| {
@@ -117,6 +138,11 @@ pub async fn create_invite(
             )
         })
         .map_err(map_role_error)
+}
+
+fn required_audit_failed(error: sqlx::Error) -> StatusCode {
+    tracing::error!("required system administrator audit failed: {error}");
+    StatusCode::INTERNAL_SERVER_ERROR
 }
 
 fn map_role_error(error: AdminRoleError) -> StatusCode {

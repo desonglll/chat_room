@@ -4,7 +4,10 @@ use axum::{extract::State, http::HeaderMap, http::StatusCode, routing::post, Jso
 use serde::{Deserialize, Serialize};
 
 use super::access::require_admin;
-use crate::state::{with_pool, AppState, SharedState};
+use crate::{
+    audit::AuditEventDraft,
+    state::{with_pool, AppState, SharedState},
+};
 
 const VECTOR_SYNC_SQL: &str = "INSERT INTO message_index_outbox \
     (message_id, operation, attempt_count, generation, next_attempt_at, last_error, updated_at) \
@@ -47,10 +50,19 @@ async fn sync(
     headers: HeaderMap,
     Json(request): Json<IndexSyncRequest>,
 ) -> Result<Json<IndexSyncResult>, StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
     if !state.config.vector_store.enabled {
         return Err(StatusCode::CONFLICT);
     }
+    state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "index.rebuild_requested").target_type("vector_index"),
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!("required index rebuild audit failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     let queued_messages = queue_messages(&state).await.map_err(|error| {
         tracing::error!(target = ?request.target, "queue index synchronization failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR

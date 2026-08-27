@@ -10,7 +10,7 @@ use axum::{
 use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
     admin_system_admins, admin_system_lock, ai, ai_extractions, ai_governance, ai_suggestions,
-    ai_threads, attachment_handlers, attachment_upload_handlers, avatar_handlers, config,
+    ai_threads, attachment_handlers, attachment_upload_handlers, audit, avatar_handlers, config,
     conversations, direct_conversations, favorites, file_handlers, forward_handlers, handlers,
     membership_handlers, message_global_search, message_pins, message_search, notifications,
     push_notifications, registration, room_query_handlers, sessions, social, state::AppState,
@@ -334,6 +334,7 @@ pub(crate) fn api_routes(
         )
         .merge(admin::indexes::routes())
         .merge(admin_backups::routes())
+        .merge(audit::routes())
         .route(
             "/api/admin/chat-lock",
             axum::routing::put(admin_system_lock::update),

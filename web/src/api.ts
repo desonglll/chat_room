@@ -363,7 +363,7 @@ export async function updateRoomMember(
   roomId: string,
   userId: string,
   token: string,
-  action: 'approve' | 'reject' | 'remove' | 'set_role',
+  action: 'approve' | 'reject' | 'remove' | 'set_role' | 'ban' | 'unban',
   role?: 'admin' | 'member',
 ): Promise<RoomMembership> {
   const response = await request(`/api/rooms/${encodeURIComponent(roomId)}/members/${encodeURIComponent(userId)}`, {

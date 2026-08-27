@@ -10,6 +10,7 @@ use uuid::Uuid;
 use super::access::require_admin;
 use crate::{
     ai::{model_options::validate_model_option, AiModelOptionView, SaveAiModelOption},
+    audit::AuditEventDraft,
     state::SharedState,
 };
 
@@ -44,10 +45,15 @@ pub async fn create(
     headers: HeaderMap,
     Json(payload): Json<SaveAiModelOption>,
 ) -> Result<(StatusCode, Json<AiModelOptionView>), StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
     if !validate_model_option(&payload) {
         return Err(StatusCode::BAD_REQUEST);
     }
+    require_audit(
+        &state,
+        AuditEventDraft::system(&actor, "ai_model.create_requested").target_type("ai_model"),
+    )
+    .await?;
     state
         .create_ai_model_option(&payload)
         .await
@@ -72,10 +78,15 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(payload): Json<SaveAiModelOption>,
 ) -> Result<Json<AiModelOptionView>, StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
     if id.is_nil() || !validate_model_option(&payload) {
         return Err(StatusCode::BAD_REQUEST);
     }
+    require_audit(
+        &state,
+        AuditEventDraft::system(&actor, "ai_model.update_requested").target("ai_model", id),
+    )
+    .await?;
     state
         .update_ai_model_option(id, &payload)
         .await
@@ -99,14 +110,30 @@ pub async fn delete(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
     if id.is_nil() {
         return Err(StatusCode::BAD_REQUEST);
     }
+    require_audit(
+        &state,
+        AuditEventDraft::system(&actor, "ai_model.delete_requested").target("ai_model", id),
+    )
+    .await?;
     state
         .delete_ai_model_option(id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .then_some(StatusCode::NO_CONTENT)
         .ok_or(StatusCode::NOT_FOUND)
+}
+
+async fn require_audit(state: &SharedState, draft: AuditEventDraft) -> Result<(), StatusCode> {
+    state
+        .record_audit_event(draft)
+        .await
+        .map(|_| ())
+        .map_err(|error| {
+            tracing::error!("required AI model audit failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }

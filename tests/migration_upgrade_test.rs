@@ -130,6 +130,22 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(session_columns, 4);
+    let audit_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' \
+         AND name IN ('audit_events', 'room_bans')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(audit_tables, 2);
+    let audit_triggers: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' \
+         AND name IN ('audit_events_reject_update', 'audit_events_reject_delete')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(audit_triggers, 2);
 
     state.pool().close().await;
     remove_sqlite_files(&database);
@@ -261,6 +277,22 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(session_columns, 4);
+    let audit_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' \
+         AND table_name IN ('audit_events', 'room_bans')",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(audit_tables, 2);
+    let audit_triggers: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.triggers WHERE event_object_schema = 'public' \
+         AND event_object_table = 'audit_events'",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(audit_triggers, 2);
 
     postgres.close().await;
     drop(state);

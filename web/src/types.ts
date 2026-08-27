@@ -6,7 +6,7 @@ export interface Room {
   join_policy: 'open' | 'approval'
   avatar_emoji: string
   description: string
-  membership_status?: 'pending' | 'invited' | 'active'
+  membership_status?: 'pending' | 'invited' | 'active' | 'banned'
   membership_role?: 'owner' | 'admin' | 'member'
   unread_count: number
   created_at: string
@@ -414,7 +414,7 @@ export interface RoomMembership {
   avatar_emoji: string
   nickname: string
   role: 'owner' | 'admin' | 'member'
-  status: 'pending' | 'invited' | 'active'
+  status: 'pending' | 'invited' | 'active' | 'banned'
   requested_at: string
   joined_at: string | null
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { Check, UserMinus, UserPlus, X } from 'lucide-vue-next'
+import { Check, ShieldBan, ShieldCheck, UserMinus, UserPlus, X } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
@@ -23,6 +23,7 @@ const busy = ref('')
 const pending = computed(() => members.value.filter((member) => member.status === 'pending'))
 const invited = computed(() => members.value.filter((member) => member.status === 'invited'))
 const active = computed(() => members.value.filter((member) => member.status === 'active'))
+const banned = computed(() => members.value.filter((member) => member.status === 'banned'))
 const roles = [
   { label: '管理员', value: 'admin' },
   { label: '成员', value: 'member' },
@@ -54,7 +55,10 @@ async function invite(): Promise<void> {
   }
 }
 
-async function update(member: RoomMembership, action: 'approve' | 'reject' | 'remove'): Promise<void> {
+async function update(
+  member: RoomMembership,
+  action: 'approve' | 'reject' | 'remove' | 'ban' | 'unban',
+): Promise<void> {
   busy.value = `${action}:${member.user_id}`
   error.value = ''
   try {
@@ -141,6 +145,16 @@ onMounted(refresh)
             @click="update(member, 'reject')"
             ><X :size="17"
           /></Button>
+          <Button
+            text
+            rounded
+            severity="danger"
+            aria-label="封禁申请人"
+            title="封禁"
+            :loading="busy === `ban:${member.user_id}`"
+            @click="update(member, 'ban')"
+            ><ShieldBan :size="17"
+          /></Button>
         </div>
       </div>
     </section>
@@ -168,6 +182,16 @@ onMounted(refresh)
             :loading="busy === `reject:${member.user_id}`"
             @click="update(member, 'reject')"
             ><X :size="17"
+          /></Button>
+          <Button
+            text
+            rounded
+            severity="danger"
+            aria-label="封禁受邀成员"
+            title="封禁"
+            :loading="busy === `ban:${member.user_id}`"
+            @click="update(member, 'ban')"
+            ><ShieldBan :size="17"
           /></Button>
         </div>
       </div>
@@ -207,11 +231,50 @@ onMounted(refresh)
             text
             rounded
             severity="danger"
+            aria-label="封禁成员"
+            title="封禁成员"
+            :loading="busy === `ban:${member.user_id}`"
+            @click="update(member, 'ban')"
+            ><ShieldBan :size="17"
+          /></Button>
+          <Button
+            v-if="member.role !== 'owner'"
+            text
+            rounded
+            severity="danger"
             aria-label="移除成员"
             title="移除成员"
             :loading="busy === `remove:${member.user_id}`"
             @click="update(member, 'remove')"
             ><UserMinus :size="17"
+          /></Button>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="banned.length">
+      <div class="mb-2 flex items-center justify-between">
+        <strong class="text-sm">已封禁</strong>
+        <Tag :value="String(banned.length)" severity="danger" />
+      </div>
+      <div class="max-h-48 divide-y divide-surface-100 overflow-y-auto border-y border-surface-200">
+        <div v-for="member in banned" :key="member.user_id" class="flex min-h-14 items-center gap-3 py-2">
+          <AppAvatar
+            :avatar="member.avatar_emoji"
+            :fallback="member.username"
+            :color-key="member.user_id"
+            class="text-white!"
+          />
+          <strong class="min-w-0 flex-1 truncate text-sm">{{ member.username }}</strong>
+          <Button
+            text
+            rounded
+            severity="success"
+            aria-label="解除成员封禁"
+            title="解除封禁"
+            :loading="busy === `unban:${member.user_id}`"
+            @click="update(member, 'unban')"
+            ><ShieldCheck :size="17"
           /></Button>
         </div>
       </div>

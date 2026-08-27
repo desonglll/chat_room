@@ -238,6 +238,23 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
         vec!["before-backup"]
     );
     assert!(find_file_with_bytes(&attachment_root, attachment_bytes).is_some());
+    let audit: serde_json::Value = client
+        .get(format!("{}/api/admin/audit-events?limit=100", server.base))
+        .bearer_auth(&admin)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let event_types = audit["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|event| event["event_type"].as_str())
+        .collect::<Vec<_>>();
+    assert!(event_types.contains(&"backup.export_requested"));
+    assert!(event_types.contains(&"backup.restore_completed"));
 
     server.task.abort();
     state.postgres_pool().unwrap().close().await;

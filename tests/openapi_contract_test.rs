@@ -24,6 +24,8 @@ fn in_progress_features_are_present_in_the_openapi_contract() {
         ("/api/users/me/sessions", &["get"][..]),
         ("/api/users/me/sessions/others", &["delete"][..]),
         ("/api/users/me/sessions/{id}", &["delete"][..]),
+        ("/api/admin/audit-events", &["get"][..]),
+        ("/api/rooms/{id}/audit-events", &["get"][..]),
         (
             "/api/rooms/{id}/messages/{message_id}/context",
             &["get"][..],

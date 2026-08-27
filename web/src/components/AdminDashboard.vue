@@ -30,7 +30,7 @@ import AdminServiceStatusPanel from './AdminServiceStatusPanel.vue'
 import AdminAiGovernancePanel from './AdminAiGovernancePanel.vue'
 import AdminAiModelsPanel from './AdminAiModelsPanel.vue'
 import AdminBackupPanel from './AdminBackupPanel.vue'
-
+import AuditEventPanel from './AuditEventPanel.vue'
 const SESSION_TOKEN_KEY = 'chat-room.session-token'
 const REFRESH_INTERVAL_MS = 15_000
 
@@ -45,7 +45,6 @@ const purgeOpen = ref(false)
 const purging = ref(false)
 const purgeResult = ref<AdminPurgeResult | null>(null)
 let timer = 0
-
 const errorSeverity = computed(() => (error.value.includes('权限') ? 'warn' : 'error'))
 const dedupePercent = computed(() => {
   const storage = overview.value?.storage
@@ -225,6 +224,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
           @error="error = $event"
           @restored="overview.chat_rooms_locked = true"
         />
+        <AuditEventPanel scope="system" :token="token" class="mt-8" />
 
         <section aria-labelledby="overview-heading">
           <h2 id="overview-heading" class="mb-3 text-sm font-semibold">实时概览</h2>

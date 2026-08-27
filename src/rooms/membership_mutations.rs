@@ -22,6 +22,9 @@ impl AppState {
         let Some(user_id) = user_id else {
             return Ok(None);
         };
+        if self.room_banned(room_id, user_id).await? {
+            return Ok(None);
+        }
         let now = Utc::now();
         with_pool!(self, |pool| {
             sqlx::query(

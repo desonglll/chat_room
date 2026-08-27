@@ -16,6 +16,7 @@ import ScopedPasswordField from './ScopedPasswordField.vue'
 import { deleteRoom, updateRoom } from '../api'
 import RoomMembersPanel from './RoomMembersPanel.vue'
 import RoomAiPolicyPanel from './RoomAiPolicyPanel.vue'
+import AuditEventPanel from './AuditEventPanel.vue'
 import type { Room, RoomUpdateResult } from '../types'
 
 const props = defineProps<{
@@ -36,7 +37,7 @@ const joinPolicy = ref<'open' | 'approval'>('approval')
 const removePassword = ref(false)
 const avatarEmoji = ref('')
 const description = ref('')
-const mode = ref<'settings' | 'members'>('settings')
+const mode = ref<'settings' | 'members' | 'audit'>('settings')
 const confirmingDelete = ref(false)
 const error = ref('')
 const busy = ref(false)
@@ -50,6 +51,7 @@ const visible = computed({
 const modeOptions = [
   { label: '房间设置', value: 'settings' },
   { label: '成员管理', value: 'members' },
+  { label: '审计记录', value: 'audit' },
 ]
 const policyOptions = [
   { label: '需要审核', value: 'approval' },
@@ -141,7 +143,7 @@ async function confirmDelete(): Promise<void> {
     v-model:visible="visible"
     modal
     :header="confirmingDelete ? '删除聊天室' : '管理聊天室'"
-    class="w-[min(92vw,460px)]"
+    :class="mode === 'audit' ? 'w-[min(94vw,900px)]' : 'w-[min(92vw,460px)]'"
     :draggable="false"
   >
     <template v-if="room && !confirmingDelete">
@@ -151,9 +153,10 @@ async function confirmDelete(): Promise<void> {
         option-label="label"
         option-value="value"
         :allow-empty="false"
-        class="mb-5 grid grid-cols-2"
+        class="mb-5 grid grid-cols-3"
       />
       <RoomMembersPanel v-if="mode === 'members'" :room="room" :token="token" />
+      <AuditEventPanel v-else-if="mode === 'audit'" scope="room" :room-id="room.id" :token="token" />
       <form v-else class="flex flex-col gap-5" autocomplete="off" @submit.prevent="save">
         <div class="flex items-center gap-3">
           <Avatar v-if="avatarEmoji" :label="avatarEmoji" shape="circle" class="bg-primary-50! text-xl!" />

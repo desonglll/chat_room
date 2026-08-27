@@ -1,4 +1,6 @@
 pub mod access;
+pub mod bans;
+pub mod governance_handlers;
 pub mod handlers;
 pub(crate) mod lifecycle;
 pub mod membership_handlers;

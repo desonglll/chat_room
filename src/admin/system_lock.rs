@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use super::access::require_admin;
+use crate::audit::AuditEventDraft;
 use crate::state::{with_pool, AppState, SharedState};
 
 pub const SYSTEM_LOCK_REASON: &str = "system locked";
@@ -160,7 +161,18 @@ pub async fn update_room(
     headers: HeaderMap,
     Json(request): Json<UpdateSystemLockRequest>,
 ) -> Result<Json<RoomLockStatus>, StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
+    state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "room.lock.update_requested")
+                .target("room", room_id)
+                .detail("locked", request.locked),
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!("required Room lock audit failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     let updated = state
         .set_room_locked(room_id, request.locked)
         .await
@@ -197,7 +209,18 @@ pub async fn update(
     headers: HeaderMap,
     Json(request): Json<UpdateSystemLockRequest>,
 ) -> Result<Json<SystemLockStatus>, StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
+    state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "system.lock.update_requested")
+                .target_type("system")
+                .detail("locked", request.locked),
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!("required system lock audit failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     state
         .set_chat_rooms_locked(request.locked)
         .await

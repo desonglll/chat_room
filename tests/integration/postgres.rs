@@ -10,6 +10,8 @@ use chat_room::config::{AdminConfig, AppConfig};
 
 #[path = "ai_extraction_postgres.rs"]
 mod ai_extraction_postgres;
+#[path = "audit_postgres.rs"]
+mod audit_postgres;
 #[path = "device_sessions_postgres.rs"]
 mod device_sessions_postgres;
 #[path = "global_search_postgres.rs"]

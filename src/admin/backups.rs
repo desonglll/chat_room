@@ -1,7 +1,5 @@
 //! Administrator-only browser backup export and restore endpoints.
 
-use std::path::Path;
-
 use axum::{
     extract::{Multipart, Request, State},
     http::{HeaderMap, StatusCode},
@@ -11,11 +9,16 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
 use utoipa::ToSchema;
 
-use super::{access::require_admin, backup_transfer::WorkDirectory, indexes};
-use crate::{backup, state::SharedState};
+pub use super::backup_http::BackupApiError;
+use super::{
+    access::require_admin,
+    backup_http::{api_error, internal_error, receive_archive},
+    backup_transfer::WorkDirectory,
+    indexes,
+};
+use crate::{audit::AuditEventDraft, backup, state::SharedState};
 
 const RESTORE_REASON: &str = "database restore in progress";
 
@@ -42,11 +45,6 @@ pub struct RestoreBackupResult {
     redis_keys_cleared: usize,
     vector_messages_queued: u64,
     chat_rooms_locked: bool,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct BackupApiError {
-    error: String,
 }
 
 pub async fn reject_during_restore(
@@ -90,14 +88,25 @@ pub async fn export(
     headers: HeaderMap,
     Json(request): Json<ExportBackupRequest>,
 ) -> Response {
-    if let Err(status) = require_admin(&state, &headers).await {
-        return status.into_response();
-    }
+    let actor = match require_admin(&state, &headers).await {
+        Ok(actor) => actor,
+        Err(status) => return status.into_response(),
+    };
     if state.database_backend() != "postgres" {
         return api_error(StatusCode::CONFLICT, "当前仅支持 PostgreSQL 数据库备份");
     }
     if request.include_files && state.attachment_store().oss_enabled() {
         return api_error(StatusCode::CONFLICT, "对象存储模式暂不支持文件备份");
+    }
+    if let Err(error) = state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "backup.export_requested")
+                .target_type("backup")
+                .detail("include_files", request.include_files),
+        )
+        .await
+    {
+        return internal_error("记录备份导出审计", error.into());
     }
 
     let _operation = state.lock_backup_operation().await;
@@ -201,11 +210,20 @@ pub async fn restore(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Response {
-    if let Err(status) = require_admin(&state, &headers).await {
-        return status.into_response();
-    }
+    let actor = match require_admin(&state, &headers).await {
+        Ok(actor) => actor,
+        Err(status) => return status.into_response(),
+    };
     if state.database_backend() != "postgres" {
         return api_error(StatusCode::CONFLICT, "当前仅支持 PostgreSQL 数据库恢复");
+    }
+    if let Err(error) = state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "backup.restore_requested").target_type("backup"),
+        )
+        .await
+    {
+        return internal_error("记录备份恢复审计", error.into());
     }
 
     let _operation = state.lock_backup_operation().await;
@@ -285,6 +303,16 @@ pub async fn restore(
         Err(error) => return internal_error("重新同步派生索引", error.into()),
     };
     drop(maintenance);
+    if let Err(error) = state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "backup.restore_completed")
+                .target_type("backup")
+                .detail("included_files", outcome.includes_files),
+        )
+        .await
+    {
+        tracing::error!("record completed backup restore audit failed: {error}");
+    }
 
     Json(RestoreBackupResult {
         backup_created_at: manifest.created_at,
@@ -295,55 +323,4 @@ pub async fn restore(
         chat_rooms_locked: true,
     })
     .into_response()
-}
-
-async fn receive_archive(multipart: &mut Multipart, output: &Path) -> Result<(), Response> {
-    while let Some(mut field) = multipart.next_field().await.map_err(|error| {
-        tracing::warn!("read backup multipart failed: {error}");
-        api_error(StatusCode::BAD_REQUEST, "无法读取上传的备份文件")
-    })? {
-        if field.name() != Some("file") {
-            continue;
-        }
-        let mut file = tokio::fs::File::create(output)
-            .await
-            .map_err(|error| internal_error("创建备份上传文件", error.into()))?;
-        let mut size = 0_u64;
-        while let Some(chunk) = field.chunk().await.map_err(|error| {
-            tracing::warn!("read backup upload failed: {error}");
-            api_error(StatusCode::BAD_REQUEST, "备份文件上传失败")
-        })? {
-            size = size.saturating_add(chunk.len() as u64);
-            file.write_all(&chunk)
-                .await
-                .map_err(|error| internal_error("写入备份上传文件", error.into()))?;
-        }
-        file.flush()
-            .await
-            .map_err(|error| internal_error("写入备份上传文件", error.into()))?;
-        return if size == 0 {
-            Err(api_error(StatusCode::BAD_REQUEST, "备份文件不能为空"))
-        } else {
-            Ok(())
-        };
-    }
-    Err(api_error(StatusCode::BAD_REQUEST, "请选择备份文件"))
-}
-
-fn api_error(status: StatusCode, message: &str) -> Response {
-    (
-        status,
-        Json(BackupApiError {
-            error: message.into(),
-        }),
-    )
-        .into_response()
-}
-
-fn internal_error(operation: &str, error: anyhow::Error) -> Response {
-    tracing::error!("{operation} failed: {error:#}");
-    api_error(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        &format!("{operation}失败，请检查服务器日志"),
-    )
 }

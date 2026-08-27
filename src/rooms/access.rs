@@ -242,6 +242,9 @@ impl AppState {
         user_id: Uuid,
         auto_activate: bool,
     ) -> Result<RoomMembership, sqlx::Error> {
+        if self.room_banned(room_id, user_id).await? {
+            return Err(sqlx::Error::RowNotFound);
+        }
         let now = Utc::now();
         let became_owner = with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
@@ -332,9 +335,7 @@ impl AppState {
         })
     }
 
-    /// Set the caller's own display nickname within one room (self-service, no
-    /// management permission required — matches how the account's own avatar/name
-    /// can already be changed without any special role).
+    /// Set the caller's own room nickname without a management permission.
     pub async fn set_own_nickname(
         &self,
         room_id: Uuid,
@@ -359,10 +360,7 @@ impl AppState {
         self.room_membership(room_id, user_id).await
     }
 
-    /// Resolve how a user's name should appear in one room: per-room nickname takes
-    /// priority, then the account's display name, then username. Callers resolve
-    /// this once at message-send time and freeze it into the stored message, matching
-    /// the existing convention where a later rename doesn't rewrite message history.
+    /// Resolve and freeze nickname, display name, or username at message-send time.
     pub async fn resolve_display_name(&self, room_id: Uuid, user: &User) -> String {
         let nickname: Option<String> = with_pool!(self, |pool| {
             sqlx::query_scalar(

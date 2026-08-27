@@ -8,17 +8,19 @@ use axum::{
 use uuid::Uuid;
 
 use crate::admin_system_lock::require_room_unlocked;
+use crate::audit::AuditEventDraft;
 use crate::handlers::authorize_room;
 use crate::models::{
-    ChatMessage, InviteMemberRequest, JoinRoomRequest, RoomMembership, UpdateMembershipRequest,
-    UpdateNicknameRequest,
+    ChatMessage, InviteMemberRequest, JoinRoomRequest, RoomMembership, UpdateNicknameRequest,
 };
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
 const MAX_NICKNAME_CHARS: usize = 48;
 
-async fn session_user(
+pub use super::governance_handlers::update_member;
+
+pub(crate) async fn session_user(
     state: &SharedState,
     headers: &HeaderMap,
 ) -> Result<crate::models::User, StatusCode> {
@@ -33,7 +35,7 @@ async fn session_user(
         .ok_or(StatusCode::UNAUTHORIZED)
 }
 
-async fn require_permission(
+pub(crate) async fn require_permission(
     state: &SharedState,
     room_id: Uuid,
     user_id: Uuid,
@@ -50,7 +52,10 @@ async fn require_permission(
         .ok_or(StatusCode::FORBIDDEN)
 }
 
-async fn reject_direct_room(state: &SharedState, room_id: Uuid) -> Result<(), StatusCode> {
+pub(crate) async fn reject_direct_room(
+    state: &SharedState,
+    room_id: Uuid,
+) -> Result<(), StatusCode> {
     if state
         .is_direct_room(room_id)
         .await
@@ -61,7 +66,7 @@ async fn reject_direct_room(state: &SharedState, room_id: Uuid) -> Result<(), St
     Ok(())
 }
 
-async fn publish_membership_joined(
+pub(crate) async fn publish_membership_joined(
     state: &SharedState,
     room_id: Uuid,
     username: &str,
@@ -96,6 +101,13 @@ pub async fn request_join(
     require_room_unlocked(&state, room_id).await?;
     reject_direct_room(&state, room_id).await?;
     let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    if state
+        .room_banned(room_id, user.id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
     if !authorize_room(&room, request.password.as_deref()) {
         return Err(StatusCode::UNAUTHORIZED);
     }
@@ -133,14 +145,17 @@ pub async fn list_members(
     reject_direct_room(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.review").await?;
-    state
-        .room_memberships(room_id)
-        .await
-        .map(Json)
-        .map_err(|error| {
-            tracing::error!("list room memberships failed: {}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    let mut members = state.room_memberships(room_id).await.map_err(|error| {
+        tracing::error!("list room memberships failed: {}", error);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    members.extend(
+        state
+            .banned_room_members(room_id)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    );
+    Ok(Json(members))
 }
 
 pub async fn invite_member(
@@ -157,6 +172,16 @@ pub async fn invite_member(
         return Err(StatusCode::BAD_REQUEST);
     }
     state
+        .record_audit_event(
+            AuditEventDraft::room(&user, room_id, "room.member.invite_requested")
+                .target("username", username),
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!("required Room invitation audit failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    state
         .invite_room_member(room_id, user.id, username)
         .await
         .map_err(|error| {
@@ -165,75 +190,6 @@ pub async fn invite_member(
         })?
         .map(Json)
         .ok_or(StatusCode::NOT_FOUND)
-}
-
-pub async fn update_member(
-    State(state): State<SharedState>,
-    Path((room_id, target_id)): Path<(Uuid, Uuid)>,
-    headers: HeaderMap,
-    Json(request): Json<UpdateMembershipRequest>,
-) -> Result<Json<RoomMembership>, StatusCode> {
-    reject_direct_room(&state, room_id).await?;
-    let actor = session_user(&state, &headers).await?;
-    let permission = match request.action.as_str() {
-        "approve" | "reject" => "members.review",
-        "remove" => "members.remove",
-        "set_role" => "members.roles",
-        _ => return Err(StatusCode::BAD_REQUEST),
-    };
-    require_permission(&state, room_id, actor.id, permission).await?;
-    let previous = state
-        .room_membership(room_id, target_id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-    if previous.role == "owner" || (request.action == "remove" && actor.id == target_id) {
-        return Err(StatusCode::CONFLICT);
-    }
-
-    let result = match request.action.as_str() {
-        "approve" => state.activate_room_member(room_id, target_id).await,
-        "set_role" => {
-            let role = request.role.as_deref().ok_or(StatusCode::BAD_REQUEST)?;
-            state.set_room_member_role(room_id, target_id, role).await
-        }
-        "reject" | "remove" => {
-            state
-                .delete_room_membership(room_id, target_id, false)
-                .await
-        }
-        _ => unreachable!(),
-    };
-    let updated = result
-        .map_err(|error| {
-            tracing::error!("update room membership failed: {}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::CONFLICT)?;
-
-    if request.action == "approve" {
-        publish_membership_joined(&state, room_id, &updated.username).await?;
-    } else if request.action == "remove" {
-        let members = state.remove_connected_member(room_id, target_id).await;
-        let participants = state
-            .room_participants(room_id)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        state
-            .broadcast(
-                room_id,
-                ChatMessage::System {
-                    content: format!("{} was removed from the room", updated.username),
-                    members: Some(members),
-                    participants: Some(participants),
-                },
-            )
-            .await;
-        state
-            .disconnect_room_member(room_id, target_id, "membership removed")
-            .await;
-    }
-    Ok(Json(updated))
 }
 
 /// Set the caller's own nickname within one room. Any active member can do this —

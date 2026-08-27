@@ -9,6 +9,7 @@ pub mod ai_handlers;
 pub mod ai_suggestions;
 pub mod ai_threads;
 pub mod attachments;
+pub mod audit;
 pub mod backup;
 mod cache;
 pub mod config;
@@ -33,7 +34,6 @@ pub mod storage;
 pub mod tasks;
 pub mod web;
 mod work_queue;
-
 pub use accounts::{account_ws, avatar_handlers, registration, sessions, user_handlers, users};
 pub use admin::{
     ai_models as admin_ai_models, backups as admin_backups, metrics as admin_metrics,
@@ -45,6 +45,7 @@ pub use attachments::{
     file_handlers, handlers as attachment_handlers, storage as attachment_storage,
     upload_handlers as attachment_upload_handlers, upload_sessions as attachment_upload_sessions,
 };
+use axum::{routing::get, Json, Router};
 pub use messages::{
     actions as message_actions, forward_handlers, global_search as message_global_search,
     pins as message_pins, reactions as message_reactions, read_store, search as message_search,
@@ -56,8 +57,6 @@ pub use rooms::{
     access as room_access, handlers, membership_handlers, membership_mutations, participants,
     query_handlers as room_query_handlers,
 };
-
-use axum::{routing::get, Json, Router};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -175,6 +174,8 @@ use crate::state::AppState;
         admin_system_admins::handlers::grant,
         admin_system_admins::handlers::revoke,
         admin_system_admins::handlers::create_invite,
+        audit::handlers::list_system,
+        audit::handlers::list_room,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -285,6 +286,8 @@ use crate::state::AppState;
         admin_system_admins::SystemAdminView,
         admin_system_admins::CreateRegistrationInviteRequest,
         admin_system_admins::RegistrationInviteSecret,
+        audit::AuditEvent,
+        audit::AuditEventPage,
     ))
 )]
 pub struct ApiDoc;

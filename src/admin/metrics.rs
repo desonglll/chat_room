@@ -24,6 +24,7 @@ use crate::{
         access::require_admin,
         services::{collect_service_overview, ServiceOverview},
     },
+    audit::AuditEventDraft,
     state::{with_pool, AppState, SharedState},
 };
 
@@ -292,7 +293,17 @@ pub async fn purge(
     State(state): State<SharedState>,
     headers: HeaderMap,
 ) -> Result<Json<PurgeResult>, StatusCode> {
-    require_admin(&state, &headers).await?;
+    let actor = require_admin(&state, &headers).await?;
+    state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "retention.purge_requested")
+                .target_type("retained_data"),
+        )
+        .await
+        .map_err(|error| {
+            tracing::error!("required retention cleanup audit failed: {error}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     purge_retained_data(&state)
         .await
         .map(Json)
