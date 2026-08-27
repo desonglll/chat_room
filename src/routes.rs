@@ -10,7 +10,7 @@ use crate::{
     attachment_upload_handlers, avatar_handlers, config, conversations, direct_conversations,
     favorites, file_handlers, forward_handlers, handlers, membership_handlers,
     message_global_search, message_pins, message_search, notifications, registration,
-    room_query_handlers, social, state::AppState, user_handlers, ws,
+    room_query_handlers, social, state::AppState, tasks, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -34,6 +34,14 @@ pub(crate) fn api_routes(
                 .delete(handlers::delete_room),
         )
         .route("/api/rooms/:id/messages", get(handlers::list_messages))
+        .route(
+            "/api/rooms/:id/tasks",
+            get(tasks::handlers::list).post(tasks::handlers::create),
+        )
+        .route(
+            "/api/rooms/:id/tasks/:task_id",
+            axum::routing::patch(tasks::handlers::update).delete(tasks::handlers::delete),
+        )
         .route("/api/rooms/:id/pins", get(message_pins::list_pins))
         .route(
             "/api/rooms/:id/pins/:message_id",

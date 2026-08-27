@@ -53,8 +53,8 @@ const emit = defineEmits<{
   retryUpload: [key: string]
   loadOlder: []
   reaction: [messageId: string, emoji: string, active: boolean]
+  task: [message: BroadcastMessage]
 }>()
-
 const messageList = ref<HTMLElement | null>(null)
 const highlightedId = ref('')
 const contextMenu = ref()
@@ -84,6 +84,7 @@ function openContextMenu(event: MouseEvent, message: BroadcastMessage): void {
     items.push({ label: '回复', command: () => emit('reply', message) })
     if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
     items.push({ label: '转发', command: () => emit('forward', message) })
+    items.push({ label: '设为待办', command: () => emit('task', message) })
     items.push({
       label: props.favoriteMessageIds.includes(message.message_id) ? '取消收藏' : '收藏',
       command: () => emit('favorite', message),
@@ -203,9 +204,6 @@ function avatarLabel(message: BroadcastMessage): string {
   return message.sender_avatar || message.sender.slice(0, 1).toUpperCase()
 }
 
-// Telegram-style grouping: consecutive messages from the same sender within a
-// few minutes collapse into one visual block — avatar/name shown once, tighter
-// spacing between bubbles in the block instead of full message spacing.
 const GROUP_GAP_MS = 5 * 60 * 1000
 
 function groupKey(message: DisplayMessage): string | null {

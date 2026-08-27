@@ -15,93 +15,13 @@ import { useChatPanelMessageActions } from '../composables/useChatPanelMessageAc
 import { useRoomMessageNavigation } from '../composables/useRoomMessageNavigation'
 import { useMessageSelection } from '../composables/useMessageSelection'
 import { resolveRoomViewState } from '../roomViewState'
-import type {
-  Attachment,
-  AttachmentUploadSession,
-  BroadcastMessage,
-  ChatStatus,
-  ConversationSummary,
-  DisplayMessage,
-  FocusShortcut,
-  ReadReceipt,
-  Room,
-  RoomMember,
-  SendShortcut,
-  SocialUser,
-  TypingDraft,
-  User,
-} from '../types'
-import type { DownloadProgress } from '../attachmentDownloads'
+import type { ChatPanelEmits, ChatPanelProps } from '../chatPanelContract'
+import type { BroadcastMessage } from '../types'
 const RoomPinsBar = defineAsyncComponent(() => import('./RoomPinsBar.vue'))
-const props = defineProps<{
-  room: Room | null
-  conversation: ConversationSummary | null
-  user: User | null
-  password: string
-  rememberRoomPasswords: boolean
-  contact: SocialUser | null
-  setFriendRemark: (userId: string, remark: string) => Promise<void>
-  token: string
-  status: ChatStatus
-  statusLabel: string
-  authenticated: boolean
-  historyReady: boolean
-  error: string
-  messages: DisplayMessage[]
-  favoriteMessageIds: string[]
-  members: RoomMember[]
-  participants: RoomMember[]
-  readReceipts: ReadReceipt[]
-  currentUserId: string
-  visible: boolean
-  sendShortcut: SendShortcut
-  focusShortcut: FocusShortcut
-  typingDrafts: TypingDraft[]
-  downloading: boolean
-  downloadProgress: DownloadProgress | null
-  maxUploadBytes: number
-  pokedAt: number
-  loadingOlder: boolean
-  hasMoreHistory: boolean
-  pendingUploads: AttachmentUploadSession[]
-  aiEnabled: boolean
-  aiPanelOpen: boolean
-  loading: boolean
-  ensureMessage: (messageId: string) => Promise<boolean>
-}>()
-const emit = defineEmits<{
-  back: []
-  manage: []
-  leave: []
-  join: []
-  requestJoin: []
-  authenticate: []
-  send: [content: string, replyTo: string]
-  read: [messageId: string]
-  upload: [files: File[], content: string, replyTo: string, isSensitive: boolean]
-  resumeUpload: [session: AttachmentUploadSession, file: File]
-  cancelUpload: [session: AttachmentUploadSession]
-  cancelUploadTask: [key: string]
-  retryUploadTask: [key: string]
-  recall: [messageId: string]
-  edit: [messageId: string, content: string]
-  forward: [messageIds: string[]]
-  favorite: [messageIds: string[]]
-  typing: [content: string]
-  download: [attachments: Attachment[]]
-  cancelDownload: []
-  poke: [userId: string]
-  retry: [messageId: string]
-  reaction: [messageId: string, emoji: string, active: boolean]
-  loadOlder: []
-  removeFriend: []
-  blockUser: []
-  assistant: []
-  catchUp: []
-  'update:password': [password: string]
-  'update:rememberRoomPasswords': [remember: boolean]
-}>()
+const props = defineProps<ChatPanelProps>()
+const emit = defineEmits<ChatPanelEmits>()
 const filesOpen = ref(false)
+const taskPanel = ref<true | BroadcastMessage | null>(null)
 const viewProfileUserId = ref('')
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
 const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
@@ -174,6 +94,7 @@ watch(
   () => {
     resetTargets()
     filesOpen.value = false
+    taskPanel.value = null
     pinnedMessageIds.value = []
     previewImageId.value = ''
     selecting.value = false
@@ -219,8 +140,8 @@ watch(
       @block-user="emit('blockUser')"
       @assistant="emit('assistant')"
       @catch-up="emit('catchUp')"
+      @tasks="taskPanel = true"
     />
-
     <ChatAccessPanel
       v-if="viewState === 'loading' || viewState === 'empty' || viewState === 'access'"
       :room="room"
@@ -236,9 +157,7 @@ watch(
       @update:password="emit('update:password', $event)"
       @update:remember-room-passwords="emit('update:rememberRoomPasswords', $event)"
     />
-
     <RoomConnectingView v-else-if="viewState === 'connecting'" />
-
     <section
       v-else
       class="cr-conversation-stage relative flex min-h-0 flex-1 flex-col"
@@ -308,6 +227,7 @@ watch(
         @reaction="(messageId, emoji, active) => emit('reaction', messageId, emoji, active)"
         @cancel-upload="emit('cancelUploadTask', $event)"
         @retry-upload="emit('retryUploadTask', $event)"
+        @task="taskPanel = $event"
       />
       <TransitionGroup
         v-if="typingDrafts.length && !selecting"
@@ -367,6 +287,9 @@ watch(
     <ChatPanelDialogs
       :files-open="filesOpen"
       :search-open="searchOpen"
+      :tasks-open="Boolean(taskPanel)"
+      :task-source="taskPanel === true ? null : taskPanel"
+      :participants="participants"
       :room-id="room?.id || ''"
       :token="token"
       :password="password"
@@ -381,11 +304,12 @@ watch(
       :set-friend-remark="setFriendRemark"
       @close-files="filesOpen = false"
       @close-search="searchOpen = false"
+      @close-tasks="taskPanel = null"
       @close-image="previewImageId = ''"
       @close-profile="viewProfileUserId = ''"
       @download="emit('download', $event)"
       @cancel-download="emit('cancelDownload')"
-      @locate-message="locateMessage"
+      @locate-message="((taskPanel = null), locateMessage($event))"
       @locate-search="locateSearchResult"
       @remove-friend="emit('removeFriend')"
       @block-user="emit('blockUser')"

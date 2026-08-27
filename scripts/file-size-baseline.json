@@ -29,7 +29,6 @@
   "web/src/api.ts": 400,
   "web/src/components/AdminDashboard.vue": 431,
   "web/src/components/AiAssistantPage.vue": 484,
-  "web/src/components/ChatPanel.vue": 394,
   "web/src/components/MessageComposer.vue": 387,
   "web/src/components/MessageList.vue": 482,
   "web/src/composables/useChatSocket.ts": 396,

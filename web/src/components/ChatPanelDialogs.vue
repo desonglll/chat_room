@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import type { DownloadProgress } from '../attachmentDownloads'
-import type { Attachment, SocialUser } from '../types'
+import type { Attachment, BroadcastMessage, RoomMember, SocialUser } from '../types'
 
 const ChatFilesDialog = defineAsyncComponent(() => import('./ChatFilesDialog.vue'))
 const ImageViewerGallery = defineAsyncComponent(() => import('./ImageViewerGallery.vue'))
 const ProfileCardDialog = defineAsyncComponent(() => import('./ProfileCardDialog.vue'))
 const RoomMessageSearchDialog = defineAsyncComponent(() => import('./RoomMessageSearchDialog.vue'))
+const RoomTasksPanel = defineAsyncComponent(() => import('./RoomTasksPanel.vue'))
 
 defineProps<{
   filesOpen: boolean
   searchOpen: boolean
+  tasksOpen: boolean
+  taskSource: BroadcastMessage | null
+  participants: RoomMember[]
   roomId: string
   token: string
   password: string
@@ -30,6 +34,7 @@ const emit = defineEmits<{
   closeImage: []
   closeProfile: []
   closeSearch: []
+  closeTasks: []
   download: [attachments: Attachment[]]
   cancelDownload: []
   locateMessage: [messageId: string]
@@ -59,6 +64,16 @@ const emit = defineEmits<{
     :password="password"
     @close="emit('closeSearch')"
     @locate="emit('locateSearch', $event)"
+  />
+  <RoomTasksPanel
+    :open="tasksOpen"
+    :room-id="roomId"
+    :token="token"
+    :password="password"
+    :participants="participants"
+    :source="taskSource"
+    @close="emit('closeTasks')"
+    @locate="emit('locateMessage', $event)"
   />
   <ImageViewerGallery :images="images" :active-id="previewImageId" @close="emit('closeImage')" />
   <ProfileCardDialog

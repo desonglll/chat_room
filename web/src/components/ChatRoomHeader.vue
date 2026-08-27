@@ -50,6 +50,7 @@ const emit = defineEmits<{
   blockUser: []
   assistant: []
   catchUp: []
+  tasks: []
 }>()
 
 const memberPopover = ref()
@@ -257,6 +258,18 @@ async function copyRoomId(): Promise<void> {
         @click="emit('assistant')"
       >
         <Bot :size="19" />
+      </Button>
+      <Button
+        v-if="authenticated"
+        class="cr-header-action cr-header-secondary"
+        text
+        rounded
+        severity="secondary"
+        aria-label="聊天室待办"
+        title="聊天室待办"
+        @click="emit('tasks')"
+      >
+        <ListChecks :size="19" />
       </Button>
       <Button
         v-if="authenticated"

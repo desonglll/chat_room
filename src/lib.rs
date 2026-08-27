@@ -26,6 +26,7 @@ mod state_backup;
 mod state_build;
 mod state_runtime;
 pub mod storage;
+pub mod tasks;
 pub mod web;
 mod work_queue;
 
@@ -136,6 +137,10 @@ use crate::state::AppState;
         ai_threads::catch_up::create_catch_up,
         ai_threads::runs::get_run,
         ai_threads::events::stream_run_events,
+        tasks::handlers::list,
+        tasks::handlers::create,
+        tasks::handlers::update,
+        tasks::handlers::delete,
         admin_metrics::overview,
         admin_metrics::purge,
         admin_backups::export,
@@ -211,6 +216,10 @@ use crate::state::AppState;
         models::AuthRequest,
         registration::RegisterRequest,
         ai_threads::CreateCatchUpRunRequest,
+        tasks::RoomTask,
+        tasks::RoomTaskSource,
+        tasks::CreateRoomTaskRequest,
+        tasks::UpdateRoomTaskRequest,
         models::AuthSession,
         models::UpdateProfileRequest,
         models::ChangePasswordRequest,

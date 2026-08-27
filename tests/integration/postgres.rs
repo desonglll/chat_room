@@ -12,6 +12,8 @@ use chat_room::config::{AdminConfig, AppConfig};
 mod global_search_postgres;
 #[path = "postgres_database.rs"]
 mod postgres_database;
+#[path = "room_tasks_postgres.rs"]
+mod room_tasks_postgres;
 use postgres_database::{connect_postgres_admin, create_scratch_database, drop_scratch_database};
 
 #[tokio::test]

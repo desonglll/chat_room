@@ -89,6 +89,13 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(room_pins, 1);
+    let room_tasks: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'room_tasks'",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(room_tasks, 1);
 
     state.pool().close().await;
     remove_sqlite_files(&database);
@@ -178,6 +185,12 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
             .await
             .unwrap();
     assert_eq!(room_pins.as_deref(), Some("room_pins"));
+    let room_tasks: Option<String> =
+        sqlx::query_scalar("SELECT to_regclass('public.room_tasks')::text")
+            .fetch_one(postgres)
+            .await
+            .unwrap();
+    assert_eq!(room_tasks.as_deref(), Some("room_tasks"));
 
     postgres.close().await;
     drop(state);
