@@ -258,29 +258,8 @@ impl AppConfig {
         if self.realtime.message_poll_limit <= 0 {
             bail!("realtime.message_poll_limit must be greater than zero");
         }
-        if self.auth.session_lifetime_days <= 0 {
-            bail!("auth.session_lifetime_days must be greater than zero");
-        }
-        if self.auth.rate_limit_window_secs == 0
-            || self.auth.rate_limit_ip_attempts == 0
-            || self.auth.rate_limit_account_attempts == 0
-        {
-            bail!("auth rate limit values must be greater than zero");
-        }
-        if !matches!(
-            self.auth.registration_mode.as_str(),
-            "open" | "invite_only" | "disabled"
-        ) {
-            bail!("auth.registration_mode must be open, invite_only, or disabled");
-        }
-        if self
-            .security
-            .cors_allowed_origins
-            .iter()
-            .any(|origin| !security::is_exact_origin(origin))
-        {
-            bail!("security.cors_allowed_origins must contain exact http/https origins");
-        }
+        self.auth.validate()?;
+        self.security.validate()?;
         if self.admin.orphan_retention_hours <= 0 {
             bail!("admin.orphan_retention_hours must be greater than zero");
         }

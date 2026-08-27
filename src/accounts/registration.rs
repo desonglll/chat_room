@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     auth_limits::require_auth_capacity,
-    user_handlers::{hash_password, normalize_credentials},
+    credentials::{hash_password, normalize_credentials},
 };
 
 #[derive(Debug, Deserialize, ToSchema)]

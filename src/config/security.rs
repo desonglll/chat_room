@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use anyhow::{bail, Result};
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct SecurityConfig {
@@ -18,6 +20,19 @@ pub(crate) fn is_exact_origin(origin: &str) -> bool {
         return false;
     };
     origin == format!("{scheme}://{authority}")
+}
+
+impl SecurityConfig {
+    pub(super) fn validate(&self) -> Result<()> {
+        if self
+            .cors_allowed_origins
+            .iter()
+            .any(|origin| !is_exact_origin(origin))
+        {
+            bail!("security.cors_allowed_origins must contain exact http/https origins");
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
