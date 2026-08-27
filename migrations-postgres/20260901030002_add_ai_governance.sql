@@ -52,7 +52,7 @@ CREATE TABLE ai_usage_records (
     id UUID PRIMARY KEY,
     admission_id UUID NOT NULL UNIQUE,
     user_id UUID REFERENCES users (id) ON DELETE SET NULL,
-    room_id UUID,
+    room_id UUID REFERENCES rooms (id) ON DELETE SET NULL,
     feature TEXT NOT NULL,
     model_option_id UUID NOT NULL,
     provider TEXT NOT NULL,

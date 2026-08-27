@@ -1,0 +1,1 @@
+ALTER TABLE ai_usage_records DROP CONSTRAINT ai_usage_records_room_id_fkey;
