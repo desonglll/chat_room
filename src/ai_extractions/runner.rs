@@ -8,6 +8,7 @@ use uuid::Uuid;
 use super::execution_store::{ExtractionMessage, ValidatedCandidate};
 use crate::{
     ai::extraction::{AiExtractedCandidate, AiExtractionContextMessage},
+    ai_governance::estimate_tokens,
     state::SharedState,
 };
 
@@ -67,7 +68,7 @@ async fn execute_run(state: &SharedState, run_id: Uuid) -> Result<(), &'static s
         .map_err(|_| "没有可提取的消息或你已无权访问")?;
     if messages.is_empty() {
         return state
-            .complete_extraction_run(&execution, 0, &[])
+            .complete_extraction_run(&execution, 0, &[], 0, 0)
             .await
             .map_err(|_| "保存提取结果失败");
     }
@@ -80,8 +81,26 @@ async fn execute_run(state: &SharedState, run_id: Uuid) -> Result<(), &'static s
         .await
         .map_err(|_| "AI 提取当前不可用，请稍后重试")?;
     let candidates = validate_candidates(raw, &messages).map_err(|_| "AI 返回结果无效，请重试")?;
+    let input_tokens = estimate_tokens(messages.iter().flat_map(|message| {
+        [
+            message.sender.as_str(),
+            message.content.as_str(),
+            message.attachment.as_deref().unwrap_or(""),
+        ]
+    }));
+    let output_tokens = estimate_tokens(
+        candidates
+            .iter()
+            .flat_map(|candidate| [candidate.title.as_str(), candidate.detail.as_str()]),
+    );
     state
-        .complete_extraction_run(&execution, messages.len() as i64, &candidates)
+        .complete_extraction_run(
+            &execution,
+            messages.len() as i64,
+            &candidates,
+            input_tokens,
+            output_tokens,
+        )
         .await
         .map_err(|_| "保存提取结果失败")
 }

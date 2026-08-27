@@ -15,6 +15,7 @@ import IconSprite from './IconSprite.vue'
 import ScopedPasswordField from './ScopedPasswordField.vue'
 import { deleteRoom, updateRoom } from '../api'
 import RoomMembersPanel from './RoomMembersPanel.vue'
+import RoomAiPolicyPanel from './RoomAiPolicyPanel.vue'
 import type { Room, RoomUpdateResult } from '../types'
 
 const props = defineProps<{
@@ -225,6 +226,8 @@ async function confirmDelete(): Promise<void> {
             class="grid grid-cols-2"
           />
         </div>
+
+        <RoomAiPolicyPanel v-if="room.membership_role === 'owner'" :room-id="room.id" :token="token" />
 
         <Message v-if="error" severity="error" size="small" :closable="false">{{ error }}</Message>
 

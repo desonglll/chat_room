@@ -13,10 +13,11 @@ use super::{
         UpdateAiExtractionCandidateRequest,
     },
     runner::spawn_run,
+    store::NewExtractionRun,
 };
 use crate::{
-    ai_handlers::require_room_password, models::User, state::SharedState,
-    user_handlers::bearer_token,
+    ai_governance::AiAdmissionRequest, ai_handlers::require_room_password, models::User,
+    state::SharedState, user_handlers::bearer_token,
 };
 
 async fn actor(state: &SharedState, headers: &HeaderMap) -> Result<User, StatusCode> {
@@ -57,6 +58,7 @@ async fn authorize_room(
         (status = 403, description = "Account is not an active room member"),
         (status = 404, description = "Room not found"),
         (status = 409, description = "Idempotency key belongs to another room"),
+        (status = 429, description = "Concurrency or usage limit reached"),
         (status = 503, description = "AI model unavailable")
     )
 )]
@@ -75,22 +77,55 @@ pub async fn create(
     {
         return Err(StatusCode::BAD_REQUEST);
     }
+    if let Some(existing) = state
+        .ai_extraction_run_by_request(user.id, payload.client_request_id)
+        .await
+        .map_err(internal_error)?
+    {
+        if existing.room_id != room_id {
+            return Err(StatusCode::CONFLICT);
+        }
+        spawn_run(state, existing.id);
+        return Ok((StatusCode::ACCEPTED, Json(existing)));
+    }
     let model = state
         .resolve_ai_model(payload.model_option_id, false)
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let (run, created) = state
+    let admission = state
+        .admit_ai(AiAdmissionRequest {
+            user_id: user.id,
+            room_id: Some(room_id),
+            feature: "extraction",
+            model: &model,
+            reserved_tokens: 500 * 64,
+        })
+        .await
+        .map_err(|error| error.status())?;
+    let (run, created) = match state
         .create_extraction_run(
             user.id,
-            room_id,
-            payload.from_at,
-            payload.to_at,
-            payload.client_request_id,
-            &model,
+            NewExtractionRun {
+                room_id,
+                from_at: payload.from_at,
+                to_at: payload.to_at,
+                client_request_id: payload.client_request_id,
+                model: &model,
+                admission,
+            },
         )
         .await
-        .map_err(internal_error)?;
+    {
+        Ok(result) => result,
+        Err(error) => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            return Err(internal_error(error));
+        }
+    };
+    if !created {
+        let _ = state.discard_ai_admission(admission.id).await;
+    }
     if run.room_id != room_id {
         return Err(StatusCode::CONFLICT);
     }

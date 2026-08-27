@@ -7,12 +7,14 @@ use axum::{
 use uuid::Uuid;
 
 use super::{
-    create_run::{CatchUpRunSource, CreateRunOutcome},
+    create_run::{CatchUpRunSource, CreateRunOutcome, NewCatchUpRun},
     handlers::{current_user, internal_error, DEFAULT_TITLE},
     models::CreateCatchUpRunRequest,
     runs::spawn_run,
 };
-use crate::{ai_handlers::require_room_password, state::SharedState};
+use crate::{
+    ai_governance::AiAdmissionRequest, ai_handlers::require_room_password, state::SharedState,
+};
 
 #[utoipa::path(
     post,
@@ -100,24 +102,50 @@ pub async fn create_catch_up(
             .map_err(internal_error)?
             .ok_or(StatusCode::NOT_FOUND)?;
     }
-    let outcome = state
+    let admission = state
+        .admit_ai(AiAdmissionRequest {
+            user_id: user.id,
+            room_id: Some(payload.room_id),
+            feature: "catch_up",
+            model: &model,
+            reserved_tokens: window.unread_message_count.min(500).saturating_mul(64),
+        })
+        .await
+        .map_err(|error| error.status())?;
+    let outcome = match state
         .create_catch_up_run(
             user.id,
             thread.id,
-            payload.room_id,
-            payload.client_request_id,
-            CatchUpRunSource {
-                after_message_id: window.after_message_id,
-                through_message_id: window.through_message_id,
-                message_count: window.unread_message_count,
+            NewCatchUpRun {
+                room_id: payload.room_id,
+                client_request_id: payload.client_request_id,
+                source: CatchUpRunSource {
+                    after_message_id: window.after_message_id,
+                    through_message_id: window.through_message_id,
+                    message_count: window.unread_message_count,
+                },
+                model: &model,
+                admission,
             },
-            &model,
         )
         .await
-        .map_err(internal_error)?;
+    {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            return Err(internal_error(error));
+        }
+    };
     let run = match outcome {
-        CreateRunOutcome::Created(run) | CreateRunOutcome::Existing(run) => run,
-        CreateRunOutcome::Busy => return Err(StatusCode::CONFLICT),
+        CreateRunOutcome::Created(run) => run,
+        CreateRunOutcome::Existing(run) => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            run
+        }
+        CreateRunOutcome::Busy => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            return Err(StatusCode::CONFLICT);
+        }
     };
     spawn_run(state, run.id);
     Ok((StatusCode::ACCEPTED, Json(run)).into_response())

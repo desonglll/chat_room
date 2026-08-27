@@ -4,7 +4,9 @@ pub mod accounts;
 pub mod admin;
 pub mod ai;
 pub mod ai_extractions;
+pub mod ai_governance;
 pub mod ai_handlers;
+pub mod ai_suggestions;
 pub mod ai_threads;
 pub mod attachments;
 pub mod backup;
@@ -126,8 +128,8 @@ use crate::state::AppState;
         favorites::handlers::list_collaborators,
         favorites::handlers::add_collaborator,
         favorites::handlers::remove_collaborator,
-        ai_handlers::suggest,
-        ai_handlers::suggest_events,
+        ai_suggestions::suggest,
+        ai_suggestions::suggest_events,
         ai::model_handlers::list_models,
         ai_threads::handlers::list_threads,
         ai_threads::handlers::create_thread,
@@ -141,6 +143,11 @@ use crate::state::AppState;
         ai_extractions::handlers::create,
         ai_extractions::handlers::get,
         ai_extractions::handlers::update_candidate,
+        ai_governance::handlers::room_policy,
+        ai_governance::handlers::update_room_policy,
+        ai_governance::handlers::admin_settings,
+        ai_governance::handlers::update_admin_settings,
+        ai_governance::handlers::admin_usage,
         tasks::handlers::list,
         tasks::handlers::create,
         tasks::handlers::update,
@@ -225,6 +232,11 @@ use crate::state::AppState;
         ai_extractions::AiExtractionRun,
         ai_extractions::CreateAiExtractionRequest,
         ai_extractions::UpdateAiExtractionCandidateRequest,
+        ai_governance::RoomAiPolicy,
+        ai_governance::UpdateRoomAiPolicy,
+        ai_governance::AiGovernanceSettings,
+        ai_governance::UpdateAiGovernanceSettings,
+        ai_governance::AiUsageReport,
         tasks::RoomTask,
         tasks::RoomTaskSource,
         tasks::CreateRoomTaskRequest,

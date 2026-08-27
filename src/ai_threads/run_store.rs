@@ -5,6 +5,7 @@ use uuid::Uuid;
 use super::models::{AiCitationSource, AiRun, AiRunTraceStep, AiThreadMessage};
 use crate::{
     ai::{AiAssistant, AiConfig},
+    ai_governance::estimate_tokens,
     state::{with_pool, AppState},
 };
 
@@ -115,6 +116,7 @@ impl AppState {
                 "SELECT r.id, r.thread_id, r.user_id, r.user_message_id, r.assistant_message_id, \
                  r.room_id, r.purpose, r.source_after_message_id, r.source_through_message_id, \
                  r.source_message_count, r.provider, r.model, r.base_url, r.api_key_env, \
+                 r.admission_id, \
                  t.thinking_enabled, m.content AS question FROM ai_runs r \
                  JOIN ai_threads t ON t.id = r.thread_id \
                  JOIN ai_thread_messages m ON m.id = r.user_message_id WHERE r.id = $1",
@@ -274,7 +276,24 @@ impl AppState {
             .execute(&mut *transaction)
             .await?;
             transaction.commit().await
-        })
+        })?;
+        if let Some(admission_id) = execution.admission_id {
+            let input_tokens = estimate_tokens([execution.question.as_str()])
+                .saturating_add(terminal.context_message_count.saturating_mul(64));
+            let output_tokens = estimate_tokens([terminal.content]);
+            if let Err(error) = self
+                .finish_ai_admission(
+                    admission_id,
+                    terminal.status,
+                    Some(input_tokens),
+                    output_tokens,
+                )
+                .await
+            {
+                tracing::error!(run_id = %execution.id, "record AI run usage failed: {error}");
+            }
+        }
+        Ok(())
     }
 }
 
@@ -324,6 +343,7 @@ pub(super) struct AiRunExecution {
     pub model: String,
     pub base_url: String,
     pub api_key_env: String,
+    pub admission_id: Option<Uuid>,
     pub thinking_enabled: bool,
     pub question: String,
 }

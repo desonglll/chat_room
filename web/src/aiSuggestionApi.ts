@@ -39,9 +39,9 @@ export async function streamAiSuggestions(
     signal,
   })
   if (response.status === 401) throw new Error('登录已过期或聊天室密码错误')
-  if (response.status === 403) throw new Error('你没有在此聊天室发言的权限')
-  if (response.status === 429) throw new Error('请求过于频繁，请稍后再试')
-  if (response.status === 503) throw new Error('AI 助手当前不可用')
+  if (response.status === 403) throw new Error('此房间未启用 AI、仅限管理员使用，或你没有发言权限')
+  if (response.status === 429) throw new Error('请求过于频繁，或 AI 并发/当日用量已达上限')
+  if (response.status === 503) throw new Error('AI 模型不可用或未被部署允许')
   if (!response.ok) throw new Error(`获取 AI 建议失败：${response.status}`)
 
   let buffer = ''

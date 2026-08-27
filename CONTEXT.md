@@ -39,3 +39,11 @@ _Avoid_: Background task creation, cross-Room analysis
 **Extraction Candidate**:
 A deduplicated proposed decision or task that remains a projection until its User confirms it. Confirmation creates a personal Favorite or a new unassigned `open` Room Task; it never changes an existing Task.
 _Avoid_: AI decision, AI-owned Task, source message
+
+**Room AI Policy**:
+The Room owner's rule for admitting new Room-scoped AI work: disabled, all active members, or Room administrators only. A policy change does not cancel AI Runs that were already admitted.
+_Avoid_: Model configuration, membership role, running-Run kill switch
+
+**AI Usage Record**:
+A privacy-safe terminal accounting projection containing feature, Room, model, status, estimated tokens, duration, and estimated cost. It never contains prompts, message text, attachment names, or Retrieved Evidence.
+_Avoid_: AI transcript, provider log, billing source of truth

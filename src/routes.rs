@@ -6,9 +6,9 @@ use axum::{routing::get, Router};
 
 use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
-    admin_system_admins, admin_system_lock, ai, ai_extractions, ai_handlers, ai_threads,
-    attachment_handlers, attachment_upload_handlers, avatar_handlers, config, conversations,
-    direct_conversations, favorites, file_handlers, forward_handlers, handlers,
+    admin_system_admins, admin_system_lock, ai, ai_extractions, ai_governance, ai_suggestions,
+    ai_threads, attachment_handlers, attachment_upload_handlers, avatar_handlers, config,
+    conversations, direct_conversations, favorites, file_handlers, forward_handlers, handlers,
     membership_handlers, message_global_search, message_pins, message_search, notifications,
     registration, room_query_handlers, social, state::AppState, tasks, user_handlers, ws,
 };
@@ -62,11 +62,11 @@ pub(crate) fn api_routes(
         .route("/api/rooms/:id/files", get(file_handlers::list_room_files))
         .route(
             "/api/rooms/:id/ai/suggest",
-            axum::routing::post(ai_handlers::suggest),
+            axum::routing::post(ai_suggestions::suggest),
         )
         .route(
             "/api/rooms/:id/ai/suggest/events",
-            axum::routing::post(ai_handlers::suggest_events),
+            axum::routing::post(ai_suggestions::suggest_events),
         )
         .route(
             "/api/ai/threads",
@@ -94,6 +94,11 @@ pub(crate) fn api_routes(
         .route(
             "/api/rooms/:id/ai/extractions",
             axum::routing::post(ai_extractions::handlers::create),
+        )
+        .route(
+            "/api/rooms/:id/ai-policy",
+            get(ai_governance::handlers::room_policy)
+                .patch(ai_governance::handlers::update_room_policy),
         )
         .route(
             "/api/ai/extractions/:id",
@@ -305,6 +310,15 @@ pub(crate) fn api_routes(
         .route(
             "/api/admin/ai-models/:id",
             axum::routing::put(admin_ai_models::update).delete(admin_ai_models::delete),
+        )
+        .route(
+            "/api/admin/ai-governance",
+            get(ai_governance::handlers::admin_settings)
+                .patch(ai_governance::handlers::update_admin_settings),
+        )
+        .route(
+            "/api/admin/ai-usage",
+            get(ai_governance::handlers::admin_usage),
         )
         .route(
             "/api/admin/maintenance/purge",

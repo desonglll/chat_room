@@ -27,6 +27,7 @@ import type { AdminOverview, AdminPurgeResult } from '../adminTypes'
 import { storageGet } from '../browserStorage'
 import AdminSystemLockPanel from './AdminSystemLockPanel.vue'
 import AdminServiceStatusPanel from './AdminServiceStatusPanel.vue'
+import AdminAiGovernancePanel from './AdminAiGovernancePanel.vue'
 import AdminAiModelsPanel from './AdminAiModelsPanel.vue'
 import AdminBackupPanel from './AdminBackupPanel.vue'
 
@@ -56,11 +57,9 @@ const failureRate = computed(() => {
   if (!runtime?.requests) return 0
   return (runtime.failures / runtime.requests) * 100
 })
-
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('zh-CN').format(value)
 }
-
 function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`
   const units = ['KiB', 'MiB', 'GiB', 'TiB']
@@ -217,6 +216,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
         />
 
         <AdminAiModelsPanel :token="token" @error="error = $event" />
+        <AdminAiGovernancePanel :token="token" @error="error = $event" />
 
         <AdminBackupPanel
           :token="token"

@@ -9,24 +9,30 @@ use super::models::{
 };
 use crate::{
     ai::model_options::ResolvedAiModel,
+    ai_governance::AiAdmission,
     state::{with_pool, AppState},
 };
 
 const RUN_COLUMNS: &str = "id, room_id, client_request_id, from_at, to_at, model_option_id, \
     provider, model, status, message_count, error_message, created_at, updated_at";
 
+pub(super) struct NewExtractionRun<'a> {
+    pub room_id: Uuid,
+    pub from_at: DateTime<Utc>,
+    pub to_at: DateTime<Utc>,
+    pub client_request_id: Uuid,
+    pub model: &'a ResolvedAiModel,
+    pub admission: AiAdmission,
+}
+
 impl AppState {
     pub(super) async fn create_extraction_run(
         &self,
         user_id: Uuid,
-        room_id: Uuid,
-        from_at: DateTime<Utc>,
-        to_at: DateTime<Utc>,
-        client_request_id: Uuid,
-        selected: &ResolvedAiModel,
+        input: NewExtractionRun<'_>,
     ) -> Result<(AiExtractionRun, bool), sqlx::Error> {
         if let Some(run) = self
-            .ai_extraction_run_by_request(user_id, client_request_id)
+            .ai_extraction_run_by_request(user_id, input.client_request_id)
             .await?
         {
             return Ok((run, false));
@@ -37,8 +43,8 @@ impl AppState {
             sqlx::query(
                 "INSERT INTO ai_extraction_runs \
                  (id, user_id, room_id, client_request_id, from_at, to_at, model_option_id, \
-                  provider, model, base_url, api_key_env, status, created_at, updated_at) \
-                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'queued', $12, $12 \
+                  provider, model, base_url, api_key_env, admission_id, status, created_at, updated_at) \
+                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'queued', $13, $13 \
                  WHERE EXISTS (SELECT 1 FROM room_memberships memberships \
                    JOIN rooms ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
                    WHERE memberships.room_id = $3 AND memberships.user_id = $2 \
@@ -47,15 +53,16 @@ impl AppState {
             )
             .bind(id)
             .bind(user_id)
-            .bind(room_id)
-            .bind(client_request_id)
-            .bind(from_at)
-            .bind(to_at)
-            .bind(selected.id)
-            .bind(&selected.provider)
-            .bind(&selected.model)
-            .bind(&selected.base_url)
-            .bind(&selected.api_key_env)
+            .bind(input.room_id)
+            .bind(input.client_request_id)
+            .bind(input.from_at)
+            .bind(input.to_at)
+            .bind(input.model.id)
+            .bind(&input.model.provider)
+            .bind(&input.model.model)
+            .bind(&input.model.base_url)
+            .bind(&input.model.api_key_env)
+            .bind(input.admission.id)
             .bind(now)
             .execute(pool)
             .await
@@ -64,7 +71,7 @@ impl AppState {
         let run = if inserted {
             self.ai_extraction_run(user_id, id).await?
         } else {
-            self.ai_extraction_run_by_request(user_id, client_request_id)
+            self.ai_extraction_run_by_request(user_id, input.client_request_id)
                 .await?
         };
         run.map(|run| (run, inserted))
@@ -97,7 +104,7 @@ impl AppState {
         }
     }
 
-    async fn ai_extraction_run_by_request(
+    pub(super) async fn ai_extraction_run_by_request(
         &self,
         user_id: Uuid,
         request_id: Uuid,

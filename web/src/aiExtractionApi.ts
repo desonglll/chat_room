@@ -63,10 +63,11 @@ async function checked(response: Response): Promise<Response> {
     throw new AiExtractionApiError(response.status, '提取范围或候选操作无效')
   }
   if (response.status === 401) throw new AiExtractionApiError(401, '聊天室密码错误或登录已过期')
-  if (response.status === 403) throw new AiExtractionApiError(403, '你已无权读取此聊天室的提取结果')
+  if (response.status === 403) throw new AiExtractionApiError(403, '此房间未启用 AI、仅限管理员使用，或你已无权访问')
   if (response.status === 404) throw new AiExtractionApiError(404, '提取结果或聊天室已不存在')
   if (response.status === 409) throw new AiExtractionApiError(409, '候选项已在其他窗口中处理')
-  if (response.status === 503) throw new AiExtractionApiError(503, '所选 AI 模型当前不可用')
+  if (response.status === 429) throw new AiExtractionApiError(429, 'AI 并发或当日用量已达上限，请稍后再试')
+  if (response.status === 503) throw new AiExtractionApiError(503, '所选 AI 模型不可用或未被部署允许')
   if (!response.ok) throw new AiExtractionApiError(response.status, `AI 提取失败：${response.status}`)
   return response
 }

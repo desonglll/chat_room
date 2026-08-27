@@ -105,6 +105,23 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(extraction_tables, 4);
+    let governance_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN \
+         ('room_ai_policies', 'ai_governance_settings', 'ai_governance_models', \
+          'ai_admissions', 'ai_usage_records')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(governance_tables, 5);
+    let governed_runs: i64 = sqlx::query_scalar(
+        "SELECT (SELECT COUNT(*) FROM pragma_table_info('ai_runs') WHERE name = 'admission_id') + \
+         (SELECT COUNT(*) FROM pragma_table_info('ai_extraction_runs') WHERE name = 'admission_id')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(governed_runs, 2);
 
     state.pool().close().await;
     remove_sqlite_files(&database);
@@ -209,6 +226,24 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(extraction_tables, 4);
+    let governance_tables: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' \
+         AND table_name IN ('room_ai_policies', 'ai_governance_settings', \
+          'ai_governance_models', 'ai_admissions', 'ai_usage_records')",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(governance_tables, 5);
+    let governed_runs: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' \
+         AND column_name = 'admission_id' \
+         AND table_name IN ('ai_runs', 'ai_extraction_runs')",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(governed_runs, 2);
 
     postgres.close().await;
     drop(state);

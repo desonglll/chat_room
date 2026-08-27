@@ -8,11 +8,12 @@ use axum::{
 };
 use uuid::Uuid;
 
-use super::create_run::CreateRunOutcome;
+use super::create_run::{CreateRunOutcome, NewAiRun};
 use super::handlers::{current_user, internal_error, validate_room_access, DEFAULT_TITLE};
 use super::models::{AiRun, AiRunTraceStep, CreateAiRunRequest};
 use super::pipeline::generate_answer;
 use super::run_store::{AiRunExecution, FailedAiRun};
+use crate::ai_governance::{estimate_tokens, AiAdmissionRequest};
 use crate::ai_handlers::room_context_for_user;
 use crate::cache::CachedAiAnswer;
 use crate::state::SharedState;
@@ -28,8 +29,10 @@ const DISPATCH_INTERVAL: Duration = Duration::from_secs(5);
     responses(
         (status = 202, description = "Durable AI run accepted", body = AiRun),
         (status = 400, description = "Invalid question"),
+        (status = 403, description = "Room AI policy or active membership denied the run"),
         (status = 404, description = "AI session not found"),
         (status = 409, description = "The session already has an active run"),
+        (status = 429, description = "Concurrency or usage limit reached"),
         (status = 503, description = "AI assistant is unavailable")
     )
 )]
@@ -48,6 +51,14 @@ pub async fn create_run(
     let question = payload.question.trim();
     if question.is_empty() || question.chars().count() > MAX_QUESTION_CHARS {
         return Err(StatusCode::BAD_REQUEST);
+    }
+    if let Some(existing) = state
+        .ai_run_by_request(user.id, payload.client_request_id)
+        .await
+        .map_err(internal_error)?
+    {
+        spawn_run(state, existing.id);
+        return Ok((StatusCode::ACCEPTED, Json(existing)));
     }
     let selected_model = state
         .resolve_ai_model(payload.model_option_id, thread.thinking_enabled)
@@ -92,20 +103,47 @@ pub async fn create_run(
             .map_err(internal_error)?
             .ok_or(StatusCode::NOT_FOUND)?;
     }
-    let outcome = state
+    let admission = state
+        .admit_ai(AiAdmissionRequest {
+            user_id: user.id,
+            room_id,
+            feature: "question",
+            model: &selected_model,
+            reserved_tokens: estimate_tokens([question])
+                .saturating_add((state.ai_max_context_messages() as i64).saturating_mul(64)),
+        })
+        .await
+        .map_err(|error| error.status())?;
+    let outcome = match state
         .create_ai_run(
             user.id,
             thread.id,
-            question,
-            room_id,
-            payload.client_request_id,
-            &selected_model,
+            NewAiRun {
+                question,
+                room_id,
+                client_request_id: payload.client_request_id,
+                model: &selected_model,
+                admission,
+            },
         )
         .await
-        .map_err(internal_error)?;
+    {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            return Err(internal_error(error));
+        }
+    };
     let run = match outcome {
-        CreateRunOutcome::Created(run) | CreateRunOutcome::Existing(run) => run,
-        CreateRunOutcome::Busy => return Err(StatusCode::CONFLICT),
+        CreateRunOutcome::Created(run) => run,
+        CreateRunOutcome::Existing(run) => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            run
+        }
+        CreateRunOutcome::Busy => {
+            let _ = state.discard_ai_admission(admission.id).await;
+            return Err(StatusCode::CONFLICT);
+        }
     };
     spawn_run(state, run.id);
     Ok((StatusCode::ACCEPTED, Json(run)))

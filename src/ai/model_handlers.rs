@@ -21,9 +21,16 @@ pub async fn list_models(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    state
+    let mut choices = state
         .ai_model_choices()
         .await
-        .map(Json)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if let Some(allowed) = state
+        .ai_allowlist()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        choices.retain(|model| allowed.contains(&model.id));
+    }
+    Ok(Json(choices))
 }

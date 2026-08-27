@@ -28,6 +28,7 @@ pub(super) struct ExtractionExecution {
     pub model: String,
     pub base_url: String,
     pub api_key_env: String,
+    pub admission_id: Option<Uuid>,
 }
 
 impl ExtractionExecution {
@@ -118,7 +119,8 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT runs.id, runs.user_id, runs.room_id, rooms.name AS room_name, \
-                 runs.from_at, runs.to_at, runs.provider, runs.model, runs.base_url, runs.api_key_env \
+                 runs.from_at, runs.to_at, runs.provider, runs.model, runs.base_url, runs.api_key_env, \
+                 runs.admission_id \
                  FROM ai_extraction_runs runs JOIN rooms ON rooms.id = runs.room_id \
                  WHERE runs.id = $1 AND rooms.deleted_at IS NULL",
             )
@@ -133,6 +135,8 @@ impl AppState {
         execution: &ExtractionExecution,
         message_count: i64,
         candidates: &[ValidatedCandidate],
+        input_tokens: i64,
+        output_tokens: i64,
     ) -> Result<(), sqlx::Error> {
         let now = Utc::now();
         with_pool!(self, |pool| {
@@ -236,7 +240,16 @@ impl AppState {
                 return Err(sqlx::Error::RowNotFound);
             }
             transaction.commit().await
-        })
+        })?;
+        if let Some(admission_id) = execution.admission_id {
+            if let Err(error) = self
+                .finish_ai_admission(admission_id, "completed", Some(input_tokens), output_tokens)
+                .await
+            {
+                tracing::error!(run_id = %execution.id, "record AI extraction usage failed: {error}");
+            }
+        }
+        Ok(())
     }
 
     pub(super) async fn fail_extraction_run(
@@ -244,6 +257,13 @@ impl AppState {
         run_id: Uuid,
         message: &str,
     ) -> Result<(), sqlx::Error> {
+        let admission_id: Option<Uuid> = with_pool!(self, |pool| {
+            sqlx::query_scalar("SELECT admission_id FROM ai_extraction_runs WHERE id = $1")
+                .bind(run_id)
+                .fetch_optional(pool)
+                .await
+        })?
+        .flatten();
         with_pool!(self, |pool| {
             sqlx::query(
                 "UPDATE ai_extraction_runs SET status = 'failed', error_message = $1, \
@@ -255,6 +275,15 @@ impl AppState {
             .execute(pool)
             .await
             .map(|_| ())
-        })
+        })?;
+        if let Some(admission_id) = admission_id {
+            if let Err(error) = self
+                .finish_ai_admission(admission_id, "failed", None, 0)
+                .await
+            {
+                tracing::error!(%run_id, "record failed AI extraction usage failed: {error}");
+            }
+        }
+        Ok(())
     }
 }
