@@ -2,11 +2,18 @@
 import { computed } from 'vue'
 import { BookOpen, Bot, ChevronRight, LoaderCircle } from 'lucide-vue-next'
 import { aiContextUsage, citedAiSources, ragAiSources, referencedAiAttachments, type AiUiMessage } from '../aiUi'
+import type { FavoriteItem } from '../types'
 import AiCitedAttachments from './AiCitedAttachments.vue'
+import AiFavoriteButton from './AiFavoriteButton.vue'
 import AiRunTrace from './AiRunTrace.vue'
 import MarkdownContent from './MarkdownContent.vue'
 
-const props = defineProps<{ message: AiUiMessage; roomTitle: string; now: number }>()
+const props = defineProps<{
+  message: AiUiMessage
+  roomTitle: string
+  now: number
+  saveFavorite: (title: string, content: string) => Promise<FavoriteItem>
+}>()
 const emit = defineEmits<{ sources: [] }>()
 const active = computed(() => ['pending', 'streaming'].includes(props.message.status))
 const citedCount = computed(() => citedAiSources(props.message.content, props.message.sources).length)
@@ -26,6 +33,7 @@ const citedCount = computed(() => citedAiSources(props.message.content, props.me
         <span v-if="active" class="flex items-center gap-1.5 text-[11px] text-muted-color">
           <LoaderCircle :size="13" class="animate-spin motion-reduce:animate-none" />正在回答
         </span>
+        <AiFavoriteButton :message="message" :room-title="roomTitle" :save="saveFavorite" />
       </header>
       <MarkdownContent
         v-if="message.content"

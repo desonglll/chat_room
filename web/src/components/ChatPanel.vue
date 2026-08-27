@@ -97,10 +97,10 @@ const emit = defineEmits<{
   removeFriend: []
   blockUser: []
   assistant: []
+  catchUp: []
   'update:password': [password: string]
   'update:rememberRoomPasswords': [remember: boolean]
 }>()
-
 const filesOpen = ref(false)
 const viewProfileUserId = ref('')
 const composerRef = ref<InstanceType<typeof MessageComposer> | null>(null)
@@ -218,6 +218,7 @@ watch(
       @remove-friend="emit('removeFriend')"
       @block-user="emit('blockUser')"
       @assistant="emit('assistant')"
+      @catch-up="emit('catchUp')"
     />
 
     <ChatAccessPanel

@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures_util::StreamExt;
 
 use super::context::{prepare_generation_context, GenerationContext};
-use super::planner::{fallback_plan, plan_request};
+use super::planner::{catch_up_plan, fallback_plan, plan_request};
 use super::progress::{RunProgress, RunStage, RunStep};
 use super::run_store::AiRunExecution;
 use super::runs::cache_terminal_answer;
@@ -20,25 +20,45 @@ pub(super) async fn generate_answer(
         .ok_or_else(|| anyhow::anyhow!("AI assistant is disabled"))?;
     let mut progress = RunProgress::new();
 
-    progress
-        .publish_step(
-            state,
-            execution,
-            RunStep::new(
-                RunStage::PreparingContext,
-                "analyze_command",
-                "调用规划 Agent",
-                "请求快速模型判断上下文范围、检索策略和研究子问题",
-            ),
-            "",
-        )
-        .await?;
-    let has_room = execution.room_id.is_some();
-    let plan = match plan_request(&assistant, &execution.question, has_room).await {
-        Ok(plan) => plan,
-        Err(error) => {
-            tracing::warn!(run_id = %execution.id, "planning agent failed; using safe fallback: {error:#}");
-            fallback_plan(has_room)
+    let plan = if execution.is_catch_up() {
+        progress
+            .publish_step(
+                state,
+                execution,
+                RunStep::new(
+                    RunStage::PreparingContext,
+                    "trusted_catch_up",
+                    "确认未读总结范围",
+                    format!(
+                        "使用服务端冻结的个人已读游标和当前消息边界，共 {} 条未读消息",
+                        execution.source_message_count.unwrap_or_default()
+                    ),
+                ),
+                "",
+            )
+            .await?;
+        catch_up_plan()
+    } else {
+        progress
+            .publish_step(
+                state,
+                execution,
+                RunStep::new(
+                    RunStage::PreparingContext,
+                    "analyze_command",
+                    "调用规划 Agent",
+                    "请求快速模型判断上下文范围、检索策略和研究子问题",
+                ),
+                "",
+            )
+            .await?;
+        let has_room = execution.room_id.is_some();
+        match plan_request(&assistant, &execution.question, has_room).await {
+            Ok(plan) => plan,
+            Err(error) => {
+                tracing::warn!(run_id = %execution.id, "planning agent failed; using safe fallback: {error:#}");
+                fallback_plan(has_room)
+            }
         }
     };
     progress
@@ -73,6 +93,12 @@ pub(super) async fn generate_answer(
         context.retrieved_message_count,
         &context.sources,
     );
+    if execution.is_catch_up() && context.message_count == 0 {
+        let answer = "这段未读范围内的消息已撤回，没有可总结的内容。";
+        progress.complete_current_step();
+        finish_answer(state, execution, &context, &progress, answer, &[]).await?;
+        return Ok(());
+    }
     progress
         .publish_step(
             state,
@@ -114,13 +140,30 @@ pub(super) async fn generate_answer(
     )
     .await?;
     progress.complete_current_step();
+    let sources = if execution.is_catch_up() {
+        cited_sources(&answer, &context.sources)
+    } else {
+        context.sources.clone()
+    };
+    finish_answer(state, execution, &context, &progress, &answer, &sources).await?;
+    Ok(())
+}
+
+async fn finish_answer(
+    state: &SharedState,
+    execution: &AiRunExecution,
+    context: &GenerationContext,
+    progress: &RunProgress,
+    answer: &str,
+    sources: &[super::models::AiCitationSource],
+) -> anyhow::Result<()> {
     state
         .finish_ai_run(
             execution,
-            &answer,
+            answer,
             context.message_count,
             context.retrieved_message_count,
-            &context.sources,
+            sources,
             progress.trace(),
         )
         .await?;
@@ -128,10 +171,10 @@ pub(super) async fn generate_answer(
         state,
         execution,
         CachedAiAnswer {
-            content: answer,
+            content: answer.into(),
             context_message_count: context.message_count,
             retrieved_message_count: context.retrieved_message_count,
-            sources: context.sources,
+            sources: sources.to_vec(),
             trace: progress.trace().to_vec(),
             revision: progress.revision() + 1,
             status: "completed".into(),
@@ -142,6 +185,30 @@ pub(super) async fn generate_answer(
     )
     .await;
     Ok(())
+}
+
+fn cited_sources(
+    answer: &str,
+    sources: &[super::models::AiCitationSource],
+) -> Vec<super::models::AiCitationSource> {
+    sources
+        .iter()
+        .filter(|source| source_is_cited(answer, &source.label))
+        .cloned()
+        .collect()
+}
+
+fn source_is_cited(answer: &str, label: &str) -> bool {
+    answer.split('[').skip(1).any(|suffix| {
+        suffix
+            .split_once(']')
+            .map(|(citation, _)| {
+                citation
+                    .split([',', '，', ';', '；', ' '])
+                    .any(|item| item.trim().eq_ignore_ascii_case(label))
+            })
+            .unwrap_or(false)
+    })
 }
 
 async fn stream_model_answer(
@@ -170,7 +237,7 @@ async fn stream_model_answer(
             context.toon_context.as_deref(),
             &context.history,
             &execution.question,
-            context.retrieved_message_count > 0,
+            !context.sources.is_empty(),
             execution.thinking_enabled,
             Some(task_label),
         )
@@ -240,4 +307,17 @@ async fn stream_model_answer(
         anyhow::bail!("AI response had no text content");
     }
     Ok(answer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::source_is_cited;
+
+    #[test]
+    fn citations_accept_single_and_grouped_labels_without_substring_matches() {
+        assert!(source_is_cited("结论 [S1]", "S1"));
+        assert!(source_is_cited("联合证据 [S1, S2]", "S2"));
+        assert!(!source_is_cited("结论 [S10]", "S1"));
+        assert!(!source_is_cited("未引用 S1", "S1"));
+    }
 }

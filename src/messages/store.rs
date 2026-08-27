@@ -9,7 +9,7 @@ use crate::cache::MessageCacheLookup;
 use crate::models::{Attachment, ForwardedFrom, ReplyPreview, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
-pub(super) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_message_id, \
+pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_message_id, \
     messages.room_id, messages.sender_id, \
     messages.sender, COALESCE(sender_user.avatar_emoji, '') AS sender_avatar, messages.content, \
     messages.recalled_at, messages.edited_at, messages.created_at, attachments.id AS attachment_id, \
@@ -50,7 +50,7 @@ pub struct AttachmentMetadata {
 }
 
 #[derive(FromRow)]
-pub(super) struct MessageRow {
+pub(crate) struct MessageRow {
     id: Uuid,
     client_message_id: Option<Uuid>,
     room_id: Uuid,
@@ -80,7 +80,7 @@ pub(super) struct MessageRow {
 impl MessageRow {
     /// `viewer_id` decides recall redaction: the sender of a recalled message keeps
     /// seeing their own draft (so they can re-edit it); every other viewer sees it blanked.
-    pub(super) fn into_message(self, viewer_id: Option<Uuid>) -> StoredMessage {
+    pub(crate) fn into_message(self, viewer_id: Option<Uuid>) -> StoredMessage {
         let recalled = self.recalled_at.is_some();
         let redact = recalled && viewer_id != self.sender_id;
         let attachment = (!redact)

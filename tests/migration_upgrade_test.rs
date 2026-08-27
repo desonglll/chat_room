@@ -73,6 +73,15 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(ai_columns, 3);
+    let catch_up_columns: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pragma_table_info('ai_runs') \
+         WHERE name IN ('purpose', 'source_after_message_id', \
+           'source_through_message_id', 'source_message_count')",
+    )
+    .fetch_one(state.pool())
+    .await
+    .unwrap();
+    assert_eq!(catch_up_columns, 4);
     let room_pins: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'room_pins'",
     )
@@ -153,6 +162,16 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(ai_columns, 3);
+    let catch_up_columns: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.columns \
+         WHERE table_schema = 'public' AND table_name = 'ai_runs' \
+         AND column_name IN ('purpose', 'source_after_message_id', \
+           'source_through_message_id', 'source_message_count')",
+    )
+    .fetch_one(postgres)
+    .await
+    .unwrap();
+    assert_eq!(catch_up_columns, 4);
     let room_pins: Option<String> =
         sqlx::query_scalar("SELECT to_regclass('public.room_pins')::text")
             .fetch_one(postgres)

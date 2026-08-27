@@ -1,4 +1,7 @@
+pub mod catch_up;
+mod catch_up_context;
 mod context;
+mod create_run;
 pub mod events;
 pub mod handlers;
 pub mod models;
@@ -11,5 +14,5 @@ mod store;
 
 pub use models::{
     AiCitationAttachment, AiCitationSource, AiRun, AiRunTraceStep, AiThread, AiThreadMessage,
-    CreateAiRunRequest, CreateAiThreadRequest, UpdateAiThreadRequest,
+    CreateAiRunRequest, CreateAiThreadRequest, CreateCatchUpRunRequest, UpdateAiThreadRequest,
 };

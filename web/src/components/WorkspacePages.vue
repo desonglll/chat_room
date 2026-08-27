@@ -154,6 +154,7 @@ const emit = defineEmits<{
       :rooms="rooms"
       :ai-status="aiStatus"
       :remember-room-passwords="rememberRoomPasswords"
+      :save-favorite="favorites.create"
       @back="emit('back')"
       @error="emit('error', $event)"
     />

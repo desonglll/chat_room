@@ -1,4 +1,5 @@
 pub mod actions;
+mod catch_up;
 pub mod forward_handlers;
 pub mod global_search;
 pub mod pins;

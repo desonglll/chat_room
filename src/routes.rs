@@ -78,6 +78,10 @@ pub(crate) fn api_routes(
             "/api/ai/threads/:id/runs",
             axum::routing::post(ai_threads::runs::create_run),
         )
+        .route(
+            "/api/ai/threads/:id/catch-up",
+            axum::routing::post(ai_threads::catch_up::create_catch_up),
+        )
         .route("/api/ai/runs/:id", get(ai_threads::runs::get_run))
         .route(
             "/api/ai/runs/:id/events",

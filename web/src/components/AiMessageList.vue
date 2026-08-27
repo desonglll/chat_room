@@ -2,10 +2,15 @@
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { ArrowDown, Bot } from 'lucide-vue-next'
 import type { AiUiMessage } from '../aiUi'
+import type { FavoriteItem } from '../types'
 import { isViewportNearBottom } from '../messageViewportPolicy'
 import AiAssistantMessage from './AiAssistantMessage.vue'
 
-defineProps<{ messages: AiUiMessage[]; roomTitle: string }>()
+defineProps<{
+  messages: AiUiMessage[]
+  roomTitle: string
+  saveFavorite: (title: string, content: string) => Promise<FavoriteItem>
+}>()
 const emit = defineEmits<{ sources: [message: AiUiMessage] }>()
 
 const viewport = ref<HTMLElement | null>(null)
@@ -134,6 +139,7 @@ defineExpose({ scrollToLatest, scrollToLatestSoon })
             :message="message"
             :room-title="roomTitle"
             :now="now"
+            :save-favorite="saveFavorite"
             @sources="emit('sources', message)"
           />
         </li>

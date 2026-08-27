@@ -96,6 +96,28 @@ export async function createAiRun(
   return response.json() as Promise<AiRun>
 }
 
+export async function createCatchUpRun(
+  token: string,
+  threadId: string,
+  roomId: string,
+  password: string,
+  clientRequestId: string,
+  modelOptionId: string | null,
+): Promise<AiRun | null> {
+  const response = await fetch(`/api/ai/threads/${encodeURIComponent(threadId)}/catch-up`, {
+    method: 'POST',
+    headers: headers(token, password),
+    body: JSON.stringify({
+      room_id: roomId,
+      client_request_id: clientRequestId,
+      model_option_id: modelOptionId,
+    }),
+  })
+  if (response.status === 204) return null
+  assertAiResponse(response)
+  return response.json() as Promise<AiRun>
+}
+
 export async function streamAiRunMessages(
   token: string,
   runId: string,

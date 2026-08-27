@@ -41,6 +41,7 @@ describe('AI context usage', () => {
   test('keeps only sources explicitly cited by the answer', () => {
     const sources = [source, { ...source, label: 'S2', message_id: 'message-10' }]
     expect(citedAiSources('结论来自 [S2]。', sources)).toEqual([sources[1]])
+    expect(citedAiSources('联合来源 [S1, S2]。', sources)).toEqual(sources)
     expect(citedAiSources('没有引用标签', sources)).toEqual([])
   })
 

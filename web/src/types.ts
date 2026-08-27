@@ -145,6 +145,10 @@ export interface AiRun {
   assistant_message_id: string
   client_request_id: string
   room_id: string | null
+  purpose: 'question' | 'catch_up'
+  source_after_message_id: string | null
+  source_through_message_id: string | null
+  source_message_count: number | null
   model_option_id: string | null
   provider: string
   model: string

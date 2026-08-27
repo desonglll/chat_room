@@ -45,7 +45,7 @@ const manageOpen = ref(false)
 const authOpen = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 const sidebarCollapsed = ref(storageGet(window.localStorage, 'chat-room.sidebar-collapsed') === 'true')
-const aiPanelOpen = ref(false)
+const [aiPanelOpen, catchUpRequest] = [ref(false), ref(0)]
 const notificationUnreadCount = ref(0)
 const preferences = ref(loadPreferences())
 const privacyLockScreen = ref<{ lock: () => void } | null>(null)
@@ -455,18 +455,16 @@ const { forwardMessageIds, forwardOpen, handleForwarded, openForward } = useMess
         @remove-friend="changeSelectedDirectAccess(contacts.remove)"
         @block-user="changeSelectedDirectAccess(contacts.block)"
         @assistant="aiPanelOpen = !aiPanelOpen"
+        @catch-up="((aiPanelOpen = true), (catchUpRequest += 1))"
       />
     </Transition>
+    <!-- prettier-ignore -->
     <AiAssistantPage
-      v-if="roomAiPanelVisible && selectedRoom"
-      :key="`room-ai-${selectedRoom.id}`"
-      embedded
-      :initial-room-id="selectedRoom.id"
-      :token="sessionToken"
-      :rooms="forwardRooms"
-      :ai-status="aiStatus"
-      :remember-room-passwords="preferences.rememberRoomPasswords"
+      v-if="roomAiPanelVisible && selectedRoom" :key="`room-ai-${selectedRoom.id}`" embedded
+      :initial-room-id="selectedRoom.id" :token="sessionToken" :rooms="forwardRooms" :ai-status="aiStatus"
+      :remember-room-passwords="preferences.rememberRoomPasswords" :catch-up-request="catchUpRequest" :save-favorite="favorites.create"
       @back="aiPanelOpen = false"
+      @success="showToast" @catch-up-finished="catchUpRequest = 0"
       @error="toast.add({ severity: 'error', summary: $event, life: 3200 })"
     />
 

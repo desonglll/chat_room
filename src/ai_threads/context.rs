@@ -6,6 +6,7 @@ use crate::knowledge::retrieve_room_context;
 use crate::state::SharedState;
 use futures_util::{stream::FuturesUnordered, StreamExt};
 
+use super::catch_up_context::prepare_catch_up_context;
 use super::models::AiCitationSource;
 use super::planner::{AgentPlan, ContextScope};
 use super::progress::{RunProgress, RunStage, RunStep};
@@ -28,6 +29,9 @@ pub(super) async fn prepare_generation_context(
     plan: &AgentPlan,
     progress: &mut RunProgress,
 ) -> anyhow::Result<GenerationContext> {
+    if execution.is_catch_up() {
+        return prepare_catch_up_context(state, execution).await;
+    }
     let context_limit = match plan.context_scope {
         ContextScope::None => None,
         ContextScope::Recent => Some(state.ai_max_context_messages()),

@@ -86,6 +86,15 @@ pub(super) fn fallback_plan(has_room: bool) -> AgentPlan {
     }
 }
 
+pub(super) fn catch_up_plan() -> AgentPlan {
+    AgentPlan {
+        intent: AgentIntent::Overview,
+        context_scope: ContextScope::Recent,
+        semantic_search: false,
+        research_questions: Vec::new(),
+    }
+}
+
 fn normalize_decision(decision: AiTaskPlanDecision) -> anyhow::Result<AgentPlan> {
     let intent = match decision.intent.trim().to_ascii_lowercase().as_str() {
         "overview" => AgentIntent::Overview,

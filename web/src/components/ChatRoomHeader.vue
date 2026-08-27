@@ -10,6 +10,7 @@ import {
   ListChecks,
   LogOut,
   Search,
+  Sparkles,
   UserMinus,
   UserRound,
 } from 'lucide-vue-next'
@@ -48,6 +49,7 @@ const emit = defineEmits<{
   removeFriend: []
   blockUser: []
   assistant: []
+  catchUp: []
 }>()
 
 const memberPopover = ref()
@@ -231,6 +233,18 @@ async function copyRoomId(): Promise<void> {
         </div>
       </Popover>
       <AdminRoomLockButton :room-id="room.id" :token="token" />
+      <Button
+        v-if="authenticated && aiEnabled && room.unread_count"
+        class="cr-header-action"
+        text
+        rounded
+        severity="secondary"
+        :aria-label="`总结 ${room.unread_count} 条未读消息`"
+        :title="`总结未读（${room.unread_count}）`"
+        @click="emit('catchUp')"
+      >
+        <Sparkles :size="19" />
+      </Button>
       <Button
         v-if="authenticated && aiEnabled"
         class="cr-header-action"

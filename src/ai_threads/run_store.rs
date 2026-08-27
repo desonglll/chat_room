@@ -4,97 +4,16 @@ use uuid::Uuid;
 
 use super::models::{AiCitationSource, AiRun, AiRunTraceStep, AiThreadMessage};
 use crate::{
-    ai::{model_options::ResolvedAiModel, AiAssistant, AiConfig},
+    ai::{AiAssistant, AiConfig},
     state::{with_pool, AppState},
 };
 
 const RUN_COLUMNS: &str = "id, thread_id, user_message_id, assistant_message_id, \
-    client_request_id, room_id, model_option_id, provider, model, status, \
+    client_request_id, room_id, purpose, source_after_message_id, source_through_message_id, \
+    source_message_count, model_option_id, provider, model, status, \
     context_message_count, retrieved_message_count, error_message, created_at, updated_at";
 
-pub(super) enum CreateRunOutcome {
-    Created(AiRun),
-    Existing(AiRun),
-    Busy,
-}
-
 impl AppState {
-    pub(super) async fn create_ai_run(
-        &self,
-        user_id: Uuid,
-        thread_id: Uuid,
-        question: &str,
-        room_id: Option<Uuid>,
-        client_request_id: Uuid,
-        selected_model: &ResolvedAiModel,
-    ) -> Result<CreateRunOutcome, sqlx::Error> {
-        if let Some(run) = self.ai_run_by_request(user_id, client_request_id).await? {
-            return Ok(CreateRunOutcome::Existing(run));
-        }
-        if self.active_ai_run(thread_id).await?.is_some() {
-            return Ok(CreateRunOutcome::Busy);
-        }
-        if self.ai_thread(user_id, thread_id).await?.is_none() {
-            return Err(sqlx::Error::RowNotFound);
-        }
-
-        let run_id = Uuid::new_v4();
-        let user_message_id = Uuid::new_v4();
-        let assistant_message_id = Uuid::new_v4();
-        let now = Utc::now();
-        with_pool!(self, |pool| {
-            let mut transaction = pool.begin().await?;
-            sqlx::query(
-                "INSERT INTO ai_thread_messages \
-                 (id, thread_id, role, content, room_id, context_message_count, status, stage, \
-                  stage_started_at, revision, created_at, updated_at) \
-                 VALUES ($1, $2, 'user', $3, $4, NULL, 'completed', 'completed', $5, 0, $5, $5), \
-                        ($6, $2, 'assistant', '', $4, NULL, 'pending', 'queued', $5, 0, $5, $5)",
-            )
-            .bind(user_message_id)
-            .bind(thread_id)
-            .bind(question)
-            .bind(room_id)
-            .bind(now)
-            .bind(assistant_message_id)
-            .execute(&mut *transaction)
-            .await?;
-            sqlx::query(
-                "INSERT INTO ai_runs \
-                 (id, thread_id, user_id, user_message_id, assistant_message_id, client_request_id, \
-                  room_id, model_option_id, provider, model, base_url, api_key_env, status, \
-                  attempt_count, created_at, updated_at) \
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'queued', 0, $13, $13)",
-            )
-            .bind(run_id)
-            .bind(thread_id)
-            .bind(user_id)
-            .bind(user_message_id)
-            .bind(assistant_message_id)
-            .bind(client_request_id)
-            .bind(room_id)
-            .bind(selected_model.id)
-            .bind(&selected_model.provider)
-            .bind(&selected_model.model)
-            .bind(&selected_model.base_url)
-            .bind(&selected_model.api_key_env)
-            .bind(now)
-            .execute(&mut *transaction)
-            .await?;
-            sqlx::query("UPDATE ai_threads SET updated_at = $1 WHERE id = $2")
-                .bind(now)
-                .bind(thread_id)
-                .execute(&mut *transaction)
-                .await?;
-            transaction.commit().await?;
-            Ok::<(), sqlx::Error>(())
-        })?;
-        self.ai_run(user_id, run_id)
-            .await?
-            .map(CreateRunOutcome::Created)
-            .ok_or(sqlx::Error::RowNotFound)
-    }
-
     pub async fn ai_run(&self, user_id: Uuid, run_id: Uuid) -> Result<Option<AiRun>, sqlx::Error> {
         let query = format!("SELECT {RUN_COLUMNS} FROM ai_runs WHERE id = $1 AND user_id = $2");
         with_pool!(self, |pool| {
@@ -127,7 +46,7 @@ impl AppState {
         })
     }
 
-    async fn ai_run_by_request(
+    pub(super) async fn ai_run_by_request(
         &self,
         user_id: Uuid,
         client_request_id: Uuid,
@@ -144,7 +63,7 @@ impl AppState {
         })
     }
 
-    async fn active_ai_run(&self, thread_id: Uuid) -> Result<Option<Uuid>, sqlx::Error> {
+    pub(super) async fn active_ai_run(&self, thread_id: Uuid) -> Result<Option<Uuid>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "SELECT id FROM ai_runs WHERE thread_id = $1 AND status IN ('queued', 'running') LIMIT 1",
@@ -194,7 +113,8 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT r.id, r.thread_id, r.user_id, r.user_message_id, r.assistant_message_id, \
-                 r.room_id, r.provider, r.model, r.base_url, r.api_key_env, \
+                 r.room_id, r.purpose, r.source_after_message_id, r.source_through_message_id, \
+                 r.source_message_count, r.provider, r.model, r.base_url, r.api_key_env, \
                  t.thinking_enabled, m.content AS question FROM ai_runs r \
                  JOIN ai_threads t ON t.id = r.thread_id \
                  JOIN ai_thread_messages m ON m.id = r.user_message_id WHERE r.id = $1",
@@ -396,6 +316,10 @@ pub(super) struct AiRunExecution {
     pub user_message_id: Uuid,
     pub assistant_message_id: Uuid,
     pub room_id: Option<Uuid>,
+    pub purpose: String,
+    pub source_after_message_id: Option<Uuid>,
+    pub source_through_message_id: Option<Uuid>,
+    pub source_message_count: Option<i64>,
     pub provider: String,
     pub model: String,
     pub base_url: String,
@@ -405,6 +329,10 @@ pub(super) struct AiRunExecution {
 }
 
 impl AiRunExecution {
+    pub(super) fn is_catch_up(&self) -> bool {
+        self.purpose == "catch_up"
+    }
+
     pub(super) fn request_label(&self) -> String {
         let host = reqwest::Url::parse(&self.base_url)
             .ok()

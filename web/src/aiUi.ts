@@ -21,7 +21,14 @@ export function aiSourceRoute(source: AiCitationSource) {
 }
 
 export function citedAiSources(content: string, sources: AiCitationSource[]): AiCitationSource[] {
-  const labels = new Set(Array.from(content.matchAll(/\[([a-z]\d+)\]/gi), (match) => match[1].toLocaleUpperCase()))
+  const labels = new Set(
+    Array.from(content.matchAll(/\[([^\]]+)\]/g)).flatMap((match) =>
+      match[1]
+        .split(/[,，;；\s]+/)
+        .filter((label) => /^[a-z]\d+$/i.test(label))
+        .map((label) => label.toLocaleUpperCase()),
+    ),
+  )
   return sources.filter((source) => labels.has(source.label.toLocaleUpperCase()))
 }
 

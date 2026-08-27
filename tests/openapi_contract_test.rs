@@ -25,6 +25,7 @@ fn in_progress_features_are_present_in_the_openapi_contract() {
         ),
         ("/api/rooms/{id}/ai/suggest/events", &["post"][..]),
         ("/api/ai/threads/{id}/runs", &["post"][..]),
+        ("/api/ai/threads/{id}/catch-up", &["post"][..]),
         ("/api/ai/runs/{id}", &["get"][..]),
         ("/api/ai/runs/{id}/events", &["get"][..]),
         ("/api/favorites/attachments", &["post"][..]),

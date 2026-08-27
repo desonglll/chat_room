@@ -27,3 +27,7 @@ _Avoid_: Admin, Room admin
 **Registration Invitation**:
 An expiring, single-use permission to create one User while registration is invite-only.
 _Avoid_: Invite code, shared registration password
+
+**Catch-up Run**:
+A durable personal AI Run whose unread-message boundaries are frozen by the server from the requesting User's Room read cursor.
+_Avoid_: Client-selected summary range, Room summary message

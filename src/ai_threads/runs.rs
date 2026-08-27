@@ -8,10 +8,11 @@ use axum::{
 };
 use uuid::Uuid;
 
+use super::create_run::CreateRunOutcome;
 use super::handlers::{current_user, internal_error, validate_room_access, DEFAULT_TITLE};
 use super::models::{AiRun, AiRunTraceStep, CreateAiRunRequest};
 use super::pipeline::generate_answer;
-use super::run_store::{AiRunExecution, CreateRunOutcome, FailedAiRun};
+use super::run_store::{AiRunExecution, FailedAiRun};
 use crate::ai_handlers::room_context_for_user;
 use crate::cache::CachedAiAnswer;
 use crate::state::SharedState;
@@ -160,7 +161,7 @@ pub fn ensure_dispatcher(state: SharedState) {
     });
 }
 
-fn spawn_run(state: SharedState, run_id: Uuid) {
+pub(super) fn spawn_run(state: SharedState, run_id: Uuid) {
     tokio::spawn(async move {
         if let Err(error) = execute_run(state, run_id).await {
             tracing::error!(%run_id, "execute durable AI run failed: {error:#}");

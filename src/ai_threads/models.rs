@@ -83,6 +83,10 @@ pub struct AiRun {
     pub assistant_message_id: Uuid,
     pub client_request_id: Uuid,
     pub room_id: Option<Uuid>,
+    pub purpose: String,
+    pub source_after_message_id: Option<Uuid>,
+    pub source_through_message_id: Option<Uuid>,
+    pub source_message_count: Option<i64>,
     pub model_option_id: Option<Uuid>,
     pub provider: String,
     pub model: String,
@@ -114,6 +118,13 @@ pub struct UpdateAiThreadRequest {
 pub struct CreateAiRunRequest {
     pub question: String,
     pub room_id: Option<Uuid>,
+    pub model_option_id: Option<Uuid>,
+    pub client_request_id: Uuid,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateCatchUpRunRequest {
+    pub room_id: Uuid,
     pub model_option_id: Option<Uuid>,
     pub client_request_id: Uuid,
 }

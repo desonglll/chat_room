@@ -295,7 +295,10 @@ pub(crate) async fn room_context_for_authorized_user_with_limit(
     })
 }
 
-fn require_room_password(room: &Room, headers: &axum::http::HeaderMap) -> Result<(), StatusCode> {
+pub(crate) fn require_room_password(
+    room: &Room,
+    headers: &axum::http::HeaderMap,
+) -> Result<(), StatusCode> {
     if !room.has_password {
         return Ok(());
     }
