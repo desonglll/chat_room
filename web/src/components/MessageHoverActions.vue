@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Bookmark, CornerUpLeft, Forward, Pin } from 'lucide-vue-next'
+import { Bookmark, CornerUpLeft, Forward, ListChecks, Pin } from 'lucide-vue-next'
 import MessageReactionPicker from './MessageReactionPicker.vue'
 
 defineProps<{ enabled: boolean; favorited: boolean; pinnable: boolean; pinned: boolean }>()
 const emit = defineEmits<{
   reaction: [emoji: string]
   reply: []
+  select: []
   forward: []
   favorite: []
   pin: []
@@ -17,6 +18,9 @@ const emit = defineEmits<{
     <MessageReactionPicker @select="emit('reaction', $event)" />
     <button type="button" class="cr-message-inline-action" aria-label="回复消息" title="回复" @click="emit('reply')">
       <CornerUpLeft :size="14" aria-hidden="true" />
+    </button>
+    <button type="button" class="cr-message-inline-action" aria-label="多选消息" title="多选" @click="emit('select')">
+      <ListChecks :size="14" aria-hidden="true" />
     </button>
     <button type="button" class="cr-message-inline-action" aria-label="转发消息" title="转发" @click="emit('forward')">
       <Forward :size="14" aria-hidden="true" />

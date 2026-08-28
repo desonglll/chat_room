@@ -1,23 +1,20 @@
 <script setup lang="ts">
-import { Download, RefreshCw, WifiOff } from 'lucide-vue-next'
+import { RefreshCw, WifiOff } from 'lucide-vue-next'
 import Button from 'primevue/button'
 import { usePwa } from '../pwa'
 
-const { online, canInstall, updateAvailable, install, applyUpdate } = usePwa()
+const { online, updateAvailable, applyUpdate } = usePwa()
 </script>
 
 <template>
   <Transition name="pwa-status">
-    <aside v-if="!online || canInstall || updateAvailable" class="cr-pwa-status" role="status" aria-live="polite">
+    <aside v-if="!online || updateAvailable" class="cr-pwa-status" role="status" aria-live="polite">
       <div v-if="!online" class="flex min-w-0 items-center gap-2">
         <WifiOff :size="16" aria-hidden="true" />
         <span>离线 · 显示已加载内容</span>
       </div>
       <Button v-if="updateAvailable" size="small" severity="secondary" @click="applyUpdate">
         <RefreshCw :size="15" />更新
-      </Button>
-      <Button v-else-if="canInstall" size="small" severity="secondary" @click="install">
-        <Download :size="15" />安装
       </Button>
     </aside>
   </Transition>

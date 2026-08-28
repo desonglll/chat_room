@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { LoaderCircle, Paperclip, Send, Smile, Sparkles } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { LoaderCircle, Paperclip, Sparkles } from 'lucide-vue-next'
 import Button from 'primevue/button'
-import Popover from 'primevue/popover'
-import Textarea from 'primevue/textarea'
+import ComposerInput from './ComposerInput.vue'
 import ComposerContext from './ComposerContext.vue'
 import PendingAttachmentStrip from './PendingAttachmentStrip.vue'
 import { shouldSubmitMessage } from '../composer'
@@ -12,8 +11,6 @@ import { useAiComposerSuggestions } from '../composables/useAiComposerSuggestion
 import { useComposerMentions } from '../composables/useComposerMentions'
 import { useConversationDraft, type ConversationDraftContext } from '../composables/useConversationDraft'
 import type { BroadcastMessage, DisplayMessage, RoomMember, SendShortcut } from '../types'
-
-const EmojiPicker = defineAsyncComponent(() => import('./EmojiPicker.vue'))
 
 interface PendingFile {
   id: number
@@ -46,14 +43,17 @@ const emit = defineEmits<{
   'update:replyingTo': [message: BroadcastMessage | null]
 }>()
 
-const messageInput = ref<{ $el: HTMLTextAreaElement } | null>(null)
+const messageInput = ref<{
+  element: () => HTMLTextAreaElement | null
+  focus: () => void
+  focusAt: (caret: number) => Promise<void>
+} | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
-const emojiPopover = ref()
 const draft = ref('')
 const pendingFiles = ref<PendingFile[]>([])
 const pendingFilesSensitive = ref(false)
 const fileError = ref('')
-let composing = false
+let composing: boolean = false
 let pendingId = 0
 
 const {
@@ -61,7 +61,11 @@ const {
   matches: mentionMatches,
   query: mentionQuery,
   update: updateMentionState,
-} = useComposerMentions({ draft, input: messageInput, participants: () => props.participants })
+} = useComposerMentions({
+  draft,
+  input: () => messageInput.value?.element() || null,
+  participants: () => props.participants,
+})
 
 const {
   clear: clearAiSuggestions,
@@ -79,7 +83,7 @@ const {
   password: () => props.password,
   focusDraftEnd: () => {
     void nextTick(() => {
-      const input = messageInput.value?.$el
+      const input = messageInput.value?.element()
       input?.focus()
       input?.setSelectionRange(draft.value.length, draft.value.length)
     })
@@ -95,7 +99,7 @@ useConversationDraft(props, {
   updateReply: (message) => emit('update:replyingTo', message),
   editingLoaded: () => {
     clearFiles()
-    const input = messageInput.value?.$el
+    const input = messageInput.value?.element()
     input?.focus()
     input?.setSelectionRange(input.value.length, input.value.length)
   },
@@ -104,7 +108,7 @@ useConversationDraft(props, {
 watch(
   () => props.replyingTo?.message_id,
   (messageId) => {
-    if (messageId) void nextTick(() => messageInput.value?.$el.focus())
+    if (messageId) void nextTick(() => messageInput.value?.focus())
   },
 )
 
@@ -196,29 +200,12 @@ function onComposerKeydown(event: KeyboardEvent): void {
   submitMessage()
 }
 
+function setComposing(active: boolean): void {
+  composing = active
+}
+
 function focus(): void {
-  messageInput.value?.$el.focus()
-}
-
-function insertEmoji(emoji: string): void {
-  const input = messageInput.value?.$el
-  const start = input?.selectionStart ?? draft.value.length
-  const end = input?.selectionEnd ?? start
-  draft.value = `${draft.value.slice(0, start)}${emoji}${draft.value.slice(end)}`
-  emojiPopover.value?.hide()
-  void nextTick(() => {
-    const nextInput = messageInput.value?.$el
-    nextInput?.focus()
-    nextInput?.setSelectionRange(start + emoji.length, start + emoji.length)
-  })
-}
-
-function onCompositionStart(): void {
-  composing = true
-}
-
-function onCompositionEnd(): void {
-  composing = false
+  messageInput.value?.focus()
 }
 
 function selectFiles(event: Event): void {
@@ -251,20 +238,28 @@ defineExpose({ addFiles, focus })
 </script>
 
 <template>
-  <form
-    class="cr-composer shrink-0 pb-[env(safe-area-inset-bottom)] md:pb-0"
-    data-testid="chat-form"
-    @submit.prevent="submitMessage"
+  <ComposerInput
+    ref="messageInput"
+    v-model="draft"
+    :disabled="disabled"
+    :can-send="canSend"
+    placeholder="输入消息…"
+    @submit="submitMessage"
+    @keydown="onComposerKeydown"
+    @paste="onPaste"
+    @composition="setComposing"
+    @caret="updateMentionState"
   >
-    <ComposerContext
-      :editing="editingTo"
-      :replying="replyingTo"
-      @cancel-edit="cancelEditing"
-      @cancel-reply="emit('update:replyingTo', null)"
-    />
-    <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
-
-    <div class="cr-composer-inner flex items-end gap-1">
+    <template #context>
+      <ComposerContext
+        :editing="editingTo"
+        :replying="replyingTo"
+        @cancel-edit="cancelEditing"
+        @cancel-reply="emit('update:replyingTo', null)"
+      />
+      <PendingAttachmentStrip v-model:sensitive="pendingFilesSensitive" :files="pendingFiles" @remove="removeFile" />
+    </template>
+    <template #leading-tools>
       <input ref="fileInput" class="sr-only" type="file" multiple @change="selectFiles" />
       <Button
         v-if="!editingTo"
@@ -280,22 +275,8 @@ defineExpose({ addFiles, focus })
       >
         <Paperclip :size="19" />
       </Button>
-      <Button
-        type="button"
-        text
-        rounded
-        severity="secondary"
-        class="cr-composer-tool !size-10 shrink-0"
-        :disabled="disabled"
-        aria-label="插入表情"
-        title="表情"
-        @click="emojiPopover.toggle($event)"
-      >
-        <Smile :size="19" />
-      </Button>
-      <Popover ref="emojiPopover" class="cr-popover-bottom-left">
-        <EmojiPicker @select="insertEmoji" />
-      </Popover>
+    </template>
+    <template #trailing-tools>
       <Button
         v-if="aiEnabled && !editingTo"
         type="button"
@@ -311,77 +292,48 @@ defineExpose({ addFiles, focus })
         <LoaderCircle v-if="aiLoading" class="animate-spin" :size="19" />
         <Sparkles v-else :size="19" />
       </Button>
-      <label class="sr-only" for="messageInput">消息</label>
-      <div class="relative min-w-0 flex-1">
-        <Textarea
-          id="messageInput"
-          ref="messageInput"
-          v-model="draft"
-          name="message"
-          autocomplete="off"
-          rows="1"
-          maxlength="4096"
-          auto-resize
-          :disabled="disabled"
-          placeholder="输入消息…"
-          class="cr-composer-input max-h-32 min-h-10 w-full overflow-y-auto! [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          @paste="onPaste"
-          @compositionstart="onCompositionStart"
-          @compositionend="onCompositionEnd"
-          @keydown="onComposerKeydown"
-          @input="updateMentionState"
-          @click="updateMentionState"
-          @keyup="updateMentionState"
-        />
-        <ul
-          v-if="mentionQuery !== null && mentionMatches.length"
-          class="cr-composer-popover cr-glass absolute bottom-full left-0 z-10 mb-2 w-56 space-y-0.5 rounded-md p-1 shadow-lg"
-        >
-          <li v-for="member in mentionMatches" :key="member.user_id">
-            <button
-              type="button"
-              class="flex min-h-10 w-full touch-manipulation items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-100/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-              @click="insertMention(member.username)"
-            >
-              <span>{{ member.avatar_emoji || '👤' }}</span>
-              <span class="min-w-0 truncate">{{ member.username }}</span>
-            </button>
-          </li>
-        </ul>
-        <div
-          v-else-if="aiLoading || aiError || aiSummary || aiRemaining.length"
-          class="cr-composer-popover cr-glass absolute bottom-full left-0 z-10 mb-2 flex max-w-full flex-wrap items-center gap-1.5 rounded-md p-2 shadow-lg"
-        >
-          <span v-if="aiLoading" class="flex items-center gap-1.5 text-xs text-muted-color">
-            <Sparkles :size="13" class="animate-pulse text-primary" />
-            {{ aiCurrent || aiRemaining.length ? '正在补充建议…' : 'AI 正在思考…' }}
-          </span>
-          <span v-if="aiError" class="text-xs text-danger">{{ aiError }}</span>
-          <p v-if="aiSummary" class="w-full text-[11px] text-muted-color">{{ aiSummary }}</p>
-          <button
-            v-for="(suggestion, index) in aiRemaining"
-            :key="index"
-            type="button"
-            class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-            @click="useSuggestion(suggestion, index)"
-          >
-            {{ suggestion }}
-          </button>
-        </div>
-      </div>
-      <Button
-        type="submit"
-        rounded
-        class="cr-composer-send !size-10 shrink-0"
-        :disabled="disabled || !canSend"
-        aria-label="发送消息"
-        title="发送消息"
+    </template>
+    <template #popover>
+      <ul
+        v-if="mentionQuery !== null && mentionMatches.length"
+        class="cr-composer-popover cr-glass absolute bottom-full left-0 z-10 mb-2 w-56 space-y-0.5 rounded-md p-1 shadow-lg"
       >
-        <Send :size="18" />
-      </Button>
-    </div>
-    <small v-if="fileError" class="cr-composer-width block px-3 pt-1 text-right text-danger sm:px-1">{{
-      fileError
-    }}</small>
-  </form>
+        <li v-for="member in mentionMatches" :key="member.user_id">
+          <button
+            type="button"
+            class="flex min-h-10 w-full touch-manipulation items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:bg-surface-100/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+            @click="insertMention(member.username)"
+          >
+            <span>{{ member.avatar_emoji || '👤' }}</span>
+            <span class="min-w-0 truncate">{{ member.username }}</span>
+          </button>
+        </li>
+      </ul>
+      <div
+        v-else-if="aiLoading || aiError || aiSummary || aiRemaining.length"
+        class="cr-composer-popover cr-glass absolute bottom-full left-0 z-10 mb-2 flex max-w-full flex-wrap items-center gap-1.5 rounded-md p-2 shadow-lg"
+      >
+        <span v-if="aiLoading" class="flex items-center gap-1.5 text-xs text-muted-color">
+          <Sparkles :size="13" class="animate-pulse text-primary" />
+          {{ aiCurrent || aiRemaining.length ? '正在补充建议…' : 'AI 正在思考…' }}
+        </span>
+        <span v-if="aiError" class="text-xs text-danger">{{ aiError }}</span>
+        <p v-if="aiSummary" class="w-full text-[11px] text-muted-color">{{ aiSummary }}</p>
+        <button
+          v-for="(suggestion, index) in aiRemaining"
+          :key="index"
+          type="button"
+          class="min-h-8 touch-manipulation rounded-full border border-surface-200 px-2.5 py-1 text-xs outline-none transition-colors duration-[var(--cr-motion-normal)] [transition-timing-function:ease] hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+          @click="useSuggestion(suggestion, index)"
+        >
+          {{ suggestion }}
+        </button>
+      </div>
+    </template>
+    <template #footer>
+      <small v-if="fileError" class="cr-composer-width block px-3 pt-1 text-right text-danger sm:px-1">
+        {{ fileError }}
+      </small>
+    </template>
+  </ComposerInput>
 </template>

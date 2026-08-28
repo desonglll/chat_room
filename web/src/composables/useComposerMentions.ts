@@ -3,7 +3,7 @@ import type { RoomMember } from '../types'
 
 interface ComposerMentionsOptions {
   draft: Ref<string>
-  input: Ref<{ $el: HTMLTextAreaElement } | null>
+  input: () => HTMLTextAreaElement | null
   participants: () => RoomMember[]
 }
 
@@ -21,7 +21,7 @@ export function useComposerMentions(options: ComposerMentionsOptions) {
   })
 
   function update(): void {
-    const input = options.input.value?.$el
+    const input = options.input()
     if (!input) {
       query.value = null
       return
@@ -37,14 +37,14 @@ export function useComposerMentions(options: ComposerMentionsOptions) {
   }
 
   function insert(username: string): void {
-    const caret = options.input.value?.$el.selectionStart ?? options.draft.value.length
+    const caret = options.input()?.selectionStart ?? options.draft.value.length
     const before = options.draft.value.slice(0, mentionStart)
     const after = options.draft.value.slice(caret)
     const insertion = `@${username} `
     options.draft.value = `${before}${insertion}${after}`
     query.value = null
     void nextTick(() => {
-      const input = options.input.value?.$el
+      const input = options.input()
       const position = before.length + insertion.length
       input?.focus()
       input?.setSelectionRange(position, position)

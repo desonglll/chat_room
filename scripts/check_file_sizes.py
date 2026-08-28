@@ -41,7 +41,9 @@ def repository_files() -> list[Path]:
     return [
         ROOT / name.decode()
         for name in result.stdout.split(b"\0")
-        if name and Path(name.decode()).suffix.lower() in SOURCE_SUFFIXES
+        if name
+        and (ROOT / name.decode()).is_file()
+        and Path(name.decode()).suffix.lower() in SOURCE_SUFFIXES
     ]
 
 

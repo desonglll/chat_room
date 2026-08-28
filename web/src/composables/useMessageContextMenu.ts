@@ -10,6 +10,7 @@ interface MessageContextMenuOptions {
   aiEnabled: () => boolean
   retry: (messageId: string) => void
   reply: (message: BroadcastMessage) => void
+  select: (messageId: string) => void
   askAi: (messageId: string) => void
   forward: (message: BroadcastMessage) => void
   task: (message: BroadcastMessage) => void
@@ -41,6 +42,7 @@ export function useMessageContextMenu(options: MessageContextMenuOptions) {
     }
     if (!message.recalled_at) {
       items.push({ label: '回复', command: () => options.reply(message) })
+      items.push({ label: '多选消息', command: () => options.select(message.message_id) })
       if (options.aiEnabled()) items.push({ label: '询问 AI', command: () => options.askAi(message.message_id) })
       if (message.content) items.push({ label: '复制', command: () => copyText(message.content) })
       items.push({ label: '转发', command: () => options.forward(message) })

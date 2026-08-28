@@ -5,6 +5,7 @@ import {
   Ban,
   Bot,
   Check,
+  ClipboardList,
   Copy,
   EllipsisVertical,
   ListChecks,
@@ -73,7 +74,7 @@ const moreMenuItems = computed(() => [
   ...(props.kind === 'direct' && props.peer
     ? [{ label: '查看资料', icon: 'profile', command: () => emit('viewProfile', props.peer!.id) }]
     : []),
-  { label: '多选消息', icon: 'select', command: () => emit('toggleSelection') },
+  { label: '聊天室待办', icon: 'tasks', command: () => emit('tasks') },
   ...(props.authenticated && props.aiEnabled
     ? [{ label: '提取决定与待办', icon: 'extract', command: () => emit('extraction') }]
     : []),
@@ -265,13 +266,13 @@ async function copyRoomId(): Promise<void> {
       </Button>
       <Button
         v-if="authenticated"
-        class="cr-header-action cr-header-secondary"
+        class="cr-header-action"
         text
         rounded
         severity="secondary"
-        aria-label="聊天室待办"
-        title="聊天室待办"
-        @click="emit('tasks')"
+        aria-label="多选消息"
+        title="多选消息"
+        @click="emit('toggleSelection')"
       >
         <ListChecks :size="19" />
       </Button>
@@ -326,7 +327,7 @@ async function copyRoomId(): Promise<void> {
       <Menu ref="moreMenu" :model="moreMenuItems" :popup="true" class="cr-menu-top-right">
         <template #item="{ item, props: itemProps }">
           <button type="button" v-bind="itemProps.action" :class="{ 'text-danger!': item.danger }">
-            <ListChecks v-if="item.icon === 'select'" :size="17" />
+            <ClipboardList v-if="item.icon === 'tasks'" :size="17" />
             <Sparkles v-else-if="item.icon === 'extract'" :size="17" />
             <UserRound v-else-if="item.icon === 'profile'" :size="17" />
             <EllipsisVertical v-else-if="item.icon === 'manage'" :size="17" />

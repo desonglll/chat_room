@@ -12,28 +12,23 @@ import {
   streamAiRunMessages,
   updateAiThread,
 } from '../aiThreadApi'
-import {
-  activeConversationMention,
-  conversationMentionCandidates,
-  insertConversationMention,
-  parseAssistantPrompt,
-  type MentionableConversation,
-} from '../assistantMentions'
+import { parseAssistantPrompt } from '../assistantMentions'
 import type { AiSelectedMessage } from '../aiSelectedContext'
 import { hasActiveAiMessage, pollAiThreadMessages } from '../aiRunPolling'
-import { shouldSubmitMessage } from '../composer'
 import { useAiSourceDetails } from '../composables/useAiSourceDetails'
 import { useAiAssistantState } from '../composables/useAiAssistantState'
+import { useAiPromptMentions } from '../composables/useAiPromptMentions'
 import { createRandomUuid } from '../randomUuid'
 import { readRoomPassword } from '../roomPasswordVault'
 import type { AiRuntimeStatus, AiThread, FavoriteItem, Room } from '../types'
 import AiAssistantHeader from './AiAssistantHeader.vue'
 import AiAssistantToolbar from './AiAssistantToolbar.vue'
+import AiConversationMentionMenu from './AiConversationMentionMenu.vue'
 import AiMessageList from './AiMessageList.vue'
-import AiPromptComposer from './AiPromptComposer.vue'
 import AiSelectedContextBar from './AiSelectedContextBar.vue'
 import AiSourceDetailsPage from './AiSourceDetailsPage.vue'
 import AiThreadSidebar from './AiThreadSidebar.vue'
+import ComposerInput from './ComposerInput.vue'
 
 const props = defineProps<{
   token: string
@@ -62,7 +57,20 @@ let handledCatchUpRequest = 0
 
 const availableRooms = computed(() => props.rooms.filter((room) => room.membership_status === 'active'))
 const mentionableRooms = computed(() => availableRooms.value.map((room) => ({ roomId: room.id, title: room.name })))
-const mentionCandidates = computed(() => conversationMentionCandidates(mentionRange.value, mentionableRooms.value))
+const {
+  candidates: mentionCandidates,
+  choose: chooseConversation,
+  handleInput: handlePromptInput,
+  handleKeydown: handlePromptKeydown,
+} = useAiPromptMentions({
+  prompt,
+  input: promptInput,
+  range: mentionRange,
+  activeIndex: mentionIndex,
+  conversations: mentionableRooms,
+  attachConversation: attachRoom,
+  submit: () => submit(),
+})
 const activeThread = computed(() => threads.value.find((thread) => thread.id === activeThreadId.value) || null)
 const activeRoom = computed(() => availableRooms.value.find((room) => room.id === activeThread.value?.room_id) || null)
 const aiReady = computed(() => modelOptions.value.some((option) => option.ready))
@@ -252,52 +260,6 @@ async function setThinking(enabled: boolean): Promise<void> {
   }
 }
 
-function updateMention(value: string, caret: number): void {
-  mentionRange.value = activeConversationMention(value, caret, mentionableRooms.value)
-  mentionIndex.value = Math.min(mentionIndex.value, Math.max(0, mentionCandidates.value.length - 1))
-}
-
-function handlePromptInput(value: string, caret: number): void {
-  prompt.value = value
-  updateMention(value, caret)
-}
-
-function chooseConversation(conversation: MentionableConversation): void {
-  if (!mentionRange.value) return
-  const inserted = insertConversationMention(prompt.value, mentionRange.value, conversation)
-  prompt.value = inserted.value
-  mentionRange.value = null
-  mentionIndex.value = 0
-  void attachRoom(conversation.roomId)
-  void promptInput.value?.focusAt(inserted.caret)
-}
-
-function handlePromptKeydown(event: KeyboardEvent): void {
-  if (mentionRange.value && mentionCandidates.value.length) {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      const offset = event.key === 'ArrowDown' ? 1 : -1
-      mentionIndex.value =
-        (mentionIndex.value + offset + mentionCandidates.value.length) % mentionCandidates.value.length
-      return
-    }
-    if (event.key === 'Enter' || event.key === 'Tab') {
-      event.preventDefault()
-      chooseConversation(mentionCandidates.value[mentionIndex.value])
-      return
-    }
-  }
-  if (event.key === 'Escape' && mentionRange.value) {
-    event.preventDefault()
-    mentionRange.value = null
-    return
-  }
-  if (shouldSubmitMessage(event, false)) {
-    event.preventDefault()
-    void submit()
-  }
-}
-
 async function submit(quickQuestion = ''): Promise<void> {
   if (loading.value || !aiReady.value) return
   const parsed = parseAssistantPrompt(quickQuestion || prompt.value, mentionableRooms.value, activeRoom.value?.id || '')
@@ -461,19 +423,30 @@ onUnmounted(() => {
           :save-favorite="saveFavorite"
           @sources="openSourceDetails"
         />
-        <AiPromptComposer
+        <ComposerInput
           ref="promptInput"
-          v-model:prompt="prompt"
+          v-model="prompt"
+          form-id="ai-assistant-query-form"
+          :disabled="loading || !aiReady"
+          :can-send="aiReady && Boolean(prompt.trim())"
           :loading="loading"
-          :ready="aiReady"
-          :mention-range="mentionRange"
-          :candidates="mentionCandidates"
-          :mention-index="mentionIndex"
+          :aria-expanded="Boolean(mentionRange)"
+          :max-length="4000"
+          aria-label="向 AI 助手提问"
+          placeholder="发送消息，输入 @ 引用聊天会话"
           @caret="handlePromptInput"
           @keydown="handlePromptKeydown"
-          @choose="chooseConversation"
           @submit="submit()"
-        />
+        >
+          <template #popover>
+            <AiConversationMentionMenu
+              :range="mentionRange"
+              :candidates="mentionCandidates"
+              :active-index="mentionIndex"
+              @choose="chooseConversation"
+            />
+          </template>
+        </ComposerInput>
       </div>
     </section>
   </main>

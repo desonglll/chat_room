@@ -18,7 +18,7 @@ const message: BroadcastMessage = {
   reactions: [],
 }
 
-function menu(aiEnabled: boolean, askAi: (messageId: string) => void) {
+function menu(aiEnabled: boolean, askAi: (messageId: string) => void, select: (messageId: string) => void = () => {}) {
   return useMessageContextMenu({
     currentUserId: () => 'user-1',
     favoriteMessageIds: () => [],
@@ -27,6 +27,7 @@ function menu(aiEnabled: boolean, askAi: (messageId: string) => void) {
     aiEnabled: () => aiEnabled,
     retry: () => {},
     reply: () => {},
+    select,
     askAi,
     forward: () => {},
     task: () => {},
@@ -50,5 +51,18 @@ describe('message context menu', () => {
     disabled.contextMenu.value = { show: () => {} }
     disabled.openContextMenu({} as MouseEvent, message)
     expect(disabled.contextMenuItems.value.some((item) => item.label === '询问 AI')).toBe(false)
+  })
+
+  test('starts multi-select from a settled message', () => {
+    let selected = ''
+    const contextMenu = menu(
+      false,
+      () => {},
+      (messageId) => (selected = messageId),
+    )
+    contextMenu.contextMenu.value = { show: () => {} }
+    contextMenu.openContextMenu({} as MouseEvent, message)
+    contextMenu.contextMenuItems.value.find((item) => item.label === '多选消息')?.command?.({} as never)
+    expect(selected).toBe('message-1')
   })
 })

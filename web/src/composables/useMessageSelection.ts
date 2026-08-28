@@ -20,6 +20,7 @@ export function useMessageSelection(messages: MaybeRefOrGetter<DisplayMessage[]>
   )
 
   function toggleSelection(messageId: string): void {
+    selecting.value = true
     selectedMessageIds.value = selectedMessageIds.value.includes(messageId)
       ? selectedMessageIds.value.filter((id) => id !== messageId)
       : [...selectedMessageIds.value, messageId]
