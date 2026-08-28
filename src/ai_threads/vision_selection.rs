@@ -6,18 +6,20 @@ pub(super) fn select_image_sources(
     sources: &[AiCitationSource],
     question: &str,
     max_images: usize,
+    max_total_images: usize,
     max_image_bytes: u64,
 ) -> Vec<AiCitationSource> {
-    let candidates = sources
+    let mut candidates = sources
         .iter()
         .filter(|source| image_is_eligible(source, max_image_bytes))
         .cloned()
         .collect::<Vec<_>>();
-    if candidates.len() <= max_images {
+    if is_broad_question(question) {
+        candidates.truncate(max_total_images);
         return candidates;
     }
-    if is_broad_question(question) {
-        return evenly_spaced(candidates, max_images);
+    if candidates.len() <= max_images {
+        return candidates;
     }
     let question_terms = character_pairs(question);
     let mut ranked = candidates
@@ -50,16 +52,6 @@ fn image_is_eligible(source: &AiCitationSource, max_image_bytes: u64) -> bool {
             && attachment.size_bytes > 0
             && u64::try_from(attachment.size_bytes).is_ok_and(|size| size <= max_image_bytes)
     })
-}
-
-fn evenly_spaced(candidates: Vec<AiCitationSource>, limit: usize) -> Vec<AiCitationSource> {
-    if limit == 1 {
-        return candidates.last().cloned().into_iter().collect();
-    }
-    let last = candidates.len() - 1;
-    (0..limit)
-        .map(|index| candidates[index * last / (limit - 1)].clone())
-        .collect()
 }
 
 fn is_broad_question(question: &str) -> bool {
@@ -128,22 +120,22 @@ mod tests {
             source(1, "发布计划和截止日期"),
             source(2, "周末天气"),
         ];
-        let selected = select_image_sources(&sources, "发布计划是什么？", 1, 8 * 1024 * 1024);
+        let selected = select_image_sources(&sources, "发布计划是什么？", 1, 20, 8 * 1024 * 1024);
         assert_eq!(selected[0].label, "A2");
     }
 
     #[test]
-    fn broad_visual_selection_samples_the_room_chronology() {
+    fn broad_visual_selection_keeps_the_full_room_chronology_for_batched_processing() {
         let sources = (0..9)
             .map(|index| source(index, "聊天截图"))
             .collect::<Vec<_>>();
-        let selected = select_image_sources(&sources, "总结整个聊天室", 3, 8 * 1024 * 1024);
+        let selected = select_image_sources(&sources, "总结整个聊天室", 3, 20, 8 * 1024 * 1024);
         assert_eq!(
             selected
                 .iter()
                 .map(|source| source.label.as_str())
                 .collect::<Vec<_>>(),
-            ["A1", "A5", "A9"]
+            ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"]
         );
     }
 }

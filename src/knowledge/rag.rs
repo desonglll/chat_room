@@ -160,11 +160,20 @@ fn documents_from_messages(
                     json!(message.attachment_is_sensitive.unwrap_or(false)),
                 );
             }
-            let content = if message.content.trim().is_empty() {
+            let mut content = if message.content.trim().is_empty() {
                 message.attachment_file_name.unwrap_or_default()
             } else {
                 message.content
             };
+            if let Some(visual_text) = message
+                .attachment_visual_text
+                .filter(|visual_text| !visual_text.trim().is_empty())
+            {
+                if !content.is_empty() {
+                    content.push_str("\n\nVisual projection:\n");
+                }
+                content.push_str(&visual_text);
+            }
             Document::new(truncate_chars(&content, MAX_DOCUMENT_CHARS))
                 .with_metadata(metadata)
                 .with_score(scores.get(&message.id).copied().unwrap_or_default())

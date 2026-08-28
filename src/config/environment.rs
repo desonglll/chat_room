@@ -239,6 +239,10 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         "CHAT_ROOM_AI_VISION_MAX_IMAGES"
     );
     parse!(
+        config.ai.vision_max_total_images,
+        "CHAT_ROOM_AI_VISION_MAX_TOTAL_IMAGES"
+    );
+    parse!(
         config.ai.vision_max_image_mib,
         "CHAT_ROOM_AI_VISION_MAX_IMAGE_MIB"
     );

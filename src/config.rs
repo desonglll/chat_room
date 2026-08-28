@@ -344,6 +344,11 @@ impl AppConfig {
                 if self.ai.vision_max_images == 0 || self.ai.vision_max_images > 20 {
                     bail!("ai.vision_max_images must be between 1 and 20");
                 }
+                if self.ai.vision_max_total_images < self.ai.vision_max_images
+                    || self.ai.vision_max_total_images > 200
+                {
+                    bail!("ai.vision_max_total_images must be between vision_max_images and 200");
+                }
                 if self.ai.vision_max_image_mib == 0 || self.ai.vision_max_image_mib > 20 {
                     bail!("ai.vision_max_image_mib must be between 1 and 20");
                 }

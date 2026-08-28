@@ -128,6 +128,30 @@ fn attachment_evidence_keeps_authorized_preview_metadata() {
     assert!(attachment.is_sensitive);
 }
 
+#[test]
+fn rerank_document_combines_message_and_visual_projection_text() {
+    let message_id = Uuid::new_v4();
+    let mut attached = message(message_id, "季度指标截图");
+    attached.attachment_id = Some(Uuid::new_v4());
+    attached.attachment_visual_text = Some("Revenue increased to 42 percent".into());
+
+    let documents = documents_from_messages(
+        Uuid::new_v4(),
+        vec![ScoredMessageId {
+            id: message_id,
+            score: 0.8,
+        }],
+        vec![attached],
+        &HashSet::new(),
+        6,
+    );
+
+    assert!(documents[0].page_content.contains("季度指标截图"));
+    assert!(documents[0]
+        .page_content
+        .contains("Revenue increased to 42 percent"));
+}
+
 fn message(id: Uuid, content: &str) -> RetrievedMessage {
     RetrievedMessage {
         id,
@@ -140,5 +164,6 @@ fn message(id: Uuid, content: &str) -> RetrievedMessage {
         attachment_mime_type: None,
         attachment_size_bytes: None,
         attachment_is_sensitive: None,
+        attachment_visual_text: None,
     }
 }

@@ -111,6 +111,7 @@ pub(crate) struct RetrievedMessage {
     pub attachment_mime_type: Option<String>,
     pub attachment_size_bytes: Option<i64>,
     pub attachment_is_sensitive: Option<bool>,
+    pub attachment_visual_text: Option<String>,
 }
 
 #[cfg(test)]

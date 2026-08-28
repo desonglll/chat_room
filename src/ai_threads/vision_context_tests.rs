@@ -3,13 +3,16 @@ use std::sync::Arc;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::read_authorized_image;
-use crate::ai::VisionLimits;
+use super::{bounded_visual_context, VisualEvidence};
+use crate::ai::{VisionLimits, VisualProjection};
 use crate::ai_threads::{AiCitationAttachment, AiCitationSource};
 use crate::models::Room;
 use crate::state::AppState;
 
 use super::super::run_store::AiRunExecution;
+use super::super::vision_store::{
+    load_cached_projection, read_authorized_image, store_visual_projection,
+};
 
 #[tokio::test]
 async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
@@ -71,6 +74,7 @@ async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
     let source = source(room.id, message_id, attachment_id, bytes.len() as i64);
     let limits = VisionLimits {
         max_images: 1,
+        max_total_images: 1,
         max_image_bytes: 1024,
     };
 
@@ -79,6 +83,37 @@ async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
         .unwrap()
         .unwrap();
     assert_eq!(loaded.bytes, bytes);
+
+    let projection = VisualProjection {
+        summary: "Private release screenshot".into(),
+        visible_text: vec!["Launch Friday".into()],
+        key_facts: vec!["Release is Friday".into()],
+        uncertainties: Vec::new(),
+    };
+    assert!(
+        store_visual_projection(&state, &execution, &source, "vision-v1", 1, &projection,)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        load_cached_projection(&state, &execution, &source, "vision-v1", 1)
+            .await
+            .unwrap(),
+        Some(projection)
+    );
+    assert!(
+        load_cached_projection(&state, &execution, &source, "vision-v2", 1)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let operation: String =
+        sqlx::query_scalar("SELECT operation FROM message_index_outbox WHERE message_id = ?")
+            .bind(message_id)
+            .fetch_one(state.pool())
+            .await
+            .unwrap();
+    assert_eq!(operation, "upsert");
 
     sqlx::query("DELETE FROM room_memberships WHERE room_id = ? AND user_id = ?")
         .bind(room.id)
@@ -90,6 +125,52 @@ async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
         .await
         .unwrap()
         .is_none());
+    assert!(
+        load_cached_projection(&state, &execution, &source, "vision-v1", 1)
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn visual_projection_is_bound_to_its_source_message_in_context() {
+    let message_id = Uuid::new_v4();
+    let mut evidence = vec![VisualEvidence {
+        source: "A1".into(),
+        message_id: message_id.to_string(),
+        sender: "vision-owner".into(),
+        sent_at: Utc::now().to_rfc3339(),
+        nearby_message: "Release plan".into(),
+        attachment_id: Uuid::new_v4().to_string(),
+        attachment_file_name: "plan.png".into(),
+        projection: VisualProjection {
+            summary: "Release date: Friday".into(),
+            visible_text: vec!["Friday".into()],
+            key_facts: vec!["Launch is Friday".into()],
+            uncertainties: Vec::new(),
+        },
+    }];
+
+    let encoded = bounded_visual_context(&mut evidence).unwrap().unwrap();
+
+    assert!(encoded.contains("source_messages"));
+    assert!(encoded.contains("nearby_message"));
+    assert!(encoded.contains(&message_id.to_string()));
+    assert!(encoded.contains("Release date: Friday"));
+}
+
+#[tokio::test]
+async fn fresh_schema_contains_room_scoped_visual_projections() {
+    let state = AppState::new().await.unwrap();
+
+    sqlx::query(
+        "SELECT attachment_id, room_id, model, prompt_version, projection, search_text, \
+         created_at, updated_at FROM attachment_visual_projections LIMIT 0",
+    )
+    .execute(state.pool())
+    .await
+    .unwrap();
 }
 
 fn execution(user_id: Uuid, room_id: Uuid) -> AiRunExecution {

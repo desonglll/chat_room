@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 pub use stream::{AiStreamItem, AiTextStream};
 use toon_format::encode_default;
 use utoipa::ToSchema;
-pub(crate) use vision::{VisionImage, VisionLimits};
+pub(crate) use vision::{VisionImage, VisionLimits, VisualProjection};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AiSuggestions {
@@ -129,13 +129,17 @@ impl AiAssistant {
         self.vision.as_ref().map(vision::VisionAssistant::limits)
     }
 
+    pub(crate) fn vision_identity(&self) -> Option<(&str, i64)> {
+        self.vision.as_ref().map(vision::VisionAssistant::identity)
+    }
+
     pub(crate) async fn describe_image(
         &self,
         question: &str,
         source_label: &str,
         nearby_message: &str,
         image: VisionImage,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<VisualProjection> {
         self.vision
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("vision model is not configured"))?

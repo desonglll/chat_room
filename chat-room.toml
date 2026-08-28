@@ -76,6 +76,12 @@ base_url = "https://api.siliconflow.cn/v1"
 # inferred from the endpoint or vendor.
 standard_extra_body = { enable_thinking = false }
 reasoning_extra_body = { reasoning_effort = "high" }
+# Targeted questions analyze the most relevant images; broad summaries may
+# process a larger, still bounded set and reuse stored visual projections.
+vision_max_images = 8
+vision_max_total_images = 64
+vision_max_image_mib = 8
+vision_request_timeout_secs = 60
 max_context_messages = 30
 # The independent AI workspace can inspect a wider, still bounded window.
 analysis_context_messages = 5000

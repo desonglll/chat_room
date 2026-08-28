@@ -79,8 +79,18 @@ impl AppState {
     ) -> Result<Option<IndexedMessage>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT id, room_id, content FROM messages \
-                 WHERE id = $1 AND recalled_at IS NULL AND trim(content) <> ''",
+                "SELECT id, room_id, \
+                   CASE WHEN trim(content) <> '' AND trim(visual_text) <> '' \
+                     THEN content || '\n\nVisual projection:\n' || visual_text \
+                     WHEN trim(visual_text) <> '' THEN visual_text ELSE content END AS content \
+                 FROM (SELECT messages.id, messages.room_id, messages.content, \
+                   CASE WHEN attachments.is_sensitive = FALSE THEN COALESCE(( \
+                     SELECT projections.search_text FROM attachment_visual_projections projections \
+                     WHERE projections.attachment_id = attachments.id \
+                     ORDER BY projections.updated_at DESC LIMIT 1), '') ELSE '' END AS visual_text \
+                   FROM messages LEFT JOIN attachments ON attachments.id = messages.attachment_id \
+                   WHERE messages.id = $1 AND messages.recalled_at IS NULL) indexed_message_row \
+                 WHERE trim(content) <> '' OR trim(visual_text) <> ''",
             )
             .bind(message_id)
             .fetch_optional(pool)
@@ -212,7 +222,11 @@ where
          attachments.id AS attachment_id, attachments.access_key AS attachment_access_key, \
          attachments.file_name AS attachment_file_name, attachments.mime_type AS attachment_mime_type, \
          attachments.size_bytes AS attachment_size_bytes, \
-         attachments.is_sensitive AS attachment_is_sensitive \
+         attachments.is_sensitive AS attachment_is_sensitive, \
+         CASE WHEN attachments.is_sensitive = FALSE THEN (SELECT projections.search_text \
+           FROM attachment_visual_projections projections \
+           WHERE projections.attachment_id = attachments.id \
+           ORDER BY projections.updated_at DESC LIMIT 1) ELSE NULL END AS attachment_visual_text \
          FROM messages LEFT JOIN attachments ON attachments.id = messages.attachment_id \
          WHERE messages.room_id = ",
     );
