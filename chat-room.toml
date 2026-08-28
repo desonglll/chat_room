@@ -49,6 +49,16 @@ json_logs = false
 # Database readiness is always required. Optional dependencies can be promoted here.
 required_dependencies = []
 
+[backup]
+# Automatic backups run immediately when overdue, then at this interval.
+enabled = false
+interval_minutes = 1440
+retention_count = 7
+target_backend = "local"
+directory = "chat_backups"
+# Complete backups briefly lock chat writes and require local attachment storage.
+include_files = false
+
 [ai]
 # The magic-wand button: summarizes a room's recent messages and suggests
 # replies. Disabled by default. `api_key_env` should normally be the name of

@@ -30,10 +30,11 @@ When `[ai].enabled = true`, set the environment variable named by
 `"ai_status":"ready"`; `disabled` means the mounted TOML did not enable AI,
 while `missing_credentials` means the named environment variable is absent.
 
-The Compose stack keeps database records in `postgres_data` and uploaded files
-in `attachment_data`. PostgreSQL is only reachable from the internal Compose
-network. Use `docker compose exec postgres psql -U chatroom -d chatroom` for
-local database access.
+The Compose stack keeps database records in `postgres_data`, uploaded files in
+`attachment_data`, and retained application backups in `backup_data`.
+PostgreSQL is only reachable from the internal Compose network. Use
+`docker compose exec postgres psql -U chatroom -d chatroom` for local database
+access.
 
 For non-local deployments, set a strong `POSTGRES_PASSWORD`. If it contains URL
 reserved characters, percent-encode them because the same value is placed in
@@ -98,6 +99,10 @@ The image healthcheck uses readiness, so a required database or dependency
 failure marks the container unhealthy. Configure optional dependency policy
 with `CHAT_ROOM_REQUIRED_DEPENDENCIES=redis,vector_store,ai_provider`. Enable
 newline-delimited JSON logs with `CHAT_ROOM_OBSERVABILITY_JSON_LOGS=true`.
+Set `CHAT_ROOM_BACKUP_ENABLED=true` to enable the retained schedule; the default
+daily interval and seven-copy retention can be changed with the other
+`CHAT_ROOM_BACKUP_*` settings. Backup failures and checksum state are visible
+in `/admin` and container logs.
 
 Stop containers without deleting stored data:
 
@@ -105,7 +110,7 @@ Stop containers without deleting stored data:
 docker compose down
 ```
 
-Back up `postgres_data`, `attachment_data`, and `redis_data` before upgrades,
-or use the verified PostgreSQL/local-file commands documented in
-`docs/configuration.md`. `docker compose down --volumes` deletes all three and
-should not be used for a normal shutdown.
+Back up `postgres_data`, `attachment_data`, `backup_data`, and `redis_data`
+before upgrades, or use the verified application backup flow documented in
+`docs/configuration.md`. `docker compose down --volumes` deletes these volumes
+and should not be used for a normal shutdown.

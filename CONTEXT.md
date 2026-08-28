@@ -47,3 +47,11 @@ _Avoid_: Model configuration, membership role, running-Run kill switch
 **AI Usage Record**:
 A privacy-safe terminal accounting projection containing feature, Room, model, status, estimated tokens, duration, and estimated cost. It never contains prompts, message text, attachment names, or Retrieved Evidence.
 _Avoid_: AI transcript, provider log, billing source of truth
+
+**Backup Run**:
+A scheduled or administrator-triggered creation of one verified database package, optionally including the local attachment scope. Its record contains operational status and checksums, never message or attachment contents.
+_Avoid_: Database copy, vector snapshot, restore point authorization
+
+**Restore Validation**:
+A read-only verification of archive paths, database kind, scope, and every declared SHA-256 before any live state changes. Validation never authorizes execution; restore requires a separate confirmation and leaves Rooms locked afterward.
+_Avoid_: Dry-run restore, implicit confirmation, checksum-only restore

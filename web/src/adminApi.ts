@@ -8,6 +8,9 @@ import type {
   AdminIndexSyncResult,
   AdminIndexSyncTarget,
   AdminRestoreBackupResult,
+  AdminRestoreValidationResult,
+  AdminBackupRun,
+  AdminBackupStatus,
   SaveAdminAiModelOption,
 } from './adminTypes'
 
@@ -81,17 +84,38 @@ export async function exportAdminBackup(
   return { blob: await response.blob(), filename }
 }
 
-export async function restoreAdminBackup(token: string, file: File): Promise<AdminRestoreBackupResult> {
+export async function getAdminBackupStatus(token: string): Promise<AdminBackupStatus> {
+  return (await adminRequest('/api/admin/backups', token)).json() as Promise<AdminBackupStatus>
+}
+
+export async function runAdminBackup(token: string, includeFiles: boolean): Promise<AdminBackupRun> {
+  return (
+    await adminRequest('/api/admin/backups/run', token, 'POST', { include_files: includeFiles })
+  ).json() as Promise<AdminBackupRun>
+}
+
+async function uploadBackup(path: string, token: string, file: File, confirmation?: string): Promise<Response> {
   const form = new FormData()
   form.append('file', file)
-  const response = await fetch('/api/admin/backups/restore', {
+  if (confirmation) form.append('confirmation', confirmation)
+  const response = await fetch(path, {
     method: 'POST',
     cache: 'no-store',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
   })
   if (!response.ok) await throwAdminError(response)
-  return response.json() as Promise<AdminRestoreBackupResult>
+  return response
+}
+
+export async function validateAdminBackup(token: string, file: File): Promise<AdminRestoreValidationResult> {
+  return (await uploadBackup('/api/admin/backups/restore', token, file)).json() as Promise<AdminRestoreValidationResult>
+}
+
+export async function executeAdminBackup(token: string, file: File): Promise<AdminRestoreBackupResult> {
+  return (
+    await uploadBackup('/api/admin/backups/restore/execute', token, file, 'RESTORE')
+  ).json() as Promise<AdminRestoreBackupResult>
 }
 
 export async function getAdminOverview(token: string): Promise<AdminOverview> {

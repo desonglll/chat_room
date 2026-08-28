@@ -45,6 +45,23 @@ fn defaults_match_the_previous_hardcoded_constants() {
     assert_eq!(config.work_queue.message_concurrency, 32);
     assert_eq!(config.work_queue.upload_concurrency, 4);
     assert_eq!(config.work_queue.wait_timeout_secs, 30);
+    assert!(!config.backup.enabled);
+    assert_eq!(config.backup.interval_minutes, 1440);
+    assert_eq!(config.backup.retention_count, 7);
+}
+
+#[test]
+fn backup_schedule_is_local_opt_in_and_validated() {
+    let config: AppConfig = toml::from_str(
+        "[backup]\nenabled = true\ninterval_minutes = 60\nretention_count = 14\ndirectory = '/safe/backups'",
+    )
+    .unwrap();
+    assert!(config.validate().is_ok());
+
+    let zero_interval: AppConfig = toml::from_str("[backup]\ninterval_minutes = 0").unwrap();
+    assert!(zero_interval.validate().is_err());
+    let unsupported: AppConfig = toml::from_str("[backup]\ntarget_backend = 'oss'").unwrap();
+    assert!(unsupported.validate().is_err());
 }
 
 #[test]

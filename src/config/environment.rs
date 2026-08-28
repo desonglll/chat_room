@@ -48,6 +48,7 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
             .map(str::to_string)
             .collect();
     }
+    super::environment_backup::apply(config, &mut value);
 
     parse!(
         config.uploads.max_file_size_mib,

@@ -18,12 +18,18 @@ pub struct BackupApiError {
 pub(super) async fn receive_archive(
     multipart: &mut Multipart,
     output: &Path,
-) -> Result<(), Response> {
+) -> Result<Option<String>, Response> {
+    let mut received_file = false;
+    let mut confirmation = None;
     while let Some(mut field) = multipart.next_field().await.map_err(|error| {
         tracing::warn!("read backup multipart failed: {error}");
         api_error(StatusCode::BAD_REQUEST, "无法读取上传的备份文件")
     })? {
-        if field.name() != Some("file") {
+        if field.name() == Some("confirmation") {
+            confirmation = field.text().await.ok();
+            continue;
+        }
+        if field.name() != Some("file") || received_file {
             continue;
         }
         let mut file = tokio::fs::File::create(output)
@@ -42,13 +48,16 @@ pub(super) async fn receive_archive(
         file.flush()
             .await
             .map_err(|error| internal_error("写入备份上传文件", error.into()))?;
-        return if size == 0 {
-            Err(api_error(StatusCode::BAD_REQUEST, "备份文件不能为空"))
-        } else {
-            Ok(())
-        };
+        if size == 0 {
+            return Err(api_error(StatusCode::BAD_REQUEST, "备份文件不能为空"));
+        }
+        received_file = true;
     }
-    Err(api_error(StatusCode::BAD_REQUEST, "请选择备份文件"))
+    if received_file {
+        Ok(confirmation)
+    } else {
+        Err(api_error(StatusCode::BAD_REQUEST, "请选择备份文件"))
+    }
 }
 
 pub(super) fn api_error(status: StatusCode, message: &str) -> Response {

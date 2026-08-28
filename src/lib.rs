@@ -1,5 +1,4 @@
 //! chat_room — Axum-based chat server with WebSocket and OpenAPI.
-
 pub mod accounts;
 pub mod admin;
 pub mod ai;
@@ -35,6 +34,7 @@ pub mod storage;
 pub mod tasks;
 pub mod web;
 mod work_queue;
+use crate::state::AppState;
 pub use accounts::{account_ws, avatar_handlers, registration, sessions, user_handlers, users};
 pub use admin::{
     ai_models as admin_ai_models, backups as admin_backups, metrics as admin_metrics,
@@ -60,9 +60,6 @@ pub use rooms::{
 };
 use std::sync::Arc;
 use utoipa::OpenApi;
-
-use crate::state::AppState;
-
 #[derive(OpenApi)]
 #[openapi(
     paths(
@@ -162,6 +159,9 @@ use crate::state::AppState;
         admin_metrics::purge,
         admin_backups::export,
         admin_backups::restore,
+        admin_backups::execute_restore,
+        admin_backups::get_status,
+        admin_backups::run_now,
         admin_services::probe_vector_search,
         admin_ai_models::list,
         admin_ai_models::create,
@@ -279,7 +279,10 @@ use crate::state::AppState;
         admin_metrics::AdminOverview,
         admin_metrics::PurgeResult,
         admin_backups::RestoreBackupResult,
+        admin_backups::RestoreValidationResult,
         admin_backups::BackupApiError,
+        backup::BackupRun,
+        backup::BackupStatus,
         admin_system_lock::SystemLockStatus,
         admin_system_lock::UpdateSystemLockRequest,
         admin_system_lock::RoomLockStatus,
@@ -291,23 +294,21 @@ use crate::state::AppState;
     ))
 )]
 pub struct ApiDoc;
-
 /// Serve the OpenAPI JSON spec at /api-docs/openapi.json.
 async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
     Json(ApiDoc::openapi())
 }
-
 /// Build the API-only axum router.
 pub fn build_app(state: Arc<AppState>) -> Router {
     build_app_with_web(state, false)
 }
-
 /// Build the axum router and optionally serve the embedded browser client.
 pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     ai_threads::runs::ensure_dispatcher(state.clone());
     ai_extractions::ensure_dispatcher(state.clone());
     knowledge::ensure_worker(state.clone());
     push_notifications::delivery::ensure_dispatcher(state.clone());
+    backup::ensure_scheduler(state.clone());
     let multipart_body_limit = state
         .max_upload_bytes()
         .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);
@@ -315,7 +316,6 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     let cors = security::cors_layer(&state.config.security);
     let mut app = routes::api_routes(multipart_body_limit, chunk_body_limit)
         .route("/api-docs/openapi.json", get(openapi_json));
-
     if web_enabled {
         app = app
             .route("/", get(web::index))
@@ -333,7 +333,6 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
             // /settings) — any path not matched above is a client route, not a 404.
             .fallback(get(web::index));
     }
-
     app.layer(axum::middleware::from_fn_with_state(
         state.clone(),
         admin_metrics::track_request,

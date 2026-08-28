@@ -69,6 +69,11 @@ fn all_runtime_sections_can_come_from_the_environment() {
         ("CHAT_ROOM_ADMIN_ORPHAN_RETENTION_HOURS", "72"),
         ("CHAT_ROOM_OBSERVABILITY_JSON_LOGS", "true"),
         ("CHAT_ROOM_REQUIRED_DEPENDENCIES", "redis, ai_provider"),
+        ("CHAT_ROOM_BACKUP_ENABLED", "true"),
+        ("CHAT_ROOM_BACKUP_INTERVAL_MINUTES", "120"),
+        ("CHAT_ROOM_BACKUP_RETENTION_COUNT", "5"),
+        ("CHAT_ROOM_BACKUP_DIRECTORY", "/data/backups"),
+        ("CHAT_ROOM_BACKUP_INCLUDE_FILES", "true"),
     ]);
 
     assert_eq!(config.uploads.max_file_size_mib, 2048);
@@ -105,4 +110,9 @@ fn all_runtime_sections_can_come_from_the_environment() {
         config.observability.required_dependencies,
         ["redis", "ai_provider"]
     );
+    assert!(config.backup.enabled);
+    assert_eq!(config.backup.interval_minutes, 120);
+    assert_eq!(config.backup.retention_count, 5);
+    assert_eq!(config.backup.directory.to_str(), Some("/data/backups"));
+    assert!(config.backup.include_files);
 }

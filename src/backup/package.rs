@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-pub(super) const FORMAT_VERSION: u32 = 2;
+pub(super) const FORMAT_VERSION: u32 = 3;
 pub(super) const DUMP_FILE: &str = "database.dump";
 pub(super) const ATTACHMENTS_DIR: &str = "attachments";
 pub(super) const MANIFEST_FILE: &str = "manifest.json";
@@ -44,7 +44,7 @@ pub fn read_and_verify(root: &Path) -> Result<BackupManifest> {
     let manifest: BackupManifest =
         serde_json::from_slice(&bytes).context("decode backup manifest")?;
     if !(1..=FORMAT_VERSION).contains(&manifest.format_version)
-        || manifest.database_kind != "postgres"
+        || !matches!(manifest.database_kind.as_str(), "sqlite" | "postgres")
     {
         bail!("unsupported backup format or database kind");
     }
@@ -82,6 +82,27 @@ pub fn read_and_verify(root: &Path) -> Result<BackupManifest> {
     if actual != expected_paths {
         bail!("backup contents do not match the manifest");
     }
+    Ok(manifest)
+}
+
+pub(super) fn create_manifest(
+    root: &Path,
+    database_kind: &str,
+    includes_files: bool,
+    mut files: Vec<BackupFile>,
+) -> Result<BackupManifest> {
+    files.sort_by(|left, right| left.path.cmp(&right.path));
+    let manifest = BackupManifest {
+        format_version: FORMAT_VERSION,
+        created_at: Utc::now(),
+        database_kind: database_kind.into(),
+        dump_file: DUMP_FILE.into(),
+        attachments_directory: ATTACHMENTS_DIR.into(),
+        includes_files,
+        files,
+    };
+    let json = serde_json::to_vec_pretty(&manifest).context("encode backup manifest")?;
+    fs::write(root.join(MANIFEST_FILE), json).context("write backup manifest")?;
     Ok(manifest)
 }
 

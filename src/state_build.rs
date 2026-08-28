@@ -33,12 +33,15 @@ impl AppState {
     pub async fn open_with_config(database_path: &Path, config: &AppConfig) -> Result<Self> {
         let attachment_store = open_attachment_store(config).await?;
         let pool = storage::open_database(database_path, &attachment_store).await?;
+        let mut config = config.clone();
+        config.database.kind = "sqlite".into();
+        config.database.sqlite_path = database_path.to_path_buf();
         Self::from_pool(
             storage::DatabasePool::Sqlite(pool),
             config.max_upload_bytes()?,
             attachment_store,
-            ai_assistant_for(config),
-            config.clone(),
+            ai_assistant_for(&config),
+            config,
         )
         .await
     }
@@ -46,12 +49,15 @@ impl AppState {
     pub async fn open_postgres(url: &str, config: &AppConfig) -> Result<Self> {
         let attachment_store = open_attachment_store(config).await?;
         let pool = storage::open_postgres_database(url, config.database.max_connections).await?;
+        let mut config = config.clone();
+        config.database.kind = "postgres".into();
+        config.database.postgres_url = url.into();
         Self::from_pool(
             pool,
             config.max_upload_bytes()?,
             attachment_store,
-            ai_assistant_for(config),
-            config.clone(),
+            ai_assistant_for(&config),
+            config,
         )
         .await
     }

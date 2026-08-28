@@ -1,50 +1,130 @@
-//! Administrator-only browser backup export and restore endpoints.
+//! Administrator backup schedule, export, validation, and restore routes.
 
 use axum::{
     extract::{Multipart, Request, State},
     http::{HeaderMap, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
+    routing::{get, post},
     Json, Router,
 };
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use utoipa::ToSchema;
 
-pub use super::backup_http::BackupApiError;
-use super::{
-    access::require_admin,
-    backup_http::{api_error, internal_error, receive_archive},
-    backup_transfer::WorkDirectory,
-    indexes,
+use super::{access::require_admin, backup_http::internal_error};
+pub use super::{
+    backup_http::BackupApiError,
+    backup_restore::{RestoreBackupResult, RestoreValidationResult},
 };
 use crate::{audit::AuditEventDraft, backup, state::SharedState};
 
-const RESTORE_REASON: &str = "database restore in progress";
-
 pub fn routes() -> Router<SharedState> {
     Router::new()
-        .route("/api/admin/backups/export", axum::routing::post(export))
+        .route("/api/admin/backups", get(get_status))
+        .route("/api/admin/backups/run", post(run_now))
+        .route("/api/admin/backups/export", post(export))
         .route(
             "/api/admin/backups/restore",
-            axum::routing::post(restore).layer(axum::extract::DefaultBodyLimit::disable()),
+            post(restore).layer(axum::extract::DefaultBodyLimit::disable()),
+        )
+        .route(
+            "/api/admin/backups/restore/execute",
+            post(execute_restore).layer(axum::extract::DefaultBodyLimit::disable()),
         )
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ExportBackupRequest {
     #[serde(default)]
-    include_files: bool,
+    pub(super) include_files: bool,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
-pub struct RestoreBackupResult {
-    backup_created_at: DateTime<Utc>,
-    included_files: bool,
-    previous_files_preserved: bool,
-    redis_keys_cleared: usize,
-    vector_messages_queued: u64,
-    chat_rooms_locked: bool,
+#[utoipa::path(
+    get,
+    path = "/api/admin/backups",
+    responses((status = 200, description = "Backup schedule and recent runs", body = backup::BackupStatus))
+)]
+pub async fn get_status(State(state): State<SharedState>, headers: HeaderMap) -> Response {
+    if let Err(status) = require_admin(&state, &headers).await {
+        return status.into_response();
+    }
+    match backup::status(&state).await {
+        Ok(status) => Json(status).into_response(),
+        Err(error) => internal_error("读取备份状态", error),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/admin/backups/run",
+    request_body = ExportBackupRequest,
+    responses((status = 200, description = "Completed manual backup", body = backup::BackupRun))
+)]
+pub async fn run_now(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(request): Json<ExportBackupRequest>,
+) -> Response {
+    let actor = match require_admin(&state, &headers).await {
+        Ok(actor) => actor,
+        Err(status) => return status.into_response(),
+    };
+    if let Err(error) = state
+        .record_audit_event(
+            AuditEventDraft::system(&actor, "backup.run_requested")
+                .target_type("backup")
+                .detail("include_files", request.include_files),
+        )
+        .await
+    {
+        return internal_error("记录备份运行审计", error.into());
+    }
+    match backup::run_backup(&state, "manual", request.include_files).await {
+        Ok(run) => Json(run).into_response(),
+        Err(error) => internal_error("运行备份", error),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/admin/backups/export",
+    request_body = ExportBackupRequest,
+    responses((status = 200, description = "Verified database backup archive"))
+)]
+pub async fn export(
+    state: State<SharedState>,
+    headers: HeaderMap,
+    request: Json<ExportBackupRequest>,
+) -> Response {
+    super::backup_export::export(state, headers, request).await
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/admin/backups/restore",
+    request_body(content = String, content_type = "multipart/form-data"),
+    responses((status = 200, description = "Validated backup without changing data", body = RestoreValidationResult))
+)]
+pub async fn restore(
+    state: State<SharedState>,
+    headers: HeaderMap,
+    multipart: Multipart,
+) -> Response {
+    super::backup_restore::validate(state, headers, multipart).await
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/admin/backups/restore/execute",
+    request_body(content = String, content_type = "multipart/form-data"),
+    responses((status = 200, description = "Confirmed backup restore", body = RestoreBackupResult))
+)]
+pub async fn execute_restore(
+    state: State<SharedState>,
+    headers: HeaderMap,
+    multipart: Multipart,
+) -> Response {
+    super::backup_restore::execute(state, headers, multipart).await
 }
 
 pub async fn reject_during_restore(
@@ -59,10 +139,7 @@ pub async fn reject_during_restore(
     if state.maintenance_active() {
         return StatusCode::SERVICE_UNAVAILABLE.into_response();
     }
-    if matches!(
-        path,
-        "/api/admin/backups/export" | "/api/admin/backups/restore"
-    ) {
+    if path.starts_with("/api/admin/backups") {
         return next.run(request).await;
     }
     let _request_guard = state.lock_request().await;
@@ -70,257 +147,4 @@ pub async fn reject_during_restore(
         return StatusCode::SERVICE_UNAVAILABLE.into_response();
     }
     next.run(request).await
-}
-
-#[utoipa::path(
-    post,
-    path = "/api/admin/backups/export",
-    request_body = ExportBackupRequest,
-    responses(
-        (status = 200, description = "Verified PostgreSQL backup archive"),
-        (status = 401, description = "Missing or expired session"),
-        (status = 403, description = "Account is not a system administrator"),
-        (status = 409, description = "Backup mode is unavailable for this storage backend")
-    )
-)]
-pub async fn export(
-    State(state): State<SharedState>,
-    headers: HeaderMap,
-    Json(request): Json<ExportBackupRequest>,
-) -> Response {
-    let actor = match require_admin(&state, &headers).await {
-        Ok(actor) => actor,
-        Err(status) => return status.into_response(),
-    };
-    if state.database_backend() != "postgres" {
-        return api_error(StatusCode::CONFLICT, "当前仅支持 PostgreSQL 数据库备份");
-    }
-    if request.include_files && state.attachment_store().oss_enabled() {
-        return api_error(StatusCode::CONFLICT, "对象存储模式暂不支持文件备份");
-    }
-    if let Err(error) = state
-        .record_audit_event(
-            AuditEventDraft::system(&actor, "backup.export_requested")
-                .target_type("backup")
-                .detail("include_files", request.include_files),
-        )
-        .await
-    {
-        return internal_error("记录备份导出审计", error.into());
-    }
-
-    let _operation = state.lock_backup_operation().await;
-    let work = match WorkDirectory::create(&state.config, "export") {
-        Ok(work) => work,
-        Err(error) => return internal_error("创建备份工作目录", error),
-    };
-    let package = work.path.join("package");
-    let archive = work.path.join("chat-room-backup.tar.gz");
-    let previous_lock = match state.chat_rooms_locked().await {
-        Ok(value) => value,
-        Err(error) => return internal_error("读取系统锁", error.into()),
-    };
-
-    let manifest = if request.include_files {
-        let maintenance = state.begin_maintenance();
-        let _requests = state.lock_requests_for_maintenance().await;
-        if let Err(error) = state.set_chat_rooms_locked(true).await {
-            return internal_error("锁定聊天室", error.into());
-        }
-        state.disconnect_all_chat_rooms(RESTORE_REASON).await;
-        let _write_barrier = match state.work_queue().maintenance().await {
-            Ok(permits) => permits,
-            Err(_) => {
-                let _ = state.set_chat_rooms_locked(previous_lock).await;
-                drop(maintenance);
-                return internal_error("等待在途写入", anyhow::anyhow!("work queue timed out"));
-            }
-        };
-        let result = backup::export_postgres_scoped(
-            &state.config,
-            &state.config.database.postgres_url,
-            &package,
-            true,
-        )
-        .await;
-        let unlock_result = state.set_chat_rooms_locked(previous_lock).await;
-        drop(maintenance);
-        if let Err(error) = unlock_result {
-            return internal_error("恢复系统锁状态", error.into());
-        }
-        match result {
-            Ok(manifest) => manifest,
-            Err(error) => return internal_error("导出备份", error),
-        }
-    } else {
-        match backup::export_postgres_scoped(
-            &state.config,
-            &state.config.database.postgres_url,
-            &package,
-            false,
-        )
-        .await
-        {
-            Ok(manifest) => manifest,
-            Err(error) => return internal_error("导出备份", error),
-        }
-    };
-
-    let package_for_archive = package.clone();
-    let archive_for_task = archive.clone();
-    if let Err(error) = tokio::task::spawn_blocking(move || {
-        backup::pack_archive(&package_for_archive, &archive_for_task)
-    })
-    .await
-    .map_err(anyhow::Error::from)
-    .and_then(|result| result)
-    {
-        return internal_error("压缩备份", error);
-    }
-    let scope = if manifest.includes_files {
-        "complete"
-    } else {
-        "data"
-    };
-    let filename = format!(
-        "chat-room-{scope}-{}.{}",
-        manifest.created_at.format("%Y%m%d-%H%M%S"),
-        backup::ARCHIVE_EXTENSION
-    );
-    match work.download(&archive, &filename).await {
-        Ok(response) => response,
-        Err(error) => internal_error("打开备份归档", error),
-    }
-}
-
-#[utoipa::path(
-    post,
-    path = "/api/admin/backups/restore",
-    request_body(content = String, content_type = "multipart/form-data"),
-    responses(
-        (status = 200, description = "Backup restored; chat remains locked", body = RestoreBackupResult),
-        (status = 400, description = "No backup archive was uploaded", body = BackupApiError),
-        (status = 401, description = "Missing or expired session"),
-        (status = 403, description = "Account is not a system administrator"),
-        (status = 422, description = "Archive or checksum validation failed", body = BackupApiError)
-    )
-)]
-pub async fn restore(
-    State(state): State<SharedState>,
-    headers: HeaderMap,
-    mut multipart: Multipart,
-) -> Response {
-    let actor = match require_admin(&state, &headers).await {
-        Ok(actor) => actor,
-        Err(status) => return status.into_response(),
-    };
-    if state.database_backend() != "postgres" {
-        return api_error(StatusCode::CONFLICT, "当前仅支持 PostgreSQL 数据库恢复");
-    }
-    if let Err(error) = state
-        .record_audit_event(
-            AuditEventDraft::system(&actor, "backup.restore_requested").target_type("backup"),
-        )
-        .await
-    {
-        return internal_error("记录备份恢复审计", error.into());
-    }
-
-    let _operation = state.lock_backup_operation().await;
-    let work = match WorkDirectory::create(&state.config, "restore") {
-        Ok(work) => work,
-        Err(error) => return internal_error("创建恢复工作目录", error),
-    };
-    let archive = work.path.join("upload.tar.gz");
-    if let Err(response) = receive_archive(&mut multipart, &archive).await {
-        return response;
-    }
-    let package = work.path.join("package");
-    let archive_for_task = archive.clone();
-    let package_for_task = package.clone();
-    let unpacked = tokio::task::spawn_blocking(move || {
-        backup::unpack_archive(&archive_for_task, &package_for_task)
-    })
-    .await
-    .map_err(anyhow::Error::from)
-    .and_then(|result| result);
-    if let Err(error) = unpacked {
-        tracing::warn!("reject invalid backup archive: {error:#}");
-        return api_error(StatusCode::UNPROCESSABLE_ENTITY, "备份归档无效或已损坏");
-    }
-    let manifest = match backup::read_and_verify(&package) {
-        Ok(manifest) => manifest,
-        Err(error) => {
-            tracing::warn!("reject invalid backup package: {error:#}");
-            return api_error(StatusCode::UNPROCESSABLE_ENTITY, "备份清单或文件校验失败");
-        }
-    };
-    if manifest.includes_files && state.attachment_store().oss_enabled() {
-        return api_error(StatusCode::CONFLICT, "对象存储模式暂不支持文件恢复");
-    }
-
-    let maintenance = state.begin_maintenance();
-    let _requests = state.lock_requests_for_maintenance().await;
-    if let Err(error) = state.set_chat_rooms_locked(true).await {
-        return internal_error("锁定聊天室", error.into());
-    }
-    state.disconnect_all_chat_rooms(RESTORE_REASON).await;
-    let _write_barrier = match state.work_queue().maintenance().await {
-        Ok(permits) => permits,
-        Err(_) => return internal_error("等待在途写入", anyhow::anyhow!("work queue timed out")),
-    };
-    let database_connections = match state.lock_postgres_connections().await {
-        Ok(connections) => connections,
-        Err(error) => return internal_error("等待数据库操作", error),
-    };
-    let restore_result =
-        backup::restore_postgres(&state.config, &state.config.database.postgres_url, &package)
-            .await;
-    let connection_result = database_connections.close().await;
-    if let Err(error) = connection_result {
-        if let Err(lock_error) = state.set_chat_rooms_locked(true).await {
-            tracing::error!("keep chat locked after connection refresh failed: {lock_error}");
-        }
-        return internal_error("刷新数据库连接", error);
-    }
-    let outcome = match restore_result {
-        Ok(outcome) => outcome,
-        Err(error) => {
-            if let Err(lock_error) = state.set_chat_rooms_locked(true).await {
-                tracing::error!("keep chat locked after failed restore: {lock_error}");
-            }
-            return internal_error("恢复备份", error);
-        }
-    };
-    if let Err(error) = state.set_chat_rooms_locked(true).await {
-        return internal_error("恢复系统锁", error.into());
-    }
-    if let Err(error) = state.reload_room_cache().await {
-        return internal_error("刷新服务状态", error);
-    }
-    let index_sync = match indexes::sync_enabled(&state).await {
-        Ok(result) => result,
-        Err(error) => return internal_error("重新同步派生索引", error.into()),
-    };
-    drop(maintenance);
-    if let Err(error) = state
-        .record_audit_event(
-            AuditEventDraft::system(&actor, "backup.restore_completed")
-                .target_type("backup")
-                .detail("included_files", outcome.includes_files),
-        )
-        .await
-    {
-        tracing::error!("record completed backup restore audit failed: {error}");
-    }
-
-    Json(RestoreBackupResult {
-        backup_created_at: manifest.created_at,
-        included_files: outcome.includes_files,
-        previous_files_preserved: outcome.previous_attachments.is_some(),
-        redis_keys_cleared: outcome.redis_keys_cleared,
-        vector_messages_queued: index_sync.vector_messages,
-        chat_rooms_locked: true,
-    })
-    .into_response()
 }

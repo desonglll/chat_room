@@ -1,10 +1,4 @@
 //! TOML-backed runtime configuration and its public browser-safe projection.
-
-use std::{
-    io::ErrorKind,
-    path::{Path, PathBuf},
-};
-
 use crate::{
     ai::{AiConfig, AiRuntimeStatus},
     push_notifications::WebPushConfig,
@@ -13,9 +7,14 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
-
+use std::{
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 mod auth;
+mod backup;
 mod environment;
+mod environment_backup;
 mod environment_web_push;
 mod observability;
 mod performance;
@@ -23,13 +22,12 @@ mod security;
 #[cfg(test)]
 mod tests;
 mod vector_store;
-
 pub use auth::AuthConfig;
+pub use backup::BackupConfig;
 pub use observability::ObservabilityConfig;
 pub use performance::{RedisConfig, WorkQueueConfig};
 pub use security::SecurityConfig;
 pub use vector_store::VectorStoreConfig;
-
 pub const DEFAULT_MAX_UPLOAD_MIB: u64 = 512;
 const BYTES_PER_MIB: u64 = 1024 * 1024;
 
@@ -49,6 +47,7 @@ pub struct AppConfig {
     pub vector_store: VectorStoreConfig,
     pub web_push: WebPushConfig,
     pub observability: ObservabilityConfig,
+    pub backup: BackupConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -268,6 +267,7 @@ impl AppConfig {
         self.security.validate()?;
         self.web_push.validate()?;
         self.observability.validate()?;
+        self.backup.validate(self.attachments.oss.enabled)?;
         if self.admin.orphan_retention_hours <= 0 {
             bail!("admin.orphan_retention_hours must be greater than zero");
         }

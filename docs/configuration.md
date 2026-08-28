@@ -54,6 +54,14 @@ json_logs = false
 # Supported values: redis, vector_store, ai_provider. Database is always required.
 required_dependencies = []
 
+[backup]
+enabled = false
+interval_minutes = 1440
+retention_count = 7
+target_backend = "local"
+directory = "chat_backups"
+include_files = false
+
 [redis]
 enabled = false
 url = "redis://127.0.0.1:6379/"
@@ -282,11 +290,20 @@ by default and stores its data in `qdrant_data`. Containers use
 `QDRANT_HTTP_PORT` and `QDRANT_GRPC_PORT`. Configure an API key and TLS before
 making Qdrant reachable beyond the local host.
 
-## PostgreSQL backup and restore
+## Automated backup and restore drills
 
-The `/admin` dashboard offers two downloadable backup scopes:
+SQLite and PostgreSQL both support scheduled backups, immediate retained
+backups, downloadable exports, validation, and confirmed restore from `/admin`.
+Configure `[backup]` or the corresponding `CHAT_ROOM_BACKUP_*` environment
+variables. `target_backend = "local"` writes archives to `directory`; the
+Compose deployment mounts `chat_backups` as a persistent volume. The scheduler
+runs immediately when no current scheduled result exists, then at
+`interval_minutes`, and keeps the newest `retention_count` automatic archives.
+Manual retained runs use the selected scope but do not change the schedule.
 
-- **Database only** contains a full PostgreSQL dump, including every account,
+The two backup scopes are:
+
+- **Database only** contains every account,
   room, message, setting, and other database record. Restoring it does not
   change the current attachment files.
 - **Database and files** adds every durable local attachment file. The server
@@ -294,26 +311,41 @@ The `/admin` dashboard offers two downloadable backup scopes:
   this package so the database and file snapshot stay consistent. This scope is
   unavailable when OSS is the attachment backend.
 
-Browser exports are `.tar.gz` archives containing `database.dump`, an optional
+SQLite snapshots use `VACUUM INTO`, which creates a transactionally consistent
+online database image rather than copying the live database, WAL, or shared
+memory files. PostgreSQL snapshots use `pg_dump`; the runtime must include
+matching `pg_dump` and `pg_restore` clients. Browser and retained exports are
+`.tar.gz` archives containing `database.dump`, an optional
 `attachments` directory, and `manifest.json` with the backup scope, SHA-256,
 and byte count of every file. Restore rejects unsafe archive paths, unsupported
 formats, extra files, missing files, and checksum mismatches before changing
 the database.
 
-Restore uses `pg_restore --clean --if-exists --no-owner --no-privileges
---exit-on-error --single-transaction`. A database-only restore leaves files
-untouched. A complete restore preserves the previous durable local files under
-`.pre-restore-*` in the attachment directory before activating the restored
-files. Redis cache keys are cleared, the in-process room cache is rebuilt, and
-the enabled Qdrant index is repopulated asynchronously from restored messages.
-The chat system remains locked after a successful
-restore. Verify the restored state in `/admin`, then unlock chat manually.
+Uploading to `/api/admin/backups/restore` only validates the archive and reports
+its database kind, scope, total bytes, file count, checksum state, and validation
+duration. It never changes live data. Execution uses the separate
+`/api/admin/backups/restore/execute` endpoint, requires the fixed second
+confirmation, enters maintenance mode, disconnects chat clients, and locks all
+chat rooms. PostgreSQL uses `pg_restore --clean --if-exists --no-owner
+--no-privileges --exit-on-error --single-transaction`; SQLite drains its pool,
+preserves the current database beside the configured path, and atomically
+activates the verified snapshot. Complete restores also preserve current local
+files under `.pre-restore-*`. Redis is cleared, room caches are rebuilt, and
+Qdrant is repopulated asynchronously. The system stays locked until an operator
+checks `/admin` and unlocks it.
 
-Online dashboard backup and restore currently require PostgreSQL. Database-only
-backup remains available with OSS, but file backup and restore do not. The
-runtime must include `pg_dump` and `pg_restore` matching the PostgreSQL server's
-major version; the supplied container uses the PostgreSQL 17 runtime image for
-this reason.
+The operational RPO is `interval_minutes` plus the duration of an in-progress
+backup. RTO is measured rather than assumed: backup runs store `duration_ms`,
+validation reports `validation_duration_ms`, and confirmed restore reports
+`restore_duration_ms`. Include index catch-up and manual verification in the
+deployment's RTO objective. Rehearse restore against a temporary instance after
+schema or storage changes; automated tests restore both database adapters and
+compare key account, room, message, and attachment counts. A failed scheduled
+run is persisted in `backup_runs`, logged, and shown prominently in `/admin`.
+
+Database-only backup works with OSS. Complete backup and restore require local
+attachment storage; use the object storage provider's versioning and backup
+policy for OSS objects. Qdrant is derived state and is rebuilt, not packaged.
 
 For offline complete backups, stop the chat server so the
 PostgreSQL snapshot and attachment directory describe the same point in time,
@@ -330,10 +362,9 @@ directory containing `database.dump`, the complete local `attachments`
 directory, and `manifest.json` with a SHA-256 and byte count for every file.
 The output path must not already exist.
 
-The offline commands intentionally produce a complete package and reject SQLite
-and OSS-backed attachment configurations. Neither dashboard nor command-line
-packages include Qdrant. Treat it as rebuildable derived state, or back it up
-separately when recovery time requires it.
+The current offline maintenance commands produce complete PostgreSQL packages.
+SQLite online backup and all scheduled operations are managed through the
+running service. Neither path packages Qdrant.
 
 The `/admin` dependency section can also enqueue a full vector synchronization
 manually. This resets failed retries and is safe to run while the worker is

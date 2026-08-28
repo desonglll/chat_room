@@ -47,7 +47,7 @@ async fn create_room(client: &Client, base: &str, token: &str, name: &str) -> se
 }
 
 #[tokio::test]
-async fn backup_endpoints_require_admin_and_report_sqlite_as_unsupported() {
+async fn backup_endpoints_require_admin_and_support_sqlite_exports() {
     let config = AppConfig {
         admin: AdminConfig {
             usernames: vec!["backup-admin".into()],
@@ -82,20 +82,15 @@ async fn backup_endpoints_require_admin_and_report_sqlite_as_unsupported() {
             .status(),
         StatusCode::FORBIDDEN
     );
-    let unsupported = client
+    let sqlite_export = client
         .post(format!("{}/api/admin/backups/export", server.base))
         .bearer_auth(&admin)
         .json(&serde_json::json!({ "include_files": false }))
         .send()
         .await
         .unwrap();
-    assert_eq!(unsupported.status(), StatusCode::CONFLICT);
-    assert!(
-        unsupported.json::<serde_json::Value>().await.unwrap()["error"]
-            .as_str()
-            .unwrap()
-            .contains("PostgreSQL")
-    );
+    assert_eq!(sqlite_export.status(), StatusCode::OK);
+    assert_eq!(sqlite_export.headers()["content-type"], "application/gzip");
 }
 
 #[tokio::test]
@@ -130,10 +125,12 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     );
     let attachment_root =
         std::env::temp_dir().join(format!("chat-backup-files-{}", Uuid::new_v4()));
+    let backup_root = std::env::temp_dir().join(format!("chat-backup-retained-{}", Uuid::new_v4()));
     let mut config = AppConfig::default();
     config.database.kind = "postgres".into();
     config.database.postgres_url = database_url.clone();
     config.attachments.directory = attachment_root.clone();
+    config.backup.directory = backup_root.clone();
     config.admin.usernames = vec!["backup-admin".into()];
 
     let state = Arc::new(
@@ -171,6 +168,21 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
         .await
         .unwrap();
     assert_eq!(upload.status(), StatusCode::CREATED);
+
+    let retained: serde_json::Value = client
+        .post(format!("{}/api/admin/backups/run", server.base))
+        .bearer_auth(&admin)
+        .json(&serde_json::json!({ "include_files": false }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(retained["status"], "succeeded");
+    assert_eq!(retained["database_kind"], "postgres");
+    assert_eq!(retained["artifact_sha256"].as_str().unwrap().len(), 64);
+    assert!(Path::new(retained["artifact_path"].as_str().unwrap()).exists());
 
     let data_export = client
         .post(format!("{}/api/admin/backups/export", server.base))
@@ -269,6 +281,7 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
         .await
         .unwrap();
     let _ = std::fs::remove_dir_all(attachment_root);
+    let _ = std::fs::remove_dir_all(backup_root);
 }
 
 async fn restore_archive(
@@ -278,16 +291,18 @@ async fn restore_archive(
     archive: Vec<u8>,
 ) -> reqwest::Response {
     client
-        .post(format!("{base}/api/admin/backups/restore"))
+        .post(format!("{base}/api/admin/backups/restore/execute"))
         .bearer_auth(token)
         .multipart(
-            multipart::Form::new().part(
-                "file",
-                multipart::Part::bytes(archive)
-                    .file_name("backup.tar.gz")
-                    .mime_str("application/gzip")
-                    .unwrap(),
-            ),
+            multipart::Form::new()
+                .part(
+                    "file",
+                    multipart::Part::bytes(archive)
+                        .file_name("backup.tar.gz")
+                        .mime_str("application/gzip")
+                        .unwrap(),
+                )
+                .text("confirmation", "RESTORE"),
         )
         .send()
         .await

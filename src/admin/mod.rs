@@ -1,6 +1,8 @@
 pub(crate) mod access;
 pub mod ai_models;
+mod backup_export;
 mod backup_http;
+mod backup_restore;
 mod backup_transfer;
 pub mod backups;
 pub mod indexes;

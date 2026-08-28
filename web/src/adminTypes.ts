@@ -134,8 +134,50 @@ export interface AdminPurgeResult {
 export interface AdminRestoreBackupResult {
   backup_created_at: string
   included_files: boolean
+  previous_database_preserved: boolean
   previous_files_preserved: boolean
   redis_keys_cleared: number
   vector_messages_queued: number
   chat_rooms_locked: boolean
+  restore_duration_ms: number
+}
+
+export interface AdminRestoreValidationResult {
+  valid: boolean
+  backup_created_at: string
+  database_kind: 'sqlite' | 'postgres'
+  included_files: boolean
+  file_count: number
+  total_bytes: number
+  checksum_status: 'verified'
+  validation_duration_ms: number
+}
+
+export interface AdminBackupRun {
+  id: string
+  trigger: 'manual' | 'scheduled'
+  status: 'succeeded' | 'failed'
+  database_kind: 'sqlite' | 'postgres'
+  target_backend: 'local'
+  includes_files: boolean
+  artifact_path: string | null
+  artifact_sha256: string | null
+  artifact_size_bytes: number | null
+  manifest_created_at: string | null
+  started_at: string
+  completed_at: string
+  duration_ms: number
+  error: string | null
+  checksum_status: 'verified' | 'unavailable'
+  artifact_available: boolean
+}
+
+export interface AdminBackupStatus {
+  enabled: boolean
+  interval_minutes: number
+  retention_count: number
+  target_backend: 'local'
+  include_files: boolean
+  rpo_minutes: number
+  runs: AdminBackupRun[]
 }

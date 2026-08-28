@@ -3,7 +3,7 @@
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 
 use anyhow::{bail, Context, Result};
-use sqlx::{pool::PoolConnection, Postgres};
+use sqlx::{pool::PoolConnection, Postgres, Sqlite};
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
@@ -16,6 +16,7 @@ pub(crate) struct BackupRuntime {
     operation: Mutex<()>,
     maintenance: std::sync::atomic::AtomicBool,
     requests: RwLock<()>,
+    pub(crate) scheduler_started: std::sync::atomic::AtomicBool,
 }
 
 impl AppState {
@@ -60,6 +61,22 @@ impl AppState {
         Ok(PostgresConnections { connections })
     }
 
+    pub(crate) async fn lock_sqlite_connections(&self) -> Result<SqliteConnections> {
+        let pool = self.pool();
+        let maximum = pool.options().get_max_connections();
+        let timeout = Duration::from_secs(self.config.work_queue.wait_timeout_secs);
+        let connections = tokio::time::timeout(timeout, async {
+            let mut connections = Vec::with_capacity(maximum as usize);
+            for _ in 0..maximum {
+                connections.push(pool.acquire().await?);
+            }
+            Ok::<_, sqlx::Error>(connections)
+        })
+        .await
+        .context("timed out waiting for active database work")??;
+        Ok(SqliteConnections { connections })
+    }
+
     pub(crate) async fn reload_room_cache(&self) -> Result<()> {
         let loaded: Vec<Room> = with_pool!(self, |pool| {
             sqlx::query_as(SELECT_ROOMS).fetch_all(pool).await
@@ -73,6 +90,25 @@ impl AppState {
         *self.rooms.write().await = rooms;
         *self.channels.write().await = channels;
         self.members.write().await.clear();
+        Ok(())
+    }
+}
+
+pub(crate) struct SqliteConnections {
+    connections: Vec<PoolConnection<Sqlite>>,
+}
+
+impl SqliteConnections {
+    pub(crate) async fn close(self) -> Result<()> {
+        let mut errors = Vec::new();
+        for connection in self.connections {
+            if let Err(error) = connection.close().await {
+                errors.push(error.to_string());
+            }
+        }
+        if !errors.is_empty() {
+            bail!("close restored database connections: {}", errors.join("; "));
+        }
         Ok(())
     }
 }

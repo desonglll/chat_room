@@ -1,4 +1,5 @@
 use super::*;
+use uuid::Uuid;
 
 #[test]
 fn data_only_backup_allows_oss_but_file_backup_does_not() {

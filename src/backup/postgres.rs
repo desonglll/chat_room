@@ -1,51 +1,19 @@
-use std::{
-    ffi::OsStr,
-    fs::{self, File},
-    io::Write,
-    path::{Path, PathBuf},
-    process::Stdio,
-};
+use std::{ffi::OsStr, fs, path::Path, process::Stdio};
 
 use anyhow::{bail, Context, Result};
-use chrono::Utc;
 use tokio::process::Command;
-use uuid::Uuid;
 
-use super::package::{
-    file_record, read_and_verify, BackupFile, BackupManifest, ATTACHMENTS_DIR, DUMP_FILE,
-    FORMAT_VERSION, MANIFEST_FILE,
+use super::{
+    files::{
+        absolute_normalized, copy_attachment_tree, replace_attachment_files, sibling_temp_path,
+        DirectoryCleanup,
+    },
+    package::{
+        create_manifest, file_record, read_and_verify, BackupManifest, ATTACHMENTS_DIR, DUMP_FILE,
+    },
+    RestoreOutcome,
 };
 use crate::{cache::RedisCache, config::AppConfig};
-
-#[derive(Debug)]
-pub struct RestoreOutcome {
-    pub previous_attachments: Option<PathBuf>,
-    pub redis_keys_cleared: usize,
-    pub includes_files: bool,
-}
-
-struct DirectoryCleanup {
-    path: PathBuf,
-    active: bool,
-}
-
-impl DirectoryCleanup {
-    fn new(path: PathBuf) -> Self {
-        Self { path, active: true }
-    }
-
-    fn disarm(&mut self) {
-        self.active = false;
-    }
-}
-
-impl Drop for DirectoryCleanup {
-    fn drop(&mut self) {
-        if self.active {
-            let _ = fs::remove_dir_all(&self.path);
-        }
-    }
-}
 
 pub async fn export_postgres(
     config: &AppConfig,
@@ -123,22 +91,7 @@ async fn export_into(
             )?;
         }
     }
-    files.sort_by(|left, right| left.path.cmp(&right.path));
-    let manifest = BackupManifest {
-        format_version: FORMAT_VERSION,
-        created_at: Utc::now(),
-        database_kind: "postgres".into(),
-        dump_file: DUMP_FILE.into(),
-        attachments_directory: ATTACHMENTS_DIR.into(),
-        includes_files,
-        files,
-    };
-    let json = serde_json::to_vec_pretty(&manifest).context("encode backup manifest")?;
-    File::create(staging.join(MANIFEST_FILE))
-        .context("create backup manifest")?
-        .write_all(&json)
-        .context("write backup manifest")?;
-    Ok(manifest)
+    create_manifest(staging, "postgres", includes_files, files)
 }
 
 pub async fn restore_postgres(
@@ -148,6 +101,9 @@ pub async fn restore_postgres(
 ) -> Result<RestoreOutcome> {
     let input = absolute_normalized(input)?;
     let manifest = read_and_verify(&input)?;
+    if manifest.database_kind != "postgres" {
+        bail!("backup database kind does not match PostgreSQL");
+    }
     validate_backup_config(config, manifest.includes_files)?;
 
     let redis_cache = if config.redis.enabled {
@@ -192,6 +148,7 @@ pub async fn restore_postgres(
         None => 0,
     };
     Ok(RestoreOutcome {
+        previous_database: None,
         previous_attachments,
         redis_keys_cleared,
         includes_files: manifest.includes_files,
@@ -203,103 +160,6 @@ fn validate_backup_config(config: &AppConfig, includes_files: bool) -> Result<()
         bail!("file backup is unavailable while attachments.oss.enabled is true");
     }
     Ok(())
-}
-
-fn copy_attachment_tree(
-    source: &Path,
-    target: &Path,
-    prefix: &Path,
-    top_level: bool,
-    records: &mut Vec<BackupFile>,
-) -> Result<()> {
-    for entry in
-        fs::read_dir(source).with_context(|| format!("read directory {}", source.display()))?
-    {
-        let entry = entry?;
-        if top_level && entry.file_name().to_string_lossy().starts_with('.') {
-            continue;
-        }
-        let file_type = entry.file_type()?;
-        let destination = target.join(entry.file_name());
-        let relative = prefix.join(entry.file_name());
-        if file_type.is_dir() {
-            fs::create_dir(&destination)
-                .with_context(|| format!("create directory {}", destination.display()))?;
-            copy_attachment_tree(&entry.path(), &destination, &relative, false, records)?;
-        } else if file_type.is_file() {
-            fs::copy(entry.path(), &destination)
-                .with_context(|| format!("copy attachment {}", entry.path().display()))?;
-            records.push(file_record(&destination, &relative)?);
-        } else {
-            bail!(
-                "attachment directory contains unsupported symlink or special file: {}",
-                entry.path().display()
-            );
-        }
-    }
-    Ok(())
-}
-
-fn replace_attachment_files(target: &Path, source: &Path) -> Result<PathBuf> {
-    fs::create_dir_all(target)
-        .with_context(|| format!("create attachment directory {}", target.display()))?;
-    let previous = target.join(format!(".pre-restore-{}", Uuid::new_v4().simple()));
-    fs::create_dir(&previous).context("create previous attachment directory")?;
-
-    if let Err(error) = move_visible_entries(target, &previous, Some(&previous)) {
-        let _ = move_visible_entries(&previous, target, None);
-        return Err(error).context("preserve current attachments");
-    }
-    if let Err(error) = move_visible_entries(source, target, None) {
-        // Return any already-activated files to the verified package before
-        // putting the previous attachment set back in place.
-        let _ = move_visible_entries(target, source, None);
-        let _ = move_visible_entries(&previous, target, None);
-        return Err(error).context("activate restored attachments");
-    }
-    Ok(previous)
-}
-
-fn move_visible_entries(source: &Path, target: &Path, skip: Option<&Path>) -> Result<()> {
-    for entry in fs::read_dir(source)? {
-        let entry = entry?;
-        if entry.file_name().to_string_lossy().starts_with('.')
-            || skip.is_some_and(|path| entry.path() == path)
-        {
-            continue;
-        }
-        fs::rename(entry.path(), target.join(entry.file_name()))?;
-    }
-    Ok(())
-}
-
-fn absolute_normalized(path: &Path) -> Result<PathBuf> {
-    let source = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir()?.join(path)
-    };
-    let mut result = PathBuf::new();
-    for component in source.components() {
-        match component {
-            std::path::Component::Prefix(_)
-            | std::path::Component::RootDir
-            | std::path::Component::Normal(_) => result.push(component),
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                result.pop();
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn sibling_temp_path(path: &Path, label: &str) -> Result<PathBuf> {
-    let name = path
-        .file_name()
-        .and_then(OsStr::to_str)
-        .context("path must have a UTF-8 file name")?;
-    Ok(path.with_file_name(format!(".{name}.{label}-{}", Uuid::new_v4().simple())))
 }
 
 async fn run_command<const N: usize>(program: &str, arguments: [&OsStr; N]) -> Result<()> {

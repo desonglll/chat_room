@@ -41,7 +41,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd --system --gid 10001 chatroom && \
     useradd --system --uid 10001 --gid chatroom --home-dir /app --shell /usr/sbin/nologin chatroom && \
-    mkdir -p /app/chat_attachments && \
+    mkdir -p /app/chat_attachments /app/chat_backups && \
     chown -R chatroom:chatroom /app
 
 WORKDIR /app
@@ -51,7 +51,7 @@ USER chatroom
 ENV RUST_LOG="chat_room=info"
 
 EXPOSE 3000
-VOLUME ["/app/chat_attachments"]
+VOLUME ["/app/chat_attachments", "/app/chat_backups"]
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
     CMD curl --fail --silent --show-error http://127.0.0.1:3000/health/ready >/dev/null || exit 1
 
