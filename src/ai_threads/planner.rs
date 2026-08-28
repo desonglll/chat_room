@@ -70,10 +70,13 @@ pub(super) async fn plan_request(
             research_questions: Vec::new(),
         });
     }
-    normalize_decision(assistant.plan_room_task(question).await?)
+    normalize_decision(question, assistant.plan_room_task(question).await?)
 }
 
-pub(super) fn fallback_plan(has_room: bool) -> AgentPlan {
+pub(super) fn fallback_plan(question: &str, has_room: bool) -> AgentPlan {
+    if has_room && requests_room_wide_overview(question) {
+        return room_wide_overview_plan();
+    }
     AgentPlan {
         intent: AgentIntent::General,
         context_scope: if has_room {
@@ -95,7 +98,10 @@ pub(super) fn catch_up_plan() -> AgentPlan {
     }
 }
 
-fn normalize_decision(decision: AiTaskPlanDecision) -> anyhow::Result<AgentPlan> {
+fn normalize_decision(question: &str, decision: AiTaskPlanDecision) -> anyhow::Result<AgentPlan> {
+    if requests_room_wide_overview(question) {
+        return Ok(room_wide_overview_plan());
+    }
     let intent = match decision.intent.trim().to_ascii_lowercase().as_str() {
         "overview" => AgentIntent::Overview,
         "todos" => AgentIntent::Todos,
@@ -125,18 +131,75 @@ fn normalize_decision(decision: AiTaskPlanDecision) -> anyhow::Result<AgentPlan>
     })
 }
 
+fn room_wide_overview_plan() -> AgentPlan {
+    AgentPlan {
+        intent: AgentIntent::Overview,
+        context_scope: ContextScope::Full,
+        semantic_search: false,
+        research_questions: Vec::new(),
+    }
+}
+
+fn requests_room_wide_overview(question: &str) -> bool {
+    let question = question.trim().to_lowercase();
+    let explicitly_recent = ["最近", "近期", "刚才", "recent", "latest"]
+        .iter()
+        .any(|marker| question.contains(marker));
+    if explicitly_recent {
+        return false;
+    }
+    let room_wide = [
+        "整个聊天室",
+        "整个房间",
+        "整个对话",
+        "全部聊天",
+        "全部消息",
+        "所有聊天",
+        "所有消息",
+        "都聊了什么",
+        "都聊了些什么",
+        "full room",
+        "entire room",
+        "whole conversation",
+        "entire conversation",
+        "all messages",
+        "full chat history",
+    ]
+    .iter()
+    .any(|marker| question.contains(marker));
+    let overview = [
+        "聊了什么",
+        "聊了些什么",
+        "说了什么",
+        "讨论了什么",
+        "总结",
+        "概括",
+        "梳理",
+        "summary",
+        "summarize",
+        "overview",
+        "what was discussed",
+    ]
+    .iter()
+    .any(|marker| question.contains(marker));
+    room_wide && overview
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn normalizes_a_model_generated_full_history_plan() {
-        let plan = normalize_decision(AiTaskPlanDecision {
-            intent: "overview".into(),
-            context_scope: "full".into(),
-            semantic_search: false,
-            research_questions: vec!["人员变化".into(), "技术决策".into()],
-        })
+        let plan = normalize_decision(
+            "分析人员变化和技术决策",
+            AiTaskPlanDecision {
+                intent: "overview".into(),
+                context_scope: "full".into(),
+                semantic_search: false,
+                research_questions: vec!["人员变化".into(), "技术决策".into()],
+            },
+        )
         .unwrap();
         assert_eq!(plan.intent, AgentIntent::Overview);
         assert_eq!(plan.context_scope, ContextScope::Full);
@@ -146,7 +209,7 @@ mod tests {
 
     #[test]
     fn fallback_is_conservative_without_matching_local_keywords() {
-        let plan = fallback_plan(true);
+        let plan = fallback_plan("普通问题", true);
         assert_eq!(plan.intent, AgentIntent::General);
         assert_eq!(plan.context_scope, ContextScope::Recent);
         assert!(plan.semantic_search);
@@ -154,14 +217,40 @@ mod tests {
 
     #[test]
     fn research_questions_always_enable_semantic_search() {
-        let plan = normalize_decision(AiTaskPlanDecision {
-            intent: "general".into(),
-            context_scope: "recent".into(),
-            semantic_search: false,
-            research_questions: vec!["设计决策".into()],
-        })
+        let plan = normalize_decision(
+            "查找设计决策",
+            AiTaskPlanDecision {
+                intent: "general".into(),
+                context_scope: "recent".into(),
+                semantic_search: false,
+                research_questions: vec!["设计决策".into()],
+            },
+        )
         .unwrap();
 
         assert!(plan.semantic_search);
+    }
+
+    #[test]
+    fn explicit_room_wide_overview_overrides_a_recent_general_plan() {
+        let plan = normalize_decision(
+            "这个对话都聊了些什么",
+            AiTaskPlanDecision {
+                intent: "general".into(),
+                context_scope: "recent".into(),
+                semantic_search: true,
+                research_questions: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(plan.intent, AgentIntent::Overview);
+        assert_eq!(plan.context_scope, ContextScope::Full);
+        assert!(!plan.semantic_search);
+    }
+
+    #[test]
+    fn a_recent_overview_remains_bounded() {
+        assert!(!requests_room_wide_overview("总结最近的聊天内容"));
     }
 }

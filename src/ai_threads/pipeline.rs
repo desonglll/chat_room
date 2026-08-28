@@ -57,7 +57,7 @@ pub(super) async fn generate_answer(
             Ok(plan) => plan,
             Err(error) => {
                 tracing::warn!(run_id = %execution.id, "planning agent failed; using safe fallback: {error:#}");
-                fallback_plan(has_room)
+                fallback_plan(&execution.question, has_room)
             }
         }
     };

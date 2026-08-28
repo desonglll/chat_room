@@ -3,7 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { DEFAULT_MAX_UPLOAD_BYTES, getCurrentUser, getPublicConfig, listRooms, logoutUser } from '../api'
 import { storageGet, storageSet } from '../browserStorage'
 import { clearBootstrapSnapshot, readBootstrapSnapshot, writeBootstrapSnapshot } from '../bootstrapSnapshot'
-import { clearPwaCaches } from '../pwa'
+import { clearPwaCaches, usePwa } from '../pwa'
 import { removeWebPushSubscription } from '../pushNotificationsApi'
 import { useDelayedVisibility } from './useDelayedVisibility'
 import type { AiRuntimeStatus, AuthSession, Room, User } from '../types'
@@ -30,6 +30,7 @@ export function shouldReconnectRestoredRoom(
 }
 
 export function useAppBootstrap(options: AppBootstrapOptions) {
+  usePwa()
   const route = useRoute()
   const router = useRouter()
   const routeRoomId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))

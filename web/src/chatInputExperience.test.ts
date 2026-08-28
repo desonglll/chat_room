@@ -6,10 +6,13 @@ function source(path: string): string {
 }
 
 describe('chat input experience contract', () => {
-  test('does not render an install action over workspace controls', () => {
-    const pwaStatus = source('./components/PwaStatusBar.vue')
-    expect(pwaStatus).not.toContain('安装')
-    expect(pwaStatus).not.toContain('installApp')
+  test('does not render PWA actions outside the fixed-height workspace', () => {
+    const app = source('./App.vue')
+    const bootstrap = source('./composables/useAppBootstrap.ts')
+    expect(app).not.toContain("import PwaStatusBar from './components/PwaStatusBar.vue'")
+    expect(app).not.toContain('<PwaStatusBar />')
+    expect(bootstrap).toContain("import { clearPwaCaches, usePwa } from '../pwa'")
+    expect(bootstrap).toContain('usePwa()')
   })
 
   test('uses one composer input in both chat and AI workspaces', () => {
