@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QCloseEvent, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -19,19 +19,24 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .ai_view import AiView
 from .api import ApiClient
 from .chat_view import ChatView
 from .contacts_view import ContactsView
+from .favorites_view import FavoritesView
 from .login_view import LoginView
 from .models import Conversation, FriendRequest, JsonObject, User
 from .notifications import NotificationManager
+from .notifications_view import NotificationsView
 from .realtime import RealtimeClient
+from .search_view import SearchView
 from .sidebar import Sidebar
 from .workspace_features import WorkspaceFeaturesMixin
 from .workspace_responses import WorkspaceResponsesMixin
+from .workspace_tools import WorkspaceToolsMixin
 
 
-class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
+class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, WorkspaceToolsMixin, QMainWindow):
     def __init__(self, server_url: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Echo Gate")
@@ -54,6 +59,15 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
         self._room_passwords: dict[str, str] = {}
         self._pending_room_id = ""
         self._pending_created_password = ""
+        self._pending_message_id = ""
+        self._ai_context_room_id = ""
+        self._pending_ai_question: tuple[str, str, list[str]] | None = None
+        self._preferred_ai_thread_id = ""
+        self._active_ai_run_id = ""
+        self._ai_poll_timer = QTimer(self)
+        self._ai_poll_timer.setSingleShot(True)
+        self._ai_poll_timer.setInterval(900)
+        self._ai_poll_timer.timeout.connect(self._poll_ai_run)
         self._max_upload_bytes = 50 * 1024 * 1024
         self._quitting = False
         self._build(server_url or str(self._settings.value("server/url", "http://127.0.0.1:3000")))
@@ -73,9 +87,17 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
         self._empty = self._empty_page()
         self._chat = ChatView()
         self._contacts = ContactsView()
+        self._search_view = SearchView()
+        self._notifications_view = NotificationsView()
+        self._favorites_view = FavoritesView()
+        self._ai_view = AiView()
         self._content.addWidget(self._empty)
         self._content.addWidget(self._chat)
         self._content.addWidget(self._contacts)
+        self._content.addWidget(self._search_view)
+        self._content.addWidget(self._notifications_view)
+        self._content.addWidget(self._favorites_view)
+        self._content.addWidget(self._ai_view)
         splitter.addWidget(self._content)
         splitter.setSizes([320, 900])
         splitter.setCollapsible(0, False)
@@ -113,6 +135,11 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
         self._sidebar.join_room_requested.connect(self._lookup_room)
         self._sidebar.profile_requested.connect(self._edit_profile)
         self._sidebar.logout_requested.connect(self._request_logout)
+        self._sidebar.search_requested.connect(self._open_search)
+        self._sidebar.notifications_requested.connect(self._open_notifications)
+        self._sidebar.favorites_requested.connect(self._open_favorites)
+        self._sidebar.ai_requested.connect(self._open_ai)
+        self._sidebar.preference_requested.connect(self._save_conversation_preferences)
         self._contacts.close_requested.connect(self._show_active_chat)
         self._contacts.search_requested.connect(self._api.search_users)
         self._contacts.action_requested.connect(self._contact_action)
@@ -126,6 +153,8 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
         self._chat.download_requested.connect(self._download_attachment)
         self._chat.forward_requested.connect(self._forward_message)
         self._chat.ai_requested.connect(self._request_ai_suggestions)
+        self._chat.ai_context_requested.connect(self._open_ai_context)
+        self._chat.favorite_requested.connect(self._favorite_message)
         self._chat.manage_members_requested.connect(self._manage_room_members)
         self._realtime.account_event.connect(self._account_event)
         self._realtime.room_event.connect(self._room_event)
@@ -133,6 +162,26 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
         self._notifications.open_requested.connect(self._raise_window)
         self._notifications.conversation_requested.connect(self._open_from_notification)
         self._notifications.quit_requested.connect(self._quit)
+        for view in (
+            self._search_view,
+            self._notifications_view,
+            self._favorites_view,
+            self._ai_view,
+        ):
+            view.close_requested.connect(self._show_active_chat)
+        self._search_view.search_requested.connect(self._run_search)
+        self._search_view.result_requested.connect(self._open_message)
+        self._notifications_view.refresh_requested.connect(self._api.notifications)
+        self._notifications_view.read_all_requested.connect(self._api.mark_all_notifications_read)
+        self._notifications_view.notification_requested.connect(self._open_notification)
+        self._favorites_view.refresh_requested.connect(self._api.favorites)
+        self._favorites_view.create_requested.connect(self._api.create_favorite)
+        self._favorites_view.update_requested.connect(self._api.update_favorite)
+        self._favorites_view.delete_requested.connect(self._delete_favorite)
+        self._favorites_view.source_requested.connect(self._open_message)
+        self._ai_view.new_thread_requested.connect(self._new_ai_thread)
+        self._ai_view.thread_requested.connect(self._api.ai_thread_messages)
+        self._ai_view.question_requested.connect(self._ask_ai)
 
     def _authenticate(self, mode: str, server: str, username: str, password: str) -> None:
         self._login.set_error("")
@@ -159,6 +208,7 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
         self._realtime.connect_account(self._api.server_url, token)
         self._api.conversations()
         self._api.public_config()
+        self._api.notification_unread_count()
         self._refresh_contacts()
         self.statusBar().showMessage("登录成功", 2200)
 
@@ -224,9 +274,15 @@ class MainWindow(WorkspaceResponsesMixin, WorkspaceFeaturesMixin, QMainWindow):
             self._api.conversations()
         elif kind == "social_changed":
             self._refresh_contacts()
+        elif kind == "notifications_changed":
+            self._sidebar.set_notification_count(int(event.get("unread_count", 0) or 0))
+            if self._content.currentWidget() is self._notifications_view:
+                self._api.notifications(self._notifications_view.kind)
 
     def _room_event(self, event: JsonObject) -> None:
         self._chat.apply_event(event)
+        if event.get("type") == "history_complete" and self._pending_message_id:
+            self._locate_or_load_message(self._active_room_id, self._pending_message_id)
         if event.get("type") in {"broadcast", "message_edited", "message_recalled"}:
             self._api.conversations()
 

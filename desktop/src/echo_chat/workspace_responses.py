@@ -5,6 +5,8 @@ from .models import Conversation, FriendRequest, Room, User
 
 class WorkspaceResponsesMixin:
     def _api_completed(self, operation: str, payload: object) -> None:
+        if self._tool_api_completed(operation, payload):
+            return
         if operation == "authenticate" and isinstance(payload, dict):
             self._complete_authentication(payload)
         elif operation == "conversations" and isinstance(payload, list):
@@ -12,7 +14,9 @@ class WorkspaceResponsesMixin:
             self._set_conversations(items)
         elif operation == "config" and isinstance(payload, dict):
             self._max_upload_bytes = int(payload.get("max_upload_bytes", self._max_upload_bytes))
-            self._chat.set_ai_enabled(bool(payload.get("ai_enabled", False)))
+            ai_enabled = bool(payload.get("ai_enabled", False))
+            self._chat.set_ai_enabled(ai_enabled)
+            self._sidebar.set_ai_enabled(ai_enabled)
         elif operation == "rooms" and isinstance(payload, list):
             rooms = [Room.from_dict(item) for item in payload if isinstance(item, dict)]
             self._show_room_directory(rooms)
@@ -75,6 +79,8 @@ class WorkspaceResponsesMixin:
             self._finish_logout()
 
     def _api_failed(self, operation: str, message: str, status: int) -> None:
+        if self._tool_api_failed(operation, message):
+            return
         if operation == "authenticate":
             self._login.set_loading(False)
             self._login.set_error(message)

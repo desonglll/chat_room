@@ -18,6 +18,7 @@ from .workspace_actions import (
 class WorkspaceFeaturesMixin:
     def _set_conversations(self, conversations: list[Conversation]) -> None:
         self._conversations = {item.room_id: item for item in conversations}
+        self._search_view.set_conversations(conversations)
         self._render_conversations()
         if self._pending_room_id:
             room_id, self._pending_room_id = self._pending_room_id, ""
@@ -28,6 +29,12 @@ class WorkspaceFeaturesMixin:
             self._conversations.values(),
             key=lambda item: item.last_activity_at,
             reverse=True,
+        )
+        ordered.sort(
+            key=lambda item: (
+                item.preferences.is_archived,
+                not item.preferences.is_pinned if not item.preferences.is_archived else False,
+            )
         )
         self._sidebar.set_conversations(ordered)
 

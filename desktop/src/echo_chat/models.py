@@ -63,6 +63,27 @@ class Room:
 
 
 @dataclass(frozen=True, slots=True)
+class ConversationPreferences:
+    room_id: str = ""
+    is_pinned: bool = False
+    is_archived: bool = False
+    notification_level: str = "all"
+    muted_until: str = ""
+    updated_at: str = ""
+
+    @classmethod
+    def from_dict(cls, value: JsonObject) -> ConversationPreferences:
+        return cls(
+            room_id=str(value.get("room_id", "")),
+            is_pinned=bool(value.get("is_pinned", False)),
+            is_archived=bool(value.get("is_archived", False)),
+            notification_level=str(value.get("notification_level", "all")),
+            muted_until=str(value.get("muted_until") or ""),
+            updated_at=str(value.get("updated_at", "")),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Conversation:
     room_id: str
     kind: str
@@ -76,6 +97,7 @@ class Conversation:
     peer: User | None = None
     has_password: bool = False
     membership_role: str = "member"
+    preferences: ConversationPreferences = field(default_factory=ConversationPreferences)
 
     @property
     def preview(self) -> str:
@@ -106,6 +128,7 @@ class Conversation:
             peer=User.from_dict(peer_value) if isinstance(peer_value, dict) else None,
             has_password=bool(group.get("has_password", False)),
             membership_role=str(group.get("membership_role") or "member"),
+            preferences=ConversationPreferences.from_dict(value.get("preferences") or {}),
         )
 
 

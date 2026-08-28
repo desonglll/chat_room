@@ -15,8 +15,17 @@ Native PySide6 client for Echo Gate. It uses the same HTTP and WebSocket contrac
 - Profile editing for avatar, display name, signature, and homepage.
 - Account WebSocket updates for new messages, unread counts, and social changes.
 - System tray notifications that open the relevant conversation when clicked.
+- Global message search with Room/type filters and reliable jumps to older results.
+- A server-backed notification center with filters, unread state, and source navigation.
+- Per-conversation pin, archive, notification-level, and timed-mute preferences.
+- Favorite list/create/edit/delete plus one-click message favorites and source navigation.
+- Durable AI threads, multi-message selected context, source citations, and run polling.
 
 Direct messages use the same room transport and message timeline as group chats; the server keeps them private to exactly two members.
+
+See the [client capability matrix](../docs/client-capability-matrix.md) for the
+frozen Web/Desktop/CLI contract boundary and intentionally Web-only advanced
+surfaces.
 
 ## Run locally
 

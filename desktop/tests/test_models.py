@@ -11,12 +11,20 @@ def test_conversation_parses_direct_room_and_preview() -> None:
             "peer": {"id": "user-2", "username": "shinoda", "display_name": "Shinoda"},
             "last_message": {"content": "hello", "recalled": False},
             "unread_count": 2,
+            "preferences": {
+                "room_id": "room-1",
+                "is_pinned": True,
+                "is_archived": False,
+                "notification_level": "mentions",
+            },
         }
     )
 
     assert conversation.peer == User("user-2", "shinoda", display_name="Shinoda")
     assert conversation.preview == "hello"
     assert conversation.unread_count == 2
+    assert conversation.preferences.is_pinned
+    assert conversation.preferences.notification_level == "mentions"
 
 
 def test_message_accepts_websocket_and_history_shapes() -> None:

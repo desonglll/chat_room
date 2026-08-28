@@ -116,6 +116,7 @@ tests, and the complete CI release gate are described in
 
 - [Browser client](web/README.md)
 - [Desktop client](desktop/README.md)
+- [Web/Desktop/CLI capability matrix](docs/client-capability-matrix.md)
 - [Brand and interface system](design/README.md)
 
 <p align="center">

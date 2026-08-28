@@ -16,7 +16,7 @@ def application_stylesheet() -> str:
         border-radius: 8px;
     }
     QWidget#sidebar { background: #ffffff; border-right: 1px solid #dce6e2; }
-    QWidget#chatPage, QWidget#contactsPage { background: #f7faf9; }
+    QWidget#chatPage, QWidget#contactsPage, QWidget#featurePage { background: #f7faf9; }
     QFrame#topBar { background: #ffffff; border-bottom: 1px solid #dce6e2; }
     QLabel#brandTitle { font-size: 17px; font-weight: 700; }
     QLabel#pageTitle { font-size: 16px; font-weight: 650; }
@@ -63,6 +63,14 @@ def application_stylesheet() -> str:
     QListWidget { background: transparent; border: 0; outline: 0; }
     QListWidget::item { border: 0; padding: 0; }
     QListWidget::item:selected { background: transparent; }
+    QListWidget#featureList {
+        background: #ffffff; border: 1px solid #dce6e2; border-radius: 7px;
+    }
+    QListWidget#featureList::item {
+        min-height: 42px; padding: 8px 10px; border-bottom: 1px solid #eef4f1;
+    }
+    QListWidget#featureList::item:hover { background: #eef4f1; }
+    QListWidget#featureList::item:selected { background: #ddf4ec; color: #172321; }
     QFrame#conversationRow { background: transparent; border-radius: 7px; }
     QFrame#conversationRow[selected="true"] { background: #e6f5f0; }
     QFrame#contactRow { background: #ffffff; border-bottom: 1px solid #eef4f1; }
@@ -86,6 +94,15 @@ def application_stylesheet() -> str:
         background: #ddf4ec;
         border: 1px solid #b8e5d7;
         border-radius: 8px;
+    }
+    QFrame#incomingBubble[contextSelected="true"], QFrame#outgoingBubble[contextSelected="true"] {
+        border: 2px solid #087f6b;
+    }
+    QFrame#incomingBubble[jumpTarget="true"], QFrame#outgoingBubble[jumpTarget="true"] {
+        border: 2px solid #b9770e;
+    }
+    QFrame#selectedContext {
+        background: #eef7ff; border: 1px solid #bfd8ee; border-radius: 7px;
     }
     QFrame#systemMessage { background: transparent; }
     QPushButton[reaction="true"] {

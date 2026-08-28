@@ -1,12 +1,50 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 
 from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 from PySide6.QtNetwork import QAbstractSocket
 from PySide6.QtWebSockets import QWebSocket
+
+
+class WebSocketAdapter(Protocol):
+    connected: Any
+    disconnected: Any
+    text_received: Any
+    error: Any
+
+    def open(self, url: QUrl) -> None: ...
+    def close(self) -> None: ...
+    def abort(self) -> None: ...
+    def is_connected(self) -> bool: ...
+    def send_text(self, message: str) -> None: ...
+
+
+class QtWebSocketAdapter:
+    def __init__(self, parent: QObject) -> None:
+        self._socket = QWebSocket(parent=parent)
+        self.connected = self._socket.connected
+        self.disconnected = self._socket.disconnected
+        self.text_received = self._socket.textMessageReceived
+        self.error = self._socket.errorOccurred
+
+    def open(self, url: QUrl) -> None:
+        self._socket.open(url)
+
+    def close(self) -> None:
+        self._socket.close()
+
+    def abort(self) -> None:
+        self._socket.abort()
+
+    def is_connected(self) -> bool:
+        return self._socket.state() == QAbstractSocket.SocketState.ConnectedState
+
+    def send_text(self, message: str) -> None:
+        self._socket.sendTextMessage(message)
 
 
 class RealtimeClient(QObject):
@@ -17,10 +55,15 @@ class RealtimeClient(QObject):
     account_status = Signal(str)
     room_status = Signal(str)
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        parent: QObject | None = None,
+        socket_factory: Callable[[QObject], WebSocketAdapter] | None = None,
+    ) -> None:
         super().__init__(parent)
-        self._account = QWebSocket(parent=self)
-        self._room = QWebSocket(parent=self)
+        factory = socket_factory or QtWebSocketAdapter
+        self._account = factory(self)
+        self._room = factory(self)
         self._account_timer = QTimer(self)
         self._account_timer.setSingleShot(True)
         self._account_timer.setInterval(1200)
@@ -98,12 +141,12 @@ class RealtimeClient(QObject):
     def _connect_signals(self) -> None:
         self._account.connected.connect(self._account_connected)
         self._account.disconnected.connect(self._account_disconnected)
-        self._account.textMessageReceived.connect(self._account_message)
-        self._account.errorOccurred.connect(lambda _: self.account_status.emit("offline"))
+        self._account.text_received.connect(self._account_message)
+        self._account.error.connect(lambda _: self.account_status.emit("offline"))
         self._room.connected.connect(self._room_connected)
         self._room.disconnected.connect(self._room_disconnected)
-        self._room.textMessageReceived.connect(self._room_message)
-        self._room.errorOccurred.connect(lambda _: self.room_status.emit("offline"))
+        self._room.text_received.connect(self._room_message)
+        self._room.error.connect(lambda _: self.room_status.emit("offline"))
         self._account_timer.timeout.connect(self._open_account)
         self._room_timer.timeout.connect(self._open_room)
 
@@ -157,14 +200,14 @@ class RealtimeClient(QObject):
         self.room_event.emit(event)
 
     def _send_room(self, payload: dict[str, Any]) -> bool:
-        if self._room.state() != QAbstractSocket.SocketState.ConnectedState:
+        if not self._room.is_connected():
             return False
         self._send(self._room, payload)
         return True
 
     @staticmethod
-    def _send(socket: QWebSocket, payload: dict[str, Any]) -> None:
-        socket.sendTextMessage(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    def _send(socket: WebSocketAdapter, payload: dict[str, Any]) -> None:
+        socket.send_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
 def websocket_url(server_url: str, path: str) -> str:

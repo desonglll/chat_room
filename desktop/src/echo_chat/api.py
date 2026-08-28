@@ -14,8 +14,10 @@ from PySide6.QtNetwork import (
     QNetworkRequest,
 )
 
+from .feature_api import FeatureApiMixin
 
-class ApiClient(QObject):
+
+class ApiClient(FeatureApiMixin, QObject):
     """Qt-native HTTP adapter for the server operations used by the desktop client."""
 
     completed = Signal(str, object)
@@ -43,7 +45,7 @@ class ApiClient(QObject):
     def authenticate(self, mode: str, server_url: str, username: str, password: str) -> None:
         self._server_url = normalize_server_url(server_url)
         endpoint = "register" if mode == "register" else "login"
-        self._request(
+        self.request_json(
             "authenticate",
             "POST",
             f"/api/users/{endpoint}",
@@ -52,20 +54,20 @@ class ApiClient(QObject):
         )
 
     def logout(self) -> None:
-        self._request("logout", "POST", "/api/users/logout")
+        self.request_json("logout", "POST", "/api/users/logout")
 
     def public_config(self) -> None:
-        self._request("config", "GET", "/api/config", authenticated=False)
+        self.request_json("config", "GET", "/api/config", authenticated=False)
 
     def conversations(self) -> None:
-        self._request("conversations", "GET", "/api/conversations")
+        self.request_json("conversations", "GET", "/api/conversations")
 
     def rooms(self) -> None:
-        self._request("rooms", "GET", "/api/rooms")
+        self.request_json("rooms", "GET", "/api/rooms")
 
     def get_room(self, room_id: str) -> None:
         room_path = quote(room_id.strip(), safe="")
-        self._request("room-lookup", "GET", f"/api/rooms/{room_path}")
+        self.request_json("room-lookup", "GET", f"/api/rooms/{room_path}")
 
     def create_room(
         self,
@@ -75,7 +77,7 @@ class ApiClient(QObject):
         avatar_emoji: str,
         description: str,
     ) -> None:
-        self._request(
+        self.request_json(
             "create-room",
             "POST",
             "/api/rooms",
@@ -90,7 +92,7 @@ class ApiClient(QObject):
 
     def join_room(self, room_id: str, password: str) -> None:
         room_path = quote(room_id, safe="")
-        self._request(
+        self.request_json(
             f"join-room:{room_id}",
             "POST",
             f"/api/rooms/{room_path}/join-requests",
@@ -98,10 +100,10 @@ class ApiClient(QObject):
         )
 
     def update_profile(self, payload: dict[str, str]) -> None:
-        self._request("update-profile", "PATCH", "/api/users/me", payload)
+        self.request_json("update-profile", "PATCH", "/api/users/me", payload)
 
     def forward_messages(self, message_ids: list[str], target_room_ids: list[str]) -> None:
-        self._request(
+        self.request_json(
             "forward-messages",
             "POST",
             "/api/messages/forward",
@@ -110,15 +112,15 @@ class ApiClient(QObject):
 
     def ai_suggestions(self, room_id: str) -> None:
         room_path = quote(room_id, safe="")
-        self._request("ai-suggestions", "POST", f"/api/rooms/{room_path}/ai/suggest")
+        self.request_json("ai-suggestions", "POST", f"/api/rooms/{room_path}/ai/suggest")
 
     def room_members(self, room_id: str) -> None:
         room_path = quote(room_id, safe="")
-        self._request(f"room-members:{room_id}", "GET", f"/api/rooms/{room_path}/members")
+        self.request_json(f"room-members:{room_id}", "GET", f"/api/rooms/{room_path}/members")
 
     def invite_room_member(self, room_id: str, username: str) -> None:
         room_path = quote(room_id, safe="")
-        self._request(
+        self.request_json(
             f"invite-member:{room_id}",
             "POST",
             f"/api/rooms/{room_path}/invitations",
@@ -131,7 +133,7 @@ class ApiClient(QObject):
         payload: dict[str, str] = {"action": action}
         if role:
             payload["role"] = role
-        self._request(
+        self.request_json(
             f"member-action:{room_id}",
             "PATCH",
             f"/api/rooms/{room_path}/members/{user_path}",
@@ -139,21 +141,21 @@ class ApiClient(QObject):
         )
 
     def friends(self) -> None:
-        self._request("friends", "GET", "/api/friends")
+        self.request_json("friends", "GET", "/api/friends")
 
     def friend_requests(self, direction: str) -> None:
         query = urlencode({"direction": direction})
-        self._request(f"requests:{direction}", "GET", f"/api/friend-requests?{query}")
+        self.request_json(f"requests:{direction}", "GET", f"/api/friend-requests?{query}")
 
     def blocks(self) -> None:
-        self._request("blocks", "GET", "/api/blocks")
+        self.request_json("blocks", "GET", "/api/blocks")
 
     def search_users(self, query: str) -> None:
         encoded = urlencode({"q": query, "limit": 30})
-        self._request("user-search", "GET", f"/api/users/search?{encoded}")
+        self.request_json("user-search", "GET", f"/api/users/search?{encoded}")
 
     def start_direct(self, user_id: str) -> None:
-        self._request("start-direct", "POST", "/api/direct-chats", {"user_id": user_id})
+        self.request_json("start-direct", "POST", "/api/direct-chats", {"user_id": user_id})
 
     def social_action(self, action: str, user_id: str) -> None:
         user_path = quote(user_id, safe="")
@@ -169,7 +171,7 @@ class ApiClient(QObject):
         if action not in mapping:
             raise ValueError(f"unsupported social action: {action}")
         method, path, payload = mapping[action]
-        self._request(f"social:{action}", method, path, payload)
+        self.request_json(f"social:{action}", method, path, payload)
 
     def upload_attachment(
         self,
@@ -226,15 +228,18 @@ class ApiClient(QObject):
             lambda active=reply, output=target, path=destination: self._finish_download(active, output, path)
         )
 
-    def _request(
+    def request_json(
         self,
         operation: str,
         method: str,
         path: str,
         payload: dict[str, Any] | None = None,
         authenticated: bool = True,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         request = self._request_headers(path, authenticated)
+        for name, value in (extra_headers or {}).items():
+            request.setRawHeader(name.encode("ascii"), value.encode("utf-8"))
         body = QByteArray()
         if payload is not None:
             request.setHeader(QNetworkRequest.ContentTypeHeader, "application/json")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
@@ -21,6 +23,8 @@ from .ui_common import AvatarLabel, format_time
 
 
 class ConversationRow(QFrame):
+    preference_requested = Signal(str, object)
+
     def __init__(self, conversation: Conversation, parent: QWidget | None = None) -> None:
         super().__init__(parent, objectName="conversationRow")
         self.conversation = conversation
@@ -34,8 +38,18 @@ class ConversationRow(QFrame):
         title = QLabel(conversation.title)
         title.setStyleSheet("font-weight:650;")
         heading.addWidget(title, 1)
+        if conversation.preferences.is_pinned:
+            heading.addWidget(QLabel("置顶", objectName="muted"))
+        if conversation.preferences.is_archived:
+            heading.addWidget(QLabel("归档", objectName="muted"))
         time = QLabel(format_time(conversation.last_activity_at), objectName="muted")
         heading.addWidget(time)
+        options = QToolButton()
+        options.setText("⋯")
+        options.setToolTip("会话设置")
+        options.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        options.setMenu(self._preference_menu(options))
+        heading.addWidget(options)
         copy.addLayout(heading)
         preview_row = QHBoxLayout()
         preview = QLabel(conversation.preview, objectName="muted")
@@ -51,6 +65,35 @@ class ConversationRow(QFrame):
             preview_row.addWidget(badge)
         copy.addLayout(preview_row)
         layout.addLayout(copy, 1)
+
+    def _preference_menu(self, parent: QToolButton) -> QMenu:
+        preferences = self.conversation.preferences
+        menu = QMenu(parent)
+        pin = menu.addAction("取消置顶" if preferences.is_pinned else "置顶会话")
+        pin.triggered.connect(lambda: self._save({"is_pinned": not preferences.is_pinned}))
+        archive = menu.addAction("移出归档" if preferences.is_archived else "归档会话")
+        archive.triggered.connect(lambda: self._save({"is_archived": not preferences.is_archived}))
+        notification = menu.addMenu("通知级别")
+        for label, level in (("全部消息", "all"), ("仅提及", "mentions"), ("不通知", "none")):
+            action = notification.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(preferences.notification_level == level)
+            action.triggered.connect(lambda _, value=level: self._save({"notification_level": value}))
+        mute = menu.addMenu("静音")
+        for label, hours in (("1 小时", 1), ("8 小时", 8), ("1 天", 24)):
+            action = mute.addAction(label)
+            action.triggered.connect(lambda _, value=hours: self._mute(value))
+        clear = mute.addAction("取消静音")
+        clear.setEnabled(bool(preferences.muted_until))
+        clear.triggered.connect(lambda: self._save({"muted_until": None}))
+        return menu
+
+    def _mute(self, hours: int) -> None:
+        until = (datetime.now(UTC) + timedelta(hours=hours)).isoformat().replace("+00:00", "Z")
+        self._save({"muted_until": until})
+
+    def _save(self, patch: dict[str, object]) -> None:
+        self.preference_requested.emit(self.conversation.room_id, patch)
 
     def set_selected(self, selected: bool) -> None:
         self.setProperty("selected", selected)
@@ -78,6 +121,11 @@ class Sidebar(QWidget):
     join_room_requested = Signal()
     profile_requested = Signal()
     logout_requested = Signal()
+    search_requested = Signal()
+    notifications_requested = Signal()
+    favorites_requested = Signal()
+    ai_requested = Signal()
+    preference_requested = Signal(str, object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent, objectName="sidebar")
@@ -116,6 +164,17 @@ class Sidebar(QWidget):
         self._search.setClearButtonEnabled(True)
         self._search.textChanged.connect(self._filter)
         layout.addWidget(self._search)
+        tools = QHBoxLayout()
+        self._search_button = self._tool_button("搜索", "搜索所有消息", self.search_requested)
+        tools.addWidget(self._search_button)
+        self._notifications_button = self._tool_button("通知", "打开通知中心", self.notifications_requested)
+        tools.addWidget(self._notifications_button)
+        self._favorites_button = self._tool_button("收藏", "打开收藏", self.favorites_requested)
+        tools.addWidget(self._favorites_button)
+        self._ai_button = self._tool_button("AI", "打开 AI 助手", self.ai_requested)
+        self._ai_button.hide()
+        tools.addWidget(self._ai_button)
+        layout.addLayout(tools)
         self._list = ConversationList()
         self._list.setSpacing(2)
         self._list.currentItemChanged.connect(self._selection_changed)
@@ -156,11 +215,18 @@ class Sidebar(QWidget):
             item.setSizeHint(QSize(0, 68))
             self._list.addItem(item)
             row = ConversationRow(conversation)
+            row.preference_requested.connect(self.preference_requested)
             self._rows[conversation.room_id] = row
             self._list.setItemWidget(item, row)
             if conversation.room_id == selected:
                 self._list.setCurrentItem(item)
         self._filter(self._search.text())
+
+    def set_notification_count(self, count: int) -> None:
+        self._notifications_button.setText("通知" if count <= 0 else f"通知 {min(count, 99)}")
+
+    def set_ai_enabled(self, enabled: bool) -> None:
+        self._ai_button.setVisible(enabled)
 
     @property
     def current_room_id(self) -> str:
@@ -196,3 +262,11 @@ class Sidebar(QWidget):
             room_id = str(current.data(Qt.UserRole))
             if row := self._rows.get(room_id):
                 row.set_selected(True)
+
+    @staticmethod
+    def _tool_button(label: str, tooltip: str, signal: Signal) -> QPushButton:
+        button = QPushButton(label)
+        button.setToolTip(tooltip)
+        button.setFixedHeight(32)
+        button.clicked.connect(signal)
+        return button

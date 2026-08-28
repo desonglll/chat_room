@@ -16,6 +16,8 @@ class MessageBubble(QFrame):
     recall_requested = Signal(str)
     forward_requested = Signal(str)
     attachment_requested = Signal(object)
+    favorite_requested = Signal(str)
+    context_toggle_requested = Signal(str)
 
     def __init__(
         self,
@@ -29,6 +31,7 @@ class MessageBubble(QFrame):
         self._message = message
         self._current_user_id = current_user_id
         self._own = own
+        self._context_selected = False
         self.setMaximumWidth(620)
         self.setMinimumWidth(180)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -41,6 +44,12 @@ class MessageBubble(QFrame):
     def update_message(self, message: Message) -> None:
         self._message = message
         self._render()
+
+    def set_context_selected(self, selected: bool) -> None:
+        self._context_selected = selected
+        self.setProperty("contextSelected", selected)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _render(self) -> None:
         clear_layout(self._layout)
@@ -149,6 +158,10 @@ class MessageBubble(QFrame):
         reply.triggered.connect(lambda: self.reply_requested.emit(self._message))
         forward = menu.addAction("转发")
         forward.triggered.connect(lambda: self.forward_requested.emit(self._message.message_id))
+        favorite = menu.addAction("收藏")
+        favorite.triggered.connect(lambda: self.favorite_requested.emit(self._message.message_id))
+        context = menu.addAction("移出 AI 上下文" if self._context_selected else "加入 AI 上下文")
+        context.triggered.connect(lambda: self.context_toggle_requested.emit(self._message.message_id))
         if self._own and not self._message.recalled:
             edit = menu.addAction("编辑")
             edit.triggered.connect(

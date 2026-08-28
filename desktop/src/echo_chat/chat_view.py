@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .chat_context import ChatContextMixin
 from .message_bubble import MessageBubble
 from .models import Conversation, JsonObject, Message
 from .timeline import MessageTimeline
@@ -32,7 +33,7 @@ class ComposerEdit(QTextEdit):
         super().keyPressEvent(event)
 
 
-class ChatView(QWidget):
+class ChatView(ChatContextMixin, QWidget):
     send_requested = Signal(str, str)
     edit_requested = Signal(str, str)
     recall_requested = Signal(str)
@@ -43,6 +44,8 @@ class ChatView(QWidget):
     download_requested = Signal(object)
     forward_requested = Signal(str)
     ai_requested = Signal()
+    ai_context_requested = Signal(object)
+    favorite_requested = Signal(str)
     manage_members_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -52,6 +55,7 @@ class ChatView(QWidget):
         self._timeline = MessageTimeline()
         self._bubbles: dict[str, MessageBubble] = {}
         self._reply_to: Message | None = None
+        self._selected_ids: list[str] = []
         self._ai_enabled = False
         self._online = False
         self._typing_timer = QTimer(self)
@@ -96,6 +100,21 @@ class ChatView(QWidget):
         composer_layout = QVBoxLayout(composer_panel)
         composer_layout.setContentsMargins(16, 8, 16, 14)
         composer_layout.setSpacing(7)
+        self._context_bar = QFrame(objectName="selectedContext")
+        context_layout = QHBoxLayout(self._context_bar)
+        context_layout.setContentsMargins(8, 4, 4, 4)
+        self._context_label = QLabel()
+        context_layout.addWidget(self._context_label, 1)
+        self._ask_context_button = QPushButton("询问 AI")
+        self._ask_context_button.clicked.connect(
+            lambda: self.ai_context_requested.emit(list(self._selected_ids))
+        )
+        context_layout.addWidget(self._ask_context_button)
+        clear_context = QPushButton("清除")
+        clear_context.clicked.connect(self.clear_ai_context)
+        context_layout.addWidget(clear_context)
+        self._context_bar.hide()
+        composer_layout.addWidget(self._context_bar)
         self._reply_bar = QFrame()
         reply_layout = QHBoxLayout(self._reply_bar)
         reply_layout.setContentsMargins(8, 4, 4, 4)
@@ -148,6 +167,8 @@ class ChatView(QWidget):
         self._conversation = conversation
         self._timeline.clear()
         self._bubbles.clear()
+        self._selected_ids.clear()
+        self._context_bar.hide()
         clear_layout(self._messages)
         self._messages.addStretch()
         self._title.setText(conversation.title)
@@ -184,6 +205,7 @@ class ChatView(QWidget):
         self._ai_enabled = enabled
         self._ai_button.setVisible(enabled)
         self._ai_button.setEnabled(enabled and self._online)
+        self._ask_context_button.setEnabled(enabled)
 
     def set_ai_loading(self) -> None:
         self._ai_button.setEnabled(False)
@@ -219,6 +241,8 @@ class ChatView(QWidget):
             elif change.kind == "updated" and change.message:
                 if bubble := self._bubbles.get(change.message_id):
                     bubble.update_message(change.message)
+                if change.message.recalled and change.message_id in self._selected_ids:
+                    self._toggle_ai_context(change.message_id)
             return
         if kind == "system":
             self._add_system(str(event.get("content", "")))
@@ -249,6 +273,8 @@ class ChatView(QWidget):
         bubble.recall_requested.connect(self.recall_requested)
         bubble.forward_requested.connect(self.forward_requested)
         bubble.attachment_requested.connect(self.download_requested)
+        bubble.favorite_requested.connect(self.favorite_requested)
+        bubble.context_toggle_requested.connect(self._toggle_ai_context)
         row = QWidget()
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
