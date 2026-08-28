@@ -352,7 +352,7 @@ onUnmounted(() => {
 <template>
   <main
     :id="embedded ? 'room-ai-panel' : 'workspace-main'"
-    class="cr-page flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    class="cr-page grid h-full min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
     :class="
       embedded
         ? 'absolute inset-0 z-40 border-l border-surface-200 bg-surface-0 md:relative md:inset-auto md:z-auto'
@@ -365,89 +365,97 @@ onUnmounted(() => {
       :embedded="embedded"
       @back="emit('back')"
     />
-    <Message
-      v-if="!aiReady && aiStatus === 'missing_credentials'"
-      severity="warn"
-      :closable="false"
-      class="m-4 sm:mx-7"
-    >
-      当前没有凭据完整的模型配置，请在系统后台检查 API key 环境变量。
-    </Message>
-    <Message v-else-if="!aiReady && aiStatus === 'disabled'" severity="secondary" :closable="false" class="m-4 sm:mx-7">
-      AI 功能当前已关闭。
-    </Message>
-    <section
-      class="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
-      :class="embedded ? '' : 'md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1'"
-    >
-      <AiThreadSidebar
-        v-if="!embedded"
-        :threads="threads"
-        :active-id="activeThreadId"
-        :busy="loading || loadingThreads"
-        @create="createSession"
-        @select="selectSession"
-        @delete="removeSession"
-      />
-      <AiSourceDetailsPage
-        v-if="sourceMessage"
-        :message="sourceMessage"
-        :room-title="activeRoom?.name || ''"
-        @back="closeSourceDetails"
-      />
-      <div v-else class="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden">
-        <AiAssistantToolbar
-          v-model:password="roomPassword"
-          :models="modelOptions"
-          :model-id="selectedModelId"
-          :room="activeRoom"
-          :thinking-enabled="activeThread?.thinking_enabled || false"
-          :ai-ready="aiReady"
-          :loading="loading"
-          :locked-room="embedded"
-          :compact="embedded"
-          @clear-room="clearRoom"
-          @thinking="setThinking"
-          @model="selectedModelId = $event"
-          @quick="submit"
+    <div class="flex min-h-0 flex-col overflow-hidden">
+      <Message
+        v-if="!aiReady && aiStatus === 'missing_credentials'"
+        severity="warn"
+        :closable="false"
+        class="m-4 sm:mx-7"
+      >
+        当前没有凭据完整的模型配置，请在系统后台检查 API key 环境变量。
+      </Message>
+      <Message
+        v-else-if="!aiReady && aiStatus === 'disabled'"
+        severity="secondary"
+        :closable="false"
+        class="m-4 sm:mx-7"
+      >
+        AI 功能当前已关闭。
+      </Message>
+      <section
+        class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
+        :class="embedded ? '' : 'md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1'"
+      >
+        <AiThreadSidebar
+          v-if="!embedded"
+          :threads="threads"
+          :active-id="activeThreadId"
+          :busy="loading || loadingThreads"
+          @create="createSession"
+          @select="selectSession"
+          @delete="removeSession"
         />
-        <AiSelectedContextBar
-          v-if="selectedMessages?.length"
-          :messages="selectedMessages"
-          @clear="emit('clearSelectedMessages')"
-        />
-        <AiMessageList
-          ref="messageList"
-          :messages="messages"
+        <AiSourceDetailsPage
+          v-if="sourceMessage"
+          :message="sourceMessage"
           :room-title="activeRoom?.name || ''"
-          :save-favorite="saveFavorite"
-          @sources="openSourceDetails"
+          @back="closeSourceDetails"
         />
-        <ComposerInput
-          ref="promptInput"
-          v-model="prompt"
-          form-id="ai-assistant-query-form"
-          :disabled="loading || !aiReady"
-          :can-send="aiReady && Boolean(prompt.trim())"
-          :loading="loading"
-          :aria-expanded="Boolean(mentionRange)"
-          :max-length="4000"
-          aria-label="向 AI 助手提问"
-          placeholder="发送消息，输入 @ 引用聊天会话"
-          @caret="handlePromptInput"
-          @keydown="handlePromptKeydown"
-          @submit="submit()"
-        >
-          <template #popover>
-            <AiConversationMentionMenu
-              :range="mentionRange"
-              :candidates="mentionCandidates"
-              :active-index="mentionIndex"
-              @choose="chooseConversation"
-            />
-          </template>
-        </ComposerInput>
-      </div>
-    </section>
+        <div v-else class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <AiAssistantToolbar
+            v-model:password="roomPassword"
+            :models="modelOptions"
+            :model-id="selectedModelId"
+            :room="activeRoom"
+            :thinking-enabled="activeThread?.thinking_enabled || false"
+            :ai-ready="aiReady"
+            :loading="loading"
+            :locked-room="embedded"
+            :compact="embedded"
+            @clear-room="clearRoom"
+            @thinking="setThinking"
+            @model="selectedModelId = $event"
+            @quick="submit"
+          />
+          <AiSelectedContextBar
+            v-if="selectedMessages?.length"
+            :messages="selectedMessages"
+            @clear="emit('clearSelectedMessages')"
+          />
+          <AiMessageList
+            ref="messageList"
+            class="min-h-0 flex-1 overflow-hidden"
+            :messages="messages"
+            :room-title="activeRoom?.name || ''"
+            :save-favorite="saveFavorite"
+            @sources="openSourceDetails"
+          />
+          <ComposerInput
+            ref="promptInput"
+            v-model="prompt"
+            form-id="ai-assistant-query-form"
+            :disabled="loading || !aiReady"
+            :can-send="aiReady && Boolean(prompt.trim())"
+            :loading="loading"
+            :aria-expanded="Boolean(mentionRange)"
+            :max-length="4000"
+            aria-label="向 AI 助手提问"
+            placeholder="发送消息，输入 @ 引用聊天会话"
+            @caret="handlePromptInput"
+            @keydown="handlePromptKeydown"
+            @submit="submit()"
+          >
+            <template #popover>
+              <AiConversationMentionMenu
+                :range="mentionRange"
+                :candidates="mentionCandidates"
+                :active-index="mentionIndex"
+                @choose="chooseConversation"
+              />
+            </template>
+          </ComposerInput>
+        </div>
+      </section>
+    </div>
   </main>
 </template>

@@ -6,6 +6,12 @@ export function isPwaStaticCache(name: string): boolean {
   return name.startsWith(PWA_CACHE_PREFIX)
 }
 
+export function activateServiceWorker(worker: Pick<ServiceWorker, 'postMessage'> | null | undefined): boolean {
+  if (!worker) return false
+  worker.postMessage({ type: 'SKIP_WAITING' })
+  return true
+}
+
 export async function clearPwaCaches(storage: Pick<CacheStorage, 'keys' | 'delete'> | undefined = globalThis.caches) {
   if (!storage) return
   const names = await storage.keys()
@@ -26,7 +32,9 @@ export function usePwa() {
   function watchInstalling(worker: ServiceWorker | null): void {
     if (!worker) return
     worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed' && navigator.serviceWorker.controller) updateAvailable.value = true
+      if (worker.state !== 'installed' || !navigator.serviceWorker.controller) return
+      updateAvailable.value = true
+      activateServiceWorker(worker)
     })
   }
 
@@ -35,6 +43,7 @@ export function usePwa() {
     try {
       registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
       updateAvailable.value = Boolean(registration.waiting)
+      activateServiceWorker(registration.waiting)
       registration.addEventListener('updatefound', () => watchInstalling(registration?.installing || null))
     } catch {
       // PWA support is optional; the connected web app remains fully usable.
@@ -42,7 +51,7 @@ export function usePwa() {
   }
 
   function applyUpdate(): void {
-    registration?.waiting?.postMessage({ type: 'SKIP_WAITING' })
+    activateServiceWorker(registration?.waiting)
   }
 
   function reloadForUpdate(): void {

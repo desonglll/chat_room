@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { clearPwaCaches, isPwaStaticCache } from './pwa'
+import { activateServiceWorker, clearPwaCaches, isPwaStaticCache } from './pwa'
 
 describe('PWA cache privacy boundary', () => {
   test('recognizes only the static application cache namespace', () => {
@@ -18,5 +18,12 @@ describe('PWA cache privacy boundary', () => {
       },
     })
     expect(deleted).toEqual(['echo-gate-static-old'])
+  })
+
+  test('activates a waiting worker without an update prompt', () => {
+    const messages: unknown[] = []
+    expect(activateServiceWorker({ postMessage: (message) => messages.push(message) })).toBe(true)
+    expect(activateServiceWorker(null)).toBe(false)
+    expect(messages).toEqual([{ type: 'SKIP_WAITING' }])
   })
 })

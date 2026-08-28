@@ -30,9 +30,15 @@ describe('chat input experience contract', () => {
     const workspace = source('./workspace.css')
     expect(workspace).toContain('height: 100%;')
     expect(workspace).toContain('overflow: hidden;')
-    expect(assistant).toContain('class="cr-page flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"')
-    expect(assistant).toContain('class="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"')
-    expect(assistant).toContain('grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden')
+    expect(assistant).toContain(
+      'class="cr-page grid h-full min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"',
+    )
+    expect(assistant).toContain('class="flex min-h-0 flex-col overflow-hidden"')
+    expect(assistant).toContain('class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"')
+    expect(assistant).toContain('class="flex min-h-0 min-w-0 flex-col overflow-hidden"')
+    expect(assistant).toContain('class="min-h-0 flex-1 overflow-hidden"')
+    expect(assistant).not.toContain('max-h-[calc(100%-4.5rem)]')
+    expect(assistant).not.toContain('grid-rows-[auto_auto_minmax(0,1fr)_auto]')
   })
 
   test('exposes a named multi-select action on every chat message', () => {
