@@ -352,7 +352,7 @@ onUnmounted(() => {
 <template>
   <main
     :id="embedded ? 'room-ai-panel' : 'workspace-main'"
-    class="cr-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    class="cr-page flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
     :class="
       embedded
         ? 'absolute inset-0 z-40 border-l border-surface-200 bg-surface-0 md:relative md:inset-auto md:z-auto'
@@ -377,7 +377,7 @@ onUnmounted(() => {
       AI 功能当前已关闭。
     </Message>
     <section
-      class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)]"
+      class="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
       :class="embedded ? '' : 'md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1'"
     >
       <AiThreadSidebar
@@ -395,7 +395,7 @@ onUnmounted(() => {
         :room-title="activeRoom?.name || ''"
         @back="closeSourceDetails"
       />
-      <div v-else class="grid min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto]">
+      <div v-else class="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden">
         <AiAssistantToolbar
           v-model:password="roomPassword"
           :models="modelOptions"

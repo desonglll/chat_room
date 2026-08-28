@@ -84,6 +84,12 @@ fast_model = ""
 base_url = ""
 standard_extra_body = { temperature = 0.2 }
 reasoning_extra_body = { reasoning_effort = "high" }
+vision_model = ""
+vision_base_url = ""
+vision_api_key_env = "CHAT_ROOM_AI_API_KEY"
+vision_max_images = 8
+vision_max_image_mib = 8
+vision_request_timeout_secs = 60
 max_context_messages = 30
 analysis_context_messages = 5000
 request_timeout_secs = 60
@@ -230,6 +236,19 @@ deep-thinking switch is off, the server uses `fast_model` when configured.
 `provider = "openai"` accepts any OpenAI-compatible endpoint.
 `standard_extra_body` and `reasoning_extra_body` are optional objects forwarded
 exactly for each mode; no vendor fields are inferred from `base_url`.
+
+`vision_model` optionally enables image understanding for AI room analysis. It
+uses an OpenAI-compatible chat-completions endpoint from `vision_base_url` (or
+falls back to `ai.base_url`) and reads its secret from `vision_api_key_env`.
+Only non-sensitive image attachments already present in the authorized message
+context are eligible. Targeted questions rank images by their surrounding
+message text; broad room summaries sample the available chronology. At most
+`vision_max_images` images are analyzed, each no larger than
+`vision_max_image_mib`. The resulting OCR and visual observations are bound to
+the original attachment label and message ID before being supplied to the
+answer model. Files that are not images remain available as attachment metadata
+but are not sent to the vision model. Individual image or provider failures are
+skipped without failing the whole AI Run.
 
 Streaming has independent limits. `request_timeout_secs` bounds the initial
 provider connection, `stream_idle_timeout_secs` is reset by every valid

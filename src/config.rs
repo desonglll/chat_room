@@ -337,6 +337,22 @@ impl AppConfig {
             if self.ai.request_timeout_secs == 0 || self.ai.request_timeout_secs > 300 {
                 bail!("ai.request_timeout_secs must be between 1 and 300");
             }
+            if self.ai.vision_model.is_some() {
+                if self.ai.vision_api_key_env.trim().is_empty() {
+                    bail!("ai.vision_api_key_env is required when a vision model is configured");
+                }
+                if self.ai.vision_max_images == 0 || self.ai.vision_max_images > 20 {
+                    bail!("ai.vision_max_images must be between 1 and 20");
+                }
+                if self.ai.vision_max_image_mib == 0 || self.ai.vision_max_image_mib > 20 {
+                    bail!("ai.vision_max_image_mib must be between 1 and 20");
+                }
+                if self.ai.vision_request_timeout_secs == 0
+                    || self.ai.vision_request_timeout_secs > 300
+                {
+                    bail!("ai.vision_request_timeout_secs must be between 1 and 300");
+                }
+            }
             if self.ai.stream_idle_timeout_secs == 0 || self.ai.stream_idle_timeout_secs > 300 {
                 bail!("ai.stream_idle_timeout_secs must be between 1 and 300");
             }

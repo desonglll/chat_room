@@ -7,6 +7,7 @@ use super::planner::{catch_up_plan, fallback_plan, plan_request};
 use super::progress::{RunProgress, RunStage, RunStep};
 use super::run_store::AiRunExecution;
 use super::runs::cache_terminal_answer;
+use super::vision_context::enrich_with_visual_evidence;
 use crate::ai::{AiAssistant, AiStreamItem};
 use crate::cache::CachedAiAnswer;
 use crate::state::SharedState;
@@ -87,7 +88,13 @@ pub(super) async fn generate_answer(
             "",
         )
         .await?;
-    let context = prepare_generation_context(state, execution, &plan, &mut progress).await?;
+    let mut context = prepare_generation_context(state, execution, &plan, &mut progress).await?;
+    progress.set_context(
+        context.message_count,
+        context.retrieved_message_count,
+        &context.sources,
+    );
+    enrich_with_visual_evidence(state, execution, &assistant, &mut context, &mut progress).await?;
     progress.set_context(
         context.message_count,
         context.retrieved_message_count,

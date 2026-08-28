@@ -8,6 +8,7 @@ pub(crate) mod extraction;
 pub mod model_handlers;
 pub mod model_options;
 mod stream;
+mod vision;
 
 pub use config::{AiConfig, AiRuntimeStatus};
 use genai::adapter::AdapterKind;
@@ -19,6 +20,7 @@ use serde::{Deserialize, Serialize};
 pub use stream::{AiStreamItem, AiTextStream};
 use toon_format::encode_default;
 use utoipa::ToSchema;
+pub(crate) use vision::{VisionImage, VisionLimits};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AiSuggestions {
@@ -69,6 +71,7 @@ pub struct AiAssistant {
     pub(super) stream_total_timeout: std::time::Duration,
     standard_extra_body: Option<serde_json::Value>,
     reasoning_extra_body: Option<serde_json::Value>,
+    vision: Option<vision::VisionAssistant>,
 }
 
 impl AiAssistant {
@@ -118,7 +121,26 @@ impl AiAssistant {
             stream_total_timeout: std::time::Duration::from_secs(config.stream_total_timeout_secs),
             standard_extra_body: config.standard_extra_body.clone(),
             reasoning_extra_body: config.reasoning_extra_body.clone(),
+            vision: vision::VisionAssistant::from_config(config),
         }
+    }
+
+    pub(crate) fn vision_limits(&self) -> Option<VisionLimits> {
+        self.vision.as_ref().map(vision::VisionAssistant::limits)
+    }
+
+    pub(crate) async fn describe_image(
+        &self,
+        question: &str,
+        source_label: &str,
+        nearby_message: &str,
+        image: VisionImage,
+    ) -> anyhow::Result<String> {
+        self.vision
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("vision model is not configured"))?
+            .describe_image(question, source_label, nearby_message, image)
+            .await
     }
 
     /// Summarize `context` (oldest first) and propose a few next messages the

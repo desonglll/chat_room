@@ -12,6 +12,8 @@ mod run_store;
 pub mod runs;
 mod selected_context;
 mod store;
+mod vision_context;
+mod vision_selection;
 
 pub use models::{
     AiCitationAttachment, AiCitationSource, AiRun, AiRunTraceStep, AiThread, AiThreadMessage,

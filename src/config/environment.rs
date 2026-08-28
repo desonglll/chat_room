@@ -222,6 +222,30 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         &mut config.ai.reasoning_extra_body,
         value("CHAT_ROOM_AI_REASONING_EXTRA_BODY"),
     );
+    set_optional_string(
+        &mut config.ai.vision_model,
+        value("CHAT_ROOM_AI_VISION_MODEL"),
+    );
+    set_optional_string(
+        &mut config.ai.vision_base_url,
+        value("CHAT_ROOM_AI_VISION_BASE_URL"),
+    );
+    string!(
+        config.ai.vision_api_key_env,
+        "CHAT_ROOM_AI_VISION_API_KEY_ENV"
+    );
+    parse!(
+        config.ai.vision_max_images,
+        "CHAT_ROOM_AI_VISION_MAX_IMAGES"
+    );
+    parse!(
+        config.ai.vision_max_image_mib,
+        "CHAT_ROOM_AI_VISION_MAX_IMAGE_MIB"
+    );
+    parse!(
+        config.ai.vision_request_timeout_secs,
+        "CHAT_ROOM_AI_VISION_REQUEST_TIMEOUT_SECS"
+    );
     parse!(
         config.ai.max_context_messages,
         "CHAT_ROOM_AI_MAX_CONTEXT_MESSAGES"

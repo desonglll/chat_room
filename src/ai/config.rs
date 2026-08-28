@@ -13,6 +13,12 @@ pub struct AiConfig {
     pub base_url: Option<String>,
     pub standard_extra_body: Option<serde_json::Value>,
     pub reasoning_extra_body: Option<serde_json::Value>,
+    pub vision_model: Option<String>,
+    pub vision_base_url: Option<String>,
+    pub vision_api_key_env: String,
+    pub vision_max_images: usize,
+    pub vision_max_image_mib: u64,
+    pub vision_request_timeout_secs: u64,
     pub max_context_messages: usize,
     pub analysis_context_messages: usize,
     pub request_timeout_secs: u64,
@@ -52,6 +58,18 @@ impl AiConfig {
             .then(|| std::env::var(self.api_key_env.trim()).ok())
             .flatten()
     }
+
+    pub(crate) fn resolved_vision_api_key(&self) -> Option<String> {
+        self.vision_model
+            .as_ref()
+            .filter(|model| !model.trim().is_empty())
+            .and_then(|_| std::env::var(self.vision_api_key_env.trim()).ok())
+            .filter(|key| !key.trim().is_empty())
+    }
+
+    pub(crate) fn vision_max_image_bytes(&self) -> u64 {
+        self.vision_max_image_mib.saturating_mul(1024 * 1024)
+    }
 }
 
 impl Default for AiConfig {
@@ -65,6 +83,12 @@ impl Default for AiConfig {
             base_url: None,
             standard_extra_body: None,
             reasoning_extra_body: None,
+            vision_model: None,
+            vision_base_url: None,
+            vision_api_key_env: "CHAT_ROOM_AI_API_KEY".into(),
+            vision_max_images: 8,
+            vision_max_image_mib: 8,
+            vision_request_timeout_secs: 60,
             max_context_messages: 30,
             analysis_context_messages: 5_000,
             request_timeout_secs: 60,

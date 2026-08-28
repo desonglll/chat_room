@@ -16,6 +16,12 @@ fn ai_and_vector_settings_can_come_from_the_environment() {
         ("CHAT_ROOM_AI_ENABLED", "true"),
         ("CHAT_ROOM_AI_MODEL", "model-from-env"),
         ("CHAT_ROOM_AI_BASE_URL", "https://ai.example/v1"),
+        ("CHAT_ROOM_AI_VISION_MODEL", "vision-from-env"),
+        ("CHAT_ROOM_AI_VISION_BASE_URL", "https://vision.example/v1"),
+        ("CHAT_ROOM_AI_VISION_API_KEY_ENV", "VISION_KEY"),
+        ("CHAT_ROOM_AI_VISION_MAX_IMAGES", "7"),
+        ("CHAT_ROOM_AI_VISION_MAX_IMAGE_MIB", "9"),
+        ("CHAT_ROOM_AI_VISION_REQUEST_TIMEOUT_SECS", "45"),
         ("CHAT_ROOM_DATABASE_URL", "postgres://db/chatroom"),
         ("CHAT_ROOM_VECTOR_ENABLED", "true"),
         ("CHAT_ROOM_EMBEDDING_MODEL", "embed-from-env"),
@@ -31,6 +37,15 @@ fn ai_and_vector_settings_can_come_from_the_environment() {
     assert_eq!(config.database.postgres_url, "postgres://db/chatroom");
     assert_eq!(config.ai.model, "model-from-env");
     assert_eq!(config.ai.base_url.as_deref(), Some("https://ai.example/v1"));
+    assert_eq!(config.ai.vision_model.as_deref(), Some("vision-from-env"));
+    assert_eq!(
+        config.ai.vision_base_url.as_deref(),
+        Some("https://vision.example/v1")
+    );
+    assert_eq!(config.ai.vision_api_key_env, "VISION_KEY");
+    assert_eq!(config.ai.vision_max_images, 7);
+    assert_eq!(config.ai.vision_max_image_mib, 9);
+    assert_eq!(config.ai.vision_request_timeout_secs, 45);
     assert!(config.vector_store.enabled);
     assert_eq!(config.vector_store.embedding_model, "embed-from-env");
     assert_eq!(config.vector_store.dimensions, 768);

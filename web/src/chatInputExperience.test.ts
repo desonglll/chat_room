@@ -25,6 +25,16 @@ describe('chat input experience contract', () => {
     expect(assistant).not.toContain('<AiPromptComposer')
   })
 
+  test('keeps the AI composer inside the fixed-height workspace below long answers', () => {
+    const assistant = source('./components/AiAssistantPage.vue')
+    const workspace = source('./workspace.css')
+    expect(workspace).toContain('height: 100%;')
+    expect(workspace).toContain('overflow: hidden;')
+    expect(assistant).toContain('class="cr-page flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"')
+    expect(assistant).toContain('class="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"')
+    expect(assistant).toContain('grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden')
+  })
+
   test('exposes a named multi-select action on every chat message', () => {
     const actions = source('./components/MessageHoverActions.vue')
     const list = source('./components/MessageList.vue')
