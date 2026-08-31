@@ -1,7 +1,7 @@
 .cr-typing-strip,
 .cr-composer-width,
 .cr-composer-inner {
-  width: min(100%, 51.25rem);
+  width: min(100%, var(--cr-thread-width, 57.5rem));
   margin-inline: auto;
 }
 
@@ -13,7 +13,7 @@
 .cr-composer {
   border-top: 1px solid var(--cr-border);
   background: color-mix(in srgb, var(--cr-surface) 96%, transparent);
-  padding: 0.625rem clamp(0.75rem, 2vw, 1.5rem) max(0.625rem, env(safe-area-inset-bottom));
+  padding: 0.75rem clamp(0.75rem, 2vw, 1.5rem) max(0.75rem, env(safe-area-inset-bottom));
 }
 
 .cr-composer-inner {
@@ -22,7 +22,7 @@
   border-radius: 0.75rem;
   background: var(--cr-surface);
   padding: 0.25rem;
-  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.06);
+  box-shadow: var(--cr-shadow-xs);
 }
 
 .cr-composer-inner:focus-within {
@@ -81,7 +81,8 @@
 @media (max-width: 767px) {
   .cr-composer {
     padding-inline: 0.625rem;
-    padding-bottom: 0.625rem;
+    padding-block: 0.625rem;
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
   }
 
   .cr-composer-inner {

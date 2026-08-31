@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
         />
         <div
           v-else
-          class="cr-message-row group mx-auto flex w-full items-start gap-2"
+          class="cr-message-row group mx-auto flex w-full items-start"
           :class="[
             message.sender_id === currentUserId
               ? 'cr-message-row--own justify-end'
@@ -297,7 +297,7 @@ onBeforeUnmount(() => {
             highlightedId === message.message_id ? 'message-highlight' : '',
             message.motion === 'incoming' ? 'motion-incoming' : '',
             message.motion === 'outgoing' ? 'motion-outgoing' : '',
-            isGroupEnd(index) ? 'mb-3' : 'mb-0.5',
+            isGroupEnd(index) ? 'mb-4' : 'mb-1',
           ]"
           :data-message-id="message.message_id"
           :id="`message-${message.message_id}`"
@@ -312,12 +312,11 @@ onBeforeUnmount(() => {
             @update:model-value="emit('toggleSelect', message.message_id)"
           />
           <button
-            v-if="message.sender_id !== currentUserId"
             type="button"
-            class="cr-message-avatar mt-5 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            class="cr-message-avatar shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             :class="{ invisible: !isGroupStart(index) }"
-            aria-label="查看用户资料"
-            title="查看资料"
+            :aria-label="message.sender_id === currentUserId ? '查看我的资料' : '查看用户资料'"
+            :title="message.sender_id === currentUserId ? '查看我的资料' : '查看资料'"
             @click="message.sender_id && emit('viewProfile', message.sender_id)"
             @contextmenu.stop.prevent="openAvatarContextMenu($event, message)"
           >
@@ -331,7 +330,7 @@ onBeforeUnmount(() => {
           <div class="cr-message-stack">
             <div
               v-if="isGroupStart(index)"
-              class="cr-message-meta mb-1 flex items-center gap-2 text-xs"
+              class="cr-message-meta flex items-center gap-2"
               :class="{ 'justify-end': message.sender_id === currentUserId }"
             >
               <strong v-if="!direct && message.sender_id !== currentUserId">{{ message.sender }}</strong>

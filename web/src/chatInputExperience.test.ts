@@ -48,4 +48,12 @@ describe('chat input experience contract', () => {
     expect(actions).toContain("emit('select')")
     expect(list).toContain('@select="emit(\'toggleSelect\', message.message_id)"')
   })
+
+  test('shows profile avatars on both sides of the conversation', () => {
+    const list = source('./components/MessageList.vue')
+    const chat = source('./chat.css')
+    expect(list).not.toContain('v-if="message.sender_id !== currentUserId"')
+    expect(list).toContain(":aria-label=\"message.sender_id === currentUserId ? '查看我的资料' : '查看用户资料'\"")
+    expect(chat).toMatch(/\.cr-message-row--own \.cr-message-avatar\s*{[^}]*order:\s*2;/s)
+  })
 })
