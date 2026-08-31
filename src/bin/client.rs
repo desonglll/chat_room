@@ -1,14 +1,19 @@
-//! CLI client for room discovery, creation, and interactive chat.
+//! Echo Gate terminal client with a Ratatui default experience.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 
+mod client_api;
+mod client_api_features;
+mod client_api_models;
 mod client_auth;
 mod client_chat;
+mod client_chat_protocol;
 mod client_media;
-mod client_render;
+mod client_tui;
 
+use client_api::ApiClient;
 use client_auth::require_session;
 
 #[derive(Parser)]
@@ -19,7 +24,7 @@ struct Cli {
     server: String,
 
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 #[derive(Subcommand)]
@@ -72,92 +77,47 @@ struct JoinArgs {
 }
 
 async fn lookup_room(http_base: &str, name: &str) -> Result<Option<Uuid>> {
-    let url = format!("{}/api/rooms?name={}", http_base, url_encode(name));
-    let response = reqwest::get(&url).await.context("look up room by name")?;
-    if !response.status().is_success() {
-        bail!("room lookup returned {}", response.status());
-    }
-    let rooms: Vec<serde_json::Value> = response.json().await.context("decode room lookup")?;
-    rooms
-        .first()
-        .and_then(|room| room["id"].as_str())
-        .map(str::parse)
-        .transpose()
-        .context("server returned an invalid room UUID")
-}
-
-fn url_encode(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                output.push(byte as char);
-            }
-            b' ' => output.push_str("%20"),
-            _ => output.push_str(&format!("%{:02X}", byte)),
-        }
-    }
-    output
+    let config = require_session()?;
+    let api = ApiClient::new(http_base, config.token);
+    let mut rooms = api.rooms().await?;
+    rooms.extend(api.discover_rooms().await?);
+    Ok(rooms
+        .into_iter()
+        .find(|room| room.name == name)
+        .map(|room| room.id))
 }
 
 async fn list_rooms(http_base: &str) -> Result<()> {
-    let url = format!("{}/api/rooms", http_base);
-    let response = reqwest::get(&url).await.context("list rooms")?;
-    if !response.status().is_success() {
-        bail!("server returned {}", response.status());
-    }
-
-    let rooms: Vec<serde_json::Value> = response.json().await.context("decode room list")?;
+    let config = require_session()?;
+    let rooms = ApiClient::new(http_base, config.token).rooms().await?;
     if rooms.is_empty() {
         println!("No rooms. Create one with: client create --name <name>");
         return Ok(());
     }
 
     for room in rooms {
-        let access = if room["has_password"].as_bool().unwrap_or(false) {
+        let access = if room.has_password {
             "private"
         } else {
             "public"
         };
-        println!(
-            "[{access}] {}  {}  {}",
-            room["name"].as_str().unwrap_or("?"),
-            room["id"].as_str().unwrap_or("?"),
-            room["created_at"].as_str().unwrap_or("?")
-        );
+        println!("[{access}] {}  {}", room.name, room.id);
     }
     Ok(())
 }
 
 async fn create_room(http_base: &str, name: &str, password: Option<&str>) -> Result<()> {
-    let response = reqwest::Client::new()
-        .post(format!("{}/api/rooms", http_base))
-        .json(&serde_json::json!({
-            "name": name,
-            "password": password.unwrap_or("")
-        }))
-        .send()
-        .await
-        .context("create room")?;
-
-    match response.status().as_u16() {
-        201 => {
-            let room: serde_json::Value = response.json().await.context("decode new room")?;
-            let access = if room["has_password"].as_bool().unwrap_or(false) {
-                "private"
-            } else {
-                "public"
-            };
-            println!(
-                "Created {access} room '{}' ({})",
-                room["name"].as_str().unwrap_or(name),
-                room["id"].as_str().unwrap_or("?")
-            );
-            Ok(())
-        }
-        409 => bail!("room name already exists"),
-        status => bail!("server returned unexpected status {status}"),
-    }
+    let config = require_session()?;
+    let room = ApiClient::new(http_base, config.token)
+        .create_room(name, password)
+        .await?;
+    let access = if room.has_password {
+        "private"
+    } else {
+        "public"
+    };
+    println!("Created {access} room '{}' ({})", room.name, room.id);
+    Ok(())
 }
 
 #[tokio::main]
@@ -166,19 +126,20 @@ async fn main() -> Result<()> {
     let http_base = cli.server.trim_end_matches('/');
 
     match cli.command {
-        Command::Config => client_auth::show_config(),
-        Command::Register { username, password } => {
+        None => client_tui::run(http_base, None).await,
+        Some(Command::Config) => client_auth::show_config(),
+        Some(Command::Register { username, password }) => {
             client_auth::authenticate(http_base, "register", &username, &password).await
         }
-        Command::Login { username, password } => {
+        Some(Command::Login { username, password }) => {
             client_auth::authenticate(http_base, "login", &username, &password).await
         }
-        Command::Logout => client_auth::logout(http_base).await,
-        Command::List => list_rooms(http_base).await,
-        Command::Create { name, password } => {
+        Some(Command::Logout) => client_auth::logout(http_base).await,
+        Some(Command::List) => list_rooms(http_base).await,
+        Some(Command::Create { name, password }) => {
             create_room(http_base, &name, password.as_deref()).await
         }
-        Command::Join(arguments) => {
+        Some(Command::Join(arguments)) => {
             let room_id = match (arguments.room_id, arguments.room_name.as_deref()) {
                 (Some(id), _) => id,
                 (None, Some(name)) => lookup_room(http_base, name)
@@ -187,14 +148,14 @@ async fn main() -> Result<()> {
                 (None, None) => unreachable!("clap requires room name or id"),
             };
             let config = require_session()?;
-            client_chat::join_room(
-                http_base,
-                room_id,
-                config.token.expect("validated session token"),
-                &config.username,
-                arguments.password.as_deref(),
-            )
-            .await
+            let membership = ApiClient::new(http_base, config.token)
+                .join_room(room_id, arguments.password.as_deref())
+                .await?;
+            if membership.status != "active" {
+                println!("Join request submitted; waiting for room approval.");
+                return Ok(());
+            }
+            client_tui::run(http_base, Some((room_id, arguments.password))).await
         }
     }
 }
@@ -218,5 +179,25 @@ mod tests {
 
         assert_eq!(actual, expected);
         let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saved_session_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory =
+            std::env::temp_dir().join(format!("chat-room-client-mode-{}", Uuid::new_v4()));
+        let path = directory.join("config.json");
+        client_auth::save_config_to(&path, &client_auth::UserConfig::default()).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn no_subcommand_selects_the_tui() {
+        let cli = Cli::try_parse_from(["client"]).unwrap();
+        assert!(cli.command.is_none());
     }
 }

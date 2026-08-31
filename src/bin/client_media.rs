@@ -1,18 +1,12 @@
 //! Attachment upload, download, indexing, and terminal summaries for the CLI.
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use uuid::Uuid;
 
 pub const MAX_UPLOAD_BYTES: u64 = 50 * 1024 * 1024;
-pub type AttachmentIndex = Arc<Mutex<HashMap<Uuid, Attachment>>>;
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct Attachment {
     pub id: Uuid,
@@ -108,33 +102,7 @@ pub async fn download(
     Ok(path)
 }
 
-pub fn remember(index: &AttachmentIndex, attachment: Attachment) {
-    index.lock().unwrap().insert(attachment.id, attachment);
-}
-
-pub fn find(index: &AttachmentIndex, id: Uuid) -> Option<Attachment> {
-    index.lock().unwrap().get(&id).cloned()
-}
-
-pub fn render(attachment: &Attachment, http_base: &str) -> String {
-    let kind = if attachment.mime_type.starts_with("image/") {
-        "image"
-    } else if attachment.mime_type.starts_with("video/") {
-        "video"
-    } else {
-        "file"
-    };
-    format!(
-        "[{kind}] {} ({}) id={}\n{}{}",
-        sanitize_terminal(&attachment.file_name),
-        format_size(attachment.size_bytes),
-        attachment.id,
-        http_base,
-        attachment.download_url
-    )
-}
-
-fn format_size(bytes: i64) -> String {
+pub fn format_size(bytes: i64) -> String {
     if bytes < 1024 {
         format!("{bytes} B")
     } else if bytes < 1024 * 1024 {
@@ -144,28 +112,13 @@ fn format_size(bytes: i64) -> String {
     }
 }
 
-fn sanitize_terminal(value: &str) -> String {
-    value
-        .chars()
-        .filter(|character| !character.is_control())
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn renders_media_kind_size_and_download_identity() {
-        let attachment = Attachment {
-            id: Uuid::nil(),
-            file_name: "photo.png".into(),
-            mime_type: "image/png".into(),
-            size_bytes: 1536,
-            download_url: "/api/attachments/example?key=secret".into(),
-        };
-        let rendered = render(&attachment, "http://localhost:3000");
-        assert!(rendered.contains("[image] photo.png (1.5 KiB)"));
-        assert!(rendered.contains("id=00000000-0000-0000-0000-000000000000"));
+    fn formats_attachment_sizes() {
+        assert_eq!(format_size(1536), "1.5 KiB");
+        assert_eq!(format_size(2 * 1024 * 1024), "2.0 MiB");
     }
 }
