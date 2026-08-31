@@ -31,6 +31,7 @@ const pinnedMessageIds = ref<string[]>([])
 const viewState = computed(() =>
   resolveRoomViewState({
     room: props.room,
+    password: props.password,
     status: props.status,
     authenticated: props.authenticated,
     loading: props.loading,
@@ -162,7 +163,7 @@ watch(
       @update:password="emit('update:password', $event)"
       @update:remember-room-passwords="emit('update:rememberRoomPasswords', $event)"
     />
-    <RoomConnectingView v-else-if="viewState === 'connecting'" />
+    <RoomConnectingView v-else-if="viewState === 'connecting'" :error="error" @retry="emit('join')" />
     <section
       v-else
       class="cr-conversation-stage relative flex min-h-0 flex-1 flex-col"
