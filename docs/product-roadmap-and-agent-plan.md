@@ -204,6 +204,14 @@ P0 先串行完成。新的并行 Wave 必须从 P0 的绿色提交创建 worktr
 
 P1 先并行构建隔离模块，再由 Integration Agent 接线共享外壳。推荐同时最多 4 个 Agent。
 
+### CALC-101 输入框快捷计算
+
+- **基线/Owner**：`7acf7c3`；Web 输入体验任务 owner。
+- **用户结果**：在消息输入框输入基础算式后按 `Option+Enter`，输入内容就地替换为计算结果；普通发送快捷键保持不变。
+- **实现**：使用本地、无副作用的算式解析器支持加减乘除、括号、小数、一元正负号和 `×`/`÷`；不得使用 `eval` 或新增依赖。
+- **允许路径**：本任务卡、`web/src/calculator.ts` 及测试、`web/src/composables/useComposerCalculator.ts`、`web/src/components/MessageComposer.vue`；无迁移，不修改公共 HTTP/WebSocket 接口或共享热点。
+- **验收**：覆盖优先级、括号、小数、负数、除零与非法输入；输入法组合期间不触发；计算不发送消息，错误时保留原输入并显示就地提示。
+
 ### CONV-101 持久草稿（低成本高频）
 
 - **用户结果**：切换 Room、刷新页面或误关闭后，未发送文字和待发送状态可恢复。

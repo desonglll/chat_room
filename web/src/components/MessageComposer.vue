@@ -8,6 +8,7 @@ import PendingAttachmentStrip from './PendingAttachmentStrip.vue'
 import { shouldSubmitMessage } from '../composer'
 import { formatUploadLimit } from '../api'
 import { useAiComposerSuggestions } from '../composables/useAiComposerSuggestions'
+import { useComposerCalculator } from '../composables/useComposerCalculator'
 import { useComposerMentions } from '../composables/useComposerMentions'
 import { useConversationDraft, type ConversationDraftContext } from '../composables/useConversationDraft'
 import type { BroadcastMessage, DisplayMessage, RoomMember, SendShortcut } from '../types'
@@ -91,6 +92,11 @@ const {
 })
 
 const canSend = computed(() => !props.disabled && Boolean(draft.value.trim() || pendingFiles.value.length))
+const { error: calculationError, handleKeydown: handleCalculatorKeydown } = useComposerCalculator(
+  draft,
+  () => messageInput.value,
+  () => composing,
+)
 
 watch(draft, (content) => emit('typing', content))
 
@@ -184,6 +190,7 @@ function submitMessage(): void {
 }
 
 function onComposerKeydown(event: KeyboardEvent): void {
+  if (handleCalculatorKeydown(event)) return
   if (mentionQuery.value !== null && mentionMatches.value.length) {
     if (event.key === 'Escape') {
       mentionQuery.value = null
@@ -331,6 +338,9 @@ defineExpose({ addFiles, focus })
       </div>
     </template>
     <template #footer>
+      <small v-if="calculationError" class="cr-composer-width block px-3 pt-1 text-right text-danger sm:px-1">
+        {{ calculationError }}
+      </small>
       <small v-if="fileError" class="cr-composer-width block px-3 pt-1 text-right text-danger sm:px-1">
         {{ fileError }}
       </small>
