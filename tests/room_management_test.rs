@@ -50,9 +50,18 @@ async fn connect_room(
     room_id: &str,
     password: Option<&str>,
 ) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
+    connect_room_as(base, room_id, password, "tester").await
+}
+
+async fn connect_room_as(
+    base: &str,
+    room_id: &str,
+    password: Option<&str>,
+    username: &str,
+) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
     let ws_url = format!("{}/ws/{room_id}", base.replace("http://", "ws://"));
     let (mut socket, _) = connect_async(ws_url).await.unwrap();
-    let token = session_token(base, "tester").await;
+    let token = session_token(base, username).await;
     let greeting = match password {
         Some(password) => serde_json::json!({
             "type": "auth",
@@ -189,9 +198,11 @@ async fn private_room_management_requires_current_password() {
     }
     assert!(saw_disconnect_reason);
 
-    let mut rejected = connect_room(&base, room_id, Some("old-secret")).await;
+    let mut rejected =
+        connect_room_as(&base, room_id, Some("old-secret"), "stale-password-user").await;
     assert_eq!(next_json(&mut rejected).await["type"], "auth_fail");
-    let mut accepted = connect_room(&base, room_id, Some("new-secret")).await;
+    let mut accepted =
+        connect_room_as(&base, room_id, Some("new-secret"), "new-password-user").await;
     assert_eq!(next_json(&mut accepted).await["type"], "auth_ok");
 
     let made_public: serde_json::Value = client

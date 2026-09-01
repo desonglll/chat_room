@@ -2,7 +2,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use super::model::{Action, App, AuthMode, Dialog, Focus, PromptKind, Screen, View};
+use super::model::{Action, App, AuthMode, Dialog, Focus, Screen, View};
 
 impl App {
     pub fn handle_key(&mut self, key: KeyEvent) -> Vec<Action> {
@@ -21,24 +21,50 @@ impl App {
             self.dialog = Some(Dialog::Help);
             return Vec::new();
         }
-        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('l') {
+        let control = key.modifiers.contains(KeyModifiers::CONTROL);
+        if control && key.code == KeyCode::Char('g') {
+            self.focus = match (self.view, self.focus) {
+                (View::Chats, Focus::Input) => Focus::Content,
+                (View::Search | View::Ai, Focus::Input) => Focus::List,
+                (_, focus) => focus,
+            };
+            self.reply_to = None;
+            self.status = "Cancelled".into();
+            return Vec::new();
+        }
+        if control && key.code == KeyCode::Char('l') {
+            self.status = "Screen refreshed".into();
+            return Vec::new();
+        }
+        if control && key.code == KeyCode::Char('s') {
+            self.view = View::Search;
+            self.focus = Focus::Input;
+            return Vec::new();
+        }
+        if key.code == KeyCode::F(9) {
             self.busy = true;
             self.status = "Logging out...".into();
             return vec![Action::Logout];
         }
         if self.focus != Focus::Input {
-            if key.code == KeyCode::Char('q') {
+            if key.code == KeyCode::Char('q') && super::navigation::is_plain(key) {
                 return vec![Action::Quit];
             }
-            if let KeyCode::Char(number @ '1'..='5') = key.code {
-                let index = number as usize - '1' as usize;
-                return self.select_view(View::ALL[index]);
+            if super::navigation::is_plain(key) {
+                if let KeyCode::Char(number @ '1'..='5') = key.code {
+                    let index = number as usize - '1' as usize;
+                    return self.select_view(View::ALL[index]);
+                }
             }
         }
         match key.code {
             KeyCode::Tab => self.focus = self.next_focus(false),
             KeyCode::BackTab => self.focus = self.next_focus(true),
-            KeyCode::Char('r') if self.focus != Focus::Input => return self.refresh_actions(),
+            KeyCode::Char('r')
+                if self.focus != Focus::Input && super::navigation::is_plain(key) =>
+            {
+                return self.refresh_actions();
+            }
             _ => {}
         }
         match self.view {
@@ -98,24 +124,7 @@ impl App {
         room_id: uuid::Uuid,
         target_message: Option<uuid::Uuid>,
     ) -> Vec<Action> {
-        let needs_password = self
-            .conversations
-            .iter()
-            .find(|room| room.room_id == room_id)
-            .and_then(|room| room.group.as_ref())
-            .is_some_and(|group| group.has_password);
         let password = self.room_passwords.get(&room_id).cloned();
-        if needs_password && password.is_none() {
-            self.dialog = Some(Dialog::Prompt {
-                title: "Room password".into(),
-                kind: PromptKind::RoomPassword {
-                    room_id,
-                    target_message,
-                },
-                input: super::input::TextField::password(),
-            });
-            return Vec::new();
-        }
         self.busy = true;
         self.status = "Connecting...".into();
         vec![Action::ConnectRoom {

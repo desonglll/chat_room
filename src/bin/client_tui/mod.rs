@@ -19,7 +19,10 @@ mod render_chats;
 mod render_dialog;
 mod render_list;
 mod render_views;
+#[cfg(test)]
+mod send_tests;
 mod update;
+mod update_chats;
 mod update_dialog;
 mod update_events;
 mod update_session;
@@ -232,40 +235,52 @@ mod tests {
         app.active_room = Some(room_id);
         app.active_room_name = "Test room".into();
         app.focus = model::Focus::Input;
+        let (chat, _commands) = tokio::sync::mpsc::unbounded_channel();
+        app.chat = Some(chat);
 
         for index in 0..8 {
             app.apply_chat_event(
                 room_id,
                 ChatEvent::Message(ChatMessage {
                     id: Uuid::new_v4(),
+                    client_message_id: None,
                     sender: "alice".into(),
                     content: format!("older message {index}"),
                     attachment: None,
                     timestamp: "2026-08-31T12:00:00Z".into(),
                     recalled: false,
                     edited: false,
+                    delivery: crate::client_chat::DeliveryState::Sent,
                 }),
             );
         }
         app.compose.set("newly sent message");
         let actions = app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert!(matches!(
-            actions.as_slice(),
-            [Action::Chat(ChatCommand::Send { content, .. })] if content == "newly sent message"
-        ));
+        let client_message_id = match actions.as_slice() {
+            [Action::Chat(ChatCommand::Send {
+                content,
+                client_message_id,
+                ..
+            })] if content == "newly sent message" => *client_message_id,
+            _ => panic!("expected one send command"),
+        };
+        assert_eq!(app.message_index, 8);
         app.apply_chat_event(
             room_id,
             ChatEvent::Message(ChatMessage {
                 id: Uuid::new_v4(),
+                client_message_id: Some(client_message_id),
                 sender: "alice".into(),
                 content: "newly sent message".into(),
                 attachment: None,
                 timestamp: "2026-08-31T12:00:00Z".into(),
                 recalled: false,
                 edited: false,
+                delivery: crate::client_chat::DeliveryState::Sent,
             }),
         );
         assert_eq!(app.message_index, 8);
+        assert_eq!(app.messages.len(), 9);
 
         app.focus = model::Focus::Content;
         let backend = TestBackend::new(80, 24);

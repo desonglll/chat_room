@@ -225,9 +225,9 @@ fn render_footer(frame: &mut Frame<'_>, app: &App, area: Rect) {
         hint_columns[0],
     );
     let global_hint = if app.focus == Focus::Input {
-        "F1 Help  Tab Focus"
+        "F1 Help  C-g Cancel"
     } else {
-        "F1 Help  ? Help  q Quit"
+        "F1/? Help  q Quit"
     };
     frame.render_widget(
         Paragraph::new(global_hint)
@@ -239,20 +239,20 @@ fn render_footer(frame: &mut Frame<'_>, app: &App, area: Rect) {
 
 fn shortcuts(app: &App) -> &'static [(&'static str, &'static str)] {
     match (app.view, app.focus) {
-        (View::Chats, Focus::List) => &[("j/k", "Move"), ("Enter", "Open"), ("l", "Messages")],
+        (View::Chats, Focus::List) => &[("C-n/p", "Move"), ("Enter", "Open"), ("C-f", "Messages")],
         (View::Chats, Focus::Content) => &[
-            ("j/k", "Move"),
+            ("C-n/p", "Move"),
             ("i", "Write"),
-            ("h", "Rooms"),
+            ("C-b", "Rooms"),
             ("R", "Reply"),
         ],
-        (View::Chats, Focus::Input) => &[("Enter", "Send"), ("Esc", "Messages")],
-        (View::Search, Focus::Input) => &[("Enter", "Search"), ("Esc", "Results")],
-        (View::Search, _) => &[("j/k", "Move"), ("/", "Search"), ("Enter", "Open")],
-        (View::Notifications, _) => &[("j/k", "Move"), ("Enter", "Open"), ("a", "Read all")],
-        (View::Favorites, _) => &[("j/k", "Move"), ("n", "New"), ("e", "Edit")],
-        (View::Ai, Focus::Input) => &[("Enter", "Ask"), ("Esc", "Threads")],
-        (View::Ai, _) => &[("j/k", "Move"), ("n", "New"), ("i", "Ask")],
+        (View::Chats, Focus::Input) => &[("Enter", "Send"), ("C-g", "Messages")],
+        (View::Search, Focus::Input) => &[("Enter", "Search"), ("C-g", "Results")],
+        (View::Search, _) => &[("C-n/p", "Move"), ("/", "Search"), ("Enter", "Open")],
+        (View::Notifications, _) => &[("C-n/p", "Move"), ("Enter", "Open"), ("a", "Read all")],
+        (View::Favorites, _) => &[("C-n/p", "Move"), ("n", "New"), ("e", "Edit")],
+        (View::Ai, Focus::Input) => &[("Enter", "Ask"), ("C-g", "Threads")],
+        (View::Ai, _) => &[("C-n/p", "Move"), ("n", "New"), ("i", "Ask")],
     }
 }
 

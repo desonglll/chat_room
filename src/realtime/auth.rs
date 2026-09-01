@@ -18,30 +18,10 @@ pub(crate) async fn authenticate(
     room: &Room,
     message: ChatMessage,
 ) -> Result<AuthenticatedUser, String> {
-    let token = if room.has_password {
-        match message {
-            ChatMessage::Auth { token, password } => {
-                if password.chars().count() > MAX_PASSWORD_CHARS {
-                    return Err("password too long".into());
-                }
-                let mut hasher = Sha256::new();
-                hasher.update(password.as_bytes());
-                if hex::encode(hasher.finalize()) == room.password_hash {
-                    token
-                } else {
-                    return Err("wrong password".into());
-                }
-            }
-            ChatMessage::Join { .. } => {
-                return Err("this room requires a password - send auth, not join".into());
-            }
-            _ => return Err("first message must be auth (room requires password)".into()),
-        }
-    } else {
-        match message {
-            ChatMessage::Join { token } | ChatMessage::Auth { token, .. } => token,
-            _ => return Err("first message must be join or auth".into()),
-        }
+    let (token, supplied_password) = match message {
+        ChatMessage::Join { token } => (token, None),
+        ChatMessage::Auth { token, password } => (token, Some(password)),
+        _ => return Err("first message must be join or auth".into()),
     };
 
     let user = state
@@ -52,6 +32,28 @@ pub(crate) async fn authenticate(
             "authentication unavailable".to_string()
         })?
         .ok_or_else(|| "login required".to_string())?;
+    if room.has_password {
+        let is_active_member = state
+            .membership_identity(room.id, user.id)
+            .await
+            .map_err(|error| {
+                tracing::error!("load WebSocket membership failed: {}", error);
+                "authentication unavailable".to_string()
+            })?
+            .is_some_and(|(status, _)| status == "active");
+        if !is_active_member {
+            let password = supplied_password
+                .ok_or_else(|| "this room requires a password - send auth, not join".to_string())?;
+            if password.chars().count() > MAX_PASSWORD_CHARS {
+                return Err("password too long".into());
+            }
+            let mut hasher = Sha256::new();
+            hasher.update(password.as_bytes());
+            if hex::encode(hasher.finalize()) != room.password_hash {
+                return Err("wrong password".into());
+            }
+        }
+    }
     Ok(AuthenticatedUser {
         user,
         session_id: token,

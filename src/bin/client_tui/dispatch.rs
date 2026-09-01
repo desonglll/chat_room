@@ -10,12 +10,27 @@ use super::model::{Action, App, AppEvent};
 
 pub fn action(app: &mut App, action: Action, sender: mpsc::UnboundedSender<AppEvent>) {
     if let Action::Chat(command) = action {
+        let client_message_id = command.client_message_id();
         if let Some(chat) = &app.chat {
             if chat.send(command).is_err() {
-                app.status = "Chat connection is closed".into();
+                if let Some(client_message_id) = client_message_id {
+                    app.fail_outgoing_message(
+                        client_message_id,
+                        "Message failed: connection closed",
+                    );
+                } else {
+                    app.status = "Chat connection is closed".into();
+                }
             }
         } else {
-            app.status = "Open a conversation first".into();
+            if let Some(client_message_id) = client_message_id {
+                app.fail_outgoing_message(
+                    client_message_id,
+                    "Message failed: open a conversation first",
+                );
+            } else {
+                app.status = "Open a conversation first".into();
+            }
         }
         return;
     }

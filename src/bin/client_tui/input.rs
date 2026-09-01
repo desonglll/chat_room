@@ -61,6 +61,60 @@ impl TextField {
 
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
         match key.code {
+            KeyCode::Char('b')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && self.cursor > 0 =>
+            {
+                self.cursor -= 1;
+                true
+            }
+            KeyCode::Char('f')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && self.cursor < self.value.chars().count() =>
+            {
+                self.cursor += 1;
+                true
+            }
+            KeyCode::Char('a')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                self.cursor = 0;
+                true
+            }
+            KeyCode::Char('e')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                self.cursor = self.value.chars().count();
+                true
+            }
+            KeyCode::Char('d')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && self.cursor < self.value.chars().count() =>
+            {
+                let start = self.byte_index(self.cursor);
+                let end = self.byte_index(self.cursor + 1);
+                self.value.replace_range(start..end, "");
+                true
+            }
+            KeyCode::Char('k')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                let start = self.byte_index(self.cursor);
+                self.value.truncate(start);
+                true
+            }
             KeyCode::Char(character)
                 if !key.modifiers.intersects(
                     crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
@@ -137,5 +191,21 @@ mod tests {
         field.set("secret");
         assert_eq!(field.display_value(), "******");
         assert!(!field.display_value().contains("secret"));
+    }
+
+    #[test]
+    fn supports_emacs_cursor_and_editing_keys() {
+        let control = |character| KeyEvent::new(KeyCode::Char(character), KeyModifiers::CONTROL);
+        let mut field = TextField::new("abc");
+        field.handle_key(control('a'));
+        field.handle_key(control('f'));
+        assert_eq!(field.displayed_prefix(), "a");
+        field.handle_key(control('d'));
+        assert_eq!(field.value(), "ac");
+        field.handle_key(control('e'));
+        field.handle_key(control('b'));
+        assert_eq!(field.displayed_prefix(), "a");
+        field.handle_key(control('k'));
+        assert_eq!(field.value(), "a");
     }
 }

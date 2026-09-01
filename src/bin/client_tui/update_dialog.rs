@@ -8,20 +8,22 @@ use super::model::{Action, App, ConfirmKind, Dialog, PromptKind};
 
 impl App {
     pub(super) fn handle_dialog_key(&mut self, key: KeyEvent) -> Vec<Action> {
+        let cancel = key.code == KeyCode::Esc
+            || (key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+                && key.code == KeyCode::Char('g'));
         if matches!(self.dialog, Some(Dialog::Help)) {
-            if matches!(
-                key.code,
-                KeyCode::Esc
-                    | KeyCode::Enter
-                    | KeyCode::F(1)
-                    | KeyCode::Char('?')
-                    | KeyCode::Char('q')
-            ) {
+            if cancel
+                || matches!(key.code, KeyCode::Enter | KeyCode::F(1))
+                || (matches!(key.code, KeyCode::Char('?') | KeyCode::Char('q'))
+                    && super::navigation::is_plain(key))
+            {
                 self.dialog = None;
             }
             return Vec::new();
         }
-        if key.code == KeyCode::Esc {
+        if cancel {
             self.dialog = None;
             self.status = "Cancelled".into();
             return Vec::new();
@@ -75,7 +77,7 @@ impl App {
                 }
             },
             Dialog::Rooms { items, selected } => {
-                if super::navigation::move_selection(selected, items.len(), key.code) {
+                if super::navigation::move_selection(selected, items.len(), key) {
                     (true, Vec::new())
                 } else {
                     match key.code {
@@ -83,6 +85,19 @@ impl App {
                             let Some(room) = items.get(*selected) else {
                                 return Vec::new();
                             };
+                            if room.membership_status.as_deref() == Some("active") {
+                                self.busy = true;
+                                self.status = format!("Connecting to {}...", room.name);
+                                return vec![Action::ConnectRoom {
+                                    room_id: room.id,
+                                    password: self.room_passwords.get(&room.id).cloned(),
+                                    target_message: None,
+                                }];
+                            }
+                            if room.membership_status.as_deref() == Some("pending") {
+                                self.status = "Join request is still waiting for approval".into();
+                                return Vec::new();
+                            }
                             if room.has_password {
                                 self.dialog = Some(Dialog::Prompt {
                                     title: format!("Password for {}", room.name),
@@ -150,10 +165,13 @@ impl App {
                 }
             },
             Dialog::Confirm { kind, .. } => match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                KeyCode::Char('y') | KeyCode::Char('Y') if super::navigation::is_plain(key) => {
                     (false, self.confirm_action(kind.clone()))
                 }
-                KeyCode::Char('n') | KeyCode::Char('N') => (false, Vec::new()),
+                KeyCode::Enter => (false, self.confirm_action(kind.clone())),
+                KeyCode::Char('n') | KeyCode::Char('N') if super::navigation::is_plain(key) => {
+                    (false, Vec::new())
+                }
                 _ => (true, Vec::new()),
             },
         };
@@ -165,17 +183,6 @@ impl App {
 
     fn submit_prompt(&mut self, kind: PromptKind, value: String) -> Vec<Action> {
         match kind {
-            PromptKind::RoomPassword {
-                room_id,
-                target_message,
-            } => {
-                self.room_passwords.insert(room_id, value.clone());
-                vec![Action::ConnectRoom {
-                    room_id,
-                    password: Some(value),
-                    target_message,
-                }]
-            }
             PromptKind::RoomJoinPassword(room_id) => {
                 self.room_passwords.insert(room_id, value.clone());
                 vec![Action::JoinRoom {

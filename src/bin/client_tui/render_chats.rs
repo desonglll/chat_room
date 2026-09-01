@@ -13,6 +13,7 @@ use super::{
     render::clean,
     render_list::{one_line, render_list, short_time},
 };
+use crate::client_chat::DeliveryState;
 
 const ACCENT: Color = Color::Cyan;
 const MUTED: Color = Color::DarkGray;
@@ -73,10 +74,19 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
             } else {
                 "#"
             };
+            let access = if conversation
+                .group
+                .as_ref()
+                .is_some_and(|group| group.has_password)
+            {
+                " locked"
+            } else {
+                ""
+            };
             ListItem::new(vec![
                 Line::styled(
                     format!(
-                        "{active_marker}{marker}{kind} {}{unread}",
+                        "{active_marker}{marker}{kind} {}{access}{unread}",
                         clean(&conversation.title)
                     ),
                     if active {
@@ -107,6 +117,11 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
         .iter()
         .map(|message| {
             let edited = if message.edited { " · edited" } else { "" };
+            let delivery = match message.delivery {
+                DeliveryState::Sending => " · sending",
+                DeliveryState::Failed => " · failed",
+                DeliveryState::Sent => "",
+            };
             let id = message.id.to_string();
             let author_color = if message.sender == app.username {
                 Color::Green
@@ -120,8 +135,12 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     Style::default().fg(author_color).bold(),
                 ),
                 Span::styled(
-                    format!("  #{}{edited}", &id[..8]),
-                    Style::default().fg(MUTED),
+                    format!("  #{}{edited}{delivery}", &id[..8]),
+                    Style::default().fg(if message.delivery == DeliveryState::Failed {
+                        Color::Red
+                    } else {
+                        MUTED
+                    }),
                 ),
             ]);
             let mut lines = vec![heading];

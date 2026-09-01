@@ -73,10 +73,6 @@ pub enum Focus {
 
 #[derive(Clone, Debug)]
 pub enum PromptKind {
-    RoomPassword {
-        room_id: Uuid,
-        target_message: Option<Uuid>,
-    },
     RoomJoinPassword(Uuid),
     Upload,
     Download(Attachment),

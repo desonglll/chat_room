@@ -10,12 +10,21 @@ use crate::client_media::Attachment;
 #[derive(Clone, Debug)]
 pub struct ChatMessage {
     pub id: Uuid,
+    pub client_message_id: Option<Uuid>,
     pub sender: String,
     pub content: String,
     pub attachment: Option<Attachment>,
     pub timestamp: String,
     pub recalled: bool,
     pub edited: bool,
+    pub delivery: DeliveryState,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeliveryState {
+    Sending,
+    Sent,
+    Failed,
 }
 
 #[derive(Clone, Debug)]
@@ -43,6 +52,7 @@ pub enum ChatCommand {
     Send {
         content: String,
         reply_to: Option<Uuid>,
+        client_message_id: Uuid,
     },
     Edit {
         message_id: Uuid,
@@ -59,8 +69,21 @@ pub enum ChatCommand {
     Close,
 }
 
+impl ChatCommand {
+    pub fn client_message_id(&self) -> Option<Uuid> {
+        match self {
+            Self::Send {
+                client_message_id, ..
+            } => Some(*client_message_id),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
+// This transport enum intentionally mirrors the JSON protocol without boxed wire fields.
+#[allow(clippy::large_enum_variant)]
 pub(super) enum ServerMessage {
     #[serde(rename = "auth_ok")]
     AuthOk { room_name: String },
@@ -71,6 +94,8 @@ pub(super) enum ServerMessage {
     #[serde(rename = "broadcast")]
     Broadcast {
         message_id: Uuid,
+        #[serde(default)]
+        client_message_id: Option<Uuid>,
         sender: String,
         content: String,
         #[serde(default)]
@@ -107,11 +132,15 @@ pub(super) enum ServerMessage {
 
 pub(super) fn command_frame(command: ChatCommand) -> serde_json::Value {
     match command {
-        ChatCommand::Send { content, reply_to } => serde_json::json!({
+        ChatCommand::Send {
+            content,
+            reply_to,
+            client_message_id,
+        } => serde_json::json!({
             "type": "message",
             "content": content,
             "reply_to": reply_to,
-            "client_message_id": Uuid::new_v4()
+            "client_message_id": client_message_id
         }),
         ChatCommand::Edit {
             message_id,
@@ -148,6 +177,7 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
     let event = match message {
         ServerMessage::Broadcast {
             message_id,
+            client_message_id,
             sender: author,
             content,
             attachment,
@@ -156,12 +186,14 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
             edited_at,
         } => ChatEvent::Message(ChatMessage {
             id: message_id,
+            client_message_id,
             sender: clean(&author),
             content: clean_multiline(&content),
             attachment,
             timestamp,
             recalled: recalled_at.is_some(),
             edited: edited_at.is_some(),
+            delivery: DeliveryState::Sent,
         }),
         ServerMessage::HistoryComplete => ChatEvent::HistoryComplete,
         ServerMessage::System { content } => ChatEvent::System(clean_multiline(&content)),
@@ -218,7 +250,7 @@ mod tests {
             &serde_json::json!({
                 "type": "broadcast",
                 "message_id": message_id,
-                "client_message_id": null,
+                "client_message_id": Uuid::new_v4(),
                 "sender_id": null,
                 "sender": "alice\u{1b}",
                 "sender_avatar": "",
@@ -246,11 +278,13 @@ mod tests {
 
     #[test]
     fn send_commands_have_idempotency_identity() {
+        let client_message_id = Uuid::new_v4();
         let frame = command_frame(ChatCommand::Send {
             content: "hello".into(),
             reply_to: None,
+            client_message_id,
         });
         assert_eq!(frame["type"], "message");
-        assert!(frame["client_message_id"].as_str().is_some());
+        assert_eq!(frame["client_message_id"], client_message_id.to_string());
     }
 }

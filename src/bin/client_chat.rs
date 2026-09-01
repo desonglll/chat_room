@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::client_chat_protocol::{
     command_frame, decode_server_message, emit_server_event, ServerMessage,
 };
-pub use crate::client_chat_protocol::{ChatCommand, ChatEvent, ChatMessage};
+pub use crate::client_chat_protocol::{ChatCommand, ChatEvent, ChatMessage, DeliveryState};
 
 pub type ChatSender = mpsc::UnboundedSender<ChatCommand>;
 
@@ -120,4 +120,84 @@ pub async fn connect(
         sender: command_tx,
         events: event_rx,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::{net::TcpListener, time::Duration};
+    use tokio_tungstenite::{accept_async, tungstenite::Message};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn send_command_reaches_the_socket_and_returns_as_an_event() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let room_id = Uuid::new_v4();
+        let token = Uuid::new_v4();
+        let client_message_id = Uuid::new_v4();
+        let message_id = Uuid::new_v4();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket = accept_async(stream).await.unwrap();
+            let Message::Text(greeting) = socket.next().await.unwrap().unwrap() else {
+                panic!("expected authentication frame");
+            };
+            let greeting: serde_json::Value = serde_json::from_str(&greeting).unwrap();
+            assert_eq!(greeting["type"], "join");
+            socket
+                .send(Message::Text(
+                    serde_json::json!({ "type": "auth_ok", "room_name": "Test room" }).to_string(),
+                ))
+                .await
+                .unwrap();
+            let Message::Text(frame) = socket.next().await.unwrap().unwrap() else {
+                panic!("expected outgoing message frame");
+            };
+            let frame: serde_json::Value = serde_json::from_str(&frame).unwrap();
+            assert_eq!(frame["type"], "message");
+            assert_eq!(frame["content"], "hello socket");
+            assert_eq!(frame["client_message_id"], client_message_id.to_string());
+            socket
+                .send(Message::Text(
+                    serde_json::json!({
+                        "type": "broadcast",
+                        "message_id": message_id,
+                        "client_message_id": client_message_id,
+                        "sender": "alice",
+                        "content": "hello socket",
+                        "attachment": null,
+                        "timestamp": "2026-08-31T12:00:00Z",
+                        "recalled_at": null,
+                        "edited_at": null
+                    })
+                    .to_string(),
+                ))
+                .await
+                .unwrap();
+        });
+
+        let mut connection = connect(&format!("http://{address}"), room_id, token, None)
+            .await
+            .unwrap();
+        connection
+            .sender
+            .send(ChatCommand::Send {
+                content: "hello socket".into(),
+                reply_to: None,
+                client_message_id,
+            })
+            .unwrap();
+        let event = tokio::time::timeout(Duration::from_secs(2), connection.events.recv())
+            .await
+            .expect("timed out waiting for echoed message")
+            .expect("chat event channel closed");
+        let ChatEvent::Message(message) = event else {
+            panic!("expected echoed chat message");
+        };
+        assert_eq!(message.id, message_id);
+        assert_eq!(message.client_message_id, Some(client_message_id));
+        server.await.unwrap();
+    }
 }
