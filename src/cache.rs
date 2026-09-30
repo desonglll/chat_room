@@ -385,52 +385,5 @@ impl RedisCache {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn live_ai_answers_keep_the_terminal_snapshot_until_ttl() {
-        let config = RedisConfig {
-            enabled: true,
-            key_prefix: format!("chat-room-test:{}", Uuid::new_v4()),
-            ..RedisConfig::default()
-        };
-        let Ok(cache) = RedisCache::connect(&config).await else {
-            eprintln!("skipping Redis AI answer lifecycle test: Redis is unavailable");
-            return;
-        };
-        let message_id = Uuid::new_v4();
-        let source = AiCitationSource {
-            label: "S1".into(),
-            room_id: Uuid::new_v4(),
-            message_id: Uuid::new_v4(),
-            sender: "Ada".into(),
-            sent_at: Utc::now(),
-            excerpt: "The launch date is Friday".into(),
-            score: Some(0.82),
-            score_kind: "rerank".into(),
-            attachment: None,
-        };
-        let answer = CachedAiAnswer {
-            content: "partial answer".into(),
-            context_message_count: 3,
-            retrieved_message_count: 1,
-            sources: vec![source.clone()],
-            trace: Vec::new(),
-            revision: 2,
-            status: "completed".into(),
-            stage: "completed".into(),
-            stage_started_at: Some(Utc::now()),
-            updated_at: Utc::now(),
-        };
-
-        cache.set_ai_answer(message_id, &answer, 60).await.unwrap();
-        let cached = cache.ai_answer(message_id).await.unwrap().unwrap();
-        assert_eq!(cached.content, "partial answer");
-        assert_eq!(cached.retrieved_message_count, 1);
-        assert_eq!(cached.sources, vec![source]);
-        assert_eq!(cached.revision, 2);
-        assert_eq!(cached.status, "completed");
-        assert_eq!(cached.stage, "completed");
-    }
-}
+#[path = "cache_tests.rs"]
+mod tests;
