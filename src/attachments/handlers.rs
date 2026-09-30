@@ -249,7 +249,7 @@ pub(crate) async fn stream_to_staging(
     Ok(staged)
 }
 
-async fn authorize_upload(
+pub(crate) async fn authorize_upload(
     state: &SharedState,
     room_id: Uuid,
     headers: &HeaderMap,

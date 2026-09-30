@@ -18,6 +18,7 @@ use crate::models::{
 use crate::realtime::payloads::{
     MessageViewCount, PollState, TopicSummary, TypingAction, UserStatus, UserStatusEntry,
 };
+use crate::stickers::models::MessageSticker;
 
 /// Every WebSocket frame carries one JSON-serialised ChatMessage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +127,11 @@ pub enum ChatMessage {
         forwarded_from: Option<ForwardedFrom>,
         #[serde(default)]
         reactions: Vec<MessageReaction>,
+        /// TG-302: optional, omitted unless the message is a sticker (docs/devlog/TG-302.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_kind: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sticker: Option<MessageSticker>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

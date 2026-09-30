@@ -31,6 +31,7 @@ pub mod state;
 mod state_backup;
 mod state_build;
 mod state_runtime;
+pub mod stickers;
 pub mod storage;
 pub mod tasks;
 pub mod web;
