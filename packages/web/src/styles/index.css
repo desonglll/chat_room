@@ -10,3 +10,5 @@
 @import url('./login.css');
 @import url('./shell.css');
 @import url('./chat.css');
+@import url('../features/auth/twoFactorLogin.css');
+@import url('../features/settings/security/security.css');

@@ -1,0 +1,15 @@
+/* TG-506: the second login stage reuses `.tg-login__*`; only its footer is new. */
+
+.tg-two-factor-login__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+}
+
+.tg-two-factor-login__note {
+  margin: 0;
+  text-align: center;
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}

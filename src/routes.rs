@@ -94,6 +94,7 @@ pub(crate) fn api_routes(
             put(user_handlers::change_password),
         )
         .merge(sessions::routes())
+        .merge(crate::accounts::two_factor::routes())
         .route(
             "/api/users/me/avatar",
             axum::routing::post(avatar_handlers::upload_avatar).layer(

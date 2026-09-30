@@ -31,6 +31,10 @@ pub(crate) enum AuthAction {
     Login,
     Register,
     VerifyPassword,
+    /// TG-506: second-stage login and every 2FA-password check in settings.
+    TwoFactor,
+    /// TG-506: mailed recovery / verification codes.
+    TwoFactorRecovery,
 }
 
 impl AuthAction {
@@ -39,6 +43,8 @@ impl AuthAction {
             Self::Login => "login",
             Self::Register => "register",
             Self::VerifyPassword => "verify-password",
+            Self::TwoFactor => "two-factor",
+            Self::TwoFactorRecovery => "two-factor-recovery",
         }
     }
 }
