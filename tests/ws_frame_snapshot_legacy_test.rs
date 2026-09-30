@@ -1,10 +1,8 @@
 //! Serialization snapshots for every pre-TG-007 WebSocket frame.
 //!
-//! TG-007 was the one deliberate breaking window for the WS protocol. Everything in this file
-//! is pinned to serialise exactly as it did at the TG-007 base commit (d12aae2): if one of
-//! these assertions moves, a frozen client (Vue, PySide6, ratatui) breaks. The frames TG-007
-//! deliberately extended (`typing`, `auth_ok`) and the new frames live in
-//! `ws_frame_snapshot_extension_test.rs`.
+//! Pinned to serialise exactly as at the TG-007 base commit (d12aae2): if one of these moves,
+//! a frozen client (Vue, PySide6, ratatui) breaks. Frames TG-007 deliberately extended
+//! (`typing`, `auth_ok`) and the new frames live in `ws_frame_snapshot_extension_test.rs`.
 
 use chrono::{DateTime, Utc};
 use serde_json::json;
@@ -65,7 +63,7 @@ fn client_to_server_frames_deserialize_unchanged() {
         serde_json::from_value(json!({ "type": "message", "content": "hi" })).unwrap();
     assert!(matches!(
         message,
-        ChatMessage::Message { content, reply_to: None, client_message_id: None } if content == "hi"
+        ChatMessage::Message { content, reply_to: None, client_message_id: None, .. } if content == "hi"
     ));
 
     let edit: ChatMessage =
@@ -149,6 +147,7 @@ fn broadcast_frame_serializes_unchanged() {
         }],
         media_kind: None,
         sticker: None,
+        entities: Vec::new(),
     };
     assert_wire(
         &full,
@@ -188,9 +187,8 @@ fn broadcast_frame_serializes_unchanged() {
         ),
     );
 
-    // Nullable fields stay *present as null* (`sender_id`, `attachment`, `reply_to`, `recalled_at`,
-    // `edited_at`, `favorite_id`, `forwarded_from`), `reactions` is always emitted; only
-    // `client_message_id` and TG-302's `media_kind`/`sticker` are omitted when absent.
+    // Nullable fields stay *present as null*, `reactions` is always emitted; only `client_message_id`,
+    // TG-302's `media_kind`/`sticker` and TG-304's `entities` are omitted when absent.
     let minimal = ChatMessage::Broadcast {
         message_id: id(10),
         client_message_id: None,
@@ -208,6 +206,7 @@ fn broadcast_frame_serializes_unchanged() {
         reactions: Vec::new(),
         media_kind: None,
         sticker: None,
+        entities: Vec::new(),
     };
     assert_wire(
         &minimal,
@@ -245,6 +244,7 @@ fn edit_recall_reaction_frames_serialize_unchanged() {
             message_id: id(2),
             content: "new".into(),
             edited_at: when(),
+            entities: Vec::new(),
         },
         json!({ "type": "message_edited", "message_id": id(2), "content": "new",
             "edited_at": "2026-09-30T12:00:00Z" }),

@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::models::{ChatMember, ChatMessage, TypingAction, User};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
+use crate::stickers::custom_emoji::entities::leading_trim_utf16;
 use crate::ws_auth::{normalize_message, normalize_typing};
 
 /// Match `@username` tokens in `content` against the chat's active participants.
@@ -45,11 +46,16 @@ pub async fn handle_client_message(
             content,
             reply_to,
             client_message_id,
+            entities,
         } => {
+            let leading_trim = leading_trim_utf16(&content);
             let Some(content) = normalize_message(content) else {
                 tracing::warn!("ignored invalid message from {}", user.username);
                 return;
             };
+            let entities = state
+                .accept_message_entities(&content, leading_trim, entities)
+                .await;
             let Ok(_permit) = state.work_queue().message().await else {
                 tracing::warn!(%room_id, user_id = %user.id, "message write queue timed out");
                 return;
@@ -75,6 +81,7 @@ pub async fn handle_client_message(
                     &content,
                     reply_to,
                     client_message_id,
+                    &entities,
                 )
                 .await
             {
@@ -116,16 +123,21 @@ pub async fn handle_client_message(
         ChatMessage::Edit {
             message_id,
             content,
+            entities,
         } => {
+            let leading_trim = leading_trim_utf16(&content);
             let Some(content) = normalize_message(content) else {
                 return;
             };
+            let entities = state
+                .accept_message_entities(&content, leading_trim, entities)
+                .await;
             let Ok(_permit) = state.work_queue().message().await else {
                 tracing::warn!(%room_id, user_id = %user.id, "message edit queue timed out");
                 return;
             };
             match state
-                .edit_message(room_id, user.id, message_id, &content)
+                .edit_message(room_id, user.id, message_id, &content, &entities)
                 .await
             {
                 Ok(Some(edited_at)) => {
@@ -136,6 +148,7 @@ pub async fn handle_client_message(
                                 message_id,
                                 content,
                                 edited_at,
+                                entities,
                             },
                         )
                         .await;

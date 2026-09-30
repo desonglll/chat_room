@@ -112,8 +112,9 @@ impl AppState {
         for message in messages.iter_mut() {
             message.reactions = grouped.remove(&message.id).unwrap_or_default();
         }
-        // TG-302: every message loader runs this step, so `media_kind`/`sticker` ride along.
-        self.attach_message_media(messages).await
+        // TG-302/TG-304: every message loader runs this step, so media and entities ride along.
+        self.attach_message_media(messages).await?;
+        self.attach_message_entities(messages).await
     }
 }
 

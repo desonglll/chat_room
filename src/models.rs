@@ -56,6 +56,9 @@ pub struct StoredMessage {
     /// TG-302: which sticker a sticker message sent; the file is `attachment`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sticker: Option<crate::stickers::models::MessageSticker>,
+    /// TG-304: formatted ranges of `content` (custom emoji); omitted when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entities: Vec<crate::stickers::custom_emoji::MessageEntity>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

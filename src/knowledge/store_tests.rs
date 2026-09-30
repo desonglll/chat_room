@@ -66,6 +66,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
             "private release plan",
             None,
             Some(Uuid::new_v4()),
+            &[],
         )
         .await
         .unwrap()
@@ -79,6 +80,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
             "newer indexed detail",
             None,
             Some(Uuid::new_v4()),
+            &[],
         )
         .await
         .unwrap()

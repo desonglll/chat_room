@@ -6,6 +6,7 @@
 //! are the existing attachment paths.
 
 pub(crate) mod catalogue;
+pub mod custom_emoji;
 pub mod errors;
 pub mod files;
 pub mod handlers;
@@ -73,4 +74,5 @@ pub(crate) fn routes() -> Router<Arc<AppState>> {
             "/api/chats/:id/sticker-messages",
             post(message_api::send_sticker),
         )
+        .merge(custom_emoji::routes())
 }
