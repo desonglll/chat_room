@@ -39,6 +39,8 @@ import { pinMessage } from './pinMessage'
 import { SelectionBar } from './SelectionBar'
 import { useChatSession } from './useChatSession'
 import { useMessageSelection } from './useMessageSelection'
+import { SlowModeNotice } from '../chatAdmin/slowMode/SlowModeNotice'
+import { useSlowMode } from '../chatAdmin/slowMode/useSlowMode'
 
 /** TG-204: one forum topic's view of the chat, assembled by `features/forum`. */
 export interface ChatPaneTopic {
@@ -62,6 +64,7 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
   )
   const presence = useStore(presenceStore, selectPresence(chatId))
   const currentUserId = useStore(authStore, (state) => state.session?.user.id ?? '')
+  const slowMode = useSlowMode(chatId, currentUserId)
   const session = useChatSession(chatId, { topic: topic?.mode ?? null, onFrame: topic?.onFrame })
   const { connection, sendFrame } = session
   const selection = useMessageSelection(chatId)
@@ -151,13 +154,16 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
       ) : topic?.composerLock ? (
         topic.composerLock
       ) : (
-        <Composer
-          chatId={chatId}
-          currentUserId={currentUserId}
-          members={presence.participants}
-          session={session}
-          canSend={connection === 'online'}
-        />
+        <>
+          <SlowModeNotice wait={slowMode.wait} />
+          <Composer
+            chatId={chatId}
+            currentUserId={currentUserId}
+            members={presence.participants}
+            session={session}
+            canSend={connection === 'online' && slowMode.wait === 0}
+          />
+        </>
       )}
     </div>
   )

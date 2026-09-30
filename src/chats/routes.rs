@@ -9,8 +9,8 @@ use axum::{routing::get, Router};
 
 use super::{
     admin_handlers, drafts, handlers, lifecycle_handlers, membership_handlers, message_history,
-    query_handlers as chat_query_handlers, roster_handlers, topics::handlers as topic_handlers,
-    topics::viewer_handlers as topic_viewer_handlers,
+    query_handlers as chat_query_handlers, roster_handlers, slow_mode,
+    topics::handlers as topic_handlers, topics::viewer_handlers as topic_viewer_handlers,
 };
 use crate::{
     ai_extractions, ai_governance, ai_suggestions, attachment_handlers, attachment_upload_handlers,
@@ -133,6 +133,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
             &path("/:id/attachments"),
             axum::routing::post(attachment_handlers::upload_attachment)
                 .layer(axum::extract::DefaultBodyLimit::max(multipart_body_limit)),
+        )
+        .route(
+            &path("/:id/slow-mode"),
+            get(slow_mode::get_slow_mode).put(slow_mode::put_slow_mode),
         )
         .route(
             &path("/:id/forum"),

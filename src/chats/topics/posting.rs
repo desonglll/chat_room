@@ -31,7 +31,26 @@ impl AppState {
     /// - chat is not a forum: only General is valid (`Invalid` otherwise);
     /// - unknown topic, or another chat's: `NotFound`;
     /// - closed topic (General included) and the sender is not a topic admin: `Closed`.
+    ///
+    /// TG-207: every live send path calls this, so it also enforces slow mode (`SlowMode`).
+    /// Scheduled messages use [`Self::resolve_scheduled_post_topic`], which does not.
     pub async fn resolve_post_topic(
+        &self,
+        room_id: Uuid,
+        sender_id: Uuid,
+        requested: Option<Uuid>,
+    ) -> Result<Option<Uuid>, TopicError> {
+        let wait = self.slow_mode_wait(room_id, sender_id).await?;
+        if wait > 0 {
+            return Err(TopicError::SlowMode(wait));
+        }
+        self.resolve_scheduled_post_topic(room_id, sender_id, requested)
+            .await
+    }
+
+    /// [`Self::resolve_post_topic`] without slow mode: scheduling writes no message, and a
+    /// scheduled message was accepted when it was scheduled, so its delivery is not throttled.
+    pub async fn resolve_scheduled_post_topic(
         &self,
         room_id: Uuid,
         sender_id: Uuid,

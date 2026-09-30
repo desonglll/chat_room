@@ -99,7 +99,7 @@ pub(crate) async fn deliver(
     // TG-204: the topic may have been closed (or deleted) since scheduling; a closed topic
     // refuses the delivery exactly as it would refuse a live send.
     let topic_allows = match state
-        .resolve_post_topic(row.room_id, sender.id, row.topic_id)
+        .resolve_scheduled_post_topic(row.room_id, sender.id, row.topic_id)
         .await
     {
         Ok(_) => true,

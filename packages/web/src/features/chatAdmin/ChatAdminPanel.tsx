@@ -13,6 +13,7 @@ import { ForumToggle } from '../forum/ForumToggle'
 import { AdminEditor } from './AdminEditor'
 import { adminCapabilities, CHAT_TYPE_LABEL, chatTypeNote, memberName } from './chatAdminModel'
 import { DefaultPermissionsPage } from './DefaultPermissionsPage'
+import { SlowModePicker } from './slowMode/SlowModePicker'
 import { MemberRow } from './MemberRow'
 import { RestrictionEditor } from './RestrictionEditor'
 import type { ChatAdminState } from './useChatAdmin'
@@ -143,6 +144,15 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
         onSave={(permissions) => void admin.setDefaults(permissions).then(afterWrite)}
       />
     )
+    // TG-207: Telegram shows slow mode under the group's permissions, for admins who restrict.
+    if (can.ban && view.chat_type !== 'channel' && view.chat_type !== 'private') {
+      body = (
+        <>
+          {body}
+          <SlowModePicker chatId={chatId} />
+        </>
+      )
+    }
   } else if (page.id === 'admins') {
     body = list(admin.admins, '还没有管理员。')
   } else if (page.id === 'restricted') {

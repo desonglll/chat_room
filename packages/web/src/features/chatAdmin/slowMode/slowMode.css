@@ -1,0 +1,55 @@
+/* TG-207 slow mode: the composer strip and the admin interval picker. */
+.tg-slowmode-notice {
+  padding: 6px 16px;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-text-secondary);
+  text-align: center;
+  background: var(--tg-bg-secondary);
+  border-top: 1px solid var(--tg-divider);
+}
+
+.tg-slowmode-notice__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--tg-accent);
+}
+
+.tg-slowmode-picker {
+  padding: 12px 16px;
+}
+
+.tg-slowmode-picker__title {
+  margin: 0 0 8px;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-accent);
+}
+
+.tg-slowmode-picker__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tg-slowmode-picker__choice {
+  padding: 4px 10px;
+  border: 1px solid var(--tg-divider);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--tg-text-primary);
+  cursor: pointer;
+}
+
+.tg-slowmode-picker__choice[aria-checked='true'] {
+  border-color: var(--tg-accent);
+  color: var(--tg-accent);
+}
+
+.tg-slowmode-picker__note,
+.tg-slowmode-picker__error {
+  margin: 8px 0 0;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-slowmode-picker__error {
+  color: var(--tg-text-danger);
+}

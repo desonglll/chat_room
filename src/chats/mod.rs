@@ -40,6 +40,7 @@ pub mod query_handlers;
 pub mod restrictions;
 pub mod roster_handlers;
 pub mod routes;
+pub mod slow_mode;
 pub mod supergroup_upgrade;
 pub mod topics;
 
