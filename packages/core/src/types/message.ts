@@ -79,6 +79,8 @@ export interface StoredMessage {
   poll?: PollState
   /** TG-304: omitted when the message has no entities. */
   entities?: MessageEntity[]
+  /** TG-404: true when sent without notifications; omitted otherwise. */
+  silent?: boolean
 }
 
 /**

@@ -24,7 +24,7 @@ import { EMPTY_DRAFT, editIsDirty, selectComposerMode, uploadChatAction } from '
 /** The slice of the chat session the composer needs. */
 export interface ComposerSessionApi {
   /** Optimistic append + WS send of the current draft (reply target read from the store). */
-  sendMessage(text: string): boolean
+  sendMessage(text: string, options?: { silent?: boolean }): boolean
   /** Draft text → store + debounced cloud save (TG-008). */
   setDraftText(text: string): void
   /** One raw client frame on the chat socket: `edit` and `typing` go through here. */
@@ -47,6 +47,12 @@ export interface ComposerController {
   text(): string
   input(text: string): void
   submit(): SubmitOutcome
+  /** TG-404 «静默发送»: send the draft now without notifications (not while editing). */
+  submitSilent(): SubmitOutcome
+  /** TG-404 «定时发送»: the draft as a scheduled payload, or null when there is nothing to schedule. */
+  schedulePayload(): { content: string; replyTo: string | null } | null
+  /** TG-404: the draft became a scheduled message — clear it (and its reply bar) like a send. */
+  scheduled(): void
   reply(messageId: string): void
   edit(messageId: string): boolean
   forward(messageIds: readonly string[], fromChatId: string): void
@@ -78,14 +84,15 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
     if (draft().replyToMessageId !== before) session.setDraftText(draft().text)
   }
 
-  function sendDraft(text: string): SubmitOutcome {
+  function sendDraft(text: string, silent = false): SubmitOutcome {
     const forwarding = mode().forward
     const content = text.trim()
     if (!content && !forwarding) return 'empty'
     let outcome: SubmitOutcome = 'forwarded'
     if (content) {
       // Telegram order: the comment first, then the forwarded messages under it.
-      outcome = session.sendMessage(content) ? 'sent' : 'offline'
+      const sent = silent ? session.sendMessage(content, { silent: true }) : session.sendMessage(content)
+      outcome = sent ? 'sent' : 'offline'
     }
     if (forwarding) void deps.forward(forwarding.messageIds, chatId).catch(() => undefined)
     composer.getState().dispatchMode(chatId, { type: 'sent' })
@@ -117,6 +124,24 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
       if (!sent) return 'offline'
       composer.getState().dispatchMode(chatId, { type: 'sent' })
       return 'edited'
+    },
+
+    submitSilent() {
+      if (mode().edit) return 'empty'
+      return sendDraft(draft().text, true)
+    },
+
+    schedulePayload() {
+      const current = mode()
+      const content = draft().text.trim()
+      if (current.edit || current.forward || !content) return null
+      return { content, replyTo: current.replyToMessageId ?? null }
+    },
+
+    scheduled() {
+      session.setDraftText('')
+      dispatch({ type: 'sent' })
+      actions.sendChatAction(chatId, 'cancel')
     },
 
     reply: (messageId) => dispatch({ type: 'reply', messageId }),

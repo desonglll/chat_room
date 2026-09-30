@@ -74,6 +74,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     knowledge::ensure_worker(state.clone());
     push_notifications::delivery::ensure_dispatcher(state.clone());
     backup::ensure_scheduler(state.clone());
+    messages::scheduled::ensure_dispatcher(state.clone());
     let multipart_body_limit = state
         .max_upload_bytes()
         .saturating_add(attachment_handlers::MULTIPART_OVERHEAD_BYTES);

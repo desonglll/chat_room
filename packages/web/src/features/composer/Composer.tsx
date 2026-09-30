@@ -3,7 +3,8 @@
  * (with the reply/edit/forward bar above it, @mention list and selection toolbar
  * floating over it), paperclip, and the send ↔ voice button. Behaviour lives in
  * `composerController.ts` (stores, draft sync, socket) and `useComposerInput.ts`
- * (keyboard, caret); pasted/dropped/picked files go to `usePendingBatch`.
+ * (keyboard, caret); pasted/dropped/picked files go to `usePendingBatch`. TG-404: the send
+ * button's long-press menu (`SendMenu`) and the scheduled-messages entry (`ScheduledEntry`).
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
 import type { ChatMember } from '@tg/core'
@@ -19,6 +20,8 @@ import { FormatToolbar } from './FormatToolbar'
 import { CheckGlyph, MicGlyph, SendGlyph, SmileGlyph } from './icons'
 import { MentionPopup, mentionOptionId } from './MentionPopup'
 import { PendingDialog } from './PendingDialog'
+import { ScheduledEntry } from './ScheduledEntry'
+import { SendMenu } from './SendMenu'
 import { useComposerController } from './useComposerController'
 import { useComposerInput } from './useComposerInput'
 import { usePendingBatch } from './usePendingBatch'
@@ -182,6 +185,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
               <kbd>Alt+Enter</kbd>
             </span>
           ) : null}
+          <ScheduledEntry chatId={chatId} />
           {bar.kind !== 'edit' ? <AttachMenu onFiles={addFiles} /> : null}
         </div>
         {input.calcError ? (
@@ -196,17 +200,19 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
         ) : null}
       </div>
       {showSend ? (
-        <IconButton
-          label={bar.kind === 'edit' ? '保存' : '发送'}
-          variant="filled"
-          size="lg"
-          className="tg-compose__send"
-          data-kind={bar.kind === 'edit' ? 'save' : 'send'}
-          disabled={!canSend}
-          onClick={submit}
-        >
-          {bar.kind === 'edit' ? <CheckGlyph /> : <SendGlyph />}
-        </IconButton>
+        <SendMenu chatId={chatId} controller={controller} enabled={canSend && bar.kind !== 'edit'}>
+          <IconButton
+            label={bar.kind === 'edit' ? '保存' : '发送'}
+            variant="filled"
+            size="lg"
+            className="tg-compose__send"
+            data-kind={bar.kind === 'edit' ? 'save' : 'send'}
+            disabled={!canSend}
+            onClick={submit}
+          >
+            {bar.kind === 'edit' ? <CheckGlyph /> : <SendGlyph />}
+          </IconButton>
+        </SendMenu>
       ) : (
         <IconButton
           label="语音消息（即将推出）"
