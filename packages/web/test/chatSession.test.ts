@@ -174,3 +174,29 @@ describe('raw frames and read cursors (TG-100)', () => {
     session.stop()
   })
 })
+
+describe('live polls (TG-406 → TG-110)', () => {
+  test('poll_updated frames feed the poll store the bubble merges from', async () => {
+    const { session, sockets, stores, online } = harness()
+    await online()
+    sockets[0]!.receive({
+      type: 'poll_updated',
+      message_id: 'p1',
+      poll: {
+        id: 'p1',
+        question: '午饭？',
+        closed: false,
+        total_voters: 3,
+        options: [
+          { text: '面', voters: 2 },
+          { text: '饭', voters: 1 },
+        ],
+        revision: 4,
+      },
+    })
+    const held = stores.poll.getState().polls['p1']
+    expect(held?.total_voters).toBe(3)
+    expect(held?.options.map((option) => option.voters)).toEqual([2, 1])
+    session.stop()
+  })
+})

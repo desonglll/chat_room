@@ -182,7 +182,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
               <kbd>Alt+Enter</kbd>
             </span>
           ) : null}
-          {bar.kind !== 'edit' ? <AttachMenu onFiles={addFiles} /> : null}
+          {bar.kind !== 'edit' ? <AttachMenu chatId={chatId} onFiles={addFiles} /> : null}
         </div>
         {input.calcError ? (
           <p className="tg-compose__notice" role="alert">

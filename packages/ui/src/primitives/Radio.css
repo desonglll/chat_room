@@ -17,8 +17,13 @@
   min-block-size: var(--tg-space-8);
 }
 
+/* The invisible native input is the click target: it is stacked ABOVE the painted ring
+   (which comes later in the DOM and is positioned, so it would otherwise win the hit test),
+   and the ring ignores pointer events. A label-less radio is therefore clickable on its
+   circle, not only through a <label>. */
 .tg-radio__input {
   position: absolute;
+  z-index: 1;
   inline-size: var(--tg-ui-ring-size);
   block-size: var(--tg-ui-ring-size);
   margin: 0;
@@ -28,6 +33,7 @@
 
 .tg-radio__dot {
   position: relative;
+  pointer-events: none;
   display: inline-flex;
   flex: none;
   box-sizing: border-box;

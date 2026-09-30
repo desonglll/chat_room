@@ -1,13 +1,15 @@
 /**
  * The three-pane workspace: chat list | conversation | info panel. The middle pane is
- * the router outlet (`/` empty state, `/chat/:chatId` conversation); the right pane
- * mounts only while `uiStore.activePanel` asks for it, as in Telegram.
+ * the router outlet (`/` empty state, `/chat/:chatId` conversation); the right pane is
+ * always mounted and renders only while `uiStore.activePanel` asks for it (or while its
+ * exit slide plays), as in Telegram.
  *
  * Layout ownership (TG-102): the sidebar width/collapse (drag + persisted), and the
  * mobile single-column switch. On mobile both columns stay mounted at full width and
  * the switch is a transform — no reflow, so no layout jump — and the hidden column is
  * `inert`; the way back is the chat header's own back button. The info pane is a column
- * on wide screens and an overlay below that. `ChatOverlays` (media viewer, forward
+ * on wide screens and an overlay below that. The settings panel (TG-110) slides over the
+ * sidebar from inside it. `ChatOverlays` (media viewer, forward
  * picker, delete confirmation) is mounted once here, above every pane.
  */
 import type { CSSProperties } from 'react'
@@ -17,6 +19,7 @@ import { useStore } from 'zustand/react'
 import { ChatOverlays } from '../chat/ChatOverlays'
 import { ChatListPane } from '../chatList/ChatListPane'
 import { useChatListSync } from '../chatList/useChatListSync'
+import { SettingsHost } from '../settings/shell'
 import { InfoPane } from './InfoPane'
 import { SIDEBAR_COLLAPSED_WIDTH } from './sidebarLayout'
 import { SidebarResizer } from './SidebarResizer'
@@ -48,11 +51,12 @@ export function WorkspaceShell() {
       <div className="tg-shell__sidebar" inert={mobile && chatOpen}>
         <ChatListPane collapsed={collapsed} onToggleCollapsed={mobile ? undefined : toggleCollapsed} />
         {mobile ? null : <SidebarResizer layout={layout} onPreview={preview} onCommit={commit} />}
+        <SettingsHost />
       </div>
       <section className="tg-shell__main" inert={mobile && !chatOpen}>
         <Outlet />
       </section>
-      {infoOpen ? <InfoPane /> : null}
+      <InfoPane />
       <ChatOverlays />
     </div>
   )

@@ -1,0 +1,301 @@
+/*
+ * TG-110 settings panel. Semantic tokens only.
+ *
+ * Placement: over the left column, never narrower than a full column (so it stays usable
+ * when the column is collapsed), never wider than the screen (mobile: full screen).
+ * Motion: the panel slides in from the left edge like Telegram's drawer and slides back out;
+ * inside it, a pushed view slides in from the right and a popped one from the left. The
+ * panel clips its views, so nothing moves over the conversation pane. Reduced motion: fades.
+ */
+
+.tg-settings {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  inline-size: max(100%, var(--tg-column-width));
+  max-inline-size: 100vw;
+  overflow: hidden;
+  background: var(--tg-bg-secondary);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+  box-shadow: var(--tg-shadow-column);
+  animation: tg-settings-in var(--tg-duration-spring) var(--tg-ease-spring) both;
+}
+
+.tg-settings[data-closing] {
+  animation: tg-settings-out var(--tg-duration-exit) var(--tg-ease-accelerate) both;
+  pointer-events: none;
+}
+
+.tg-settings__view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
+  outline: none;
+}
+
+.tg-settings__view[data-direction='forward'] {
+  animation: tg-settings-push var(--tg-duration-spring) var(--tg-ease-spring) both;
+}
+
+.tg-settings__view[data-direction='back'] {
+  animation: tg-settings-pop var(--tg-duration-spring) var(--tg-ease-spring) both;
+}
+
+@keyframes tg-settings-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes tg-settings-out {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes tg-settings-push {
+  from {
+    transform: translateX(32%);
+    opacity: 0;
+  }
+}
+
+@keyframes tg-settings-pop {
+  from {
+    transform: translateX(-24%);
+    opacity: 0;
+  }
+}
+
+@keyframes tg-settings-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tg-settings-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-settings,
+  .tg-settings__view[data-direction='forward'],
+  .tg-settings__view[data-direction='back'] {
+    animation-name: tg-settings-fade-in;
+    animation-duration: var(--tg-duration-fade);
+  }
+
+  .tg-settings[data-closing] {
+    animation-name: tg-settings-fade-out;
+    animation-duration: var(--tg-duration-fade);
+  }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.tg-settings__header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--tg-space-2);
+  min-block-size: var(--tg-header-height);
+  padding-inline: var(--tg-space-2);
+  background: var(--tg-surface);
+  border-block-end: 1px solid var(--tg-divider);
+}
+
+.tg-settings__title {
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+}
+
+.tg-settings__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block-end: var(--tg-space-4);
+}
+
+.tg-settings__body--bare {
+  padding-block-end: 0;
+}
+
+/* ── Profile card ────────────────────────────────────────────────────────── */
+
+.tg-settings-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tg-space-2);
+  inline-size: 100%;
+  padding: var(--tg-space-6) var(--tg-space-4) var(--tg-space-5);
+  border: 0;
+  background: var(--tg-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-settings-profile:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-settings-profile__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.tg-settings-profile__name {
+  max-inline-size: 100%;
+  overflow: hidden;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-settings-profile__handle {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+/* ── Groups and rows ─────────────────────────────────────────────────────── */
+
+.tg-settings__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-3) var(--tg-space-4);
+  background: var(--tg-surface);
+}
+
+.tg-settings__group--rows {
+  gap: 0;
+  padding: var(--tg-space-2);
+}
+
+.tg-settings__group-title {
+  margin: 0;
+  color: var(--tg-accent);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-settings__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-6);
+  inline-size: 100%;
+  min-block-size: var(--tg-menu-row-height);
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--tg-type-subtitle-size);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-settings__row:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-settings__row:active {
+  background: var(--tg-surface-active);
+}
+
+.tg-settings__row:focus-visible,
+.tg-settings__danger-row:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-settings__row-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--tg-text-secondary);
+}
+
+.tg-settings__row-title {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.tg-settings__row-value {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-settings__danger-row {
+  inline-size: 100%;
+  min-block-size: var(--tg-menu-row-height);
+  padding: var(--tg-space-2) 0;
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  color: var(--tg-text-danger);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-settings__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-settings__hint,
+.tg-settings__value {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-settings__value {
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-subtitle-size);
+}
+
+.tg-settings__error {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-settings__actions {
+  padding-inline: var(--tg-space-4);
+}

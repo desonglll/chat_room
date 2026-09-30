@@ -47,3 +47,13 @@ test('WorkspaceShell: sidebar width variable, resizer, mobile view follows the r
   // TG-100: the back button moved into the chat header (ChatHeader markup test).
   expect(chat).not.toContain('tg-mobile-back')
 })
+
+test('the chat header info button toggles the info panel (TG-106 → TG-110)', async () => {
+  const { uiStore } = await import('@tg/core')
+  const { toggleChatInfo } = await import('../chat/ChatHeader')
+  uiStore.getState().closePanel()
+  toggleChatInfo()
+  expect(uiStore.getState().activePanel).toBe('chatInfo')
+  toggleChatInfo()
+  expect(uiStore.getState().activePanel).toBe('none')
+})

@@ -16,6 +16,13 @@ export const CONNECTION_COPY: Partial<Record<ChatSocketStatus, string>> = {
   failed: '无法进入会话',
 }
 
+/** Telegram: the header toggles the info panel — a second click closes it. */
+export function toggleChatInfo(): void {
+  const ui = uiStore.getState()
+  if (ui.activePanel === 'chatInfo') ui.closePanel()
+  else ui.openPanel('chatInfo')
+}
+
 export function ChatHeader({ chatId, connection }: { chatId: string; connection: ChatSocketStatus }) {
   const chat = useStore(chatListStore, selectChatById(chatId))
   // A private chat has no `/api/chats` descriptor; its sidebar row still names the peer.
@@ -23,6 +30,7 @@ export function ChatHeader({ chatId, connection }: { chatId: string; connection:
   const title = chat?.title || row?.alias || row?.title || '…'
   const emoji = chat?.avatar_emoji || row?.avatar_emoji || undefined
   const connectionCopy = CONNECTION_COPY[connection]
+  const infoOpen = useStore(uiStore, (state) => state.activePanel === 'chatInfo')
 
   return (
     <header className="tg-chat__header">
@@ -30,8 +38,9 @@ export function ChatHeader({ chatId, connection }: { chatId: string; connection:
       <button
         type="button"
         className="tg-chat__identity"
-        onClick={() => uiStore.getState().openPanel('chatInfo')}
+        onClick={() => toggleChatInfo()}
         aria-label="查看会话信息"
+        aria-expanded={infoOpen}
       >
         <Avatar label={title} initials={emoji} />
         <span className="tg-chat__titles">

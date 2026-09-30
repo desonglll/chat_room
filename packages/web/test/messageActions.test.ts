@@ -115,6 +115,13 @@ describe('bindMessageActions', () => {
     expect(photo.onDelete).toBeDefined()
   })
 
+  test('own polls cannot be edited (the server refuses it) but can still be deleted', () => {
+    const poll = { id: 'm3', question: '午饭？', closed: false, total_voters: 0, options: [] }
+    const actions = bindMessageActions(message('m3', ME, { content: '午饭？', poll }), deps().value)
+    expect(actions.onEdit).toBeUndefined()
+    expect(actions.onDelete).toBeDefined()
+  })
+
   test('system rows get no actions', () => {
     const row: DisplayMessage = { type: 'system', key: 's', content: 'x joined' }
     expect(bindMessageActions(row, deps().value)).toEqual({})
