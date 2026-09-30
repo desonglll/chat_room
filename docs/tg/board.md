@@ -62,6 +62,8 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-110 集成批次 2 + 设置外壳 | `925cc67` → 合并提交 | 投票实时更新与附件菜单入口、服务端拒绝编辑投票消息（双适配器测试）、信息面板开合、`@tg/ui` Radio 无 label 点击修复、**设置面板外壳**（`registerSettingsPage` 注册 API，M5 各任务自挂页面；隐私与 2FA 已挂；设备会话管理）。E2E 扩展到 22/22。合并冲突：`actions.rs` 仅注释冲突——负责人确认 SQL 同时保留 TG-304 的 entities 替换与 TG-110 的「投票不可编辑」条件；快照测试取 main 的拆分版。遗留：设置打开时侧栏仍可被 Tab 聚焦。 |
+| TG-303 贴纸面板 | `9acc8d2` → 合并提交 | 表情/贴纸/GIF 三合一面板（GIF 由 TG-305 经 `registerMediaPanelTab` 填入）、emoji 建议 62–70 ms、300 贴纸基准只拉取 ~37 个、暖开零长任务。**触发负责人修订包体门禁**：总量达 464 KB（其中 234 KB 为懒加载块），单一总量预算已无法区分「首屏变重」与「功能多了懒块」→ 拆为首屏 ≤300 KB（当前 230 KB）+ 全量 ≤1.5 MB，理由写在 `scripts/check_web_bundle.py` 文档串。 |
 | TG-502 归档区 | `94d028a` → 合并提交 | 「新消息弹出归档」由数据库触发器实现（迁移 `20270201000009`，双适配器），覆盖全部 9 条插入路径；静音者与发送者本人不弹出。负责人合并树 bun：web 461/0。**给 TG-404 的约束**：定时消息若在投递前就插入 `messages`，会提前触发弹出——TG-404 必须让触发器只对已投递消息生效。M6 压测要看该触发器在大群上的 `EXPLAIN`。 |
 | TG-406 投票与测验 | `bcd94c0` → `0b0c562` | 1000 并发投票仅 7 个广播帧（250 ms 聚合）；匿名投票在 REST/历史/WS 均不泄露投票人；非成员 404。**合并冲突要点**：TG-406 把 `forward_message` 从 `store.rs` 移到新 `forward_store.rs`，而 main 上 TG-505 已给它加了转发署名隐私覆盖（`$8`）——机械取任一侧都会丢掉隐私规则；负责人手工移植到 `forward_store.rs`。补丁 A/B（`poll_updated` 订阅、附件菜单投票入口）与「禁止编辑投票消息」交 TG-110。 |
 | TG-304 自定义 emoji | `e72c108` → `6d126a1` | 消息 `entities`（UTF-16 偏移，预留粗体/链接等类型）贯通 REST/WS/编辑；复制得到回退 emoji（真实 Chromium 验证）。与 TG-302/406 在消息结构体上三方追加冲突，负责人保留全部字段；`ws_frame_snapshot_legacy_test.rs` 因此到 351 行 → 按方向拆出 `ws_frame_snapshot_legacy_inbound_test.rs`（未调基线）。未应用的 UI 挂载点见其 devlog，交后续集成。已知：emoji 状态可见性按共同聊天而非隐私矩阵；状态变更无实时推送。 |
@@ -111,6 +113,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | TG-100 M1 集成接线（负责人新增） | M | — | **merged** `bf7880d` | agent:TG-100 | TG-101..105,107 |
+| TG-110 集成批次 2 + 设置面板外壳（负责人新增） | M | — | **merged** | agent:TG-110 | TG-106,406,505,506 |
 | TG-101 虚拟消息列表 ← 最高风险 | XL | A | **merged** `a2da0a2` | — | TG-012 |
 | TG-102 三栏布局与会话侧栏 | L | B | **merged** | — | TG-012 |
 | TG-103 消息气泡系统 | L | C | **merged** `6108b90` | — | TG-012 |
@@ -139,7 +142,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | --- | --- | --- | --- | --- | --- |
 | TG-301 TGS 解码与 Lottie 渲染 ← 性能风险 | L | A | **merged** `2ce9f3b` | — | M1 |
 | TG-302 贴纸数据模型与服务端 | L | B | **merged** | — | M1 |
-| TG-303 贴纸面板 | L | A | in-progress | — | TG-301, TG-302 |
+| TG-303 贴纸面板 | L | A | **merged** | — | TG-301, TG-302 |
 | TG-304 自定义 emoji | M | B | **merged** `6d126a1` | — | TG-302 |
 | TG-305 GIF | M | A | blocked | — | TG-303 |
 | TG-306 静态与视频贴纸 | S | B | **merged** | — | TG-301, TG-302 |

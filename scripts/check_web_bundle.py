@@ -17,7 +17,18 @@ The budget is a guardrail against losing control, not a target. It is expected t
 need raising — most likely at M3, when lottie-web arrives for animated stickers.
 Raise it deliberately, in a commit that says what grew and why. Raising it to
 silence a surprise is how a gate stops meaning anything.
+
+2026-10-01 (integration lead, M3): split into two budgets. By M3 the single total
+was 464 KB gzip, but 234 KB of it was lazy chunks (lottie workers, plyr, the
+emoji database, the sticker panel) that only load when a feature is opened. One
+number could no longer tell "startup got heavier" from "a feature got a lazy
+chunk", so it would have been raised blindly. Now:
+
+* initial — what `index.html` loads before first paint (entry script, its
+  modulepreloads, stylesheets). This is the user-facing cost and the strict one.
+* total — every JS/CSS asset. A loose ceiling so lazy chunks cannot grow unbounded.
 """
+import re
 
 import gzip
 from pathlib import Path
@@ -26,8 +37,20 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "packages" / "web" / "dist" / "assets"
 BUILD_HINT = "bun run -F '@tg/web' build"
 
-# Gzipped total of every JS and CSS asset the client loads.
-MAX_GZIP_BYTES = 500_000
+INDEX_HTML = ROOT / "packages" / "web" / "dist" / "index.html"
+
+# Gzipped size of what index.html loads before first paint (230 KB at the split).
+MAX_INITIAL_GZIP_BYTES = 300_000
+# Gzipped total of every JS and CSS asset, lazy chunks included (464 KB at the split).
+MAX_GZIP_BYTES = 1_500_000
+
+
+def initial_assets() -> set[str]:
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    return {
+        Path(ref).name
+        for ref in re.findall(r'(?:src|href)="([^"]+\.(?:js|css))"', html)
+    }
 
 
 def gzip_size(path: Path) -> int:
@@ -50,6 +73,21 @@ def main() -> int:
 
     for path, raw, gz in sorted(sizes, key=lambda entry: -entry[2]):
         print(f"  {path.name}  {raw} raw  {gz} gzip")
+
+    initial = initial_assets()
+    missing = initial - {p.name for p, _, _ in sizes}
+    if not initial or missing:
+        print(f"error: index.html references unknown assets {sorted(missing)}; rebuild")
+        return 1
+    initial_gzip = sum(gz for p, _, gz in sizes if p.name in initial)
+    print(
+        f"initial load: {len(initial)} asset(s), {initial_gzip} gzip "
+        f"(budget {MAX_INITIAL_GZIP_BYTES} gzip)"
+    )
+    if initial_gzip >= MAX_INITIAL_GZIP_BYTES:
+        print("error: initial load over budget. Lazy-load the feature (`import()`), or raise")
+        print("MAX_INITIAL_GZIP_BYTES in a commit that says what grew and why.")
+        return 1
 
     summary = (
         f"{len(sizes)} asset(s), {total_raw} raw, {total_gzip} gzip "
