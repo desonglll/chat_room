@@ -46,7 +46,9 @@ async fn web_client_is_only_served_when_enabled() {
 
     // The Vue entry must stay gone: a browser still holding the old service worker
     // resolves it, gets 404, and unpins itself via the retired worker below.
-    let vue_entry = reqwest::get(format!("{}/assets/app.js", web)).await.unwrap();
+    let vue_entry = reqwest::get(format!("{}/assets/app.js", web))
+        .await
+        .unwrap();
     assert_eq!(vue_entry.status(), 404);
 
     let missing_asset = reqwest::get(format!("{}/assets/not-built.js", web))
