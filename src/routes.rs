@@ -24,6 +24,7 @@ pub(crate) fn api_routes(
         .merge(observability::routes())
         .merge(crate::stickers::routes())
         .merge(crate::messages::polls::routes())
+        .merge(crate::attachments::voice::routes(multipart_body_limit))
         .merge(chats::routes::canonical(multipart_body_limit))
         .merge(chats::routes::deprecated_alias(multipart_body_limit))
         .route("/api/config", get(config::public_config))

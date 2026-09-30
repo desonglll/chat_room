@@ -190,6 +190,7 @@ impl AppState {
             .collect();
         self.attach_message_reactions(&mut messages).await?;
         self.attach_message_polls(&mut messages, viewer_id).await?;
+        self.attach_voice_listened(&mut messages, viewer_id).await?;
         Ok(messages.pop())
     }
 
@@ -284,6 +285,7 @@ impl AppState {
             .collect();
         self.attach_message_reactions(&mut messages).await?;
         self.attach_message_polls(&mut messages, viewer_id).await?;
+        self.attach_voice_listened(&mut messages, viewer_id).await?;
         Ok(messages)
     }
 
@@ -303,6 +305,7 @@ impl AppState {
                 Ok(MessageCacheLookup::Hit(mut messages)) => {
                     // TG-406: polls attach after the cache, so cached pages hold no counts.
                     self.attach_message_polls(&mut messages, viewer_id).await?;
+                    self.attach_voice_listened(&mut messages, viewer_id).await?;
                     return Ok(messages);
                 }
                 Ok(MessageCacheLookup::Miss(ticket)) => Some(ticket),
@@ -358,6 +361,7 @@ impl AppState {
             }
         }
         self.attach_message_polls(&mut messages, viewer_id).await?;
+        self.attach_voice_listened(&mut messages, viewer_id).await?;
         Ok(messages)
     }
 

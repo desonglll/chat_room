@@ -114,6 +114,8 @@ impl AppState {
         }
         // TG-302/TG-304: every message loader runs this step, so media and entities ride along.
         self.attach_message_media(messages).await?;
+        // TG-401: the static voice projection (duration, waveform) rides along too.
+        self.attach_message_voice(messages).await?;
         self.attach_message_entities(messages).await
     }
 }
