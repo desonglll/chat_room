@@ -25,7 +25,9 @@ describe('registry', () => {
     register({ id: 't.b', section: 'appearance', title: 'B', component: Page, order: 20 })
     register({ id: 't.a', section: 'appearance', title: 'A', component: Page, order: 10 })
     register({ id: 't.a', section: 'appearance', title: 'A2', component: Page, order: 10 })
-    const titles = pagesInSection(settingsPagesSnapshot(), 'appearance').map((page) => page.title)
+    const titles = pagesInSection(settingsPagesSnapshot(), 'appearance')
+      .filter((page) => page.id.startsWith('t.'))
+      .map((page) => page.title)
     expect(titles).toEqual(['A2', 'B'])
   })
 
