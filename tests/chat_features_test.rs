@@ -121,7 +121,7 @@ async fn replies_are_broadcast_and_replayed_with_a_stable_preview() {
     assert_eq!(next_json(&mut bob).await["type"], "system");
     assert_eq!(
         next_json(&mut alice).await["content"],
-        "reply-bob joined the chat"
+        "reply-bob joined the room"
     );
 
     send_message(&mut alice, "original message", None).await;

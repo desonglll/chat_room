@@ -126,8 +126,9 @@ async fn disconnect_removed(
         .broadcast(
             room_id,
             ChatMessage::System {
+                // Frozen wire value ("room", not "chat"); consumed verbatim by the clients.
                 content: format!(
-                    "{} was {} from the chat",
+                    "{} was {} from the room",
                     updated.username,
                     if banned { "banned" } else { "removed" }
                 ),

@@ -191,7 +191,7 @@ async fn private_chat_management_requires_current_password() {
     let mut saw_disconnect_reason = false;
     for _ in 0..3 {
         let message = next_json(&mut old_session).await;
-        if message["content"] == "chat password changed" {
+        if message["content"] == "room password changed" {
             saw_disconnect_reason = true;
             break;
         }
@@ -258,8 +258,8 @@ async fn deleting_private_chat_cascades_messages_and_disconnects_members() {
         204
     );
     assert_eq!(
-        next_content(&mut socket, "chat deleted").await["content"],
-        "chat deleted"
+        next_content(&mut socket, "room deleted").await["content"],
+        "room deleted"
     );
 
     let stored: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE room_id = ?")

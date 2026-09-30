@@ -15,7 +15,10 @@ use crate::audit::AuditEventDraft;
 use crate::state::{with_pool, AppState, SharedState};
 
 pub const SYSTEM_LOCK_REASON: &str = "system locked";
-pub const CHAT_LOCK_REASON: &str = "chat locked";
+// The value is a frozen wire string ("room locked", not "chat locked"): it reaches clients as
+// an auth_fail reason and System frame content (web/src/chatProtocol.ts AUTH_ERRORS and
+// readableSystemMessage). Only the constant's name follows the Chat vocabulary.
+pub const CHAT_LOCK_REASON: &str = "room locked";
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateSystemLockRequest {

@@ -82,7 +82,8 @@ pub(crate) async fn publish_membership_joined(
         .broadcast(
             room_id,
             ChatMessage::System {
-                content: format!("{} joined the chat", username),
+                // Frozen wire value: web/src/chatProtocol.ts `/^(.*) joined the room$/`.
+                content: format!("{} joined the room", username),
                 members: Some(state.connected_members(room_id).await),
                 participants: Some(participants),
             },
@@ -256,7 +257,8 @@ pub async fn leave_chat(
         .broadcast(
             room_id,
             ChatMessage::System {
-                content: format!("{} left the chat", removed.username),
+                // Frozen wire value: web/src/chatProtocol.ts `/^(.*) left the room$/`.
+                content: format!("{} left the room", removed.username),
                 members: Some(members),
                 participants: Some(participants),
             },

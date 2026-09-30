@@ -43,7 +43,8 @@ pub(crate) async fn authenticate(
             .is_some_and(|(status, _)| status == "active");
         if !is_active_member {
             let password = supplied_password
-                .ok_or_else(|| "this chat requires a password - send auth, not join".to_string())?;
+                // Frozen wire value ("room", not "chat"); consumed verbatim by the clients.
+                .ok_or_else(|| "this room requires a password - send auth, not join".to_string())?;
             if password.chars().count() > MAX_PASSWORD_CHARS {
                 return Err("password too long".into());
             }

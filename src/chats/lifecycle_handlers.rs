@@ -142,14 +142,16 @@ pub async fn update_chat(
         Ok(true) => {
             if password_changed {
                 state
-                    .restart_chat_connections(id, "chat password changed")
+                    // Frozen wire value: web/src/roomSystemEvents.ts stored-password cleanup.
+                    .restart_chat_connections(id, "room password changed")
                     .await;
             } else if updated.title != previous.title {
                 state
                     .broadcast(
                         id,
                         crate::models::ChatMessage::System {
-                            content: format!("chat renamed to {}", updated.title),
+                            // Frozen wire value: web/src/roomSystemEvents.ts list refresh.
+                            content: format!("room renamed to {}", updated.title),
                             members: None,
                             participants: None,
                         },

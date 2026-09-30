@@ -280,12 +280,12 @@ async fn administrators_can_lock_one_chat_without_affecting_others() {
     assert_eq!(locked["locked"], true);
     assert_eq!(
         next_type(&mut first_socket, "system").await["content"],
-        "chat locked"
+        "room locked"
     );
 
     let (_, rejected) = open_chat(&server.base, first_id, &regular).await;
     assert_eq!(rejected["type"], "auth_fail");
-    assert_eq!(rejected["reason"], "chat locked");
+    assert_eq!(rejected["reason"], "room locked");
     let (_, unaffected) = open_chat(&server.base, second_id, &regular).await;
     assert_eq!(unaffected["type"], "auth_ok");
     assert_eq!(

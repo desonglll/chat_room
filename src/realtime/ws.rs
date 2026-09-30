@@ -37,7 +37,8 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             let _ = send_json(
                 &mut sink,
                 &ChatMessage::AuthFail {
-                    reason: "chat not found".into(),
+                    // Frozen wire value ("room", not "chat"): web/src/chatProtocol.ts AUTH_ERRORS.
+                    reason: "room not found".into(),
                 },
             )
             .await;
@@ -193,7 +194,8 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             .broadcast(
                 room_id,
                 ChatMessage::System {
-                    content: format!("{} joined the chat", username),
+                    // Frozen wire value: web/src/chatProtocol.ts `/^(.*) joined the room$/`.
+                    content: format!("{} joined the room", username),
                     members: Some(members.clone()),
                     participants: Some(participants.clone()),
                 },

@@ -59,7 +59,8 @@ impl AppState {
         if changed == 0 {
             return Ok(false);
         }
-        self.remove_cached_chat(id, "chat deleted").await;
+        // Frozen wire value: web/src/roomSystemEvents.ts selection cleanup + deletion toast.
+        self.remove_cached_chat(id, "room deleted").await;
         Ok(true)
     }
 }
