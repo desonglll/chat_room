@@ -4,7 +4,7 @@
  * Which bar shows is `activeComposerBar` — this component only renders it.
  */
 import type { ComposerBar as ComposerBarState } from '@tg/core'
-import { messageStore } from '@tg/core'
+import { composerStore, messageStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { CloseGlyph, EditBarGlyph, ForwardBarGlyph, ReplyBarGlyph } from './icons'
 import { findMessage } from './composerController'
@@ -31,8 +31,18 @@ function useBarCopy(chatId: string, bar: ComposerBarState): { title: string; bod
   // Subscribe to the one message so an incoming edit/recall updates the quote.
   const message = useStore(messageStore, () => (firstId ? findMessage(messageStore, lookupChat, firstId) : null))
   const body = message ? quote(message.content, message.attachment?.file_name) : '消息'
+  // TG-409: a quote replaces the body; a cross-chat reply shows its source snapshot (the
+  // message is not in this chat's timeline).
+  const extras = useStore(composerStore, (state) => state.replyExtras[chatId])
   switch (bar.kind) {
     case 'reply':
+      if (extras?.source) {
+        return {
+          title: `回复 ${extras.source.sender}（来自 ${extras.source.chatTitle || '其他会话'}）`,
+          body: extras.quote ? `「${extras.quote.text}」` : quote(extras.source.text, null),
+        }
+      }
+      if (extras?.quote) return { title: message ? `引用 ${message.sender}` : '引用', body: `「${extras.quote.text}」` }
       return { title: message ? `回复 ${message.sender}` : '回复消息', body }
     case 'edit':
       return { title: '编辑消息', body }

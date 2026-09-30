@@ -33,6 +33,12 @@ export interface MessageActions {
   onOpenMedia?: ((attachmentId: string) => void) | undefined
   /** Scroll to and highlight another message (reply quote click). */
   onJumpTo?: ((messageId: string) => void) | undefined
+  /** TG-409: reply quoting the text selected in this message (a plain reply without one). */
+  onQuote?: (() => void) | undefined
+  /** TG-409: reply to this message from another chat (opens a chat picker). */
+  onReplyElsewhere?: (() => void) | undefined
+  /** TG-409: open the source of a cross-chat reply (the viewer may lack access). */
+  onOpenReplySource?: ((chatId: string, messageId: string) => void) | undefined
 }
 
 /**

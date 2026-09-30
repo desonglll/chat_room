@@ -5,7 +5,7 @@
  * fake clock and fake APIs. M1 tasks extend the frame fan-out here rather than opening
  * second subscriptions elsewhere.
  */
-import type { ChatDraft, CoreTimerHandle } from '@tg/core'
+import type { ChatDraft, CoreTimerHandle, ReplyExtras } from '@tg/core'
 import {
   EMPTY_DRAFT,
   TYPING_TTL_MS,
@@ -31,6 +31,18 @@ export type {
   SendMessageOptions,
 } from './chatSessionTypes'
 export { MAX_MESSAGE_CHARS } from './chatSessionTypes'
+
+/** TG-409: the reply's quote and source chat, on the wire (only alongside a `reply_to`). */
+function replyExtrasFrame(
+  extras: ReplyExtras | undefined,
+  replyTo: string,
+): { reply_quote?: { text: string; offset: number }; reply_to_chat_id?: string } {
+  if (!replyTo || !extras) return {}
+  return {
+    ...(extras.quote ? { reply_quote: { text: extras.quote.text, offset: extras.quote.offset } } : {}),
+    ...(extras.source ? { reply_to_chat_id: extras.source.chatId } : {}),
+  }
+}
 
 export function createChatSession(options: ChatSessionOptions): ChatSession {
   const { chatId, currentUserId, clock, stores } = options
@@ -236,6 +248,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         type: 'message',
         content,
         ...(replyTo ? { reply_to: replyTo } : {}),
+        ...replyExtrasFrame(stores.composer.getState().replyExtras[chatId], replyTo),
         client_message_id: clientMessageId,
         ...(topic?.sendTopicId ? { topic_id: topic.sendTopicId } : {}),
         ...(options?.silent ? { silent: true } : {}),

@@ -239,3 +239,23 @@ button.tg-bubble__reply:hover::before {
     transform: none;
   }
 }
+
+/* TG-409: a quoted slice is shown as a quote (italic, up to three lines), a modified original
+   is flagged, and a cross-chat reply names its source chat. */
+.tg-bubble__reply-text[data-quote] {
+  font-style: italic;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.tg-bubble__reply-chat,
+.tg-bubble__reply-modified {
+  font-weight: 400;
+  color: var(--tg-text-secondary);
+}
+
+.tg-bubble__reply-modified {
+  font-size: var(--tg-type-meta-size);
+}

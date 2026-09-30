@@ -77,6 +77,12 @@ pub enum ChatMessage {
         /// TG-404: deliver without notifications or Web Push (docs/devlog/TG-404.md).
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         silent: bool,
+        /// TG-409: quote part of `reply_to` (docs/devlog/TG-409.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reply_quote: Option<crate::messages::reply_quotes::ReplyQuoteRequest>,
+        /// TG-409: `reply_to` lives in this other chat (a cross-chat reply).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reply_to_chat_id: Option<Uuid>,
     },
 
     /// Client -> Server: replace the content of a message sent by this account. TG-304: the

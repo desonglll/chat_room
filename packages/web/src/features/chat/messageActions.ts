@@ -28,6 +28,12 @@ export interface MessageActionDeps {
   requestForward(messageIds: string[]): void
   pin(messageId: string): void
   copy(text: string): void
+  /** TG-409: reply quoting the current text selection inside `content` (else a plain reply). */
+  quote?(messageId: string, content: string): void
+  /** TG-409: pick another chat to reply from. */
+  replyElsewhere?(source: { messageId: string; sender: string; text: string }): void
+  /** TG-409: open another chat at a message (a cross-chat reply's source). */
+  openChatAt?(chatId: string, messageId: string): void
 }
 
 const NO_ACTIONS: MessageActions = {}
@@ -60,6 +66,12 @@ export function bindMessageActions(message: DisplayMessage, deps: MessageActionD
     onSelect: server ? () => ids.forEach((itemId) => deps.toggleSelected(itemId)) : undefined,
     onOpenMedia: (attachmentId) => deps.openMedia(attachmentId),
     onJumpTo: (messageId) => deps.jumpTo(messageId),
+    onQuote: deps.quote && server && text.trim() !== '' ? () => deps.quote?.(id, text) : undefined,
+    onReplyElsewhere:
+      deps.replyElsewhere && server
+        ? () => deps.replyElsewhere?.({ messageId: id, sender: message.sender, text })
+        : undefined,
+    onOpenReplySource: deps.openChatAt ? (chatId, messageId) => deps.openChatAt?.(chatId, messageId) : undefined,
   }
 }
 

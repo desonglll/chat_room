@@ -230,6 +230,10 @@ export type ClientFrame =
       topic_id?: string
       /** TG-404: deliver without notifications or push. */
       silent?: boolean
+      /** TG-409: quote part of `reply_to`. */
+      reply_quote?: { text: string; offset?: number }
+      /** TG-409: `reply_to` lives in this other chat. */
+      reply_to_chat_id?: string
     }
   | { type: 'edit'; message_id: string; content: string; entities?: MessageEntity[] }
   | { type: 'read'; message_id: string }

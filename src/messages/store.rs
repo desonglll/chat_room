@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::attachment_storage::StagedUpload;
 use crate::cache::MessageCacheLookup;
-use crate::models::{Attachment, ForwardedFrom, ReplyPreview, StoredMessage};
+use crate::models::{Attachment, ForwardedFrom, ReplyPreview, ReplyQuote, StoredMessage};
 use crate::state::{with_pool, AppState};
 
 pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_message_id, \
@@ -22,10 +22,15 @@ pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_mes
     reply.recalled_at AS reply_recalled_at, \
     reply_attachment.file_name AS reply_attachment_file_name, \
     messages.favorite_id, messages.forwarded_from_sender, messages.forwarded_from_room_name, \
-    messages.topic_id, messages.silent, messages.grouped_id FROM messages \
+    messages.topic_id, messages.silent, messages.grouped_id, \
+    messages.reply_to_id AS reply_target_id, messages.reply_to_chat_id, messages.reply_quote_text, \
+    messages.reply_quote_offset, messages.reply_source_sender, messages.reply_source_chat_title, \
+    (SELECT source.edited_at FROM messages AS source WHERE source.id = messages.reply_to_id) \
+      AS reply_source_edited_at FROM messages \
     LEFT JOIN attachments ON attachments.id = messages.attachment_id \
     LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
     LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
+      AND reply.room_id = messages.room_id \
     LEFT JOIN attachments AS reply_attachment ON reply_attachment.id = reply.attachment_id";
 
 type ReplySourceRow = (Uuid, String, String, Option<String>, Option<DateTime<Utc>>);
@@ -88,6 +93,13 @@ pub(crate) struct MessageRow {
     topic_id: Option<Uuid>,
     silent: bool,
     grouped_id: Option<Uuid>,
+    reply_target_id: Option<Uuid>,
+    reply_to_chat_id: Option<Uuid>,
+    reply_quote_text: Option<String>,
+    reply_quote_offset: Option<i64>,
+    reply_source_sender: Option<String>,
+    reply_source_chat_title: Option<String>,
+    reply_source_edited_at: Option<DateTime<Utc>>,
 }
 
 impl MessageRow {
@@ -112,24 +124,58 @@ impl MessageRow {
                     is_sensitive: self.attachment_is_sensitive.unwrap_or(false),
                 })
             });
-        let reply_to = self.reply_message_id.and_then(|message_id| {
-            let recalled = self.reply_recalled_at.is_some();
-            Some(ReplyPreview {
+        // TG-409: an explicit quote (a snapshot without an offset is not one), and whether the
+        // original changed after it was quoted.
+        let quote = self
+            .reply_quote_offset
+            .zip(self.reply_quote_text.clone())
+            .map(|(offset, text)| ReplyQuote { text, offset });
+        let quote_modified = quote.is_some()
+            && self
+                .reply_source_edited_at
+                .is_some_and(|edited| edited > self.created_at);
+        let cross_chat = match (
+            self.reply_message_id,
+            self.reply_target_id,
+            self.reply_to_chat_id,
+        ) {
+            (None, Some(message_id), Some(chat_id)) => Some(ReplyPreview {
                 message_id,
-                sender: self.reply_sender?,
-                content: if recalled {
-                    String::new()
-                } else {
-                    self.reply_content?
-                },
-                attachment_file_name: if recalled {
-                    None
-                } else {
-                    self.reply_attachment_file_name
-                },
-                recalled,
+                sender: self.reply_source_sender.clone().unwrap_or_default(),
+                content: self.reply_quote_text.clone().unwrap_or_default(),
+                attachment_file_name: None,
+                recalled: false,
+                quote: quote.clone(),
+                quote_modified,
+                chat_id: Some(chat_id),
+                chat_title: self.reply_source_chat_title.clone(),
+            }),
+            _ => None,
+        };
+        let reply_to = self
+            .reply_message_id
+            .and_then(|message_id| {
+                let recalled = self.reply_recalled_at.is_some();
+                Some(ReplyPreview {
+                    message_id,
+                    sender: self.reply_sender?,
+                    content: if recalled {
+                        String::new()
+                    } else {
+                        self.reply_content?
+                    },
+                    attachment_file_name: if recalled {
+                        None
+                    } else {
+                        self.reply_attachment_file_name
+                    },
+                    recalled,
+                    quote: if recalled { None } else { quote.clone() },
+                    quote_modified,
+                    ..Default::default()
+                })
             })
-        });
+            .or(cross_chat);
         let forwarded_from = self.forwarded_from_sender.and_then(|sender| {
             Some(ForwardedFrom {
                 sender,
@@ -424,6 +470,7 @@ impl AppState {
                     attachment_file_name
                 },
                 recalled: recalled_at.is_some(),
+                ..Default::default()
             },
         ))
     }

@@ -69,6 +69,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
             &[],
             None,
             false,
+            &Default::default(),
         )
         .await
         .unwrap()
@@ -85,6 +86,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
             &[],
             None,
             false,
+            &Default::default(),
         )
         .await
         .unwrap()

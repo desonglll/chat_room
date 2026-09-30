@@ -3,6 +3,7 @@
 use chrono::Utc;
 use uuid::Uuid;
 
+use super::reply_quotes::ReplyExtra;
 use super::store::{MessageRow, MESSAGE_SELECT};
 use crate::models::StoredMessage;
 use crate::state::{with_pool, AppState};
@@ -30,18 +31,33 @@ impl AppState {
         entities: &[MessageEntity],
         topic_id: Option<Uuid>,
         silent: bool,
+        reply_extra: &ReplyExtra,
     ) -> Result<StoreMessageResult, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
         let reply_to = self.reply_preview(room_id, reply_to).await?;
+        // TG-409: a cross-chat reply points at the source row (no same-chat preview exists);
+        // its snapshot columns are what the target chat will read.
+        let reply_to_id = reply_to
+            .as_ref()
+            .map(|reply| reply.message_id)
+            .or(reply_extra.cross.as_ref().map(|cross| cross.message_id));
+        let cross = reply_extra.cross.as_ref();
+        let quote_text = reply_extra
+            .quote
+            .as_ref()
+            .map(|quote| quote.text.clone())
+            .or(cross.map(|cross| cross.snapshot.clone()));
+        let quote_offset = reply_extra.quote.as_ref().map(|quote| quote.offset);
         let inserted = with_pool!(self, |pool| {
             async {
             let mut tx = pool.begin().await?;
             let inserted = sqlx::query(
                 "INSERT INTO messages \
                  (id, room_id, sender_id, sender, content, reply_to_id, client_message_id, created_at, \
-                  topic_id, silent) \
-                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 \
+                  topic_id, silent, reply_quote_text, reply_quote_offset, reply_to_chat_id, \
+                  reply_source_sender, reply_source_chat_title) \
+                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15 \
                  WHERE EXISTS (SELECT 1 FROM chat_members \
                    JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
                    WHERE chat_members.room_id = $2 AND chat_members.user_id = $3 \
@@ -55,11 +71,16 @@ impl AppState {
             .bind(sender_id)
             .bind(sender)
             .bind(content)
-            .bind(reply_to.as_ref().map(|reply| reply.message_id))
+            .bind(reply_to_id)
             .bind(client_message_id)
             .bind(created_at)
             .bind(topic_id)
             .bind(silent)
+            .bind(&quote_text)
+            .bind(quote_offset)
+            .bind(cross.map(|cross| cross.chat_id))
+            .bind(cross.map(|cross| cross.sender.clone()))
+            .bind(cross.map(|cross| cross.chat_title.clone()))
             .execute(&mut *tx)
             .await?
             .rows_affected()

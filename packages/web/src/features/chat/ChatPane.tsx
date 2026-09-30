@@ -30,7 +30,7 @@ import { openMediaViewer } from '../mediaViewer'
 import { MessageList } from '../messageList/MessageList'
 import type { MessageListApi } from '../messageList/messageListController'
 import type { ChatSessionTopicMode } from './chatSession'
-import { requestDelete, requestForward } from './chatDialogStore'
+import { requestDelete, requestForward, requestReplyElsewhere } from './chatDialogStore'
 import { ChatHeader } from './ChatHeader'
 import type { ChatRenderOptions } from './ChatMessage'
 import { createChatRenderer } from './ChatMessage'
@@ -41,6 +41,7 @@ import { useChatSession } from './useChatSession'
 import { useMessageSelection } from './useMessageSelection'
 import { SlowModeNotice } from '../chatAdmin/slowMode/SlowModeNotice'
 import { useSlowMode } from '../chatAdmin/slowMode/useSlowMode'
+import { useNavigate } from 'react-router-dom'
 
 /** TG-204: one forum topic's view of the chat, assembled by `features/forum`. */
 export interface ChatPaneTopic {
@@ -65,6 +66,7 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
   const presence = useStore(presenceStore, selectPresence(chatId))
   const currentUserId = useStore(authStore, (state) => state.session?.user.id ?? '')
   const slowMode = useSlowMode(chatId, currentUserId)
+  const navigate = useNavigate()
   const session = useChatSession(chatId, { topic: topic?.mode ?? null, onFrame: topic?.onFrame })
   const { connection, sendFrame } = session
   const selection = useMessageSelection(chatId)
@@ -106,8 +108,22 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
       pin: (messageId) =>
         void pinMessage(apiClient, selectToken(authStore.getState()), chatId, messageId).catch(() => {}),
       copy: (text) => void copyText(text),
+      quote: (messageId, content) => {
+        // TG-409: the selection must be a slice of this message; a JS string index is the
+        // UTF-16 offset the server expects. Without one this is a plain reply.
+        const selected = (globalThis.getSelection?.()?.toString() ?? '').trim()
+        const offset = selected ? content.indexOf(selected) : -1
+        if (offset >= 0) {
+          composerStore.getState().setReplyWithExtras(chatId, messageId, { quote: { text: selected, offset } })
+        } else {
+          composerStore.getState().dispatchMode(chatId, { type: 'reply', messageId })
+        }
+      },
+      replyElsewhere: (source) => requestReplyElsewhere(chatId, source),
+      openChatAt: (target, messageId) =>
+        void navigate(`/chat/${encodeURIComponent(target)}?message=${encodeURIComponent(messageId)}`),
     }),
-    [chatId, currentUserId, canPin, sendFrame, toggleSelected],
+    [chatId, currentUserId, canPin, sendFrame, toggleSelected, navigate],
   )
   const renderMessage = useMemo(
     () => createChatRenderer({ deps, peerReadAt, selectionMode, groupIdentity }),
