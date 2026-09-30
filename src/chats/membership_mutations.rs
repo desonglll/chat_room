@@ -72,6 +72,9 @@ impl AppState {
         if changed == 0 {
             return Ok(None);
         }
+        // TG-205: an approved request that arrived through an invite link counts as a use.
+        self.count_approved_invite_link_join(room_id, user_id)
+            .await?;
         self.settle_membership_change(room_id).await?;
         self.chat_membership(room_id, user_id).await
     }

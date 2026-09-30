@@ -88,6 +88,18 @@ impl AppState {
                     .bind(source_message_id)
                     .execute(&mut *transaction)
                     .await?;
+                // TG-401: a forwarded voice message stays a voice message (unlistened).
+                sqlx::query(crate::attachments::voice::FORWARD_COPY_VOICE_NOTE)
+                    .bind(id)
+                    .bind(source_message_id)
+                    .bind(created_at)
+                    .execute(&mut *transaction)
+                    .await?;
+                sqlx::query(crate::attachments::voice::FORWARD_MARK_VOICE)
+                    .bind(id)
+                    .bind(source_message_id)
+                    .execute(&mut *transaction)
+                    .await?;
             }
             transaction.commit().await?;
             Ok::<_, sqlx::Error>(inserted)

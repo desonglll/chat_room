@@ -52,9 +52,10 @@ pub(crate) async fn security_headers(request: Request, next: Next) -> Response {
         "referrer-policy",
         HeaderValue::from_static("strict-origin-when-cross-origin"),
     );
+    // TG-401: voice messages record from this origin's own pages only.
     headers.insert(
         "permissions-policy",
-        HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+        HeaderValue::from_static("camera=(), microphone=(self), geolocation=()"),
     );
     response
 }

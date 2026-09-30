@@ -9,6 +9,7 @@ pub(crate) mod catalogue;
 pub mod custom_emoji;
 pub mod errors;
 pub mod files;
+pub mod gifs;
 pub mod handlers;
 pub mod library;
 pub(crate) mod message_view;
@@ -75,4 +76,5 @@ pub(crate) fn routes() -> Router<Arc<AppState>> {
             post(message_api::send_sticker),
         )
         .merge(custom_emoji::routes())
+        .merge(gifs::routes())
 }

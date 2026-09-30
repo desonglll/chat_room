@@ -13,15 +13,13 @@ import { MentionPopup } from '../MentionPopup'
 const session = { sendMessage: () => true, setDraftText: () => undefined, sendFrame: () => true }
 
 describe('Composer markup', () => {
-  test('idle: emoji, labelled textarea, attachments, voice button disabled until TG-401', () => {
+  test('idle: emoji, labelled textarea, attachments, and the TG-401 voice button', () => {
     const html = renderToStaticMarkup(<Composer chatId="c1" currentUserId="me" members={[]} session={session} />)
     expect(html).toContain('class="tg-compose"')
     expect(html).toContain('aria-label="表情"')
     expect(html).toContain('aria-label="消息内容"')
     expect(html).toContain('aria-label="添加附件"')
-    expect(html).toMatch(
-      /aria-label="语音消息（即将推出）"[^>]*disabled|disabled[^>]*aria-label="语音消息（即将推出）"/,
-    )
+    expect(html).toContain('aria-label="按住录制语音消息"')
     expect(html).toContain('data-kind="voice"')
     expect(html).not.toContain('data-kind="send"')
   })

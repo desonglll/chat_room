@@ -7,6 +7,7 @@ pub mod pins;
 pub mod polls;
 pub mod reactions;
 pub mod read_store;
+pub mod scheduled;
 pub mod search;
 mod search_pattern;
 pub mod store;
