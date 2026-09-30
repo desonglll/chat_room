@@ -3,13 +3,14 @@
 use axum::{
     extract::{ConnectInfo, Path, State},
     http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     Json,
 };
 use std::net::SocketAddr;
 
 use crate::models::{
-    AuthRequest, AuthSession, ChangePasswordRequest, DeleteAccountRequest, UpdateProfileRequest,
-    User, VerifyPasswordRequest,
+    AuthRequest, ChangePasswordRequest, DeleteAccountRequest, UpdateProfileRequest, User,
+    VerifyPasswordRequest,
 };
 use crate::security::AuthAction;
 use crate::state::SharedState;
@@ -34,9 +35,10 @@ const MAX_HOMEPAGE_CHARS: usize = 240;
     path = "/api/users/login",
     request_body = AuthRequest,
     responses(
-        (status = 200, description = "Login succeeded", body = AuthSession),
+        (status = 200, description = "Login succeeded", body = crate::models::AuthSession),
         (status = 400, description = "Invalid username or password format"),
         (status = 401, description = "Incorrect username or password"),
+        (status = 428, description = "Password accepted; the account requires its 2FA password (TG-506)", body = super::two_factor::TwoFactorChallenge),
         (status = 429, description = "Too many login attempts")
     )
 )]
@@ -45,7 +47,7 @@ pub async fn login(
     peer: Option<ConnectInfo<SocketAddr>>,
     headers: HeaderMap,
     Json(request): Json<AuthRequest>,
-) -> Result<Json<AuthSession>, StatusCode> {
+) -> Result<Response, StatusCode> {
     let (username, password) = normalize_credentials(request.username, request.password)?;
     require_auth_capacity(&state, &headers, peer, AuthAction::Login, &username).await?;
     let Some((user, password_hash)) = state.user_credentials(&username).await.map_err(|error| {
@@ -59,11 +61,15 @@ pub async fn login(
     if !password_matches(password, password_hash).await {
         return Err(StatusCode::UNAUTHORIZED);
     }
+    // TG-506: an account with 2FA gets a pending token (428), never a session, here.
+    if let Some(challenge) = super::two_factor::challenge_response(&state, &user).await? {
+        return Ok(challenge);
+    }
     let metadata = SessionMetadata::from_request(&headers, peer, state.trust_proxy_headers());
     state
         .create_session_with_metadata(user, metadata)
         .await
-        .map(Json)
+        .map(|session| Json(session).into_response())
         .map_err(|error| {
             tracing::error!("create login session failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR

@@ -1,0 +1,107 @@
+/* TG-506: Settings → Two-Step Verification panel. Semantic tokens only. */
+
+.tg-security {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-4);
+  padding: var(--tg-space-4);
+  color: var(--tg-text-primary);
+}
+
+.tg-security__title {
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-security__lead,
+.tg-security__state {
+  margin: var(--tg-space-1) 0 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-security__body,
+.tg-security__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-security__form-title {
+  margin: 0;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-security__facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--tg-radius-panel);
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-divider);
+}
+
+.tg-security__fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-3) var(--tg-space-4);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-security__fact + .tg-security__fact {
+  border-top: 1px solid var(--tg-divider);
+}
+
+.tg-security__fact dt {
+  color: var(--tg-text-secondary);
+}
+
+.tg-security__fact dd {
+  margin: 0;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.tg-security__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.tg-security__loading {
+  display: grid;
+  place-items: center;
+  padding: var(--tg-space-8);
+}
+
+.tg-security__warning,
+.tg-security__notice,
+.tg-security__error {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-md);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-security__warning {
+  background: var(--tg-accent-soft);
+  color: var(--tg-text-primary);
+}
+
+.tg-security__notice {
+  background: var(--tg-accent-soft);
+  color: var(--tg-text-success);
+}
+
+.tg-security__error {
+  background: var(--tg-danger-soft);
+  color: var(--tg-text-danger);
+}

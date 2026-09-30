@@ -7,5 +7,6 @@ mod credentials;
 pub mod privacy;
 pub mod registration;
 pub mod sessions;
+pub mod two_factor;
 pub mod user_handlers;
 pub mod users;

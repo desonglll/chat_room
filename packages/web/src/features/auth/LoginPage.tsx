@@ -4,10 +4,13 @@
  *
  * The registration mode of the deployment (`GET /api/config`) decides whether the
  * register tab shows an invite-code field (`invite_only`) or is disabled entirely.
+ *
+ * TG-506: login is two-stage for accounts with a cloud password — a `428` from stage one
+ * swaps the card for `TwoFactorLoginStep`; accounts without 2FA sign in as before.
  */
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
-import { getPublicConfig, type RegistrationMode } from '@tg/core'
+import { getPublicConfig, type RegistrationMode, type TwoFactorChallenge } from '@tg/core'
 import { authStore } from '@tg/core'
 import { Button, TextField } from '@tg/ui'
 import { apiClient } from '../../app/client'
@@ -15,6 +18,8 @@ import { browserStorage } from '../../app/platform'
 import type { AuthMode } from '../../app/session'
 import { signIn } from '../../app/session'
 import { authErrorCopy } from './authCopy'
+import { TwoFactorLoginStep } from './TwoFactorLoginStep'
+import { startLogin } from './twoStepLogin'
 
 export function LoginPage() {
   const [mode, setMode] = useState<AuthMode>('login')
@@ -24,6 +29,7 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [registration, setRegistration] = useState<RegistrationMode>('open')
+  const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -47,11 +53,17 @@ export function LoginPage() {
     if (busy) return
     setError('')
     setBusy(true)
+    const deps = { client: apiClient, storage: browserStorage, store: authStore }
     try {
-      await signIn(
-        { client: apiClient, storage: browserStorage, store: authStore },
-        { mode, username: username.trim(), password, inviteToken: inviteToken.trim() },
-      )
+      if (mode === 'login') {
+        const outcome = await startLogin(deps, username.trim(), password)
+        if (outcome.kind === 'two_factor') {
+          setPassword('')
+          setChallenge(outcome.challenge)
+        }
+      } else {
+        await signIn(deps, { mode, username: username.trim(), password, inviteToken: inviteToken.trim() })
+      }
       // Success flips authStore; the router's AnonymousOnly guard leaves this page.
     } catch (failure) {
       setError(authErrorCopy(failure, mode))
@@ -63,6 +75,19 @@ export function LoginPage() {
   function switchMode(next: AuthMode) {
     setMode(next)
     setError('')
+  }
+
+  function restart(notice?: string) {
+    setChallenge(null)
+    setError(notice ?? '')
+  }
+
+  if (challenge) {
+    return (
+      <main className="tg-login">
+        <TwoFactorLoginStep challenge={challenge} onRestart={restart} />
+      </main>
+    )
   }
 
   return (
