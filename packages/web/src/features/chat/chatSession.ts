@@ -34,6 +34,8 @@ import {
   storedMessageToBroadcast,
 } from '@tg/core'
 import { applyPollFrame, type PollStore } from '../poll/pollStore'
+import { applyViewsFrame, type ChannelStore } from '../channel/channelStore'
+import { applyVoiceListenedFrame } from '../voice/voiceStore'
 
 /** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
 export const MAX_MESSAGE_CHARS = 4096
@@ -45,6 +47,8 @@ export interface ChatSessionStores {
   chatList: ChatListStore
   /** Live poll tallies (TG-406). `poll_updated` frames are dropped when absent. */
   poll?: PollStore | undefined
+  /** Live channel view counts (TG-202). `message_views_updated` frames are dropped when absent. */
+  channel?: ChannelStore | undefined
 }
 
 /**
@@ -79,12 +83,17 @@ export interface ChatSessionOptions {
   readCursor?: boolean | undefined
 }
 
+/** TG-404: per-send options; `silent` delivers without notifications. */
+export interface SendMessageOptions {
+  silent?: boolean
+}
+
 export interface ChatSession {
   start(): void
   /** Flushes a pending draft save, closes the socket, detaches every subscription. */
   stop(): void
-  /** Optimistic append + WS send; false marks the row failed (offline). */
-  sendMessage(text: string): boolean
+  /** Optimistic append + WS send; false marks the row failed (offline). TG-404: `silent`. */
+  sendMessage(text: string, options?: SendMessageOptions): boolean
   /**
    * Composer edit: store + debounced cloud save. Typing frames are the composer's
    * (TG-107 `createChatActionSender` via `sendFrame`), not this method's.
@@ -257,6 +266,11 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('poll_updated', (frame) => {
           if (stores.poll) applyPollFrame(frame, stores.poll)
         }),
+        socket.on('message_views_updated', (frame) => {
+          if (stores.channel) applyViewsFrame(frame, stores.channel)
+        }),
+        // TG-401: the listener's and the sender's unlistened dots (features/voice).
+        socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
       )
       socket.connect()
       options.draftsApi
@@ -285,7 +299,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
       stores.message.getState().clearChat(chatId)
     },
 
-    sendMessage(text) {
+    sendMessage(text, options) {
       const content = text.trim()
       if (!content || [...content].length > MAX_MESSAGE_CHARS) return false
       const clientMessageId = createRandomUuid()
@@ -304,6 +318,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         ...(replyTo ? { reply_to: replyTo } : {}),
         client_message_id: clientMessageId,
         ...(topic?.sendTopicId ? { topic_id: topic.sendTopicId } : {}),
+        ...(options?.silent ? { silent: true } : {}),
       })
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
       stores.composer.getState().clearDraft(chatId)

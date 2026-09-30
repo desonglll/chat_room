@@ -13,6 +13,9 @@ use crate::models::{ChatMessage, StoredMessage};
 pub(crate) fn frame_visible_to(message: &ChatMessage, viewer: Uuid) -> bool {
     match message {
         ChatMessage::DraftUpdated { user_id, .. } => *user_id == viewer,
+        ChatMessage::VoiceListened {
+            user_id, sender_id, ..
+        } => *user_id == viewer || *sender_id == Some(viewer),
         _ => true,
     }
 }
@@ -38,6 +41,10 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         poll: message.poll,
         entities: message.entities,
         topic_id: message.topic_id,
+        views: message.views,
+        post_author: message.post_author,
+        voice: message.voice,
+        silent: message.silent,
     }
 }
 

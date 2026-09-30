@@ -73,8 +73,14 @@ impl AppState {
         if access.sender_id == Some(user_id) {
             return Ok(true);
         }
-        self.has_chat_permission(access.room_id, user_id, "message.pin")
-            .await
+        // TG-202: stopping a poll edits its message, so `message.edit_any` (a channel
+        // administrator's right) also may.
+        Ok(self
+            .has_chat_permission(access.room_id, user_id, "message.pin")
+            .await?
+            || self
+                .has_chat_permission(access.room_id, user_id, "message.edit_any")
+                .await?)
     }
 }
 

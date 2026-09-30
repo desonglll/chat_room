@@ -26,6 +26,7 @@ import type { ChatListFolder } from './chatListFilters'
 import { selectChatListView } from './chatListFilters'
 import { ConnectedChatRow } from './ConnectedChatRow'
 import { NewChatDialog } from './NewChatDialog'
+import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
 
 export interface ChatListPaneProps {
@@ -54,6 +55,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const [folder, setFolder] = useState<ChatListFolder>('main')
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  const [creatingChannel, setCreatingChannel] = useState(false)
   const navigate = useNavigate()
   const activeChatId = useMatch('/chat/:chatId/*')?.params.chatId ?? ''
   const now = useMinuteClock()
@@ -84,6 +86,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
 
   const menuItems: MenuItem[] = [
     { id: 'new-group', label: '新建群组', onSelect: () => setCreating(true) },
+    { id: 'new-channel', label: '新建频道', onSelect: () => setCreatingChannel(true) },
     {
       id: 'archive',
       label: ARCHIVE_TITLE,
@@ -181,6 +184,16 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
         token={token}
         onCreated={(chat) => {
           setCreating(false)
+          void navigate(`/chat/${chat.id}`)
+        }}
+      />
+      <CreateChannelDialog
+        open={creatingChannel}
+        onClose={() => setCreatingChannel(false)}
+        token={token}
+        api={channelApi}
+        onCreated={(chat) => {
+          setCreatingChannel(false)
           void navigate(`/chat/${chat.id}`)
         }}
       />

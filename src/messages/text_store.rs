@@ -29,6 +29,7 @@ impl AppState {
         client_message_id: Option<Uuid>,
         entities: &[MessageEntity],
         topic_id: Option<Uuid>,
+        silent: bool,
     ) -> Result<StoreMessageResult, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
@@ -39,8 +40,8 @@ impl AppState {
             let inserted = sqlx::query(
                 "INSERT INTO messages \
                  (id, room_id, sender_id, sender, content, reply_to_id, client_message_id, created_at, \
-                  topic_id) \
-                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9 \
+                  topic_id, silent) \
+                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 \
                  WHERE EXISTS (SELECT 1 FROM chat_members \
                    JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
                    WHERE chat_members.room_id = $2 AND chat_members.user_id = $3 \
@@ -58,6 +59,7 @@ impl AppState {
             .bind(client_message_id)
             .bind(created_at)
             .bind(topic_id)
+            .bind(silent)
             .execute(&mut *tx)
             .await?
             .rows_affected()
@@ -112,6 +114,7 @@ impl AppState {
                 forwarded_from: None,
                 entities: entities.to_vec(),
                 topic_id,
+                silent,
                 ..Default::default()
             },
             inserted,

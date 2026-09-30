@@ -64,7 +64,7 @@ fn generate_access_hash() -> String {
     request_body = CreateChatRequest,
     responses(
         (status = 201, description = "Chat created", body = Chat),
-        (status = 400, description = "Invalid chat title or password"),
+        (status = 400, description = "Invalid chat title, password or chat type"),
         (status = 409, description = "Chat title already exists"),
         (status = 500, description = "Database error")
     )
@@ -103,6 +103,13 @@ pub async fn create_chat(
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    let chat_type = match req.chat_type.unwrap_or(ChatType::Group) {
+        chat_type @ (ChatType::Group | ChatType::Channel) => chat_type,
+        ChatType::Private | ChatType::Supergroup => return Err(StatusCode::BAD_REQUEST),
+    };
+    let signatures_enabled =
+        chat_type == ChatType::Channel && req.signatures_enabled.unwrap_or(false);
+
     let id = Uuid::new_v4();
     let (password_hash, has_password) = match req.password.as_deref() {
         Some(password) if !password.is_empty() => (hash_password(password), true),
@@ -114,10 +121,10 @@ pub async fn create_chat(
     // silent product decision.
     let chat = Chat {
         id,
-        // A chat created through this endpoint is always a small group. `private` is opened
-        // by chats::private_chats between two friends, and supergroup/channel arrive in M2 — a group reaches
-        // supergroup only through the one-way upgrade in chats::supergroup_upgrade.
-        chat_type: ChatType::Group,
+        // A small group or (TG-202) a channel. `private` is opened by chats::private_chats
+        // between two friends; a group reaches supergroup only through the one-way upgrade
+        // in chats::supergroup_upgrade.
+        chat_type,
         title,
         password_hash,
         has_password,
@@ -131,7 +138,7 @@ pub async fn create_chat(
         linked_chat_id: None,
         slow_mode_seconds: 0,
         auto_delete_seconds: 0,
-        signatures_enabled: false,
+        signatures_enabled,
         history_visible_to_new_members: true,
         member_count: 1,
         membership_status: Some("active".into()),

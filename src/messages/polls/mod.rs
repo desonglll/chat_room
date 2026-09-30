@@ -61,14 +61,12 @@ pub async fn create_poll(
     if !state.is_chat_participant(room_id, sender.id).await? {
         return Err(PollError::NotFound);
     }
-    // `message.send`, or `message.post` in a channel — whichever the chat type admits.
-    let may_send = state
-        .has_chat_permission(room_id, sender.id, "message.send")
+    // TG-202: `message.send_poll`, whose prerequisite is `message.send` — decided as
+    // `message.post` in a channel (`ChatType::effective_permission`).
+    if !state
+        .has_chat_permission(room_id, sender.id, "message.send_poll")
         .await?
-        || state
-            .has_chat_permission(room_id, sender.id, "message.post")
-            .await?;
-    if !may_send {
+    {
         return Err(PollError::Forbidden);
     }
     let placement = state

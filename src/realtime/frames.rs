@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::attachments::voice::model::VoiceNote;
 use crate::models::{
     Attachment, Chat, ChatMember, ChatMembership, ForwardedFrom, MessageReaction, ReadReceipt,
     ReplyPreview,
@@ -72,6 +73,9 @@ pub enum ChatMessage {
         /// TG-204: the forum topic to post into; absent = General (docs/devlog/TG-204.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         topic_id: Option<Uuid>,
+        /// TG-404: deliver without notifications or Web Push (docs/devlog/TG-404.md).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        silent: bool,
     },
 
     /// Client -> Server: replace the content of a message sent by this account. TG-304: the
@@ -154,6 +158,18 @@ pub enum ChatMessage {
         /// TG-204: the forum topic; omitted for General (and every non-forum chat).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         topic_id: Option<Uuid>,
+        /// TG-202: a channel post's view count; omitted for every other message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        views: Option<i64>,
+        /// TG-202: a signed channel post's author; omitted when unsigned.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        post_author: Option<String>,
+        /// TG-401: optional, omitted unless the message is a voice message (docs/devlog/TG-401.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        voice: Option<VoiceNote>,
+        /// TG-404: omitted unless the message was sent silently.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        silent: bool,
     },
 
     /// Server -> Client: one member added or removed an emoji response.
@@ -247,6 +263,16 @@ pub enum ChatMessage {
     ///
     /// Broadcast on the chat channel; the transport (`frame_visible_to` in
     /// `src/realtime/protocol.rs`) delivers it only to `user_id`'s own connections.
+    /// Server -> Client: `user_id` played voice message `message_id` for the first time
+    /// (TG-401). Delivered only to `user_id`'s and `sender_id`'s own connections
+    /// (`frame_visible_to`), so a group never learns who listened to whom.
+    #[serde(rename = "voice_listened")]
+    VoiceListened {
+        message_id: Uuid,
+        user_id: Uuid,
+        sender_id: Option<Uuid>,
+    },
+
     #[serde(rename = "draft_updated")]
     DraftUpdated {
         user_id: Uuid,

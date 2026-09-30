@@ -1,0 +1,343 @@
+/*
+ * TG-205 invite links. Semantic tokens only. The panel fills whatever host it is given
+ * (InviteLinksEntry: a right sheet); the landing card fills the workspace's middle pane.
+ */
+
+.tg-invite__sheet {
+  padding: 0;
+}
+
+/* Inside a host sheet: cover the host's surface (see InviteLinksEntry). */
+.tg-invite__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--tg-surface);
+}
+
+.tg-invite {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  block-size: 100%;
+  background: var(--tg-surface);
+  color: var(--tg-text-primary);
+}
+
+.tg-invite__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  flex: none;
+  min-height: var(--tg-header-height);
+  padding-inline: var(--tg-space-2);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-invite__heading {
+  flex: 1;
+  margin: 0;
+  padding-inline-start: var(--tg-space-2);
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-invite__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.tg-invite__error {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  color: var(--tg-text-danger);
+  background: var(--tg-danger-soft);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-invite__note,
+.tg-invite__meta {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-invite__note {
+  padding: var(--tg-space-2) var(--tg-space-4);
+}
+
+.tg-invite__section,
+.tg-invite__primary {
+  display: grid;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-4);
+}
+
+.tg-invite__primary {
+  border-bottom: var(--tg-space-2) solid var(--tg-bg-secondary);
+}
+
+.tg-invite__fieldset {
+  margin: 0;
+  border: 0;
+}
+
+.tg-invite__section-title {
+  margin: 0;
+  padding: 0;
+  color: var(--tg-text-link);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-invite__list-title {
+  padding: var(--tg-space-3) var(--tg-space-4) var(--tg-space-1);
+}
+
+.tg-invite__title {
+  margin: 0;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-invite__share {
+  display: grid;
+  gap: var(--tg-space-2);
+  padding-inline: var(--tg-space-4);
+}
+
+.tg-invite__primary .tg-invite__share {
+  padding-inline: 0;
+}
+
+.tg-invite__url {
+  display: block;
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-control);
+  background: var(--tg-bg-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.tg-invite__url[data-live='false'] {
+  color: var(--tg-text-secondary);
+  text-decoration: line-through;
+}
+
+.tg-invite__share-actions,
+.tg-invite__row-actions,
+.tg-invite__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-2);
+}
+
+.tg-invite__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-4);
+}
+
+.tg-invite__actions[data-start] {
+  justify-content: flex-start;
+}
+
+.tg-invite__actions[data-stack] {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.tg-invite__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-control);
+  background: var(--tg-danger-soft);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-invite__primary .tg-invite__confirm {
+  margin: 0;
+}
+
+.tg-invite__stats {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tg-text-link);
+  font: inherit;
+  font-size: var(--tg-type-label-size);
+  cursor: pointer;
+}
+
+.tg-invite__rows,
+.tg-invite__people {
+  margin: 0;
+  padding: var(--tg-space-1) 0;
+  list-style: none;
+}
+
+.tg-invite__row,
+.tg-invite__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-4);
+  inline-size: 100%;
+  min-height: var(--tg-menu-row-height);
+  padding: var(--tg-space-2) var(--tg-space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-invite__row:hover,
+.tg-invite__entry:hover,
+.tg-invite__chip:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-invite__row:focus-visible,
+.tg-invite__entry:focus-visible,
+.tg-invite__chip:focus-visible,
+.tg-invite__stats:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-invite__row[data-state='revoked'],
+.tg-invite__row[data-state='expired'],
+.tg-invite__row[data-state='limit_reached'] {
+  color: var(--tg-text-secondary);
+}
+
+.tg-invite__row-icon,
+.tg-invite__entry-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--tg-control-height);
+  block-size: var(--tg-control-height);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.tg-invite__entry-icon {
+  background: transparent;
+  color: var(--tg-text-secondary);
+}
+
+.tg-invite__row-text,
+.tg-invite__person-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-invite__row-name,
+.tg-invite__person-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-invite__person {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  min-height: var(--tg-menu-row-height);
+  padding: var(--tg-space-1) var(--tg-space-4);
+}
+
+.tg-invite__chip {
+  min-height: var(--tg-touch-min);
+  padding: 0 var(--tg-space-3);
+  border: 1px solid var(--tg-divider);
+  border-radius: var(--tg-radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--tg-type-label-size);
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-invite__chip[aria-pressed='true'] {
+  border-color: var(--tg-accent);
+  background: var(--tg-accent-soft);
+  color: var(--tg-text-link);
+}
+
+.tg-invite__editor,
+.tg-invite__detail {
+  display: grid;
+  gap: var(--tg-space-1);
+  padding-block: var(--tg-space-2);
+}
+
+/* Landing page of /joinchat/:token, in the middle pane. */
+.tg-join {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--tg-space-4);
+}
+
+.tg-join__card {
+  display: grid;
+  justify-items: center;
+  gap: var(--tg-space-3);
+  inline-size: min(100%, 22rem);
+  padding: var(--tg-space-6) var(--tg-space-4);
+  border-radius: var(--tg-radius-panel);
+  background: var(--tg-surface);
+  color: var(--tg-text-primary);
+  text-align: center;
+}
+
+.tg-join__title {
+  margin: 0;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-join__description {
+  margin: 0;
+  white-space: pre-line;
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+}
+
+.tg-join__pending {
+  margin: 0;
+  color: var(--tg-text-link);
+  font-size: var(--tg-type-label-size);
+}
+
+/* The only motion here is the hover fade; the sheet's slide is @tg/ui's and has its own
+   reduced-motion fallback. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-invite__row,
+  .tg-invite__entry,
+  .tg-invite__chip {
+    transition: none;
+  }
+}

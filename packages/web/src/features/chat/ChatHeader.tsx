@@ -7,6 +7,7 @@ import type { ChatSocketStatus } from '@tg/core'
 import { chatListStore, selectChatById, uiStore } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { useStore } from 'zustand/react'
+import { ChannelSubtitle } from '../channel/ChannelSubtitle'
 import { ChatHeaderStatus } from '../presence'
 import { MobileBackButton } from '../shell/MobileBackButton'
 
@@ -47,6 +48,8 @@ export function ChatHeader({ chatId, connection }: { chatId: string; connection:
           <span className="tg-chat__title">{title}</span>
           {connectionCopy ? (
             <span className="tg-chat__subtitle">{connectionCopy}</span>
+          ) : chat?.chat_type === 'channel' ? (
+            <ChannelSubtitle chatId={chatId} className="tg-chat__subtitle" />
           ) : (
             <ChatHeaderStatus chatId={chatId} className="tg-chat__subtitle" />
           )}

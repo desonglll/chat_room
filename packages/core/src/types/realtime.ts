@@ -23,6 +23,7 @@ import type {
   MessageSticker,
   ReadReceipt,
   ReplyPreview,
+  VoiceNote,
 } from './message'
 
 /** The ten typing actions. Unknown wire strings MUST degrade to `'typing'` (TG-007 §1). */
@@ -83,6 +84,14 @@ export interface BroadcastFrame {
   sticker?: MessageSticker
   /** TG-204: the forum topic; omitted (or null) for General and non-forum chats. */
   topic_id?: string | null
+  /** TG-202: a channel post's view count; omitted for every other message. */
+  views?: number
+  /** TG-202: a signed channel post's author; omitted when unsigned. */
+  post_author?: string
+  /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
+  voice?: VoiceNote
+  /** TG-404: true when sent without notifications; omitted otherwise. */
+  silent?: boolean
 }
 
 export interface TypingFrame {
@@ -157,6 +166,17 @@ export interface DraftUpdatedFrame {
   updated_at: string
 }
 
+/**
+ * TG-401: `user_id` played voice message `message_id` for the first time. Delivered only to
+ * the listener's and the sender's own connections: clear the unlistened dot.
+ */
+export interface VoiceListenedFrame {
+  type: 'voice_listened'
+  message_id: string
+  user_id: string
+  sender_id: string | null
+}
+
 /** Every server→client frame. */
 export type ServerFrame =
   | {
@@ -185,6 +205,7 @@ export type ServerFrame =
   | { type: 'message_views_updated'; views: MessageViewCount[] }
   | { type: 'poll_updated'; message_id: string; poll: PollState }
   | DraftUpdatedFrame
+  | VoiceListenedFrame
 
 export type ServerFrameType = ServerFrame['type']
 
@@ -200,6 +221,8 @@ export type ClientFrame =
       entities?: MessageEntity[]
       /** TG-204: the forum topic to post into; omitted for General. */
       topic_id?: string
+      /** TG-404: deliver without notifications or push. */
+      silent?: boolean
     }
   | { type: 'edit'; message_id: string; content: string; entities?: MessageEntity[] }
   | { type: 'read'; message_id: string }

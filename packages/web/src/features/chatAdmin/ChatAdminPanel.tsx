@@ -16,6 +16,7 @@ import { DefaultPermissionsPage } from './DefaultPermissionsPage'
 import { MemberRow } from './MemberRow'
 import { RestrictionEditor } from './RestrictionEditor'
 import type { ChatAdminState } from './useChatAdmin'
+import { InviteLinksEntry } from '../inviteLinks/InviteLinksEntry'
 import { useChatAdmin } from './useChatAdmin'
 import './chatAdmin.css'
 
@@ -129,6 +130,8 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
           <NavRow label="成员" value={String(view.member_count)} onOpen={() => open({ id: 'members' })} />
         </ul>
         <ForumToggle chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
+        {/* TG-205: `overlay` — a second sheet inside this one fights it for focus. */}
+        <InviteLinksEntry chatId={chatId} variant="overlay" />
       </>
     )
   } else if (page.id === 'defaults') {

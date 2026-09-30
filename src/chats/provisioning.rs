@@ -13,9 +13,8 @@ use chrono::{DateTime, Utc};
 use sqlx::{Database, Encode, Executor, IntoArguments, Type};
 use uuid::Uuid;
 
-use super::permissions::{
-    admin_role_grants, member_role_grants, owner_role_grants, DEFAULT_MEMBER_PERMISSIONS,
-};
+use super::channels::system_role_grants;
+use super::permissions::{member_role_grants, DEFAULT_MEMBER_PERMISSIONS};
 use crate::models::Chat;
 use crate::state::{with_pool, AppState};
 
@@ -30,12 +29,13 @@ impl AppState {
             // member_count starts at 0: the chat_members triggers (TG-201) count the owner's
             // membership below inside this same transaction.
             insert_chat_row(&mut *transaction, &chat, Some(owner_id)).await?;
-            let roles = [
-                ("owner", owner_role_grants()),
-                ("admin", admin_role_grants()),
-                ("member", member_role_grants(DEFAULT_MEMBER_PERMISSIONS)),
-            ];
-            for (name, permissions) in roles {
+            // TG-202: a channel provisions its own role sets (`channels::system_role_grants`).
+            for name in ["owner", "admin", "member"] {
+                let permissions = system_role_grants(
+                    chat.chat_type,
+                    name,
+                    member_role_grants(DEFAULT_MEMBER_PERMISSIONS),
+                );
                 let role_id = system_role_id(chat.id, name);
                 insert_system_role(&mut *transaction, &role_id, chat.id, name, chat.created_at)
                     .await?;
@@ -79,13 +79,14 @@ where
     for<'q> Uuid: Encode<'q, DB> + Type<DB>,
     for<'q> Option<Uuid>: Encode<'q, DB> + Type<DB>,
     for<'q> &'q str: Encode<'q, DB> + Type<DB>,
+    for<'q> bool: Encode<'q, DB> + Type<DB>,
     for<'q> DateTime<Utc>: Encode<'q, DB> + Type<DB>,
 {
     sqlx::query(
         "INSERT INTO chats \
          (id, chat_type, title, password_hash, creator_user_id, join_policy, avatar_emoji, \
-          description, access_hash, member_count, created_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10)",
+          description, access_hash, signatures_enabled, member_count, created_at) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11)",
     )
     .bind(chat.id)
     .bind(chat.chat_type.as_str())
@@ -96,6 +97,7 @@ where
     .bind(chat.avatar_emoji.as_str())
     .bind(chat.description.as_str())
     .bind(chat.access_hash.as_str())
+    .bind(chat.signatures_enabled)
     .bind(chat.created_at)
     .execute(executor)
     .await

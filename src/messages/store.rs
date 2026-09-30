@@ -22,7 +22,7 @@ pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_mes
     reply.recalled_at AS reply_recalled_at, \
     reply_attachment.file_name AS reply_attachment_file_name, \
     messages.favorite_id, messages.forwarded_from_sender, messages.forwarded_from_room_name, \
-    messages.topic_id FROM messages \
+    messages.topic_id, messages.silent FROM messages \
     LEFT JOIN attachments ON attachments.id = messages.attachment_id \
     LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
     LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
@@ -86,6 +86,7 @@ pub(crate) struct MessageRow {
     forwarded_from_sender: Option<String>,
     forwarded_from_room_name: Option<String>,
     topic_id: Option<Uuid>,
+    silent: bool,
 }
 
 impl MessageRow {
@@ -150,6 +151,7 @@ impl MessageRow {
             favorite_id: self.favorite_id,
             forwarded_from,
             topic_id: self.topic_id,
+            silent: self.silent,
             ..Default::default()
         }
     }
@@ -202,6 +204,7 @@ impl AppState {
             .collect();
         self.attach_message_reactions(&mut messages).await?;
         self.attach_message_polls(&mut messages, viewer_id).await?;
+        self.attach_voice_listened(&mut messages, viewer_id).await?;
         Ok(messages.pop())
     }
 
@@ -296,6 +299,7 @@ impl AppState {
             .collect();
         self.attach_message_reactions(&mut messages).await?;
         self.attach_message_polls(&mut messages, viewer_id).await?;
+        self.attach_voice_listened(&mut messages, viewer_id).await?;
         Ok(messages)
     }
 
@@ -315,6 +319,7 @@ impl AppState {
                 Ok(MessageCacheLookup::Hit(mut messages)) => {
                     // TG-406: polls attach after the cache, so cached pages hold no counts.
                     self.attach_message_polls(&mut messages, viewer_id).await?;
+                    self.attach_voice_listened(&mut messages, viewer_id).await?;
                     return Ok(messages);
                 }
                 Ok(MessageCacheLookup::Miss(ticket)) => Some(ticket),
@@ -370,6 +375,7 @@ impl AppState {
             }
         }
         self.attach_message_polls(&mut messages, viewer_id).await?;
+        self.attach_voice_listened(&mut messages, viewer_id).await?;
         Ok(messages)
     }
 

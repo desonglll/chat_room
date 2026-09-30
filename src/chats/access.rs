@@ -261,7 +261,15 @@ impl AppState {
     }
 
     /// Resolve and freeze nickname, display name, or username at message-send time.
+    ///
+    /// TG-202: a channel post is sent in the channel's name, so its frozen sender is the
+    /// channel title; the author, when signatures are on, is `messages.post_author`.
     pub async fn resolve_display_name(&self, room_id: Uuid, user: &User) -> String {
+        if let Some(chat) = self.chat(room_id).await {
+            if chat.chat_type == super::ChatType::Channel {
+                return chat.title;
+            }
+        }
         let nickname: Option<String> = with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "SELECT nickname FROM chat_members WHERE room_id = $1 AND user_id = $2",

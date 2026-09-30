@@ -105,6 +105,10 @@ fn broadcast_frame_serializes_unchanged() {
         poll: None,
         entities: Vec::new(),
         topic_id: None,
+        views: None,
+        post_author: None,
+        voice: None,
+        silent: false,
     };
     assert_wire(
         &full,
@@ -166,6 +170,10 @@ fn broadcast_frame_serializes_unchanged() {
         poll: None,
         entities: Vec::new(),
         topic_id: None,
+        views: None,
+        post_author: None,
+        voice: None,
+        silent: false,
     };
     assert_wire(
         &minimal,

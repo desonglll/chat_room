@@ -16,6 +16,22 @@ export interface MenuFacts {
   delivered: boolean
 }
 
+/**
+ * A menu row contributed by another feature (TG-305: "保存 GIF"). It is offered only on a
+ * live, delivered message and placed after 转发; return `null` to hide it for `message`.
+ */
+export type MessageMenuContribution = (message: BroadcastMessage) => MenuItem | null
+
+const contributions = new Map<string, MessageMenuContribution>()
+
+/** Adds or replaces the contribution `id`; returns an undo. */
+export function registerMessageMenuItem(id: string, contribute: MessageMenuContribution): () => void {
+  contributions.set(id, contribute)
+  return () => {
+    if (contributions.get(id) === contribute) contributions.delete(id)
+  }
+}
+
 export function buildMessageMenu(message: BroadcastMessage, actions: MessageActions, facts: MenuFacts): MenuItem[] {
   const recalled = message.recalled_at !== null
   const live = !recalled && facts.delivered
@@ -49,6 +65,12 @@ export function buildMessageMenu(message: BroadcastMessage, actions: MessageActi
     icon: <ForwardGlyph />,
     onSelect: actions.onForward,
   })
+  if (live) {
+    for (const contribute of contributions.values()) {
+      const item = contribute(message)
+      if (item) items.push(item)
+    }
+  }
   add(actions.onSelect !== undefined, {
     id: 'select',
     label: '选择',

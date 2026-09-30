@@ -278,3 +278,8 @@
   color: var(--tg-text-danger);
   font-size: var(--tg-type-meta-size);
 }
+
+/* TG-404: the send button's context-menu wrapper must not change the button's layout. */
+.tg-compose__send-menu {
+  display: contents;
+}

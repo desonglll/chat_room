@@ -10,6 +10,7 @@ import { IconButton, ScrollArea } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { countMembers, PANEL_HEADING, withKnownMembers } from './chatInfoModel'
 import { CloseIcon, SearchIcon } from './icons'
+import { ChatAdminEntry } from '../chatAdmin/ChatAdminEntry'
 import { InfoDetails, InfoIdentity } from './InfoHeader'
 import { SharedSection } from './SharedSection'
 import type { ChatInfoSourceOverrides } from './useChatInfo'
@@ -77,6 +78,7 @@ export function ChatInfoPanel({
               notificationsBusy={info.notificationsBusy}
               onNotificationsChange={info.setNotifications}
             />
+            {header.variant === 'group' ? <ChatAdminEntry chatId={chatId} /> : null}
             <SharedSection
               chatId={chatId}
               pagers={info.pagers}
