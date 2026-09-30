@@ -22,6 +22,7 @@ pub(crate) fn api_routes(
 ) -> Router<Arc<AppState>> {
     Router::new()
         .merge(observability::routes())
+        .merge(crate::messages::polls::routes())
         .merge(chats::routes::canonical(multipart_body_limit))
         .merge(chats::routes::deprecated_alias(multipart_body_limit))
         .route("/api/config", get(config::public_config))

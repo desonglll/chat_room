@@ -6,6 +6,8 @@
  * all at once. Do not "fix" it here — this file mirrors the wire.
  */
 
+import type { PollState } from './realtime'
+
 export interface Attachment {
   id: string
   file_name: string
@@ -58,6 +60,8 @@ export interface StoredMessage {
   favorite_id: string | null
   forwarded_from: ForwardedFrom | null
   reactions: MessageReaction[]
+  /** TG-406: present exactly when the message carries a poll; omitted otherwise. */
+  poll?: PollState
 }
 
 /**

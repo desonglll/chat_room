@@ -65,6 +65,8 @@ export interface BroadcastFrame {
   favorite_id: string | null
   forwarded_from: ForwardedFrom | null
   reactions: MessageReaction[]
+  /** TG-406: present exactly when the message carries a poll; omitted otherwise. */
+  poll?: PollState
 }
 
 export interface TypingFrame {
@@ -93,12 +95,31 @@ export interface PollOption {
   voters: number
 }
 
+/**
+ * A poll snapshot (TG-406). `id` is the carrying message's id. Every field after `options`
+ * is additive and OMITTED at its default (false / absent / 0), so parse them as optional.
+ *
+ * - `poll_updated` frames are chat-wide: `chosen` is absent (keep the local value) and a
+ *   quiz's `correct_option` / `explanation` appear only once `closed`.
+ * - Per-viewer reads (history, `broadcast.poll`, `GET /api/polls/:id`, a vote response)
+ *   set `chosen` (`[]` = not voted) and reveal the quiz answer to a viewer who answered.
+ * - `revision` only grows; drop any snapshot older than the one held.
+ * - No snapshot ever carries voter ids; public voters are listed by
+ *   `GET /api/polls/:id/voters` only.
+ */
 export interface PollState {
   id: string
   question: string
   closed: boolean
   total_voters: number
   options: PollOption[]
+  public_voters?: boolean
+  multiple_choice?: boolean
+  quiz?: boolean
+  correct_option?: number
+  explanation?: string
+  chosen?: number[]
+  revision?: number
 }
 
 /**

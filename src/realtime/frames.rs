@@ -126,6 +126,9 @@ pub enum ChatMessage {
         forwarded_from: Option<ForwardedFrom>,
         #[serde(default)]
         reactions: Vec<MessageReaction>,
+        /// TG-406: optional, omitted unless the message carries a poll (docs/devlog/TG-406.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        poll: Option<PollState>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

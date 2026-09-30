@@ -310,6 +310,7 @@ fn topic_views_and_poll_skeletons_serialize_as_frozen() {
                         voters: 1
                     },
                 ],
+                ..PollState::default()
             },
         }),
         json!({ "type": "poll_updated", "message_id": id(50), "poll": {

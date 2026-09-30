@@ -147,6 +147,7 @@ fn broadcast_frame_serializes_unchanged() {
             emoji: "👍".into(),
             user_ids: vec![id(12)],
         }],
+        poll: None,
     };
     assert_wire(
         &full,
@@ -205,6 +206,7 @@ fn broadcast_frame_serializes_unchanged() {
         favorite_id: None,
         forwarded_from: None,
         reactions: Vec::new(),
+        poll: None,
     };
     assert_wire(
         &minimal,

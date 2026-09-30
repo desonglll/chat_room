@@ -339,7 +339,7 @@ impl AppState {
             created_at,
             favorite_id: None,
             forwarded_from: None,
-            reactions: Vec::new(),
+            ..Default::default()
         })
     }
 

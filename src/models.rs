@@ -31,7 +31,7 @@ pub struct ForwardedFrom {
 }
 
 /// A chat message persisted as part of a chat session.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct StoredMessage {
     pub id: Uuid,
     pub client_message_id: Option<Uuid>,
@@ -50,6 +50,9 @@ pub struct StoredMessage {
     pub forwarded_from: Option<ForwardedFrom>,
     #[serde(default)]
     pub reactions: Vec<MessageReaction>,
+    /// TG-406: present exactly when the message carries a poll (`docs/devlog/TG-406.md`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub poll: Option<PollState>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

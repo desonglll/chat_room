@@ -56,6 +56,7 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         favorite_id: message.favorite_id,
         forwarded_from: message.forwarded_from,
         reactions: message.reactions,
+        poll: message.poll,
     }
 }
 
