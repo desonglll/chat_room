@@ -30,6 +30,7 @@ import {
   listChatMessages,
 } from '@tg/core'
 import { applyPollFrame, type PollStore } from '../poll/pollStore'
+import { applyViewsFrame, type ChannelStore } from '../channel/channelStore'
 
 /** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
 export const MAX_MESSAGE_CHARS = 4096
@@ -41,6 +42,8 @@ export interface ChatSessionStores {
   chatList: ChatListStore
   /** Live poll tallies (TG-406). `poll_updated` frames are dropped when absent. */
   poll?: PollStore | undefined
+  /** Live channel view counts (TG-202). `message_views_updated` frames are dropped when absent. */
+  channel?: ChannelStore | undefined
 }
 
 export interface ChatSessionOptions {
@@ -210,6 +213,9 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('draft_updated', (frame) => acceptRemoteDraft(frame)),
         socket.on('poll_updated', (frame) => {
           if (stores.poll) applyPollFrame(frame, stores.poll)
+        }),
+        socket.on('message_views_updated', (frame) => {
+          if (stores.channel) applyViewsFrame(frame, stores.channel)
         }),
       )
       socket.connect()

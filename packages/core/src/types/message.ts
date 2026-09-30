@@ -100,6 +100,10 @@ export interface StoredMessage {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'` (and on recall). */
   sticker?: MessageSticker
+  /** TG-202: a channel post's view count; omitted for every other message. */
+  views?: number
+  /** TG-202: a signed channel post's author; omitted when unsigned. */
+  post_author?: string
 }
 
 /**

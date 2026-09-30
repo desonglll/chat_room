@@ -219,13 +219,23 @@ async fn the_chat_type_layer_turns_an_allow_into_a_deny_and_never_the_reverse() 
     );
 
     set_chat_type(&state, chat_id, ChatType::Channel).await;
+    // TG-202: in a channel sending *is* posting — `message.send` is decided as `message.post`
+    // (`ChatType::effective_permission`), which the creator holds.
     assert_eq!(
         state
             .authorize_chat_action(chat_id, owner_user.id, "message.send")
             .await
             .unwrap(),
+        ChatAuthorization::Creator,
+        "a channel creator posts"
+    );
+    assert_eq!(
+        state
+            .authorize_chat_action(chat_id, owner_user.id, "chat.topics")
+            .await
+            .unwrap(),
         ChatAuthorization::ForbiddenByChatType(ChatType::Channel),
-        "a channel broadcasts with message.post, it does not chat"
+        "a channel is not a forum"
     );
 
     set_chat_type(&state, chat_id, ChatType::Supergroup).await;

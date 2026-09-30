@@ -13,6 +13,7 @@ import type { ChatSession } from './chatSession'
 import { createChatSession } from './chatSession'
 import { registerChatSession } from './chatSessionRegistry'
 import { pollStore } from '../poll/pollStore'
+import { channelStore } from '../channel/channelStore'
 
 export interface ChatSessionHandle {
   connection: ChatSocketStatus
@@ -45,6 +46,7 @@ export function useChatSession(chatId: string): ChatSessionHandle {
         composer: composerStore,
         chatList: chatListStore,
         poll: pollStore,
+        channel: channelStore,
       },
     })
     sessionRef.current = session

@@ -1,0 +1,56 @@
+/*
+ * TG-202 channel surfaces: the post meta (views + signature, inside TG-103's meta, so it
+ * inherits the meta's font and gap), the subscriber bar in place of the composer, and the
+ * create dialog. Semantic `--tg-*` tokens only.
+ */
+
+.tg-channel-post__views {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tg-channel-post__eye {
+  display: block;
+  flex: none;
+}
+
+.tg-channel-post__author {
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tg-channel-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-4) var(--tg-space-3);
+  background: var(--tg-surface);
+  border-top: 1px solid var(--tg-divider);
+}
+
+.tg-channel-footer__leave {
+  flex: none;
+  color: var(--tg-text-secondary);
+}
+
+.tg-channel-footer__note,
+.tg-channel-footer__error {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-channel-footer__error {
+  color: var(--tg-text-danger);
+}
+
+.tg-new-channel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
