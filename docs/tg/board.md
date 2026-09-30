@@ -30,7 +30,6 @@ export TEST_POSTGRES_ADMIN_URL="postgresql://chatroom:chatroom@127.0.0.1:52735/p
 
 | 任务 | worktree | 分支 | 说明 |
 | --- | --- | --- | --- |
-| TG-003 | `.claude/worktrees/tg-003` | `agent/tg-003-embed-react-bundle` | 改 `build.rs` + `Dockerfile`；已收到 `archive/master` 的 feature 方案与 `--all-features` landmine |
 | TG-004+005+006 | `.claude/worktrees/tg-004` | `agent/tg-004-chat-model-rename` | Chat 重命名垂直切片，M0 风险最高项 |
 | TG-010 | `.claude/worktrees/tg-010` | `agent/tg-010-ui-primitives` | 19 个基础组件，消费 TG-009 冻结的 197 个语义 token |
 
@@ -44,6 +43,7 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | TG-001 构建目录 | `4499a7e` | 见下方实测记录 |
 | TG-000 绿色基线 | `fb818ee` | rebase 到 main 后重跑：`check_file_sizes.py` 通过（33 个基线告警、无增长）、迁移 parity 49 对、`cargo fmt` 干净、`clippy --all-targets --all-features` 零告警、`cargo test --all-targets --all-features` **exit 0**。另外确认 `src/lib.rs` / `src/models.rs` / `src/routes.rs` / `Cargo.toml` 与 main 零差异，即公开接口未变。**合并后 pre-push 钩子从拒绝转为通过** —— 这是「基线变绿」最直接的闭环证据。 |
 | CI 加固 + D-008 | `8b9d178` | 钩子在红树上拒绝、在绿树上通过，两个方向都实测过 |
+| TG-003 `build.rs` 切 React 产物 | `3f2822e` | rebase 到 main 后**亲自起服务器 curl 验证**，不采信报告：`GET /` 返回含 `<div id="root">` 的 React `index.html`；**`/assets/app.js`（Vue 入口）→ 404**；React 入口 200、220080 字节与 Vite 自报一致；服务的 bundle 里 `react-dom` 1 次、`createRoot` 2 次、`__REACT_DEVTOOLS_GLOBAL_HOOK__` 8 次，而 `createApp` 0 次、`primevue` 0 次，且含 `App.tsx` 的字面文本。另验 `src/web.rs` 硬嵌的 9 个遗留路径全部 200，**合成的 `sw.js` 确实是自注销版且对 `app.js` 的引用为 0 次** —— 旧 Service Worker 会把回访浏览器钉在 404 上，这是卡上没写、agent 自己发现的。 |
 | TG-009 Design tokens | `785953a` | rebase 到 main 后独立验证：**`day.css` 与 `night.css` 各声明 70 个 token 且集合完全一致**，6 个强调色文件集合亦完全一致 —— 主题切换不可能留下未定义变量（这是 agent 没提、但最容易出问题的不变量）。`preview.html` 对 `--tg-raw-` 原语的引用数为 **0**，且十六进制、`rgb()`/`hsl()`、命名颜色字面量各为 **0** —— 它确实只靠语义 token 上色，所以是证明而非效果图。原语仅被 token 层自身引用。每个值带 `[web]`/`[desktop]`/`[ios]`/`[derived]`/`[ours]` 出处标注，真实值与猜测值可区分。文件大小最大 253 行。 |
 
 ## 顺序约束
@@ -61,7 +61,7 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | TG-000 修复红色基线 | S | **merged** `fb818ee` | agent:TG-000 | — | — |
 | TG-001 回收构建目录并验证共享配置 | S | **merged** `4499a7e` | 集成负责人 | — | — |
 | TG-002 monorepo 骨架 | M | **merged** `296612a` | agent:TG-002 | — | — |
-| TG-003 `build.rs` 切换嵌入目标 | S | **in-progress** | agent:TG-003 | `tg-003` | TG-002 ✓ |
+| TG-003 `build.rs` 切换嵌入目标 | S | **merged** `3f2822e` | agent:TG-003 | — | — |
 | TG-004 Chat 数据模型迁移 | L | **in-progress** | agent:TG-004 | `tg-004` | TG-000 ✓ |
 | TG-005 Rust 模块与类型重命名 | L | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-004 |
 | TG-006 API 路径重命名与 alias | M | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-005 |
