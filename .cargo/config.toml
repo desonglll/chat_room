@@ -39,4 +39,4 @@
 #  two weeks. Run it monthly; this directory grows without bound otherwise.
 
 [build]
-target-dir = "/Volumes/Tuo-APFS/workspace/.cargo-target/chat_room"
+# target-dir = "/Volumes/Tuo-APFS/workspace/.cargo-target/chat_room"
