@@ -16,11 +16,17 @@
 
 | 任务 | worktree | 分支 | 说明 |
 | --- | --- | --- | --- |
-| TG-000 | `.claude/worktrees/tg-000` | `agent/tg-000-green-baseline` | 唯一使用 cargo 的任务 |
-| TG-002 | `.claude/worktrees/tg-002` | `agent/tg-002-monorepo-skeleton` | 纯 JS，不碰 Rust |
+| TG-000 | `.claude/worktrees/tg-000` | `agent/tg-000-green-baseline` | 拆超限 Rust 文件 |
+| TG-003 | `.claude/worktrees/tg-003` | `agent/tg-003-embed-react-bundle` | 改 `build.rs` + `Dockerfile`，也用 cargo |
 | TG-009 | `.claude/worktrees/tg-009` | `agent/tg-009-design-tokens` | 纯 CSS，不碰 `packages/ui` 的 manifest |
 
-**TG-002 与 TG-009 都会创建 `packages/ui/`**，但写的是不同文件（TG-002 写 `package.json` 与 `tsconfig.json`，TG-009 写 `src/tokens/**`），合并时不冲突。
+TG-000 与 TG-003 都用 cargo，会在共享构建目录上串行等锁。这是预期行为，不是故障。
+
+### 已集成
+
+| 任务 | 提交 | 集成负责人的独立验证 |
+| --- | --- | --- |
+| TG-002 monorepo 骨架 | `296612a` | rebase 到 main 后：`bun install` 无变更，三包 typecheck 全 0，测试 22/0；**自己种入一个含 `react` + `document` + `localStorage` + `navigator` + `window` 的文件，边界检查确实失败并列出全部 5 处违规带行号与证据；删除后恢复 19/0**。没有采信 agent 的自我报告。 |
 
 ## 顺序约束
 
@@ -36,8 +42,8 @@ M0 其余任务串行，**TG-004 合并进 `main` 之前不要再创建 worktree
 | --- | --- | --- | --- | --- | --- |
 | TG-000 修复红色基线 | S | **in-progress** | agent:TG-000 | `tg-000` | — |
 | TG-001 回收构建目录并验证共享配置 | S | **review** | 集成负责人 | main | — |
-| TG-002 monorepo 骨架 | M | **in-progress** | agent:TG-002 | `tg-002` | — |
-| TG-003 `build.rs` 切换嵌入目标 | S | not-started | — | — | TG-002 |
+| TG-002 monorepo 骨架 | M | **merged** `296612a` | agent:TG-002 | — | — |
+| TG-003 `build.rs` 切换嵌入目标 | S | **in-progress** | agent:TG-003 | `tg-003` | TG-002 ✓ |
 | TG-004 Chat 数据模型迁移 | L | not-started | — | — | TG-001 |
 | TG-005 Rust 模块与类型重命名 | L | not-started | — | — | TG-004 |
 | TG-006 API 路径重命名与 alias | M | not-started | — | — | TG-005 |
