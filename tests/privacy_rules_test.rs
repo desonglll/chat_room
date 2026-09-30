@@ -260,62 +260,50 @@ async fn hidden_viewers_receive_no_live_presence_of_the_owner() {
         members: None,
         participants: None,
     };
-    server.state.broadcast(group, marker("lv-marker")).await;
 
-    let mut admitted_saw_online = false;
+    // The owner's `user_status` frames are broadcast AFTER `auth_ok` (behind history replay)
+    // and AFTER the disconnect bookkeeping, so a marker broadcast right after
+    // `open_chat` / `close_and_settle` can overtake them. Wait until the admitted viewer has
+    // received the owner's frame first: the chat channel is one ordered broadcast, so the
+    // hidden viewer's stream then holds that same frame (if it were delivered) before the
+    // marker, and the "never delivered" check below is not vacuous.
+    wait_for_owner_status(&mut admitted_socket, owner.id, "online").await;
+    server.state.broadcast(group, marker("lv-marker")).await;
+    assert_hidden_until(&mut hidden_socket, owner.id, "lv-marker").await;
+
+    server.close_and_settle(group, &owner, owner_socket).await;
+    wait_for_owner_status(&mut admitted_socket, owner.id, "offline").await;
+    server.state.broadcast(group, marker("lv-after")).await;
+    assert_hidden_until(&mut hidden_socket, owner.id, "lv-after").await;
+}
+
+async fn wait_for_owner_status(socket: &mut privacy_support::Socket, owner: Uuid, kind: &str) {
     loop {
-        let frame = next_json(&mut admitted_socket).await;
-        if frame["type"] == "user_status" && frame["user_id"] == owner.id.to_string() {
-            assert_eq!(frame["status"]["kind"], "online");
-            admitted_saw_online = true;
-        }
-        if frame["type"] == "system" && frame["content"] == "lv-marker" {
-            break;
+        let frame = next_json(socket).await;
+        if frame["type"] == "user_status" && frame["user_id"] == owner.to_string() {
+            assert_eq!(frame["status"]["kind"], kind, "{frame}");
+            return;
         }
     }
-    assert!(admitted_saw_online);
+}
 
+async fn assert_hidden_until(socket: &mut privacy_support::Socket, owner: Uuid, marker: &str) {
     loop {
-        let frame = next_json(&mut hidden_socket).await;
-        if frame["type"] == "system" && frame["content"] == "lv-marker" {
-            break;
+        let frame = next_json(socket).await;
+        if frame["type"] == "system" && frame["content"] == marker {
+            return;
         }
         assert!(
-            !(frame["type"] == "user_status" && frame["user_id"] == owner.id.to_string()),
-            "hidden viewer got {frame}"
+            !(frame["type"] == "user_status" && frame["user_id"] == owner.to_string()),
+            "hidden viewer got the owner's live status: {frame}"
         );
         if let Some(members) = frame["members"].as_array() {
             assert!(
                 !members
                     .iter()
-                    .any(|member| member["user_id"] == owner.id.to_string()),
+                    .any(|member| member["user_id"] == owner.to_string()),
                 "hidden viewer saw the owner connected in {frame}"
             );
         }
     }
-
-    server.close_and_settle(group, &owner, owner_socket).await;
-    server.state.broadcast(group, marker("lv-after")).await;
-    loop {
-        let frame = next_json(&mut hidden_socket).await;
-        if frame["type"] == "system" && frame["content"] == "lv-after" {
-            break;
-        }
-        assert!(
-            !(frame["type"] == "user_status" && frame["user_id"] == owner.id.to_string()),
-            "hidden viewer got the disconnect instant: {frame}"
-        );
-    }
-    let mut admitted_saw_offline = false;
-    loop {
-        let frame = next_json(&mut admitted_socket).await;
-        if frame["type"] == "user_status" && frame["user_id"] == owner.id.to_string() {
-            assert_eq!(frame["status"]["kind"], "offline");
-            admitted_saw_offline = true;
-        }
-        if frame["type"] == "system" && frame["content"] == "lv-after" {
-            break;
-        }
-    }
-    assert!(admitted_saw_offline);
 }
