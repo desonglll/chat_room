@@ -46,6 +46,17 @@ export interface MessageEntity {
   language?: string
 }
 
+/**
+ * TG-401: a voice message's playback projection. `waveform` is exactly 100 samples in 0..31,
+ * evenly spread over `duration_ms`. `listened` is per viewer: for the sender, "someone else
+ * played it"; for everyone else, "I played it". See docs/devlog/TG-401.md.
+ */
+export interface VoiceNote {
+  duration_ms: number
+  waveform: number[]
+  listened: boolean
+}
+
 export interface MessageReaction {
   emoji: string
   user_ids: string[]
@@ -79,6 +90,10 @@ export interface StoredMessage {
   poll?: PollState
   /** TG-304: omitted when the message has no entities. */
   entities?: MessageEntity[]
+  /** TG-302/TG-401: `"voice"`, `"sticker"`…; omitted for text and plain attachments. */
+  media_kind?: string
+  /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
+  voice?: VoiceNote
 }
 
 /**

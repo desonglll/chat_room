@@ -29,6 +29,7 @@ import {
   getChat,
   listChatMessages,
 } from '@tg/core'
+import { applyVoiceListenedFrame } from '../voice/voiceStore'
 
 /** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
 export const MAX_MESSAGE_CHARS = 4096
@@ -205,6 +206,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('reaction_changed', (frame) => stores.message.getState().applyReaction(chatId, frame)),
         socket.on('chat_updated', (frame) => stores.chatList.getState().applyChatUpdated(frame.chat)),
         socket.on('draft_updated', (frame) => acceptRemoteDraft(frame)),
+        // TG-401: the listener's and the sender's unlistened dots (features/voice).
+        socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
       )
       socket.connect()
       options.draftsApi

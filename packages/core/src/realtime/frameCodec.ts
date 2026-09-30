@@ -29,6 +29,7 @@ const KNOWN_SERVER_TYPES: ReadonlySet<string> = new Set([
   'message_views_updated',
   'poll_updated',
   'draft_updated',
+  'voice_listened',
 ])
 
 /** Unknown wire strings degrade to `'typing'` (TG-007 §1 — mandatory client behaviour). */

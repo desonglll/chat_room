@@ -8,8 +8,10 @@
 //! - **WebM**: `Info/Duration` when present; MediaRecorder never writes it (it streams with
 //!   unknown sizes), so otherwise the newest `Cluster/Timecode + Block` timestamp, i.e. the
 //!   start of the last frame (the result is short by at most one frame, 20–60 ms).
-//! - **MP4**: `mvhd`, else the track's `mdhd`, else the sum of fragment sample durations
-//!   (`trun`, defaulted by `tfhd`/`trex`), which is what a fragmented recording carries.
+//! - **MP4**: a fragmented recording (`mvex`, what MediaRecorder writes) ends where its last
+//!   fragment does: that fragment's `tfdt` start plus its `trun` sample durations (defaulted
+//!   by `tfhd`/`trex`), at the track's `mdhd` timescale;
+//!   a plain file uses `mvhd`, else the track's `mdhd`.
 //!
 //! The sniffed container also decides the stored MIME type, so a client can never label an
 //! arbitrary file as audio.
@@ -208,133 +210,9 @@ fn webm_duration_ms(bytes: &[u8]) -> Option<u32> {
     }
 }
 
-// ── MP4 (ISO BMFF) ──────────────────────────────────────────────────────────────────────
-
-/// Iterate the boxes directly inside `bytes`: `(type, body)`.
-fn boxes(bytes: &[u8]) -> impl Iterator<Item = (&[u8], &[u8])> {
-    let mut position = 0usize;
-    std::iter::from_fn(move || {
-        let header = bytes.get(position..position + 8)?;
-        let mut size = u64::from(u32::from_be_bytes(header[0..4].try_into().ok()?));
-        let kind = &header[4..8];
-        let mut offset = 8;
-        if size == 1 {
-            size = u64::from_be_bytes(bytes.get(position + 8..position + 16)?.try_into().ok()?);
-            offset = 16;
-        } else if size == 0 {
-            size = (bytes.len() - position) as u64;
-        }
-        let end = position.checked_add(usize::try_from(size).ok()?)?;
-        let body = bytes.get(position + offset..end.min(bytes.len()))?;
-        position = end;
-        Some((kind, body))
-    })
-}
-
-fn child<'a>(bytes: &'a [u8], kind: &[u8]) -> Option<&'a [u8]> {
-    boxes(bytes)
-        .find(|(found, _)| *found == kind)
-        .map(|(_, body)| body)
-}
-
-fn u32_at(bytes: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_be_bytes(bytes.get(at..at + 4)?.try_into().ok()?))
-}
-
-/// `(timescale, duration)` of an `mvhd`/`mdhd` body (full box, version 0 or 1).
-fn header_duration(body: &[u8]) -> Option<(u32, u64)> {
-    if body.first()? == &1 {
-        let timescale = u32_at(body, 20)?;
-        let duration = u64::from_be_bytes(body.get(24..32)?.try_into().ok()?);
-        Some((timescale, duration))
-    } else {
-        Some((u32_at(body, 12)?, u64::from(u32_at(body, 16)?)))
-    }
-}
-
-fn usable((timescale, duration): (u32, u64)) -> Option<u32> {
-    if duration == 0 || duration == u64::from(u32::MAX) || duration == u64::MAX {
-        return None;
-    }
-    to_ms(u128::from(duration), u128::from(timescale))
-}
-
-fn mp4_duration_ms(bytes: &[u8]) -> Option<u32> {
-    let moov = child(bytes, b"moov")?;
-    if let Some(ms) = child(moov, b"mvhd")
-        .and_then(header_duration)
-        .and_then(usable)
-    {
-        return Some(ms);
-    }
-    let mdhd = child(moov, b"trak")
-        .and_then(|trak| child(trak, b"mdia"))
-        .and_then(|mdia| child(mdia, b"mdhd"))
-        .and_then(header_duration)?;
-    if let Some(ms) = usable(mdhd) {
-        return Some(ms);
-    }
-    let default_duration = child(moov, b"mvex")
-        .and_then(|mvex| child(mvex, b"trex"))
-        .and_then(|trex| u32_at(trex, 12))
-        .unwrap_or(0);
-    let mut ticks: u128 = 0;
-    for (kind, moof) in boxes(bytes) {
-        if kind != b"moof" {
-            continue;
-        }
-        for (kind, traf) in boxes(moof) {
-            if kind == b"traf" {
-                ticks += traf_ticks(traf, default_duration)?;
-            }
-        }
-    }
-    (ticks > 0)
-        .then(|| to_ms(ticks, u128::from(mdhd.0)))
-        .flatten()
-}
-
-fn traf_ticks(traf: &[u8], trex_default: u32) -> Option<u128> {
-    let mut default_duration = trex_default;
-    if let Some(tfhd) = child(traf, b"tfhd") {
-        let flags = u32_at(tfhd, 0)? & 0x00FF_FFFF;
-        let mut at = 8; // version/flags + track_ID
-        if flags & 0x01 != 0 {
-            at += 8;
-        }
-        if flags & 0x02 != 0 {
-            at += 4;
-        }
-        if flags & 0x08 != 0 {
-            default_duration = u32_at(tfhd, at)?;
-        }
-    }
-    let mut ticks: u128 = 0;
-    for (kind, trun) in boxes(traf) {
-        if kind != b"trun" {
-            continue;
-        }
-        let flags = u32_at(trun, 0)? & 0x00FF_FFFF;
-        let count = u32_at(trun, 4)?;
-        let mut at =
-            8 + if flags & 0x01 != 0 { 4 } else { 0 } + if flags & 0x04 != 0 { 4 } else { 0 };
-        let per_sample = [0x100, 0x200, 0x400, 0x800]
-            .iter()
-            .filter(|bit| flags & **bit != 0)
-            .count()
-            * 4;
-        for _ in 0..count {
-            let duration = if flags & 0x100 != 0 {
-                u32_at(trun, at)?
-            } else {
-                default_duration
-            };
-            ticks += u128::from(duration);
-            at += per_sample;
-        }
-    }
-    Some(ticks)
-}
+#[path = "probe_mp4.rs"]
+mod mp4;
+use mp4::mp4_duration_ms;
 
 #[cfg(test)]
 #[path = "probe_tests.rs"]

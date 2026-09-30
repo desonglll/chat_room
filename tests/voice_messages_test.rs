@@ -230,3 +230,21 @@ async fn postgres_voice_messages_are_stored_validated_and_privacy_gated() {
     }
     drop_postgres_scratch(&admin_pool, &scratch).await;
 }
+
+#[tokio::test]
+async fn the_page_may_open_the_microphone_but_not_the_camera_or_location() {
+    let server = start_server().await;
+    let response = server
+        .client
+        .get(server.url("/api/config"))
+        .send()
+        .await
+        .unwrap();
+    let policy = response.headers()["permissions-policy"]
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(policy.contains("microphone=(self)"), "{policy}");
+    assert!(policy.contains("camera=()"), "{policy}");
+    assert!(policy.contains("geolocation=()"), "{policy}");
+}

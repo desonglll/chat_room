@@ -15,7 +15,15 @@
  * - `chat.membership_status`/`membership_role` (inside `chat_updated`): omitted when null.
  */
 import type { Chat, ChatMember, ChatMembership } from './chat'
-import type { Attachment, ForwardedFrom, MessageEntity, MessageReaction, ReadReceipt, ReplyPreview } from './message'
+import type {
+  Attachment,
+  ForwardedFrom,
+  MessageEntity,
+  MessageReaction,
+  ReadReceipt,
+  ReplyPreview,
+  VoiceNote,
+} from './message'
 
 /** The ten typing actions. Unknown wire strings MUST degrade to `'typing'` (TG-007 §1). */
 export const TYPING_ACTIONS = [
@@ -69,6 +77,10 @@ export interface BroadcastFrame {
   poll?: PollState
   /** TG-304: omitted when the message has no entities. */
   entities?: MessageEntity[]
+  /** TG-302/TG-401: `"voice"`, `"sticker"`…; omitted for text and plain attachments. */
+  media_kind?: string
+  /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
+  voice?: VoiceNote
 }
 
 export interface TypingFrame {
@@ -137,6 +149,17 @@ export interface DraftUpdatedFrame {
   updated_at: string
 }
 
+/**
+ * TG-401: `user_id` played voice message `message_id` for the first time. Delivered only to
+ * the listener's and the sender's own connections: clear the unlistened dot.
+ */
+export interface VoiceListenedFrame {
+  type: 'voice_listened'
+  message_id: string
+  user_id: string
+  sender_id: string | null
+}
+
 /** Every server→client frame. */
 export type ServerFrame =
   | {
@@ -165,6 +188,7 @@ export type ServerFrame =
   | { type: 'message_views_updated'; views: MessageViewCount[] }
   | { type: 'poll_updated'; message_id: string; poll: PollState }
   | DraftUpdatedFrame
+  | VoiceListenedFrame
 
 export type ServerFrameType = ServerFrame['type']
 

@@ -22,6 +22,7 @@ import { PendingDialog } from './PendingDialog'
 import { useComposerController } from './useComposerController'
 import { useComposerInput } from './useComposerInput'
 import { usePendingBatch } from './usePendingBatch'
+import { VoiceRecordButton } from '../voice'
 
 export interface ComposerProps {
   chatId: string
@@ -208,16 +209,16 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
           {bar.kind === 'edit' ? <CheckGlyph /> : <SendGlyph />}
         </IconButton>
       ) : (
-        <IconButton
-          label="语音消息（即将推出）"
-          variant="filled"
-          size="lg"
-          className="tg-compose__send"
-          data-kind="voice"
-          disabled
-        >
-          <MicGlyph />
-        </IconButton>
+        // TG-401: hold to record, slide to cancel, slide up to lock (features/voice).
+        <VoiceRecordButton
+          chatId={chatId}
+          replyTo={replyTo}
+          canSend={canSend}
+          sendFrame={sendFrame}
+          onSent={() => controller.consumeReply()}
+          micGlyph={<MicGlyph />}
+          sendGlyph={<SendGlyph />}
+        />
       )}
       <Popover
         open={emojiOpen}

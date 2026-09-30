@@ -1,0 +1,260 @@
+/*
+ * TG-401 voice messages: the bubble player and the composer's recording panel. Colours come
+ * from the bubble's side palette (`--tg-msg-*`) and semantic tokens only.
+ *
+ * Motion: the recording dot blinks, the mic's halo follows the live level, the lock rises
+ * with the finger, the cancel hint slides with it. Under prefers-reduced-motion the blink
+ * and the level halo stop and every transition is removed (see the end of this file); the
+ * timer and bars still update because they carry information, not decoration.
+ */
+
+/* ── Bubble ─────────────────────────────────────────────────────────────── */
+
+.tg-voice {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2-5);
+  padding-inline: var(--tg-bubble-padding-inline);
+  padding-block: var(--tg-space-1) 0;
+  color: var(--tg-msg-text);
+}
+
+.tg-voice__play {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-control-height);
+  block-size: var(--tg-control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-msg-accent);
+  color: var(--tg-msg-flat);
+  cursor: pointer;
+  transition: transform var(--tg-transition-press);
+}
+
+.tg-voice__play svg {
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+}
+
+.tg-voice__play:active {
+  transform: scale(0.92);
+}
+
+.tg-voice__play:focus-visible,
+.tg-voice__wave:focus-visible,
+.tg-voice__rate:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-voice__body {
+  display: grid;
+  gap: var(--tg-space-0-5);
+  min-inline-size: 0;
+}
+
+.tg-voice__wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  block-size: var(--tg-space-5);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tg-voice__bar {
+  flex: none;
+  inline-size: 2px;
+  min-block-size: 2px;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-msg-accent);
+  opacity: 0.35;
+  transition: opacity var(--tg-duration-press) linear;
+}
+
+.tg-voice__bar[data-played] {
+  opacity: 1;
+}
+
+.tg-voice__info {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  color: var(--tg-msg-meta);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.tg-voice__unlistened {
+  inline-size: var(--tg-space-1-5);
+  block-size: var(--tg-space-1-5);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-msg-accent);
+}
+
+.tg-voice__rate {
+  padding: 0 var(--tg-space-1);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-msg-accent);
+  color: var(--tg-msg-flat);
+  font: inherit;
+  font-weight: var(--tg-weight-medium);
+  cursor: pointer;
+}
+
+/* ── Composer: recording panel ─────────────────────────────────────────── */
+
+.tg-voice-rec {
+  position: absolute;
+  z-index: 2;
+  inset-block: var(--tg-space-2) var(--tg-space-3);
+  inset-inline: var(--tg-space-4) calc(var(--tg-space-4) + var(--tg-control-height) + var(--tg-space-2));
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding-inline: var(--tg-space-4);
+  border-radius: var(--tg-radius-sheet);
+  background: var(--tg-surface);
+  box-shadow: var(--tg-shadow-composer);
+  color: var(--tg-text-primary);
+}
+
+.tg-voice-rec__dot {
+  flex: none;
+  inline-size: var(--tg-space-2-5);
+  block-size: var(--tg-space-2-5);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-danger);
+  animation: tg-voice-blink var(--tg-duration-loop) var(--tg-ease-standard) infinite alternate;
+}
+
+@keyframes tg-voice-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.2;
+  }
+}
+
+.tg-voice-rec__time {
+  flex: none;
+  min-inline-size: 4.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.tg-voice-rec__wave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-inline-size: 0;
+  block-size: var(--tg-space-6);
+  overflow: hidden;
+}
+
+.tg-voice-rec__wave > span {
+  flex: none;
+  inline-size: 2px;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-accent);
+}
+
+.tg-voice-rec__hint {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-0-5);
+  color: var(--tg-text-secondary);
+  opacity: calc(1 - var(--tg-voice-cancel-progress, 0) * 0.7);
+  transform: translateX(calc(var(--tg-voice-cancel-progress, 0) * -1 * var(--tg-space-16)));
+}
+
+.tg-voice-rec__hint svg {
+  inline-size: var(--tg-icon-sm);
+  block-size: var(--tg-icon-sm);
+}
+
+.tg-voice-rec__cancel {
+  flex: none;
+  padding: var(--tg-space-1) var(--tg-space-2);
+  border: 0;
+  border-radius: var(--tg-radius-control);
+  background: none;
+  color: var(--tg-accent);
+  font: inherit;
+  font-weight: var(--tg-weight-medium);
+  cursor: pointer;
+}
+
+.tg-voice-rec__cancel:hover {
+  background: var(--tg-surface-hover);
+}
+
+/* The mic: a halo that breathes with the live level while held. */
+.tg-voice-mic {
+  touch-action: none;
+}
+
+.tg-voice-mic[data-recording] {
+  box-shadow: 0 0 0 calc(var(--tg-space-1) + var(--tg-voice-level, 0) * var(--tg-space-5)) var(--tg-accent-soft-filled);
+  transition: box-shadow var(--tg-duration-press) linear;
+}
+
+.tg-voice-lock {
+  position: absolute;
+  z-index: 3;
+  inset-inline-end: var(--tg-space-4);
+  inset-block-end: calc(var(--tg-control-height) + var(--tg-space-6));
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-control-height);
+  block-size: calc(var(--tg-control-height) * 1.4);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-menu);
+  color: var(--tg-text-secondary);
+  transform: translateY(calc(var(--tg-voice-lock-progress, 0) * -1 * var(--tg-space-8)));
+}
+
+.tg-voice-lock svg {
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+}
+
+.tg-voice-error {
+  position: absolute;
+  z-index: 3;
+  inset-inline: var(--tg-space-4);
+  inset-block-end: calc(100% + var(--tg-space-1));
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-menu);
+  color: var(--tg-text-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-voice-rec__dot {
+    animation: none;
+  }
+
+  .tg-voice-mic[data-recording] {
+    box-shadow: 0 0 0 var(--tg-space-2) var(--tg-accent-soft-filled);
+    transition: none;
+  }
+
+  .tg-voice__play,
+  .tg-voice__bar,
+  .tg-voice-rec__hint,
+  .tg-voice-lock {
+    transition: none;
+  }
+}

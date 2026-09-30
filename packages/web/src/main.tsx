@@ -11,6 +11,8 @@ import { hydrateSession, revalidateSession } from './app/session'
 import { bindTheme } from './app/theme'
 // TG-406: registers the poll bubble body with the message content registry.
 import './features/poll/register'
+// TG-401: registers the voice bubble body with the message content registry.
+import './features/voice/register'
 
 // Boot order matters: settings → theme attribute → session → render. The session is
 // restored synchronously so the router's first pass already knows whether `/` or
