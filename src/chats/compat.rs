@@ -84,6 +84,7 @@ impl ApiDialect {
 /// the clone is marked deprecated. Delete this function in M6 with the alias itself.
 pub fn openapi_with_deprecated_chat_alias() -> utoipa::openapi::OpenApi {
     let mut spec = <crate::ApiDoc as utoipa::OpenApi>::openapi();
+    spec.merge(<crate::TgApiDoc as utoipa::OpenApi>::openapi());
     let aliases: Vec<(String, utoipa::openapi::PathItem)> = spec
         .paths
         .paths
