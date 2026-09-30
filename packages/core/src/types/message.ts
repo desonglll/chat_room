@@ -46,6 +46,23 @@ export interface MessageEntity {
   language?: string
 }
 
+export type StickerFormat = 'webp' | 'tgs' | 'webm'
+
+/**
+ * TG-302/TG-303: the `sticker` field of a sticker message, present only with
+ * `media_kind: 'sticker'` (both omitted on every other message). The file is the message's
+ * own `attachment.download_url`; `set_short_name` opens the pack.
+ */
+export interface MessageSticker {
+  sticker_id: string
+  set_id: string
+  set_short_name: string
+  emoji: string
+  format: StickerFormat
+  width: number
+  height: number
+}
+
 export interface MessageReaction {
   emoji: string
   user_ids: string[]
@@ -79,6 +96,10 @@ export interface StoredMessage {
   poll?: PollState
   /** TG-304: omitted when the message has no entities. */
   entities?: MessageEntity[]
+  /** TG-302: `'sticker'` for a sticker message; omitted otherwise. */
+  media_kind?: string
+  /** TG-302: omitted unless `media_kind === 'sticker'` (and on recall). */
+  sticker?: MessageSticker
 }
 
 /**

@@ -1,0 +1,224 @@
+/* TG-303 media panel: tabs, sticker tab, set rail, virtual grid. Semantic tokens only. */
+
+/* ── Media panel ─────────────────────────────────────────────────────── */
+
+.tg-media-panel {
+  display: flex;
+  flex-direction: column;
+  width: calc(var(--tg-space-20) * 4.5);
+  max-width: 92vw;
+  height: calc(var(--tg-space-20) * 5.25);
+  max-height: 70vh;
+}
+
+.tg-media-panel > div,
+.tg-media-panel__tabs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tg-media-panel [role='tabpanel'] {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding-block: 0;
+}
+
+.tg-media-panel__body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tg-media-panel__body > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-media-panel .tg-compose__emoji,
+.tg-media-panel .tg-compose__emoji-picker {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Sticker tab ─────────────────────────────────────────────────────── */
+
+.tg-sticker-tab {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tg-sticker-tab__search {
+  padding: var(--tg-space-2);
+}
+
+.tg-sticker-tab__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.tg-sticker-tab__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tg-sticker-tab__remote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-1) var(--tg-space-3);
+  color: var(--tg-text-primary);
+}
+
+.tg-sticker-tab__state {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  margin: 0;
+  padding: var(--tg-space-6);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  text-align: center;
+}
+
+/* ── Set rail ────────────────────────────────────────────────────────── */
+
+.tg-sticker-rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: var(--tg-space-12);
+  border-inline-end: 1px solid var(--tg-divider);
+}
+
+.tg-sticker-rail__list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding-block: var(--tg-space-1);
+  overflow-y: auto;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.tg-sticker-rail__item {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tg-space-10);
+  height: var(--tg-space-10);
+  margin-inline: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  color: var(--tg-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-sticker-rail__item:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-sticker-rail__item[aria-current='true'] {
+  background: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.tg-sticker-rail__item:focus-visible,
+.tg-sticker-grid__cell:focus-visible,
+.tg-sticker-suggest__item:focus-visible {
+  outline: 2px solid var(--tg-focus-ring);
+  outline-offset: -2px;
+}
+
+/* ── Virtual grid ────────────────────────────────────────────────────── */
+
+.tg-sticker-grid {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y proximity;
+  touch-action: pan-y;
+}
+
+.tg-sticker-grid__canvas {
+  position: relative;
+}
+
+.tg-sticker-grid__header,
+.tg-sticker-grid__row {
+  position: absolute;
+  inset-inline: 0;
+}
+
+.tg-sticker-grid__header {
+  display: flex;
+  align-items: center;
+  padding-inline: var(--tg-space-3);
+  overflow: hidden;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  scroll-snap-align: start;
+}
+
+.tg-sticker-grid__row {
+  display: flex;
+}
+
+.tg-sticker-grid__cell {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--tg-transition-fade),
+    transform var(--tg-transition-press);
+  -webkit-touch-callout: none;
+}
+
+.tg-sticker-grid__cell:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-sticker-grid__cell:active {
+  transform: scale(0.92);
+}
+
+.tg-sticker-grid__cell:disabled {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-sticker-grid__cell,
+  .tg-sticker-rail__item {
+    transition: none;
+  }
+
+  .tg-sticker-grid__cell:active {
+    transform: none;
+  }
+}

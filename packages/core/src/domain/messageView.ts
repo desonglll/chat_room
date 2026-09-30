@@ -77,5 +77,7 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     reactions: message.reactions || [],
     ...(message.poll ? { poll: message.poll } : {}),
     ...(message.entities?.length ? { entities: message.entities } : {}),
+    ...(message.media_kind ? { media_kind: message.media_kind } : {}),
+    ...(message.sticker ? { sticker: message.sticker } : {}),
   }
 }

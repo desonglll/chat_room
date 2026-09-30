@@ -1,0 +1,119 @@
+/* TG-303 set preview and sticker set management page. Semantic tokens only. */
+
+/* ── Set preview + management page ──────────────────────────────────── */
+
+.tg-sticker-set__grid {
+  display: flex;
+  height: calc(var(--tg-space-20) * 4);
+  max-height: 55vh;
+}
+
+.tg-sticker-set__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--tg-space-2);
+}
+
+.tg-sticker-set__notice,
+.tg-sticker-manage__notice {
+  margin: var(--tg-space-2) 0 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-sticker-manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.tg-sticker-manage__add {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+}
+
+.tg-sticker-manage__heading {
+  margin: var(--tg-space-3) 0 0;
+  color: var(--tg-accent);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-sticker-manage__empty {
+  margin: 0;
+  color: var(--tg-text-secondary);
+}
+
+.tg-sticker-manage__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-sticker-manage__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding-block: var(--tg-space-1);
+  border-radius: var(--tg-radius-md);
+}
+
+.tg-sticker-manage__row[data-dragging='true'] {
+  background: var(--tg-surface-selected);
+}
+
+.tg-sticker-manage__handle {
+  display: grid;
+  place-items: center;
+  color: var(--tg-text-tertiary);
+  cursor: grab;
+}
+
+.tg-sticker-manage__open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--tg-space-3);
+  min-width: 0;
+  padding: var(--tg-space-1);
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-sticker-manage__open:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-sticker-manage__thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tg-space-10);
+  height: var(--tg-space-10);
+}
+
+.tg-sticker-manage__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-sticker-manage__title {
+  overflow: hidden;
+  color: var(--tg-text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tg-sticker-manage__count {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
