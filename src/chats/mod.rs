@@ -19,6 +19,8 @@ pub mod membership_mutations;
 pub mod message_history;
 pub mod models;
 pub mod participants;
+pub mod private_chat_handlers;
+pub mod private_chats;
 pub mod provisioning;
 pub mod query_handlers;
 pub mod routes;

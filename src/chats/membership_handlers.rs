@@ -52,15 +52,13 @@ pub(crate) async fn require_permission(
         .ok_or(StatusCode::FORBIDDEN)
 }
 
-pub(crate) async fn reject_direct_chat(
+/// A private chat has no roster and no settings to manage: to anyone asking to manage one,
+/// it does not exist.
+pub(crate) async fn reject_private_chat(
     state: &SharedState,
     room_id: Uuid,
 ) -> Result<(), StatusCode> {
-    if state
-        .is_direct_chat(room_id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    {
+    if state.is_private_chat(room_id).await {
         return Err(StatusCode::NOT_FOUND);
     }
     Ok(())
@@ -100,7 +98,7 @@ pub async fn request_join(
 ) -> Result<(StatusCode, Json<ChatMembership>), StatusCode> {
     let user = session_user(&state, &headers).await?;
     require_chat_unlocked(&state, room_id).await?;
-    reject_direct_chat(&state, room_id).await?;
+    reject_private_chat(&state, room_id).await?;
     let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     if state
         .chat_banned(room_id, user.id)
@@ -143,7 +141,7 @@ pub async fn list_members(
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<ChatMembership>>, StatusCode> {
-    reject_direct_chat(&state, room_id).await?;
+    reject_private_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.review").await?;
     let mut members = state.chat_members(room_id).await.map_err(|error| {
@@ -165,7 +163,7 @@ pub async fn invite_member(
     headers: HeaderMap,
     Json(request): Json<InviteMemberRequest>,
 ) -> Result<Json<ChatMembership>, StatusCode> {
-    reject_direct_chat(&state, room_id).await?;
+    reject_private_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.invite").await?;
     let username = request.username.trim();
@@ -201,7 +199,7 @@ pub async fn update_own_nickname(
     headers: HeaderMap,
     Json(request): Json<UpdateNicknameRequest>,
 ) -> Result<Json<ChatMembership>, StatusCode> {
-    reject_direct_chat(&state, room_id).await?;
+    reject_private_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     let nickname = request.nickname.trim();
     if nickname.chars().count() > MAX_NICKNAME_CHARS || nickname.chars().any(char::is_control) {
@@ -224,7 +222,7 @@ pub async fn leave_chat(
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
-    reject_direct_chat(&state, room_id).await?;
+    reject_private_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     if state.chat(room_id).await.is_none() {
         return Err(StatusCode::NOT_FOUND);

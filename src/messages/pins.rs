@@ -129,11 +129,7 @@ async fn require_pin_permission(
     room_id: Uuid,
     user_id: Uuid,
 ) -> Result<(), StatusCode> {
-    if state
-        .is_direct_chat(room_id)
-        .await
-        .map_err(internal_error)?
-    {
+    if state.is_private_chat(room_id).await {
         return require_active_member(state, room_id, user_id).await;
     }
     state

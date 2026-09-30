@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::membership_handlers::{
-    publish_membership_joined, reject_direct_chat, require_permission, session_user,
+    publish_membership_joined, reject_private_chat, require_permission, session_user,
 };
 
 pub async fn update_member(
@@ -23,7 +23,7 @@ pub async fn update_member(
     headers: HeaderMap,
     Json(request): Json<UpdateMembershipRequest>,
 ) -> Result<Json<ChatMembership>, StatusCode> {
-    reject_direct_chat(&state, room_id).await?;
+    reject_private_chat(&state, room_id).await?;
     let actor = session_user(&state, &headers).await?;
     let permission = match request.action.as_str() {
         "approve" | "reject" => "members.review",

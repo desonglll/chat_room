@@ -64,7 +64,8 @@ impl ConversationRow {
                 requested_at.max(self.last_activity_at)
             });
         // The sidebar's shape depends on chat_type (docs/tg/architecture.md §4.3), so the
-        // conversation list carries it rather than making the client fetch each chat.
+        // conversation list carries it rather than making the client fetch each chat. `kind`
+        // is the frozen clients' spelling of the same fact: 'direct' iff chat_type = 'private'.
         let group = (self.kind == "group").then(|| {
             ChatCompatView::from(Chat {
                 id: self.room_id,
@@ -102,6 +103,7 @@ impl ConversationRow {
         });
         ConversationSummary {
             room_id: self.room_id,
+            chat_type: self.chat_type,
             kind: self.kind,
             title: self.title,
             alias: self.conversation_alias,
@@ -135,13 +137,13 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT chats.id AS room_id, \
-                 CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END AS kind, \
-                 CASE WHEN direct.room_id IS NULL THEN chats.title \
+                 CASE WHEN chats.chat_type = 'private' THEN 'direct' ELSE 'group' END AS kind, \
+                 CASE WHEN chats.chat_type <> 'private' THEN chats.title \
                    ELSE COALESCE(NULLIF(remarks.remark, ''), NULLIF(peer.display_name, ''), peer.username) END AS title, \
                  memberships.conversation_alias, \
-                 CASE WHEN direct.room_id IS NULL THEN chats.avatar_emoji \
+                 CASE WHEN chats.chat_type <> 'private' THEN chats.avatar_emoji \
                    ELSE COALESCE(peer.avatar_emoji, '') END AS display_avatar, \
-                 CASE WHEN direct.room_id IS NULL THEN chats.description \
+                 CASE WHEN chats.chat_type <> 'private' THEN chats.description \
                    ELSE COALESCE(peer.signature, '') END AS display_description, \
                  chats.title AS room_name, chats.chat_type, chats.username AS chat_username, \
                  chats.is_forum, CAST(chats.member_count AS BIGINT) AS member_count, \
@@ -182,6 +184,7 @@ impl AppState {
                  LEFT JOIN chat_role_permissions AS review ON review.role_id = roles.id \
                    AND review.permission_key = 'members.review' \
                  LEFT JOIN direct_conversations AS direct ON direct.room_id = chats.id \
+                   AND chats.chat_type = 'private' \
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $1 THEN direct.user_high_id \
                    WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \

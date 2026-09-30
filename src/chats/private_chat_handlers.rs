@@ -1,9 +1,16 @@
+//! `POST /api/direct-chats` — open the private chat with a friend.
+//!
+//! Moved here from `direct_conversations::handlers` by TG-208; the path, request and response
+//! (`ConversationSummary`) are unchanged because the frozen Vue, PySide6 and ratatui clients
+//! call it.
+
 use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
     Json,
 };
 
+use super::private_chats::OpenPrivateChatError;
 use crate::admin_system_lock::{require_chat_rooms_unlocked, require_chat_unlocked};
 use crate::conversations::models::ConversationSummary;
 use crate::social::models::FriendRequestPayload;
@@ -36,11 +43,11 @@ pub async fn start_direct_chat(
         return Err(StatusCode::BAD_REQUEST);
     }
     let room_id = state
-        .start_direct_conversation(user.id, payload.user_id)
+        .open_private_chat(user.id, payload.user_id)
         .await
         .map_err(|error| match error {
-            sqlx::Error::RowNotFound => StatusCode::CONFLICT,
-            other => {
+            OpenPrivateChatError::NotAllowed => StatusCode::CONFLICT,
+            OpenPrivateChatError::Database(other) => {
                 tracing::error!("start direct chat failed: {other}");
                 StatusCode::INTERNAL_SERVER_ERROR
             }
