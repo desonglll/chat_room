@@ -28,3 +28,27 @@
   border-radius: var(--tg-radius-lg);
   background: var(--tg-bg-secondary);
 }
+
+/* TG-306: WebP and WebM stickers share the box above. */
+.tg-sticker__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+}
+
+.tg-sticker[data-format][data-phase='loading'] {
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-skeleton);
+}
+
+/* WebM where VP9 alpha is unavailable and there is no thumbnail: the sticker's emoji. */
+.tg-sticker__emoji {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
