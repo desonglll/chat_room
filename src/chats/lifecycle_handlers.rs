@@ -14,6 +14,7 @@ use uuid::Uuid;
 use super::handlers::{
     hash_password, valid_chat_avatar, valid_chat_description, valid_chat_title, MAX_PASSWORD_CHARS,
 };
+use super::membership_handlers::reject_private_chat;
 use super::ApiDialect;
 use crate::models::{Chat, UpdateChatRequest};
 use crate::state::SharedState;
@@ -40,13 +41,7 @@ pub async fn update_chat(
     headers: HeaderMap,
     Json(req): Json<UpdateChatRequest>,
 ) -> Result<Response, StatusCode> {
-    if state
-        .is_direct_chat(id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    {
-        return Err(StatusCode::NOT_FOUND);
-    }
+    reject_private_chat(&state, id).await?;
     if req.title.is_none() && req.new_password.is_none() && req.join_policy.is_none() {
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -192,13 +187,7 @@ pub async fn delete_chat(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
-    if state
-        .is_direct_chat(id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    {
-        return Err(StatusCode::NOT_FOUND);
-    }
+    reject_private_chat(&state, id).await?;
     let chat = state.chat(id).await.ok_or(StatusCode::NOT_FOUND)?;
     let token = bearer_token(&headers)?;
     let user = state

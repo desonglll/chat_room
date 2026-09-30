@@ -87,7 +87,7 @@ pub struct Chat {
 
 impl Default for Chat {
     /// A blank private-nothing placeholder. It exists so that the handful of call sites that
-    /// build a `Chat` from a different table (`direct_conversations`, `conversations`) can
+    /// build a `Chat` from a different source (`private_chats`, `conversations`) can
     /// spell out the fields they know and inherit the rest, instead of each repeating eleven
     /// M2 defaults that would then drift apart. `create_chat` sets every field explicitly.
     fn default() -> Self {

@@ -3,6 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::chats::ChatType;
 use crate::models::{ChatCompatView, UserSummary};
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -82,6 +83,10 @@ where
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConversationSummary {
     pub room_id: Uuid,
+    /// Which of the four chat shapes this conversation is (TG-208).
+    pub chat_type: ChatType,
+    /// Deprecated spelling of `chat_type` for the frozen clients: `"direct"` for a `private`
+    /// chat, `"group"` for every other type.
     pub kind: String,
     pub title: String,
     pub alias: String,

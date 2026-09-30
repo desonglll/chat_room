@@ -11,9 +11,9 @@ use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
     admin_system_admins, admin_system_lock, ai, ai_extractions, ai_governance, ai_threads,
     attachment_handlers, attachment_upload_handlers, audit, avatar_handlers, chats, config,
-    conversations, direct_conversations, favorites, forward_handlers, message_global_search,
-    notifications, observability, push_notifications, registration, sessions, social,
-    state::AppState, user_handlers, ws,
+    conversations, favorites, forward_handlers, message_global_search, notifications,
+    observability, push_notifications, registration, sessions, social, state::AppState,
+    user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -140,7 +140,7 @@ pub(crate) fn api_routes(
         )
         .route(
             "/api/direct-chats",
-            axum::routing::post(direct_conversations::handlers::start_direct_chat),
+            axum::routing::post(chats::private_chat_handlers::start_direct_chat),
         )
         .route(
             "/api/conversations",

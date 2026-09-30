@@ -64,7 +64,7 @@ use utoipa::OpenApi;
         social::handlers::list_blocks,
         social::handlers::block_user,
         social::handlers::unblock_user,
-        direct_conversations::handlers::start_direct_chat,
+        chats::private_chat_handlers::start_direct_chat,
         conversations::handlers::list_conversations,
         conversations::handlers::update_conversation_alias,
         conversations::handlers::get_conversation_preferences,

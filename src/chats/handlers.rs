@@ -114,8 +114,8 @@ pub async fn create_chat(
     // silent product decision.
     let chat = Chat {
         id,
-        // A chat created through this endpoint is always a small group. `private` belongs to
-        // direct_conversations, and supergroup/channel arrive in M2 — a group reaches
+        // A chat created through this endpoint is always a small group. `private` is opened
+        // by chats::private_chats between two friends, and supergroup/channel arrive in M2 — a group reaches
         // supergroup only through the one-way upgrade in chats::supergroup_upgrade.
         chat_type: ChatType::Group,
         title,

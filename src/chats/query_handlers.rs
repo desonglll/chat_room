@@ -8,7 +8,7 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-use super::ApiDialect;
+use super::{ApiDialect, ChatType};
 use crate::state::SharedState;
 use crate::user_handlers::optional_bearer_token;
 
@@ -24,7 +24,7 @@ pub struct ListQuery {
     get,
     path = "/api/chats",
     params(("title" = Option<String>, Query, description = "Filter by exact chat title")),
-    responses((status = 200, description = "Matching chats", body = Vec<Chat>))
+    responses((status = 200, description = "Chats the viewer is an active member of, of every chat type. A private chat carries its peer's name, avatar and signature as title, avatar_emoji and description. The deprecated /api/rooms alias omits private chats.", body = Vec<Chat>))
 )]
 pub async fn list_chats(
     State(state): State<SharedState>,
@@ -32,12 +32,6 @@ pub async fn list_chats(
     dialect: ApiDialect,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
-    let direct_ids = state
-        .direct_room_ids()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let mut chats = state.list_chats(query.title.as_deref()).await;
-    chats.retain(|chat| !direct_ids.contains(&chat.id));
     let user = if let Some(token) = optional_bearer_token(&headers) {
         state
             .session_user(token)
@@ -49,11 +43,27 @@ pub async fn list_chats(
     let Some(user) = user else {
         return Ok(dialect.chats(Vec::new()));
     };
+    let mut chats = state.list_chats(None).await;
+    // The frozen clients behind `/api/rooms` list private chats from `/api/conversations`;
+    // giving them here too would show every private chat twice. The canonical contract lists
+    // every chat the viewer is in, whatever its type (TG-208).
+    if dialect == ApiDialect::LegacyRooms {
+        chats.retain(|chat| chat.chat_type != ChatType::Private);
+    }
     state
         .decorate_chats_for_user(&mut chats, user.id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     chats.retain(|chat| chat.membership_status.as_deref() == Some("active"));
+    state
+        .present_private_chats(&mut chats, user.id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // The title filter applies to what the viewer sees, so a private chat is found by its
+    // peer's name, not by its internal placeholder title.
+    if let Some(title) = query.title.as_deref() {
+        chats.retain(|chat| chat.title == title);
+    }
     Ok(dialect.chats(chats))
 }
 
@@ -69,12 +79,9 @@ pub async fn discover_chats(
     dialect: ApiDialect,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
-    let direct_ids = state
-        .direct_room_ids()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut chats = state.list_chats(query.title.as_deref()).await;
-    chats.retain(|chat| !direct_ids.contains(&chat.id) && !chat.has_password);
+    // A private chat is never discoverable: nobody but its two participants may join it.
+    chats.retain(|chat| chat.chat_type != ChatType::Private && !chat.has_password);
 
     if let Some(token) = optional_bearer_token(&headers) {
         if let Some(user) = state
@@ -128,23 +135,17 @@ pub async fn get_chat(
             chat.membership_role = Some(role);
         }
     }
-    let direct = state
-        .is_direct_chat(id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    if direct {
+    if chat.chat_type == ChatType::Private {
+        // A private chat does not exist for anyone but its active participants, and each of
+        // them sees it titled after the other one.
         if chat.membership_status.as_deref() != Some("active") {
             return Err(StatusCode::NOT_FOUND);
         }
         let user = user.ok_or(StatusCode::NOT_FOUND)?;
-        let conversation = state
-            .conversation_summary(user.id, id)
+        state
+            .present_private_chats(std::slice::from_mut(&mut chat), user.id)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-            .ok_or(StatusCode::NOT_FOUND)?;
-        chat.title = conversation.title;
-        chat.avatar_emoji = conversation.avatar_emoji;
-        chat.description = conversation.description;
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
     Ok(dialect.chat(chat))
 }
