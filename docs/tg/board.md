@@ -229,6 +229,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 ## 集成负责人自己引入的缺陷
 
+- **2026-10-01** 合并 TG-204 前在 worktree 里用**绝对路径**调用 `scripts/check_file_sizes.py`——该脚本按自身位置解析仓库根，所以审计的是主 checkout 而非 worktree，「通过」毫无意义。合并后 `main` 有三个文件越过 350 行（`api_doc.rs`、`favorites/store.rs`、`chatSession.ts`），TG-403 的门禁才暴露。已按职责拆分：TG 阶段 OpenAPI 条目移入 `api_doc_tg.rs`（在 `compat.rs` 唯一生成点 merge）、收藏转发移入 `favorites/forward_store.rs`、会话类型移入 `chatSessionTypes.ts`。教训：在 worktree 里用 worktree 自己的 `scripts/` 相对路径跑审计。
+
 - **2026-10-01** 合并 TG-305 后只跑了 bun 门禁就合并 TG-205 并挂载 UI，cargo 门禁到最后才跑——才发现 `main` 自 TG-305 合并起**无法编译**：TG-305 基线早于 TG-201，其 GIF 发送调用 `authorize_upload` 少了 TG-201 新增的权限参数。已修（GIF 用 `message.send_sticker`，与 Telegram「贴纸与 GIF」同权）。教训：含 Rust 的分支合并后先跑 `cargo clippy` 再合下一个。
 
 - **2026-10-01** 在主 checkout 解决 TG-506 合并冲突时用了 `git add -A`，把本机未跟踪的 `web-v2/`（6136 个构建残留文件，含 node_modules）提交进了合并提交 `a2c73a5`。TG-306 的 agent 发现（文件大小审计 341 个错误）。已在 `36dfcae` 取消跟踪并加入 `.git/info/exclude`。**推送 `dev` 前必须用 index-filter 从 `a2c73a5` 起的历史中彻底清除 `web-v2/`**，否则约 185 MB 垃圾进入远端。教训：冲突解决只 `git add` 冲突文件本身。
