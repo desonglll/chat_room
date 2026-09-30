@@ -1,0 +1,174 @@
+/*
+ * Layer 3 — WALLPAPERS. The third independent runtime axis:
+ * theme × accent × wallpaper, all three switchable by attribute, none of them
+ * requiring a component change.
+ *
+ * A Telegram wallpaper is a four-point gradient mesh plus an optional tiled
+ * pattern at a given intensity. The mesh points are not decorative choices:
+ * tweb's gradientRenderer.ts walks an eight-entry position ring and takes
+ * every other entry, so at rest the four colours sit at
+ *
+ *   colour 1 → 80% 10%     colour 2 → 35% 25%
+ *   colour 3 → 20% 90%     colour 4 → 65% 75%
+ *
+ * [web] gradientRenderer.ts `_positions` + `getPositions()`. Telegram animates
+ * the ring on every sent message; the token layer only has to get the rest
+ * state right. The CSS below is an approximation of a weighted four-point
+ * mesh: the fourth colour is the base and the other three are radial
+ * gradients over it. Telegram's real renderer sums all four with a 1/d⁴
+ * weight on a canvas, so expect a visible difference in the transition zones
+ * and none at the four anchors.
+ *
+ * `--tg-wallpaper-pattern-opacity` carries the preset's intensity (iOS stores
+ * 1..100). No pattern asset exists yet — the token is here so that whoever
+ * adds one does not invent a second name for it.
+ *
+ * Preset names are [ours]; Telegram identifies presets by numeric id, and the
+ * id is given for every entry so the mapping is checkable. Colours are [ios].
+ *
+ * Usage:  <div data-tg-theme="night" data-tg-wallpaper="midnight-blue">
+ *         .chat { background-color: var(--tg-chat-bg);
+ *                 background-image: var(--tg-wallpaper-image); }
+ */
+
+[data-tg-wallpaper] {
+  --tg-chat-bg: var(--tg-wallpaper-4);
+  --tg-wallpaper-image:
+    radial-gradient(farthest-side at 80% 10%, var(--tg-wallpaper-1), transparent),
+    radial-gradient(farthest-side at 35% 25%, var(--tg-wallpaper-2), transparent),
+    radial-gradient(farthest-side at 20% 90%, var(--tg-wallpaper-3), transparent);
+}
+
+/* The flat chat background — tweb's own look when no wallpaper is set. */
+[data-tg-wallpaper="none"] {
+  --tg-chat-bg: var(--tg-bg-secondary);
+  --tg-wallpaper-image: none;
+  --tg-wallpaper-pattern-opacity: 0;
+}
+
+/* Telegram's factory wallpaper. [ios] defaultBuiltinWallpaperGradientColors,
+   DefaultDayPresentationTheme.swift:1109, intensity 50. If you only look at
+   one wallpaper next to a Telegram screenshot, look at this one. */
+[data-tg-wallpaper="default"] {
+  --tg-wallpaper-1: #dbddbb;
+  --tg-wallpaper-2: #6ba587;
+  --tg-wallpaper-3: #d5d88d;
+  --tg-wallpaper-4: #88b884;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* ── Light presets. [ios] dayClassicColorPresets via tweb themePresets.ts ─── */
+
+/* preset 102 */
+[data-tg-wallpaper="sunset"] {
+  --tg-wallpaper-1: #eaa36e;
+  --tg-wallpaper-2: #f0e486;
+  --tg-wallpaper-3: #f29ebf;
+  --tg-wallpaper-4: #e8c06e;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* preset 104 */
+[data-tg-wallpaper="meadow"] {
+  --tg-wallpaper-1: #7fc289;
+  --tg-wallpaper-2: #e4d573;
+  --tg-wallpaper-3: #afd677;
+  --tg-wallpaper-4: #f0c07a;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* preset 101 */
+[data-tg-wallpaper="orchid"] {
+  --tg-wallpaper-1: #e4b2ea;
+  --tg-wallpaper-2: #8376c2;
+  --tg-wallpaper-3: #eab9d9;
+  --tg-wallpaper-4: #b493e6;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* preset 103 */
+[data-tg-wallpaper="lagoon"] {
+  --tg-wallpaper-1: #dceb92;
+  --tg-wallpaper-2: #8fe1d6;
+  --tg-wallpaper-3: #67a3f2;
+  --tg-wallpaper-4: #85d685;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* preset 106 */
+[data-tg-wallpaper="haze"] {
+  --tg-wallpaper-1: #8dc0eb;
+  --tg-wallpaper-2: #b9d1ea;
+  --tg-wallpaper-3: #c6b1ef;
+  --tg-wallpaper-4: #ebd7ef;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* preset 107 — a dark wallpaper that ships on the light base, which is why
+   wallpaper cannot be derived from the theme. */
+[data-tg-wallpaper="forest-night"] {
+  --tg-wallpaper-1: #1a2e1a;
+  --tg-wallpaper-2: #47623c;
+  --tg-wallpaper-3: #222e24;
+  --tg-wallpaper-4: #314429;
+  --tg-wallpaper-pattern-opacity: 0.5;
+}
+
+/* ── Dark presets. [ios] DefaultDarkTintedPresentationTheme.swift:11–38,
+   PresentationThemeBaseColor.colorWallpaper, intensity 40. Telegram pairs each
+   of these with one accent; the token layer keeps the two axes independent so
+   that either can change alone. TG-507 may re-couple them in application code. */
+
+[data-tg-wallpaper="midnight-blue"] {
+  /* base colour blue */
+  --tg-wallpaper-1: #1e3557;
+  --tg-wallpaper-2: #182036;
+  --tg-wallpaper-3: #1c4352;
+  --tg-wallpaper-4: #16263a;
+  --tg-wallpaper-pattern-opacity: 0.4;
+}
+
+[data-tg-wallpaper="deep-teal"] {
+  /* base colour cyan */
+  --tg-wallpaper-1: #1e3557;
+  --tg-wallpaper-2: #151a36;
+  --tg-wallpaper-3: #1c4352;
+  --tg-wallpaper-4: #2a4541;
+  --tg-wallpaper-pattern-opacity: 0.4;
+}
+
+[data-tg-wallpaper="pine"] {
+  /* base colour green */
+  --tg-wallpaper-1: #2d4836;
+  --tg-wallpaper-2: #172b19;
+  --tg-wallpaper-3: #364331;
+  --tg-wallpaper-4: #103231;
+  --tg-wallpaper-pattern-opacity: 0.4;
+}
+
+[data-tg-wallpaper="plum-night"] {
+  /* base colour purple */
+  --tg-wallpaper-1: #3a1c3a;
+  --tg-wallpaper-2: #24193c;
+  --tg-wallpaper-3: #392e3e;
+  --tg-wallpaper-4: #1a1632;
+  --tg-wallpaper-pattern-opacity: 0.4;
+}
+
+[data-tg-wallpaper="ember"] {
+  /* base colour orange */
+  --tg-wallpaper-1: #2c211b;
+  --tg-wallpaper-2: #442917;
+  --tg-wallpaper-3: #22191f;
+  --tg-wallpaper-4: #3b2714;
+  --tg-wallpaper-pattern-opacity: 0.4;
+}
+
+[data-tg-wallpaper="mulberry"] {
+  /* base colour pink */
+  --tg-wallpaper-1: #2c0b22;
+  --tg-wallpaper-2: #290020;
+  --tg-wallpaper-3: #160a22;
+  --tg-wallpaper-4: #3b1834;
+  --tg-wallpaper-pattern-opacity: 0.4;
+}

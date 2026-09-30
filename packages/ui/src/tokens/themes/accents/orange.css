@@ -1,0 +1,72 @@
+/*
+ * Layer 3 — ACCENT override: Orange.
+ *
+ * [ios] PresentationThemeBaseColor.orange = #f08200, index 14
+ * (PresentationThemeSettings.swift). One of the nine accents a Telegram user
+ * can actually pick, so this is the real palette rather than one we invented.
+ * Telegram ships no gradient bubble for orange on a light base, so the day bubble
+ * here is the derived 12 % tint rather than a curated pair of stops.
+ *
+ * An accent override touches the accent block and the outgoing bubble, and
+ * nothing else. Everything else that looks accented — badges, the selected chat
+ * row, the focus ring, in-bubble links — reads var(--tg-accent) from the theme
+ * file and follows automatically. That is the test of the layering: this file
+ * restyles the whole application without naming a single component.
+ *
+ * Scoping: data-tg-accent must sit on the same element as, or inside, the
+ * element carrying data-tg-theme. See semantic.css for the contract.
+ *
+ * DAY bubble  [derived] tweb themeController: the outgoing fill is
+ *   mixColors(accent, surface, messageLightenAlpha), messageLightenAlpha = 0.12
+ *   on a light base — a 12 % tint of the accent over white. Bubble text is then
+ *   [ios] black, with 50 % black for the meta line and the tick
+ *   (DefaultDarkPresentationTheme.swift:163-167, light-bubble branch).
+ *
+ * NIGHT bubble  [derived] iOS derives a two-stop gradient instead of filling
+ *   the bubble with a saturated accent
+ *   (DefaultDarkTintedPresentationTheme.swift:88-91):
+ *     bottom = accent.withMultiplied(1.019, 0.731, 0.59)
+ *     top    = bottom.withMultiplied(0.966, 0.61, 0.98)
+ *   — HSV channel multiplications, saturation and value clamped at 1. The
+ *   result is muted on purpose: the factory violet #8774E1 works as a flat
+ *   bubble only because it was picked to, and an arbitrary accent does not.
+ */
+
+/* Day base */
+[data-tg-accent="orange"],
+[data-tg-theme="day"][data-tg-accent="orange"],
+[data-tg-theme="day"] [data-tg-accent="orange"] {
+  --tg-accent: #f08200;
+  --tg-accent-rgb: 240, 130, 0;
+  --tg-accent-hover: #c76c00; /* [derived] HSL lightness -8 */
+  --tg-accent-active: #a95b00; /* [derived] HSL lightness -14 [ours] */
+  --tg-accent-soft: rgb(240 130 0 / 8%);
+  --tg-accent-soft-filled: #fef5eb; /* [derived] 8 % accent over white */
+  --tg-accent-contrast: #ffffff; /* white on the accent is 2.66:1 */
+
+  --tg-bubble-out: #fdf0e0; /* [derived] 12 % accent over white */
+  --tg-bubble-out-fill: var(--tg-bubble-out);
+  --tg-bubble-out-text: #000000; /* 18.72:1 on the bubble */
+  --tg-bubble-out-meta: rgb(0 0 0 / 50%); /* [ios] light-bubble branch */
+  --tg-bubble-out-accent: #a95b00;
+  --tg-bubble-tick: rgb(0 0 0 / 50%); /* [ios] outgoingCheckColor, light bubble */
+}
+
+/* Night base */
+[data-tg-theme="night"][data-tg-accent="orange"],
+[data-tg-theme="night"] [data-tg-accent="orange"] {
+  --tg-accent: #f08200;
+  --tg-accent-rgb: 240, 130, 0;
+  --tg-accent-hover: #c76c00; /* [derived] HSL lightness -8 */
+  --tg-accent-active: #a95b00; /* [derived] HSL lightness -14 [ours] */
+  --tg-accent-soft: rgb(240 130 0 / 8%);
+  --tg-accent-soft-filled: #32291e; /* [derived] 8 % accent over the night surface */
+  --tg-accent-contrast: #ffffff;
+
+  --tg-bubble-out: #8e5f26; /* the gradient's bottom stop; the tail is filled with this flat colour */
+  --tg-bubble-out-fill: linear-gradient(to bottom, #8b6e4d, #8e5f26);
+  --tg-bubble-out-text: #ffffff; /* 5.5:1 on the bottom stop */
+  --tg-bubble-out-meta: rgb(255 255 255 / 50%); /* [ios] dark-bubble branch */
+  --tg-bubble-out-accent: #ffffff;
+  --tg-bubble-tick: #ffffff;
+}

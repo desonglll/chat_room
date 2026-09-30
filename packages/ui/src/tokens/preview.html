@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="en" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@tg/ui design tokens — Telegram parity reference</title>
+    <link rel="stylesheet" href="./index.css" />
+    <style>
+      /*
+       * This stylesheet contains NO colour literal and NO length literal that
+       * belongs to the design language. Everything visual comes from a `--tg-*`
+       * semantic token. That is the point of the page, and it is checkable:
+       *
+       *   grep -nE '#[0-9a-fA-F]{3,8}|rgba?\(' preview.html   → no hits in <style>
+       *
+       * The few bare pixel values that remain are page furniture (hairlines,
+       * demo track sizes) and are marked `page chrome`.
+       */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--tg-font-sans);
+        font-size: var(--tg-type-subtitle-size);
+        line-height: var(--tg-type-subtitle-line);
+        letter-spacing: var(--tg-letter-spacing);
+        color: var(--tg-text-primary);
+        background: var(--tg-bg-secondary);
+      }
+
+      code,
+      .mono {
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+      }
+
+      /* ── Toolbar ─────────────────────────────────────────────────────── */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--tg-space-3);
+        align-items: center;
+        padding: var(--tg-space-3) var(--tg-space-4);
+        background: var(--tg-surface-glass);
+        backdrop-filter: blur(var(--tg-blur-glass));
+        border-bottom: 1px solid var(--tg-divider); /* page chrome: 1px hairline */
+        box-shadow: var(--tg-shadow-panel);
+      }
+
+      .bar h1 {
+        margin: 0 var(--tg-space-4) 0 0;
+        font-size: var(--tg-type-title-size);
+        line-height: var(--tg-type-title-line);
+        font-weight: var(--tg-weight-medium);
+      }
+
+      .group {
+        display: flex;
+        align-items: center;
+        gap: var(--tg-space-1);
+      }
+
+      .group > span {
+        color: var(--tg-text-secondary);
+        font-size: var(--tg-type-label-size);
+        margin-right: var(--tg-space-1);
+      }
+
+      button {
+        font: inherit;
+        font-size: var(--tg-type-label-size);
+        color: var(--tg-text-primary);
+        background: var(--tg-surface);
+        border: 1px solid var(--tg-border); /* page chrome */
+        border-radius: var(--tg-radius-control);
+        padding: var(--tg-space-1) var(--tg-space-3);
+        min-height: var(--tg-touch-min);
+        cursor: pointer;
+        transition:
+          background var(--tg-transition-press),
+          color var(--tg-transition-press),
+          transform var(--tg-transition-spring-bounce);
+      }
+
+      button:hover {
+        background: var(--tg-surface-hover);
+      }
+
+      button:active {
+        transform: scale(0.96);
+      }
+
+      button[aria-pressed="true"] {
+        background: var(--tg-accent);
+        border-color: var(--tg-accent);
+        color: var(--tg-accent-contrast);
+      }
+
+      button:focus-visible {
+        outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+        outline-offset: var(--tg-focus-ring-offset);
+      }
+
+      /* ── Panes ───────────────────────────────────────────────────────── */
+      .panes {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--tg-space-4);
+        padding: var(--tg-space-4);
+        align-items: start;
+      }
+
+      .panes[data-split="true"] {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .pane {
+        background: var(--tg-bg);
+        color: var(--tg-text-primary);
+        border-radius: var(--tg-radius-sheet);
+        box-shadow: var(--tg-shadow-panel-strong);
+        overflow: hidden;
+      }
+
+      .pane-label {
+        display: flex;
+        justify-content: space-between;
+        padding: var(--tg-space-3) var(--tg-space-4);
+        background: var(--tg-surface);
+        border-bottom: 1px solid var(--tg-divider); /* page chrome */
+        font-weight: var(--tg-weight-medium);
+      }
+
+      .pane-label small {
+        color: var(--tg-text-secondary);
+        font-weight: var(--tg-weight-regular);
+      }
+
+      section {
+        padding: var(--tg-space-5) var(--tg-space-4);
+        border-bottom: 1px solid var(--tg-divider); /* page chrome */
+      }
+
+      h2 {
+        margin: 0 0 var(--tg-space-1);
+        font-size: var(--tg-type-header-size);
+        line-height: var(--tg-type-header-line);
+        font-weight: var(--tg-weight-medium);
+      }
+
+      h3 {
+        margin: var(--tg-space-4) 0 var(--tg-space-2);
+        font-size: var(--tg-type-label-size);
+        line-height: var(--tg-type-label-line);
+        font-weight: var(--tg-weight-medium);
+        text-transform: uppercase;
+        color: var(--tg-accent);
+      }
+
+      .hint {
+        margin: 0 0 var(--tg-space-3);
+        color: var(--tg-text-secondary);
+        font-size: var(--tg-type-label-size);
+        line-height: var(--tg-type-subtitle-line);
+        max-width: 68ch;
+      }
+
+      /* ── Chat mock ───────────────────────────────────────────────────── */
+      .chat {
+        padding: var(--tg-space-4) var(--tg-space-3);
+        background-color: var(--tg-chat-bg);
+        background-image: var(--tg-wallpaper-image);
+        background-size: cover;
+        border-radius: var(--tg-radius-panel);
+      }
+
+      .row {
+        display: flex;
+        margin-bottom: var(--tg-bubble-gap);
+      }
+
+      .row.out {
+        justify-content: flex-end;
+      }
+
+      .row.group-end {
+        margin-bottom: var(--tg-bubble-gap-group);
+      }
+
+      .bubble {
+        position: relative;
+        max-width: min(var(--tg-bubble-max-width), 78%);
+        padding: var(--tg-bubble-padding-top) var(--tg-bubble-padding-inline)
+          var(--tg-bubble-padding-bottom);
+        font-size: var(--tg-type-message-size);
+        line-height: var(--tg-type-message-line);
+        box-shadow: var(--tg-bubble-shadow);
+        /* The four corners are set per position class below; these are the
+           middle-of-group defaults, transcribed from tweb .bubble.is-in. */
+        border-start-start-radius: var(--tg-bubble-radius-merged);
+        border-start-end-radius: var(--tg-bubble-radius);
+        border-end-end-radius: var(--tg-bubble-radius);
+        border-end-start-radius: var(--tg-bubble-radius-merged);
+        background: var(--tg-bubble-in);
+        color: var(--tg-bubble-in-text);
+      }
+
+      .bubble.first {
+        border-start-start-radius: var(--tg-bubble-radius);
+      }
+
+      .bubble.last {
+        border-end-start-radius: 0;
+      }
+
+      /* An outgoing bubble reassigns the bubble tokens and mirrors the
+         geometry. Exactly what tweb's `.bubble.is-out` does — the component
+         knows about "out", not about any colour. */
+      .row.out .bubble {
+        background: var(--tg-bubble-out-fill);
+        color: var(--tg-bubble-out-text);
+        border-start-start-radius: var(--tg-bubble-radius);
+        border-start-end-radius: var(--tg-bubble-radius-merged);
+        border-end-end-radius: var(--tg-bubble-radius-merged);
+        border-end-start-radius: var(--tg-bubble-radius);
+      }
+
+      .row.out .bubble.first {
+        border-start-end-radius: var(--tg-bubble-radius);
+      }
+
+      .row.out .bubble.last {
+        border-end-end-radius: 0;
+      }
+
+      /* Selection is painted OVER the bubble fill rather than replacing it:
+         the day values are opaque and the night values are translucent
+         overlays, and an inset shadow handles both. */
+      .bubble.selected {
+        box-shadow: inset 0 0 0 999px var(--tg-bubble-in-selected);
+      }
+
+      .row.out .bubble.selected {
+        box-shadow: inset 0 0 0 999px var(--tg-bubble-out-selected);
+      }
+
+      /* The tail. Geometry and path are tweb's #message-tail-filled symbol
+         verbatim; only the fill is a token. */
+      .tail {
+        position: absolute;
+        bottom: 0;
+        width: var(--tg-bubble-tail-width);
+        height: var(--tg-bubble-tail-height);
+        transform: translateY(1px);
+        fill: var(--tg-bubble-in);
+      }
+
+      .bubble.last .tail {
+        inset-inline-start: var(--tg-bubble-tail-offset);
+      }
+
+      .row.out .bubble.last .tail {
+        inset-inline-start: auto;
+        inset-inline-end: var(--tg-bubble-tail-offset);
+        transform: translateY(1px) scaleX(-1);
+        fill: var(--tg-bubble-out);
+      }
+
+      .meta {
+        float: right;
+        margin-left: var(--tg-space-2);
+        margin-top: var(--tg-space-1);
+        font-size: var(--tg-type-meta-size);
+        line-height: var(--tg-type-meta-line);
+        color: var(--tg-bubble-in-meta);
+        white-space: nowrap;
+      }
+
+      .row.out .meta {
+        color: var(--tg-bubble-out-meta);
+      }
+
+      .tick {
+        stroke: var(--tg-bubble-tick);
+        fill: none;
+        stroke-width: 1.5;
+        vertical-align: -2px;
+      }
+
+      .sender {
+        font-size: var(--tg-type-message-size);
+        font-weight: var(--tg-weight-medium);
+        color: var(--tg-bubble-in-accent);
+      }
+
+      .quote {
+        border-inline-start: 2px solid var(--tg-bubble-in-accent); /* page chrome: Telegram's reply bar is 2px */
+        padding-inline-start: var(--tg-bubble-reply-padding);
+        margin-bottom: var(--tg-space-0-5);
+        font-size: var(--tg-type-message-secondary-size);
+        line-height: var(--tg-type-message-secondary-line);
+      }
+
+      .row.out .quote {
+        border-inline-start-color: var(--tg-bubble-out-accent);
+      }
+
+      .quote b {
+        display: block;
+        font-weight: var(--tg-weight-medium);
+        color: var(--tg-bubble-in-accent);
+      }
+
+      .row.out .quote b {
+        color: var(--tg-bubble-out-accent);
+      }
+
+      .service {
+        display: flex;
+        justify-content: center;
+        margin: var(--tg-space-3) 0;
+      }
+
+      .service span {
+        background: var(--tg-service-bg);
+        color: var(--tg-service-text);
+        font-size: var(--tg-type-label-size);
+        line-height: var(--tg-type-label-line);
+        padding: var(--tg-space-1) var(--tg-space-3);
+        border-radius: var(--tg-radius-pill);
+      }
+
+      .highlight {
+        background: var(--tg-message-highlight);
+      }
+
+      /* ── Chat list row, so accent-filled selection is visible ─────────── */
+      .list {
+        border-radius: var(--tg-radius-panel);
+        overflow: hidden;
+        background: var(--tg-surface);
+      }
+
+      .list-row {
+        display: flex;
+        gap: var(--tg-space-3);
+        align-items: center;
+        padding: var(--tg-space-2) var(--tg-space-3);
+        min-height: var(--tg-avatar-md);
+      }
+
+      .list-row + .list-row {
+        border-top: 1px solid var(--tg-divider); /* page chrome */
+      }
+
+      .list-row:hover {
+        background: var(--tg-surface-hover);
+      }
+
+      .list-row[aria-selected="true"] {
+        background: var(--tg-surface-selected);
+        color: var(--tg-text-on-selected);
+      }
+
+      .list-row[aria-selected="true"] .sub,
+      .list-row[aria-selected="true"] .badge {
+        color: var(--tg-text-on-selected);
+      }
+
+      .avatar {
+        width: var(--tg-avatar-md);
+        height: var(--tg-avatar-md);
+        flex: 0 0 auto;
+        border-radius: var(--tg-radius-avatar);
+        background: var(--tg-accent);
+        color: var(--tg-accent-contrast);
+        display: grid;
+        place-items: center;
+        font-weight: var(--tg-weight-medium);
+        position: relative;
+      }
+
+      .avatar.forum {
+        border-radius: var(--tg-radius-avatar-forum);
+      }
+
+      .avatar i {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: var(--tg-space-3);
+        height: var(--tg-space-3);
+        border-radius: var(--tg-radius-circle);
+        background: var(--tg-online);
+        border: 2px solid var(--tg-surface); /* page chrome */
+      }
+
+      .grow {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .name {
+        font-size: var(--tg-type-title-size);
+        line-height: var(--tg-type-title-line);
+        font-weight: var(--tg-weight-medium);
+      }
+
+      .sub {
+        font-size: var(--tg-type-subtitle-size);
+        line-height: var(--tg-type-subtitle-line);
+        color: var(--tg-text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .badge {
+        background: var(--tg-badge-bg);
+        color: var(--tg-badge-text);
+        font-size: var(--tg-type-badge-size);
+        line-height: var(--tg-type-badge-line);
+        font-weight: var(--tg-weight-medium);
+        padding: 0 var(--tg-space-1-5);
+        min-width: var(--tg-space-5);
+        text-align: center;
+        border-radius: var(--tg-radius-pill);
+      }
+
+      .badge.muted {
+        background: var(--tg-badge-muted-bg);
+      }
+
+      /* ── Swatches ────────────────────────────────────────────────────── */
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+        gap: var(--tg-space-2);
+      }
+
+      .sw {
+        border: 1px solid var(--tg-divider); /* page chrome */
+        border-radius: var(--tg-radius-md);
+        overflow: hidden;
+        background: var(--tg-surface);
+      }
+
+      .sw .chip {
+        height: var(--tg-space-10);
+        background-color: var(--tg-surface);
+        background-image: linear-gradient(
+            45deg,
+            var(--tg-divider) 25%,
+            transparent 25%
+          ),
+          linear-gradient(-45deg, var(--tg-divider) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, var(--tg-divider) 75%),
+          linear-gradient(-45deg, transparent 75%, var(--tg-divider) 75%);
+        background-size: var(--tg-space-2) var(--tg-space-2);
+        background-position: 0 0, 0 var(--tg-space-1), var(--tg-space-1)
+          calc(var(--tg-space-1) * -1), calc(var(--tg-space-1) * -1) 0;
+      }
+
+      .sw .chip > i {
+        display: block;
+        height: 100%;
+      }
+
+      .sw .n {
+        padding: var(--tg-space-1) var(--tg-space-2);
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        line-height: var(--tg-type-meta-line);
+        word-break: break-all;
+      }
+
+      .sw .v {
+        padding: 0 var(--tg-space-2) var(--tg-space-1);
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        color: var(--tg-text-secondary);
+      }
+
+      .sw .v.unset {
+        color: var(--tg-danger);
+        font-weight: var(--tg-weight-medium);
+      }
+
+      /* ── Scale strips ────────────────────────────────────────────────── */
+      .scale {
+        display: grid;
+        gap: var(--tg-space-1);
+      }
+
+      .scale div {
+        display: flex;
+        align-items: center;
+        gap: var(--tg-space-2);
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        color: var(--tg-text-secondary);
+      }
+
+      .scale b {
+        display: block;
+        height: var(--tg-space-3);
+        background: var(--tg-accent);
+        border-radius: var(--tg-radius-xs);
+      }
+
+      .radii {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--tg-space-3);
+      }
+
+      .radii figure {
+        margin: 0;
+        text-align: center;
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        color: var(--tg-text-secondary);
+      }
+
+      .radii i {
+        display: block;
+        width: var(--tg-space-16);
+        height: var(--tg-space-16);
+        background: var(--tg-accent-soft-filled);
+        border: 2px solid var(--tg-accent); /* page chrome */
+        margin-bottom: var(--tg-space-1);
+      }
+
+      .type div {
+        margin-bottom: var(--tg-space-2);
+      }
+
+      .type span {
+        display: block;
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        color: var(--tg-text-secondary);
+      }
+
+      /* ── Motion lab ──────────────────────────────────────────────────── */
+      .motion {
+        display: grid;
+        gap: var(--tg-space-2);
+      }
+
+      .mrow {
+        display: grid;
+        grid-template-columns: 14rem 1fr;
+        gap: var(--tg-space-3);
+        align-items: center;
+      }
+
+      .mrow > .lbl {
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        color: var(--tg-text-secondary);
+      }
+
+      .track {
+        position: relative;
+        height: var(--tg-space-6);
+        background: var(--tg-accent-soft);
+        border-radius: var(--tg-radius-pill);
+      }
+
+      .track i {
+        position: absolute;
+        top: var(--tg-space-0-5);
+        left: var(--tg-space-0-5);
+        width: var(--tg-space-5);
+        height: var(--tg-space-5);
+        border-radius: var(--tg-radius-circle);
+        background: var(--tg-accent);
+        transform: translateX(0);
+      }
+
+      .motion.run .track i {
+        transform: translateX(
+          calc(100cqw - var(--tg-space-5) - var(--tg-space-1))
+        );
+      }
+
+      .track {
+        container-type: inline-size;
+      }
+
+      .ripple {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        height: var(--tg-control-height);
+        border-radius: var(--tg-radius-control);
+        background: var(--tg-surface-hover);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .ripple > em {
+        position: absolute;
+        width: var(--tg-space-16);
+        height: var(--tg-space-16);
+        margin: calc(var(--tg-space-8) * -1) 0 0 calc(var(--tg-space-8) * -1);
+        border-radius: var(--tg-radius-circle);
+        background: var(--tg-ripple);
+        transform: scale(var(--tg-ripple-scale-start));
+        opacity: 1;
+        pointer-events: none;
+      }
+
+      .ripple > em.go {
+        transition:
+          transform var(--tg-ripple-duration) var(--tg-ease-standard),
+          opacity var(--tg-ripple-duration) var(--tg-ease-standard);
+        transform: scale(var(--tg-ripple-scale-end));
+        opacity: 0;
+      }
+
+      /* ── Elevation ───────────────────────────────────────────────────── */
+      .elev {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--tg-space-4);
+        padding-bottom: var(--tg-space-2);
+      }
+
+      .elev figure {
+        margin: 0;
+        padding: var(--tg-space-3);
+        background: var(--tg-surface-raised);
+        border-radius: var(--tg-radius-panel);
+        font-family: var(--tg-font-mono);
+        font-size: var(--tg-type-meta-size);
+        color: var(--tg-text-secondary);
+      }
+
+      .note {
+        margin: 0;
+        padding: var(--tg-space-4);
+        color: var(--tg-text-secondary);
+        font-size: var(--tg-type-label-size);
+        line-height: var(--tg-type-subtitle-line);
+      }
+
+      @media (max-width: 60rem) {
+        .panes[data-split="true"] {
+          grid-template-columns: 1fr;
+        }
+        .mrow {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- tweb's #message-tail-filled, verbatim. viewBox 0 0 11 20; the nested
+         transforms are the upstream ones and are left untouched so the shape
+         can be diffed against Telegram Web K. -->
+    <svg width="0" height="0" aria-hidden="true" style="position: absolute">
+      <symbol id="tg-bubble-tail" viewBox="0 0 11 20">
+        <g transform="translate(9 -14)" fill="inherit" fill-rule="evenodd">
+          <path
+            d="M-6 16h6v17c-.193-2.84-.876-5.767-2.05-8.782-.904-2.325-2.446-4.485-4.625-6.48A1 1 0 01-6 16z"
+            transform="matrix(1 0 0 -1 0 49)"
+            fill="inherit"
+          />
+        </g>
+      </symbol>
+      <symbol id="tg-tick" viewBox="0 0 18 12">
+        <path d="M1 7l3.2 3.2L11 3" />
+        <path d="M7 10.2L13.8 3" />
+      </symbol>
+    </svg>
+
+    <div class="bar">
+      <h1>@tg/ui tokens</h1>
+      <div class="group" id="themes"><span>Theme</span></div>
+      <div class="group" id="accents"><span>Accent</span></div>
+      <div class="group" id="wallpapers"><span>Wallpaper</span></div>
+      <div class="group">
+        <button id="replay" type="button">Replay motion</button>
+        <button id="loop" type="button">Loop</button>
+      </div>
+    </div>
+
+    <div class="panes" id="panes"></div>
+
+    <p class="note">
+      Every pane below is the same DOM, cloned from one
+      <code>&lt;template&gt;</code>. The only difference between the left pane
+      and the right pane is the value of <code>data-tg-theme</code> on the
+      wrapper. Accent and wallpaper are likewise attributes on the wrapper. No
+      markup, class or rule in this page mentions a theme, an accent or a
+      colour value — that is the switchability claim, and this page is the
+      proof of it. If a swatch reads <b>unset</b>, a semantic token named in
+      the frozen list is missing from a theme file.
+    </p>
+
+    <template id="panel">
+      <section>
+        <h2>Message bubbles</h2>
+        <p class="hint">
+          Radii, tail geometry and grouping come from tweb's
+          <code>_chatBubble.scss</code>: free corner 15px, merged corner 5px,
+          tailed corner 0, tail 11×20px overhanging by −8.4px. Gap inside a
+          group 2px, between groups 6px. Padding 4px top / 5px bottom / 8px
+          inline.
+        </p>
+        <div class="chat">
+          <div class="service"><span>September 30</span></div>
+
+          <div class="row">
+            <div class="bubble first">
+              <span class="sender">Pavel</span><br />Three consecutive incoming
+              messages. This one is <code>first</code>: full top corners, merged
+              bottom-left.
+              <span class="meta">09:41</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="bubble">
+              Middle of the group — both left corners merged to 5px.
+              <span class="meta">09:41</span>
+            </div>
+          </div>
+          <div class="row group-end">
+            <div class="bubble last">
+              Last of the group: bottom-left goes to 0 and the tail grows out of
+              it.
+              <span class="meta">09:42</span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+
+          <div class="row out">
+            <div class="bubble first">
+              Outgoing is the mirror image: merged corners on the right.
+              <span class="meta"
+                >09:43 <svg class="tick" width="18" height="12">
+                  <use href="#tg-tick" /></svg
+              ></span>
+            </div>
+          </div>
+          <div class="row out group-end">
+            <div class="bubble last">
+              <div class="quote">
+                <b>Pavel</b>
+                Last of the group: bottom-left goes to 0…
+              </div>
+              With a reply quote, and the tail on the right.
+              <span class="meta"
+                >09:43 <svg class="tick" width="18" height="12">
+                  <use href="#tg-tick" /></svg
+              ></span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+
+          <div class="row group-end">
+            <div class="bubble first last">
+              A lone incoming message is first and last at once: full top
+              corners and a tail.
+              <span class="meta">09:44</span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+          <div class="row out group-end">
+            <div class="bubble first last">
+              A lone outgoing message.
+              <span class="meta"
+                >09:44 <svg class="tick" width="18" height="12">
+                  <use href="#tg-tick" /></svg
+              ></span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="bubble first last selected">
+              Selected incoming — <code>--tg-bubble-in-selected</code>.
+              <span class="meta">09:45</span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+          <div class="row out">
+            <div class="bubble first last selected">
+              Selected outgoing — <code>--tg-bubble-out-selected</code>.
+              <span class="meta">09:45</span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+          <div class="row">
+            <div class="bubble first last highlight">
+              Jump-to-message flash — <code>--tg-message-highlight</code>.
+              <span class="meta">09:46</span>
+              <svg class="tail"><use href="#tg-bubble-tail" /></svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Chat list</h2>
+        <p class="hint">
+          The selected row is filled with the accent, not tinted with it —
+          <code>--tg-surface-selected: var(--tg-accent)</code>. Change the
+          accent in the toolbar and this row, the badge, the avatar and the
+          focus ring all follow, because they all read the same token.
+        </p>
+        <div class="list">
+          <div class="list-row" aria-selected="true">
+            <div class="avatar">EG<i></i></div>
+            <div class="grow">
+              <div class="name">Echo Gate</div>
+              <div class="sub">Selected row — accent-filled</div>
+            </div>
+            <span class="badge">12</span>
+          </div>
+          <div class="list-row">
+            <div class="avatar forum">TG</div>
+            <div class="grow">
+              <div class="name">Forum topic avatar</div>
+              <div class="sub">37 % radius, not a circle</div>
+            </div>
+            <span class="badge muted">4</span>
+          </div>
+          <div class="list-row">
+            <div class="avatar">PD</div>
+            <div class="grow">
+              <div class="name">Hover me</div>
+              <div class="sub">--tg-surface-hover</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Semantic colours</h2>
+        <p class="hint">
+          Resolved values, read from the live cascade with
+          <code>getComputedStyle</code>. These names are the frozen interface;
+          see <code>docs/devlog/TG-009.md</code>.
+        </p>
+        <div data-swatches></div>
+      </section>
+
+      <section>
+        <h2>Spacing · 4px base</h2>
+        <div class="scale" data-scale="space"></div>
+      </section>
+
+      <section>
+        <h2>Radii</h2>
+        <div class="radii" data-radii></div>
+      </section>
+
+      <section>
+        <h2>Type scale</h2>
+        <div class="type" data-type></div>
+      </section>
+
+      <section>
+        <h2>Motion</h2>
+        <p class="hint">
+          The three springs are Telegram iOS' entire spring vocabulary, turned
+          into CSS <code>linear()</code> by integrating the spring equation —
+          not by eyeballing a bezier. Watch <b>spring vs standard bezier</b>:
+          the spring leaves immediately and glides in, the bezier eases out of
+          rest. Watch <b>spring-bounce</b> overshoot by 6.5 % and settle. The
+          bezier rows are curves Telegram actually ships, not approximations.
+        </p>
+        <div class="motion run" data-motion></div>
+        <h3>Ripple</h3>
+        <p class="hint">
+          Telegram's ripple expands from the pointer, not from the centre:
+          700ms, scale 0 → 2. Click the strip.
+        </p>
+        <div class="ripple" data-ripple>press</div>
+      </section>
+
+      <section>
+        <h2>Elevation</h2>
+        <div class="elev">
+          <figure style="box-shadow: var(--tg-shadow-panel)">
+            --tg-shadow-panel
+          </figure>
+          <figure style="box-shadow: var(--tg-shadow-panel-strong)">
+            --tg-shadow-panel-strong
+          </figure>
+          <figure style="box-shadow: var(--tg-shadow-menu)">
+            --tg-shadow-menu
+          </figure>
+          <figure style="box-shadow: var(--tg-shadow-column)">
+            --tg-shadow-column
+          </figure>
+          <figure style="box-shadow: var(--tg-shadow-composer)">
+            --tg-shadow-composer
+          </figure>
+        </div>
+      </section>
+    </template>
+
+    <script>
+      "use strict";
+
+      /* The frozen semantic colour list, grouped for display. Kept in the same
+         order as docs/devlog/TG-009.md § Frozen interface so the two can be
+         diffed by eye. A name here that no theme file sets renders as `unset`. */
+      const COLOURS = {
+        Surfaces: [
+          "--tg-bg",
+          "--tg-bg-secondary",
+          "--tg-surface",
+          "--tg-surface-raised",
+          "--tg-surface-hover",
+          "--tg-surface-active",
+          "--tg-surface-selected",
+          "--tg-surface-glass",
+          "--tg-text-on-selected",
+        ],
+        Text: [
+          "--tg-text-primary",
+          "--tg-text-secondary",
+          "--tg-text-tertiary",
+          "--tg-text-disabled",
+          "--tg-text-on-accent",
+          "--tg-text-link",
+          "--tg-text-danger",
+          "--tg-text-success",
+        ],
+        Accent: [
+          "--tg-accent",
+          "--tg-accent-hover",
+          "--tg-accent-active",
+          "--tg-accent-soft",
+          "--tg-accent-soft-filled",
+          "--tg-accent-contrast",
+        ],
+        Status: [
+          "--tg-danger",
+          "--tg-danger-hover",
+          "--tg-danger-soft",
+          "--tg-success",
+          "--tg-warning",
+          "--tg-online",
+        ],
+        Lines: ["--tg-divider", "--tg-border", "--tg-border-strong", "--tg-focus-ring"],
+        Overlays: [
+          "--tg-overlay",
+          "--tg-overlay-strong",
+          "--tg-scrollbar",
+          "--tg-scrollbar-hover",
+          "--tg-skeleton",
+          "--tg-ripple",
+          "--tg-shadow-color",
+          "--tg-shadow-color-strong",
+          "--tg-shadow-color-column",
+        ],
+        Bubbles: [
+          "--tg-chat-bg",
+          "--tg-bubble-in",
+          "--tg-bubble-in-text",
+          "--tg-bubble-in-meta",
+          "--tg-bubble-in-accent",
+          "--tg-bubble-in-selected",
+          "--tg-bubble-out",
+          "--tg-bubble-out-fill",
+          "--tg-bubble-out-text",
+          "--tg-bubble-out-meta",
+          "--tg-bubble-out-accent",
+          "--tg-bubble-out-selected",
+          "--tg-bubble-tick",
+        ],
+        "Chat furniture": [
+          "--tg-service-bg",
+          "--tg-service-text",
+          "--tg-message-highlight",
+          "--tg-media-time-bg",
+          "--tg-badge-bg",
+          "--tg-badge-text",
+          "--tg-badge-muted-bg",
+        ],
+        Wallpaper: [
+          "--tg-wallpaper-1",
+          "--tg-wallpaper-2",
+          "--tg-wallpaper-3",
+          "--tg-wallpaper-4",
+        ],
+      };
+
+      const SPACE = ["0", "0-5", "1", "1-5", "2", "2-5", "3", "4", "5", "6", "7", "8", "10", "12", "14", "16", "20"];
+      const RADII = ["xs", "sm", "md", "lg", "xl", "2xl", "control", "panel", "sheet", "avatar-forum"];
+      const TYPE = [
+        ["message", "Message body — the size everything else is judged against"],
+        ["message-secondary", "Reply quote, media caption"],
+        ["meta", "Message time, ticks, badges"],
+        ["title", "Chat name in a list row"],
+        ["subtitle", "Last-message preview"],
+        ["label", "Section label, hint"],
+        ["badge", "Unread count"],
+        ["header", "Screen title"],
+        ["hero", "Empty state, big numbers"],
+      ];
+      const MOTION = [
+        ["spring (iOS m3 k1000 c500, ζ4.56)", "--tg-duration-spring-long", "--tg-ease-spring"],
+        ["standard bezier .4 0 .2 1 — compare", "--tg-duration-spring-long", "--tg-ease-standard"],
+        ["spring-smooth (iOS 26, ζ1.000)", "--tg-duration-spring", "--tg-ease-spring-smooth"],
+        ["spring-bounce (iOS m5 k900 c88, ζ0.66)", "--tg-duration-spring-long", "--tg-ease-spring-bounce"],
+        ["decelerate (Android EASE_OUT_QUINT)", "--tg-duration-panel", "--tg-ease-decelerate"],
+        ["accelerate (Android Emphasized)", "--tg-duration-panel", "--tg-ease-accelerate"],
+        ["overshoot (Android EASE_OUT_BACK)", "--tg-duration-enter", "--tg-ease-overshoot"],
+        ["badge-in (tweb chatlist badge)", "--tg-duration-exit", "--tg-ease-badge-in"],
+        ["fade (survives reduced motion)", "--tg-duration-fade", "--tg-ease-standard"],
+      ];
+
+      const THEMES = [
+        ["day", "Day"],
+        ["night", "Night"],
+        ["split", "Side by side"],
+      ];
+      const ACCENTS = [
+        ["", "factory"],
+        ["blue", "blue"],
+        ["cyan", "cyan"],
+        ["green", "green"],
+        ["orange", "orange"],
+        ["pink", "pink"],
+        ["purple", "purple"],
+      ];
+      const WALLPAPERS = [
+        ["", "flat"],
+        ["default", "default"],
+        ["sunset", "sunset"],
+        ["meadow", "meadow"],
+        ["orchid", "orchid"],
+        ["lagoon", "lagoon"],
+        ["haze", "haze"],
+        ["forest-night", "forest night"],
+        ["midnight-blue", "midnight blue"],
+        ["deep-teal", "deep teal"],
+        ["pine", "pine"],
+        ["plum-night", "plum night"],
+        ["ember", "ember"],
+        ["mulberry", "mulberry"],
+      ];
+
+      /* State lives in the URL fragment so a particular combination can be
+         linked, bookmarked and screenshotted:  #split,cyan,midnight-blue  */
+      const state = { theme: "split", accent: "", wallpaper: "default" };
+      (function readHash() {
+        const parts = decodeURIComponent(location.hash.slice(1)).split(",");
+        if (parts[0]) state.theme = parts[0];
+        if (parts.length > 1) state.accent = parts[1];
+        if (parts.length > 2) state.wallpaper = parts[2];
+      })();
+
+      function el(tag, cls, text) {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text !== undefined) n.textContent = text;
+        return n;
+      }
+
+      function buttons(host, items, key, onPick) {
+        items.forEach(([value, label]) => {
+          const b = el("button", null, label);
+          b.type = "button";
+          b.dataset.value = value;
+          b.addEventListener("click", () => {
+            state[key] = value;
+            onPick();
+          });
+          host.append(b);
+        });
+      }
+
+      function fillSwatches(host) {
+        Object.entries(COLOURS).forEach(([group, names]) => {
+          host.append(el("h3", null, group));
+          const grid = el("div", "swatches");
+          names.forEach((name) => {
+            const card = el("div", "sw");
+            const chip = el("div", "chip");
+            const paint = el("i");
+            paint.style.background = `var(${name})`;
+            chip.append(paint);
+            card.append(chip, el("div", "n", name), el("div", "v", ""));
+            card.dataset.token = name;
+            grid.append(card);
+          });
+          host.append(grid);
+        });
+      }
+
+      function fillScale(host) {
+        SPACE.forEach((step) => {
+          const row = el("div");
+          const bar = el("b");
+          bar.style.width = `calc(var(--tg-space-${step}) * 4)`;
+          row.append(bar, el("span", null, `--tg-space-${step}`));
+          host.append(row);
+        });
+      }
+
+      function fillRadii(host) {
+        RADII.forEach((r) => {
+          const fig = el("figure");
+          const box = el("i");
+          box.style.borderRadius = `var(--tg-radius-${r})`;
+          fig.append(box, document.createTextNode(`--tg-radius-${r}`));
+          host.append(fig);
+        });
+        ["bubble-radius", "bubble-radius-merged"].forEach((r) => {
+          const fig = el("figure");
+          const box = el("i");
+          box.style.borderRadius = `var(--tg-${r})`;
+          fig.append(box, document.createTextNode(`--tg-${r}`));
+          host.append(fig);
+        });
+      }
+
+      function fillType(host) {
+        TYPE.forEach(([role, sample]) => {
+          const wrap = el("div");
+          const line = el("p", null, sample);
+          line.style.margin = "0";
+          line.style.fontSize = `var(--tg-type-${role}-size)`;
+          line.style.lineHeight = `var(--tg-type-${role}-line)`;
+          if (role === "title" || role === "header" || role === "badge") {
+            line.style.fontWeight = "var(--tg-weight-medium)";
+          }
+          wrap.append(line, el("span", null, `--tg-type-${role}-size / -line`));
+          host.append(wrap);
+        });
+      }
+
+      function fillMotion(host) {
+        MOTION.forEach(([label, dur, ease]) => {
+          const row = el("div", "mrow");
+          row.append(el("div", "lbl", label));
+          const track = el("div", "track");
+          const dot = el("i");
+          dot.style.transition = `transform var(${dur}) var(${ease})`;
+          track.append(dot);
+          row.append(track);
+          host.append(row);
+        });
+      }
+
+      function wireRipple(strip) {
+        strip.addEventListener("pointerdown", (event) => {
+          const rect = strip.getBoundingClientRect();
+          const dot = el("em");
+          dot.style.left = `${event.clientX - rect.left}px`;
+          dot.style.top = `${event.clientY - rect.top}px`;
+          strip.append(dot);
+          requestAnimationFrame(() => dot.classList.add("go"));
+          setTimeout(() => dot.remove(), 900);
+        });
+      }
+
+      function readValues(pane) {
+        pane.querySelectorAll("[data-token]").forEach((card) => {
+          const probe = card.querySelector(".chip > i");
+          const resolved = getComputedStyle(probe).backgroundColor;
+          const raw = getComputedStyle(pane)
+            .getPropertyValue(card.dataset.token)
+            .trim();
+          const out = card.querySelector(".v");
+          const missing = raw === "";
+          out.textContent = missing ? "unset" : raw;
+          out.classList.toggle("unset", missing);
+          out.title = resolved;
+        });
+      }
+
+      function buildPane(theme) {
+        const pane = el("div", "pane");
+        pane.dataset.tgTheme = theme;
+        const head = el("div", "pane-label");
+        head.append(el("strong", null, theme === "night" ? "Night" : "Day"));
+        const meta = el("small");
+        meta.dataset.meta = "";
+        head.append(meta);
+        pane.append(head);
+        pane.append(document.getElementById("panel").content.cloneNode(true));
+        fillSwatches(pane.querySelector("[data-swatches]"));
+        fillScale(pane.querySelector('[data-scale="space"]'));
+        fillRadii(pane.querySelector("[data-radii]"));
+        fillType(pane.querySelector("[data-type]"));
+        fillMotion(pane.querySelector("[data-motion]"));
+        wireRipple(pane.querySelector("[data-ripple]"));
+        return pane;
+      }
+
+      function render() {
+        const host = document.getElementById("panes");
+        host.textContent = "";
+        const themes = state.theme === "split" ? ["day", "night"] : [state.theme];
+        host.dataset.split = String(themes.length === 2);
+        document.documentElement.dataset.tgTheme =
+          state.theme === "split" ? "day" : state.theme;
+        themes.forEach((theme) => {
+          const pane = buildPane(theme);
+          if (state.accent) pane.dataset.tgAccent = state.accent;
+          if (state.wallpaper) pane.dataset.tgWallpaper = state.wallpaper;
+          pane.querySelector("[data-meta]").textContent =
+            `data-tg-theme="${theme}"` +
+            (state.accent ? ` data-tg-accent="${state.accent}"` : "") +
+            (state.wallpaper ? ` data-tg-wallpaper="${state.wallpaper}"` : "");
+          host.append(pane);
+          readValues(pane);
+        });
+        document.querySelectorAll(".bar .group[id] button").forEach((b) => {
+          const key = b.parentElement.id.slice(0, -1);
+          b.setAttribute("aria-pressed", String(state[key] === b.dataset.value));
+        });
+        location.replace(
+          `#${state.theme},${state.accent},${state.wallpaper}`
+        );
+        replay();
+      }
+
+      function replay() {
+        document.querySelectorAll("[data-motion]").forEach((host) => {
+          host.classList.remove("run");
+          void host.offsetWidth;
+          requestAnimationFrame(() => host.classList.add("run"));
+        });
+      }
+
+      buttons(document.getElementById("themes"), THEMES, "theme", render);
+      buttons(document.getElementById("accents"), ACCENTS, "accent", render);
+      buttons(document.getElementById("wallpapers"), WALLPAPERS, "wallpaper", render);
+      document.getElementById("replay").addEventListener("click", replay);
+      const loopBtn = document.getElementById("loop");
+      let loopTimer = null;
+      loopBtn.addEventListener("click", () => {
+        if (loopTimer) {
+          clearInterval(loopTimer);
+          loopTimer = null;
+        } else {
+          loopTimer = setInterval(replay, 2600);
+        }
+        loopBtn.setAttribute("aria-pressed", String(Boolean(loopTimer)));
+      });
+      /* Off by default: an endlessly animating page is itself a motion problem,
+         and it makes the page impossible to screenshot. */
+      loopBtn.setAttribute("aria-pressed", "false");
+      loopBtn.dataset.value = "on";
+
+      render();
+    </script>
+  </body>
+</html>

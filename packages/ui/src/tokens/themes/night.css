@@ -1,0 +1,122 @@
+/*
+ * Layer 3 — THEME: Night.
+ *
+ * Reference: Telegram Web K theme `night` (baseThemeNight). This is NOT an
+ * inversion of day and must never be maintained as one:
+ *
+ *   · the accent changes hue entirely — day is blue #3390ec, night is violet
+ *     #8774E1. Telegram redesigns the accent for dark, it does not dim it.
+ *   · the outgoing bubble changes rule. In day it is a pale green independent
+ *     of the accent; in night it IS the accent at full saturation
+ *     (themeController: messageLightenAlpha = 1 on night, 0.12 on day).
+ *   · the divider is DARKER than the surface (#0f0f0f on #212121), where in
+ *     day it is lighter than the surface. Separators in dark Telegram are
+ *     seams, not highlights.
+ *   · surfaces are neutral grey, not tinted. tdesktop's navy Night
+ *     (#17212b / #182533 / #2b5278) is a different theme; its values are kept
+ *     in primitive.css as --tg-raw-navy-* for TG-507 to ship as a third
+ *     built-in, and were deliberately NOT blended into this one.
+ *
+ * Tags as in day.css. Ratios stated where they matter.
+ */
+
+[data-tg-theme="night"] {
+  color-scheme: dark;
+
+  /* ══ Surfaces ══════════════════════════════════════════════════════════ */
+  --tg-bg: #181818; /* [web] night body-background-color */
+  --tg-bg-secondary: #181818; /* [web] night background-color */
+  --tg-surface: #212121; /* [web] night surface-color */
+  --tg-surface-raised: #2c2c2e; /* [ios] itemModalBlocksBackgroundColor — the one step above the panel */
+  --tg-surface-hover: #333333; /* [derived] white over surface at tweb's $hover-alpha 0.08 */
+  --tg-surface-active: #404040; /* [derived] white over surface at 14% [ours: 14% is our step] */
+  --tg-surface-selected: var(--tg-accent);
+  --tg-text-on-selected: #ffffff;
+  --tg-surface-glass: rgb(33 33 33 / 75%); /* [web] night --menu-background-color */
+
+  /* ══ Text ══════════════════════════════════════════════════════════════ */
+  --tg-text-primary: #ffffff; /* [web] night primary-text-color */
+  --tg-text-secondary: #aaaaaa; /* [web] night secondary-text-color — 6.93:1 on the surface */
+  --tg-text-tertiary: #8f8f8f; /* [ios] inputPlaceholderTextColor */
+  --tg-text-disabled: #707579; /* [web] night secondary-color */
+  --tg-text-on-accent: #ffffff;
+  --tg-text-link: #8774e1; /* [web] night link-color — resolves to the accent, unlike day */
+  --tg-text-danger: #ff595a; /* [web] night danger-color */
+  --tg-text-success: #5cc85e; /* [web] night green-color — 7.57:1, passes on dark where day's green does not on light */
+
+  /* ══ Accent ════════════════════════════════════════════════════════════ */
+  --tg-accent: #8774e1; /* [web] night primary-color */
+  --tg-accent-rgb: 135, 116, 225;
+  --tg-accent-hover: #6a52da; /* [derived] HSL lightness −8 */
+  --tg-accent-active: #5439d4; /* [derived] HSL lightness −14 [ours] */
+  --tg-accent-soft: rgb(135 116 225 / 8%);
+  --tg-accent-soft-filled: #292830; /* [derived] accent over the night surface at 8% */
+  --tg-accent-contrast: #ffffff; /* 3.74:1 on the accent — Telegram's own value */
+
+  /* ══ Status ════════════════════════════════════════════════════════════ */
+  --tg-danger: #ff595a; /* [web] night danger-color */
+  --tg-danger-hover: #ff3031; /* [derived] HSL lightness −8 */
+  --tg-danger-soft: rgb(255 89 90 / 8%);
+  --tg-success: #5cc85e; /* [web] night green-color */
+  --tg-warning: #fed85a; /* [web] --warning-color, declared once for both themes */
+  --tg-online: #5cc85e;
+
+  /* ══ Lines ═════════════════════════════════════════════════════════════ */
+  --tg-divider: #0f0f0f; /* [web] night border-color — darker than the surface, on purpose */
+  --tg-border: #2f2f2f; /* [web] night --input-search-border-color */
+  --tg-border-strong: #545458; /* [ios] separator base colour */
+  --tg-focus-ring: var(--tg-accent);
+
+  /* ══ Overlays and depth ════════════════════════════════════════════════ */
+  --tg-overlay: rgb(0 0 0 / 50%); /* [desktop] layerBg, identical in night */
+  --tg-overlay-strong: rgb(0 0 0 / 90%); /* [ours] */
+  --tg-scrollbar: rgb(255 255 255 / 20%); /* [web] night --scrollbar-color */
+  --tg-scrollbar-hover: rgb(255 255 255 / 33%); /* [derived] */
+  --tg-skeleton: rgb(255 255 255 / 12%); /* [web] night --skeleton-color */
+  --tg-ripple: rgb(255 255 255 / 8%); /* [web] night --original-ripple-color */
+  --tg-shadow-color: rgb(0 0 0 / 12%); /* [web] night --section-box-shadow-color */
+  --tg-shadow-color-strong: rgb(0 0 0 / 24%); /* [web] night --section-box-shadow-big-color */
+  --tg-shadow-color-column: rgb(0 0 0 / 24%); /* [web] night --column-box-shadow-color */
+
+  /* ══ Chat surface ══════════════════════════════════════════════════════ */
+  --tg-chat-bg: #181818;
+  --tg-wallpaper-image: none;
+  --tg-wallpaper-1: #181818;
+  --tg-wallpaper-2: #181818;
+  --tg-wallpaper-3: #181818;
+  --tg-wallpaper-4: #181818;
+  --tg-wallpaper-pattern-opacity: 0;
+
+  /* ══ Bubbles ═══════════════════════════════════════════════════════════
+     Incoming is the panel surface, so an incoming bubble on the night chat
+     background reads as a raised card. Outgoing is the accent itself — this
+     is why Telegram's night accent is a violet that works as a large fill,
+     and why an accent picked for text (a cyan, say) needs a derived bubble
+     instead; themes/accents/*.css does that derivation. */
+  --tg-bubble-in: #212121; /* [web] night message-background-color */
+  --tg-bubble-in-text: #ffffff;
+  --tg-bubble-in-meta: #aaaaaa; /* [web] night --message-time-color = secondary-text-color */
+  --tg-bubble-in-accent: var(--tg-accent);
+  --tg-bubble-in-selected: #2e70a5; /* [desktop] night msgInBgSelected */
+  --tg-bubble-out: #8774e1; /* [web] night out bubble = primary-color at full strength */
+  --tg-bubble-out-fill: var(--tg-bubble-out);
+  --tg-bubble-out-text: #ffffff; /* [ios] outgoingPrimaryTextColor on a dark bubble — 3.74:1 */
+  --tg-bubble-out-meta: rgb(255 255 255 / 60%); /* [web] night --message-out-time-color */
+  --tg-bubble-out-accent: #ffffff; /* [web] night --message-out-link-color is plain white, not the accent */
+  /* Unlike day's opaque selection fills, the night values are translucent and
+     are meant to be composited OVER the bubble, not to replace it. */
+  --tg-bubble-out-selected: rgb(33 33 33 / 40%); /* [web] night --message-out-selection-background-color = surface @ 40% */
+  --tg-bubble-tick: #ffffff; /* [web] night --message-out-status-color */
+  --tg-bubble-shadow: none; /* dark bubbles read as depth by value, not by shadow */
+
+  /* ══ Chat furniture ════════════════════════════════════════════════════
+     Identical to day: tweb declares these on `.chat`, not per theme, because
+     they belong to the wallpaper rather than to the theme. */
+  --tg-service-bg: hsl(85.5319 36.9171% 40.402% / 40%); /* [web] --message-highlighting-color */
+  --tg-service-text: #ffffff;
+  --tg-message-highlight: hsl(85.5319 36.9171% 40.402% / 40%);
+  --tg-media-time-bg: rgb(0 0 0 / 35%);
+  --tg-badge-bg: var(--tg-accent);
+  --tg-badge-text: #ffffff;
+  --tg-badge-muted-bg: #707579; /* [derived] night secondary-color, the muted counterpart of day's #bbbbbb */
+}

@@ -1,5 +1,13 @@
 # Echo Gate 品牌与界面设计规范
 
+> **状态（2026-09-30，TG-009）** 本文件第 3 节（配色）、第 8 节（排版与形状）
+> 与 `design/tokens.css`、`design/design-tokens.json` **已不再是界面的事实来源**。
+> Telegram-parity 计划要求界面视觉对标 Telegram，新的三层 token 体系在
+> `packages/ui/src/tokens/`，语义 token 清单与逐条取舍理由见
+> `docs/devlog/TG-009.md`。信号绿 / 珊瑚红 / 门铃黄未进入新 token 体系——
+> 这是一个需要产品确认的取舍，理由写在该 devlog 的「Residual risk」。
+> 本文件的品牌部分（标志、吉祥物、图标语言）仍然有效。
+
 版本：1.0  
 日期：2026-08-18  
 适用范围：Web、PWA、桌面端包装、社交分享图和产品文档

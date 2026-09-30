@@ -1,0 +1,127 @@
+/*
+ * Layer 3 — THEME: Day.
+ *
+ * Reference: Telegram Web K (web.telegram.org/k/) theme `day`, which is
+ * baseThemeClassic — the theme a new Telegram user actually sees. Values tagged
+ * [web] come from tweb's themeController.ts colorMap.day and scss/base.scss;
+ * [desktop] fills the gaps tweb computes at runtime (the outgoing bubble fill
+ * and the selection fills), taken from tdesktop's default palette, which is the
+ * same Classic theme.
+ *
+ * This file declares every COLOUR semantic. semantic.css declares everything
+ * else. Switching to night.css reassigns exactly these names — no component
+ * anywhere needs to know that a theme exists.
+ *
+ * Contrast ratios are stated where they matter. Two of them are below WCAG AA
+ * and are Telegram's own values, kept deliberately; see docs/devlog/TG-009.md
+ * § Residual risk.
+ */
+
+:root,
+[data-tg-theme="day"] {
+  color-scheme: light;
+
+  /* ══ Surfaces ══════════════════════════════════════════════════════════ */
+  --tg-bg: #ffffff; /* [web] body-background-color */
+  --tg-bg-secondary: #f4f4f5; /* [web] background-color — sunken backdrop behind grouped sections */
+  --tg-surface: #ffffff; /* [web] surface-color */
+  --tg-surface-raised: #ffffff; /* [web] menus are the same white plus a backdrop blur */
+  --tg-surface-hover: #f1f1f1; /* [desktop] windowBgOver */
+  --tg-surface-active: #e5e5e5; /* [desktop] windowBgRipple */
+  --tg-surface-selected: var(--tg-accent); /* [web] the current chat row is accent-filled, not tinted */
+  --tg-text-on-selected: #ffffff; /* [desktop] dialogsNameFgActive */
+  --tg-surface-glass: rgb(255 255 255 / 85%); /* [web] --menu-background-color = surface @ --backdrop-opacity */
+
+  /* ══ Text ══════════════════════════════════════════════════════════════ */
+  --tg-text-primary: #000000; /* [web] primary-text-color */
+  --tg-text-secondary: #707579; /* [web] secondary-text-color — 4.66:1 on white */
+  --tg-text-tertiary: #9ba0a5; /* [web] --input-placeholder-color */
+  --tg-text-disabled: #c4c9cc; /* [web] secondary-color */
+  --tg-text-on-accent: #ffffff; /* [web] --badge-text-color */
+  --tg-text-link: #00488f; /* [web] link-color — 9.04:1, this is why Telegram's links are not the accent */
+  --tg-text-danger: #df3f40; /* [web] danger-color */
+  --tg-text-success: #3e7138; /* [ours] green-700, 5.79:1. Telegram's own #70b768 is 2.42:1 and is only used as a dot, see --tg-online */
+
+  /* ══ Accent ════════════════════════════════════════════════════════════
+     Overridden wholesale by themes/accents/*.css. Everything downstream of
+     the accent (badges, selected rows, focus ring, in-bubble links) reads
+     var(--tg-accent) rather than a literal, so an accent file only has to set
+     this block plus the outgoing bubble. */
+  --tg-accent: #3390ec; /* [web] day primary-color */
+  --tg-accent-rgb: 51, 144, 236;
+  --tg-accent-hover: #157ce1; /* [derived] HSL lightness −8, tweb's own `dark-<name>` step */
+  --tg-accent-active: #126cc5; /* [derived] HSL lightness −14 [ours: the −14 step is not in any Telegram source] */
+  --tg-accent-soft: rgb(51 144 236 / 8%); /* [web] --light-primary-color */
+  --tg-accent-soft-filled: #eff6fd; /* [derived] accent over surface at 8% — for surfaces where translucency is wrong */
+  --tg-accent-contrast: #ffffff; /* white on #3390ec is 3.31:1 — AA for large text and UI, not for body text */
+
+  /* ══ Status ════════════════════════════════════════════════════════════ */
+  --tg-danger: #df3f40; /* [web] danger-color */
+  --tg-danger-hover: #d22324; /* [derived] HSL lightness −8 */
+  --tg-danger-soft: rgb(223 63 64 / 8%);
+  --tg-success: #70b768; /* [web] green-color */
+  --tg-warning: #fed85a; /* [web] --warning-color */
+  --tg-online: #70b768; /* [web] --avatar-online-color falls back to green-color */
+
+  /* ══ Lines ═════════════════════════════════════════════════════════════ */
+  --tg-divider: #dfe1e5; /* [web] border-color */
+  --tg-border: #dfe1e5; /* [web] border-color */
+  --tg-border-strong: #c4c9cc; /* [web] secondary-color */
+  --tg-focus-ring: var(--tg-accent);
+
+  /* ══ Overlays and depth ════════════════════════════════════════════════ */
+  --tg-overlay: rgb(0 0 0 / 50%); /* [desktop] layerBg */
+  --tg-overlay-strong: rgb(0 0 0 / 85%); /* [ours] media viewer backdrop */
+  --tg-scrollbar: rgb(0 0 0 / 20%); /* [web] --scrollbar-color */
+  --tg-scrollbar-hover: rgb(0 0 0 / 48%); /* [desktop] scrollBarBgOver */
+  --tg-skeleton: rgb(0 0 0 / 12%); /* [web] --skeleton-color */
+  --tg-ripple: rgb(0 0 0 / 8%); /* [web] --original-ripple-color */
+  --tg-shadow-color: rgb(0 0 0 / 5%); /* [web] --section-box-shadow-color */
+  --tg-shadow-color-strong: rgb(0 0 0 / 15%); /* [web] --menu-box-shadow-color */
+  --tg-shadow-color-column: rgb(0 0 0 / 10%); /* [web] --column-box-shadow-color */
+
+  /* ══ Chat surface ══════════════════════════════════════════════════════
+     Flat by default, exactly like tweb with no wallpaper set.
+     themes/wallpapers.css replaces both of these. */
+  --tg-chat-bg: #f4f4f5;
+  --tg-wallpaper-image: none;
+  --tg-wallpaper-1: #f4f4f5;
+  --tg-wallpaper-2: #f4f4f5;
+  --tg-wallpaper-3: #f4f4f5;
+  --tg-wallpaper-4: #f4f4f5;
+  --tg-wallpaper-pattern-opacity: 0;
+
+  /* ══ Bubbles ═══════════════════════════════════════════════════════════
+     Incoming is the surface colour; outgoing is the famous pale green. The
+     outgoing bubble is NOT derived from the accent in the default day theme —
+     baseThemeClassic ships a green bubble with a blue accent, and that
+     mismatch is a defining feature of Telegram's look. Accent overrides do
+     derive the bubble, by tweb's own formula; see themes/accents/*.css. */
+  --tg-bubble-in: #ffffff; /* [web] message-background-color */
+  --tg-bubble-in-text: #000000; /* [web] primary-text-color */
+  --tg-bubble-in-meta: #707579; /* [web] --message-time-color = secondary-text-color */
+  --tg-bubble-in-accent: var(--tg-accent); /* [web] --message-primary-color = primary-color */
+  --tg-bubble-in-selected: #c2dcf2; /* [desktop] msgInBgSelected */
+  --tg-bubble-out: #effdde; /* [desktop] msgOutBg, Classic */
+  --tg-bubble-out-fill: var(--tg-bubble-out); /* what goes in `background`; accents may make this a gradient */
+  --tg-bubble-out-text: #000000; /* [ios] outgoingPrimaryTextColor is black on a light bubble — 19.78:1 */
+  --tg-bubble-out-meta: #5ca853; /* [web] --message-out-time-color = message-out-primary-color. 2.75:1 on the bubble — Telegram's own value, and the reason the tick has a shape as well as a colour */
+  --tg-bubble-out-accent: #5ca853; /* [web] message-out-primary-color */
+  --tg-bubble-out-selected: #b7dbdb; /* [desktop] msgOutBgSelected */
+  --tg-bubble-tick: #5ca853; /* [web] --message-out-status-color */
+  --tg-bubble-shadow: 0 1px 2px rgb(0 0 0 / 8%); /* [ours] tweb draws no bubble shadow; Telegram Android does. Set to `none` to match the web client exactly */
+
+  /* ══ Chat furniture ════════════════════════════════════════════════════
+     The service plate and the jump-to-message flash are the same colour in
+     Telegram and are derived from the WALLPAPER, not from the theme — tweb
+     declares --message-highlighting-color on `.chat`, identically in day and
+     night. The literal below is tweb's value for the default wallpaper.
+     TG-507 must recompute it when the wallpaper changes. */
+  --tg-service-bg: hsl(85.5319 36.9171% 40.402% / 40%); /* [web] --message-highlighting-color */
+  --tg-service-text: #ffffff; /* [web] msgServiceFg */
+  --tg-message-highlight: hsl(85.5319 36.9171% 40.402% / 40%); /* [web] same var, used for jump-to-message */
+  --tg-media-time-bg: rgb(0 0 0 / 35%); /* [web] --message-time-background */
+  --tg-badge-bg: var(--tg-accent); /* [desktop] dialogsUnreadBg = windowBgActive */
+  --tg-badge-text: #ffffff; /* [web] --badge-text-color */
+  --tg-badge-muted-bg: #bbbbbb; /* [desktop] dialogsUnreadBgMuted */
+}

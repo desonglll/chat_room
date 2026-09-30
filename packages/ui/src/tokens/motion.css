@@ -1,0 +1,129 @@
+/*
+ * Layer 1 — PRIMITIVE tokens, motion group. Split out of primitive.css only
+ * because the repository's 350-line source gate applies to .css and motion is
+ * the one token group that needs room to grow. Same layer, same rule:
+ *
+ *   COMPONENTS MUST NEVER READ `--tg-raw-*`. Read `--tg-*` from semantic.css.
+ *
+ * Provenance tags as in primitive.css:
+ *   [web] tweb · [desktop] tdesktop · [ios] Telegram iOS · [android] Telegram
+ *   Android · [derived] computed by a named Telegram formula · [ours] our call.
+ */
+
+:root {
+  /* ══ Motion · springs ══════════════════════════════════════════════════
+     Telegram's feel is a spring, so the spring is the token and the CSS
+     easing is generated from it — not the other way round.
+     Read docs/devlog/TG-009.md § Decisions before changing a number here.
+
+     [ios] These three are the entire spring vocabulary of Telegram iOS:
+       standard  makeSpringAnimationImpl()      m 3   k 1000     c 500
+                 UIKitRuntimeUtils/UIKitUtils.m:53
+       smooth    make26SpringAnimationImpl()    m 1   k 555.027  c 47.118
+                 same file:68 — the iOS 26 curve, exactly critically damped
+       bounce    makeSpringBounceAnimationImpl()m 5   k 900      c 88
+                 same file:86 — c is the caller's `damping`, 88 is the default
+                 in CALayer.animateSpring / springAnimation
+
+     mass / stiffness / damping are exposed as bare numbers because
+     `motion` (framer-motion) takes exactly these three in exactly these
+     units — JS animation reads the same tokens the CSS does. */
+  --tg-raw-spring-standard-mass: 3;
+  --tg-raw-spring-standard-stiffness: 1000;
+  --tg-raw-spring-standard-damping: 500;
+  --tg-raw-spring-smooth-mass: 1;
+  --tg-raw-spring-smooth-stiffness: 555.027;
+  --tg-raw-spring-smooth-damping: 47.118;
+  --tg-raw-spring-bounce-mass: 5;
+  --tg-raw-spring-bounce-stiffness: 900;
+  --tg-raw-spring-bounce-damping: 88;
+
+  /* Damping ratios and settling times, for the record. ζ = c / (2·√(k·m)),
+     ω₀ = √(k/m), settling = first t after which |x−1| stays below 0.001.
+       standard  ζ 4.5644  ω₀ 18.26 rad/s  settles 3419 ms — heavily
+                 overdamped, no overshoot, slow tail. Telegram never plays it
+                 for 3.4 s: makeAnimation() sets
+                 `speed = settlingDuration / duration`, i.e. it *compresses*
+                 the whole curve into the requested duration (usually
+                 0.3–0.5 s). So the shape below is the correct normalised
+                 progress and the duration token supplies the time.
+       smooth    ζ 1.0000  ω₀ 23.56 rad/s  settles  392 ms — exactly critical
+       bounce    ζ 0.6559  ω₀ 13.42 rad/s  settles  773 ms, overshoots 6.5 % */
+  --tg-raw-spring-standard-zeta: 4.5644;
+  --tg-raw-spring-smooth-zeta: 1;
+  --tg-raw-spring-bounce-zeta: 0.6559;
+
+  /* ── The springs as CSS, integrated not eyeballed ───────────────────────
+     [derived] Each `linear()` below is the analytic step response of the
+     spring above, sampled on a warped time axis (dense where the curve is
+     steep) so that linear interpolation between stops stays within 0.004 of
+     the true solution. A cubic-bezier cannot represent the bounce curve at
+     all (it is not monotonic) and misrepresents the long tail of `standard`.
+     Regenerate, never hand-edit: the script is in docs/devlog/TG-009.md. */
+  --tg-raw-ease-spring-standard: linear(
+    0 0%, 0.0002 0.04%, 0.0065 0.22%, 0.0314 0.63%, 0.0773 1.34%,
+    0.1423 2.4%, 0.2244 3.85%, 0.3198 5.75%, 0.4234 8.13%, 0.5287 11.05%,
+    0.6296 14.53%, 0.7208 18.61%, 0.7987 23.34%, 0.8615 28.74%,
+    0.9092 34.85%, 0.9435 41.69%, 0.9666 49.31%, 0.9814 57.73%,
+    0.9902 66.98%, 0.9951 77.09%, 0.9977 88.09%, 1 100%
+  );
+  --tg-raw-ease-spring-smooth: linear(
+    0 0%, 0.0018 0.67%, 0.0177 2.18%, 0.0617 4.34%, 0.1397 7.07%,
+    0.2475 10.34%, 0.3737 14.09%, 0.5041 18.31%, 0.6261 22.98%,
+    0.7312 28.08%, 0.8155 33.58%, 0.8789 39.49%, 0.9238 45.79%,
+    0.954 52.46%, 0.9733 59.5%, 0.9851 66.91%, 0.992 74.67%, 0.9959 82.77%,
+    0.9979 91.22%, 1 100%
+  );
+  --tg-raw-ease-spring-bounce: linear(
+    0 0%, 0.0159 1.79%, 0.0707 3.98%, 0.1601 6.34%, 0.2737 8.83%,
+    0.4003 11.42%, 0.5292 14.08%, 0.6517 16.81%, 0.7615 19.6%,
+    0.8547 22.44%, 0.9295 25.33%, 0.9858 28.27%, 1.0252 31.24%,
+    1.0496 34.26%, 1.0621 37.3%, 1.0652 40.38%, 1.0618 43.5%,
+    1.0543 46.64%, 1.0447 49.8%, 1.0345 53%, 1.0247 56.22%, 1.0162 59.46%,
+    1.0092 62.73%, 1.0038 66.02%, 1 69.33%, 0.9976 72.67%, 0.9962 76.02%,
+    0.9958 79.39%, 0.9959 82.78%, 0.9964 86.19%, 0.997 89.62%,
+    0.9977 93.06%, 0.9984 96.52%, 1 100%
+  );
+
+  /* ══ Motion · cubic-beziers actually shipped by Telegram ════════════════
+     These are not approximations of springs — they are the curves Telegram's
+     own web and Android clients use, so they belong in the vocabulary. */
+  --tg-raw-ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* [web] --transition-standard-easing; used for nearly every tweb transition. Close to the `smooth` spring (ζ=1) but cheaper. */
+  --tg-raw-ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1); /* [android] CubicBezierInterpolator.EASE_OUT_QUINT — panels, sheets */
+  --tg-raw-ease-default: cubic-bezier(0.25, 0.1, 0.25, 1); /* [android] CubicBezierInterpolator.DEFAULT */
+  --tg-raw-ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1); /* [android] EASE_OUT_BACK == [web] --btn-corner-transition. A cheap 1-overshoot stand-in for the `bounce` spring. */
+  --tg-raw-ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1); /* [android] EmphasizedDecelerate */
+  --tg-raw-ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15); /* [android] EmphasizedAccelerate */
+  --tg-raw-ease-badge-in: cubic-bezier(0.35, 0.35, 0.47, 1.34); /* [web] --chatlist-badge-transition-in */
+  --tg-raw-ease-badge-out: cubic-bezier(0.35, 0.35, 0.7, 1); /* [web] --chatlist-badge-transition-out */
+  --tg-raw-ease-sticker-switch: cubic-bezier(0.12, 1.1, 0.56, 1.2); /* [web] --sticker-viewer-switch-transition */
+  --tg-raw-ease-linear: linear;
+
+  /* ══ Motion · durations ════════════════════════════════════════════════ */
+  --tg-raw-duration-0: 0ms;
+  --tg-raw-duration-100: 100ms; /* [ours] press/hover feedback; tweb has no transition on hover at all */
+  --tg-raw-duration-150: 150ms; /* [web] --popup-transition-time */
+  --tg-raw-duration-200: 200ms; /* [web] --layer-transition, --tabs-transition, --btn-menu-transition, --input-transition */
+  --tg-raw-duration-250: 250ms; /* [web] --transition-standard-out-time */
+  --tg-raw-duration-300: 300ms; /* [web] --transition-standard-in-time */
+  --tg-raw-duration-383: 383ms; /* [ios] the iOS 26 spring's own duration, 0.3832 s */
+  --tg-raw-duration-400: 400ms; /* [web] --slide-header-transition */
+  --tg-raw-duration-500: 500ms; /* [ios] makeSpringAnimation duration */
+  --tg-raw-duration-700: 700ms; /* [web] --ripple-duration */
+
+  /* ══ Motion · ripple ═══════════════════════════════════════════════════
+     [web] Telegram's ripple starts at the pointer, not at the centre, and
+     scales 0 → 2 over 700 ms. The handheld variant starts at 0.27 / 400 ms. */
+  --tg-raw-ripple-scale-start: 0;
+  --tg-raw-ripple-scale-end: 2;
+  --tg-raw-ripple-scale-start-compact: 0.27;
+
+  /* ══ Elevation ═════════════════════════════════════════════════════════ */
+  --tg-raw-shadow-menu: 0 0 10px; /* [web] --menu-box-shadow (colour comes from the theme) */
+  --tg-raw-shadow-section: 0 1px 4px 0; /* [web] --section-box-shadow */
+  --tg-raw-shadow-section-big: 0 1px 8px 0; /* [web] --section-box-shadow-big */
+  --tg-raw-shadow-column: 0 0 4px 0; /* [web] --column-box-shadow */
+  --tg-raw-shadow-composer: 0 1px 8px 1px; /* [web] $chat-input-box-shadow */
+  --tg-raw-blur-menu: 50px; /* [web] --menu-backdrop-filter */
+  --tg-raw-blur-glass: 20px; /* [web] night --glass-blur */
+}

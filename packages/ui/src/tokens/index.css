@@ -1,0 +1,48 @@
+/*
+ * @tg/ui design tokens — entry point.
+ *
+ * Import order is load-bearing. Later files override earlier ones at equal
+ * specificity, and the accent files deliberately rely on that.
+ *
+ *   1  primitive.css        raw values, `--tg-raw-*`
+ *   2  motion.css           raw values, motion group (same layer as 1)
+ *   3  semantic.css         `--tg-*`, everything that is not a colour
+ *   4  themes/day.css       `--tg-*` colours, on :root and [data-tg-theme=day]
+ *   5  themes/night.css     `--tg-*` colours, on [data-tg-theme=night]
+ *   6  themes/wallpapers.css  the chat background axis
+ *   7  themes/accents/*.css   the accent axis
+ *
+ * Usage from an application:
+ *
+ *   import '@tg/ui/src/tokens/index.css';
+ *   <html data-tg-theme="night" data-tg-accent="cyan"
+ *         data-tg-wallpaper="midnight-blue">
+ *
+ * All three attributes are optional and independent. Omitting them gives
+ * Telegram's factory day theme with a flat chat background. All three work on
+ * any element, not just the root, so two themes can be shown side by side —
+ * see preview.html. The only constraint is that data-tg-accent and
+ * data-tg-wallpaper must be on the same element as, or inside, the element
+ * carrying data-tg-theme.
+ *
+ * THE RULE: components read `--tg-*` and never `--tg-raw-*`. The prefix makes
+ * the violation greppable. Nothing else in this package enforces it.
+ *
+ * Tailwind 4 (TG-010's job, not this file's): re-export from an `@theme` block,
+ * e.g. `@theme { --color-bg: var(--tg-bg); --radius-bubble: var(--tg-bubble-radius); }`.
+ * Every name here is flat kebab-case with no dots or Tailwind-reserved
+ * namespaces, so the mapping is mechanical.
+ */
+
+@import url("./primitive.css");
+@import url("./motion.css");
+@import url("./semantic.css");
+@import url("./themes/day.css");
+@import url("./themes/night.css");
+@import url("./themes/wallpapers.css");
+@import url("./themes/accents/blue.css");
+@import url("./themes/accents/cyan.css");
+@import url("./themes/accents/green.css");
+@import url("./themes/accents/orange.css");
+@import url("./themes/accents/pink.css");
+@import url("./themes/accents/purple.css");

@@ -1,0 +1,253 @@
+/*
+ * Layer 2 — SEMANTIC tokens. This file is the published API of the token
+ * system. The complete frozen name list lives in docs/devlog/TG-009.md
+ * § Frozen interface; TG-010 builds 19 components against these names and
+ * TG-507 builds the theming system on them. Renaming one breaks both.
+ *
+ * ┌───────────────────────────────────────────────────────────────────────┐
+ * │ Components read ONLY `--tg-*`. Never `--tg-raw-*`.                    │
+ * │ Only this file and themes/**.css may dereference `--tg-raw-*`.        │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * This file holds every semantic token that does NOT depend on the theme:
+ * spacing, radii, bubble geometry, type roles, layout sizes, motion.
+ * Every COLOUR semantic is declared by themes/day.css and themes/night.css
+ * instead — that is what makes a theme switch a pure reassignment of this
+ * layer with zero component churn. Load order (see index.css):
+ *
+ *   primitive.css → motion.css → semantic.css → themes/day.css
+ *   → themes/night.css → themes/wallpapers.css → themes/accents/*.css
+ *
+ * Scoping contract, relied on by the preview page and by TG-507:
+ *   [data-tg-theme="day"|"night"]   may sit on any element, nests freely
+ *   [data-tg-accent="<name>"]       must be on the SAME element as, or a
+ *                                   DESCENDANT of, the theme element
+ *   [data-tg-wallpaper="<name>"]    same rule as accent
+ * There is deliberately no prefers-color-scheme rule in this layer: picking a
+ * theme from the OS preference is application policy, and duplicating the
+ * whole night block into a media query would be the only way to express it
+ * here. TG-507 sets data-tg-theme instead.
+ */
+
+:root {
+  /* ══ Spacing ═══════════════════════════════════════════════════════════ */
+  --tg-space-0: var(--tg-raw-space-0);
+  --tg-space-0-5: var(--tg-raw-space-0-5);
+  --tg-space-1: var(--tg-raw-space-1);
+  --tg-space-1-5: var(--tg-raw-space-1-5);
+  --tg-space-2: var(--tg-raw-space-2);
+  --tg-space-2-5: var(--tg-raw-space-2-5);
+  --tg-space-3: var(--tg-raw-space-3);
+  --tg-space-4: var(--tg-raw-space-4);
+  --tg-space-5: var(--tg-raw-space-5);
+  --tg-space-6: var(--tg-raw-space-6);
+  --tg-space-7: var(--tg-raw-space-7);
+  --tg-space-8: var(--tg-raw-space-8);
+  --tg-space-10: var(--tg-raw-space-10);
+  --tg-space-12: var(--tg-raw-space-12);
+  --tg-space-14: var(--tg-raw-space-14);
+  --tg-space-16: var(--tg-raw-space-16);
+  --tg-space-20: var(--tg-raw-space-20);
+
+  /* ══ Radii ═════════════════════════════════════════════════════════════ */
+  --tg-radius-xs: var(--tg-raw-radius-2);
+  --tg-radius-sm: var(--tg-raw-radius-4);
+  --tg-radius-md: var(--tg-raw-radius-8);
+  --tg-radius-lg: var(--tg-raw-radius-12);
+  --tg-radius-xl: var(--tg-raw-radius-16);
+  --tg-radius-2xl: var(--tg-raw-radius-24);
+  --tg-radius-pill: var(--tg-raw-radius-pill);
+  --tg-radius-circle: var(--tg-raw-radius-circle);
+  --tg-radius-control: var(--tg-raw-radius-16); /* Button, TextField */
+  --tg-radius-panel: var(--tg-raw-radius-12); /* Popover, Menu, Tooltip, tiles */
+  --tg-radius-sheet: var(--tg-raw-radius-24); /* Sheet, composer, rounded sections */
+  --tg-radius-avatar: var(--tg-raw-radius-circle);
+  --tg-radius-avatar-forum: var(--tg-raw-radius-forum);
+
+  /* ══ Bubble geometry ═══════════════════════════════════════════════════
+     Two radii are the whole grammar of a Telegram message group. Transcribed
+     from [web] _chatBubble.scss `.bubble.is-in` / `.bubble.is-out` and their
+     `.is-group-first` / `.is-group-last.can-have-tail` modifiers — this is a
+     rule, not a taste, and TG-010/M1 must implement it exactly:
+
+       incoming, middle of group   TL merged  TR full  BR full  BL merged
+       incoming, first of group    TL full    TR full  BR full  BL merged
+       incoming, last of group     TL merged  TR full  BR full  BL 0 + tail
+       incoming, alone             TL full    TR full  BR full  BL 0 + tail
+       outgoing is the mirror image: the merged corners are on the right.
+
+     A single message is `first` and `last` at once, so it gets full top
+     corners and a tail. `last` without a tail (media groups, keyboards) keeps
+     the full radius on that corner instead of 0. The tail overhangs the bubble
+     edge by --tg-bubble-tail-offset and is nudged down 1px; it is filled with
+     the flat --tg-bubble-in / --tg-bubble-out colour, which is why those stay
+     flat colours even when --tg-bubble-out-fill is a gradient. */
+  --tg-bubble-radius: var(--tg-raw-radius-15);
+  --tg-bubble-radius-merged: var(--tg-raw-radius-5);
+  --tg-bubble-tail-width: var(--tg-raw-bubble-tail-width);
+  --tg-bubble-tail-height: var(--tg-raw-bubble-tail-height);
+  --tg-bubble-tail-offset: var(--tg-raw-bubble-tail-offset);
+  --tg-bubble-gap: var(--tg-raw-space-0-5); /* 2px, inside a group */
+  --tg-bubble-gap-group: var(--tg-raw-space-1-5); /* 6px, between groups */
+  --tg-bubble-padding-top: var(--tg-raw-bubble-padding-top);
+  --tg-bubble-padding-bottom: var(--tg-raw-bubble-padding-bottom);
+  --tg-bubble-padding-inline: var(--tg-raw-bubble-padding-inline);
+  --tg-bubble-reply-padding: var(--tg-raw-bubble-reply-padding);
+  --tg-bubble-max-width: var(--tg-raw-size-bubble-max);
+
+  /* ══ Typography ════════════════════════════════════════════════════════
+     Roles, not sizes. `medium` is Telegram's bold (500). */
+  --tg-font-sans: var(--tg-raw-font-sans);
+  --tg-font-mono: var(--tg-raw-font-mono);
+  --tg-font-rounded: var(--tg-raw-font-rounded);
+  --tg-weight-regular: var(--tg-raw-weight-regular);
+  --tg-weight-medium: var(--tg-raw-weight-medium);
+  --tg-letter-spacing: var(--tg-raw-letter-spacing);
+
+  --tg-type-message-size: var(--tg-raw-font-size-16);
+  --tg-type-message-line: var(--tg-raw-line-height-message);
+  --tg-type-message-secondary-size: var(--tg-raw-font-size-14); /* reply quote, caption */
+  --tg-type-message-secondary-line: var(--tg-raw-line-height-18);
+  --tg-type-meta-size: var(--tg-raw-font-size-12); /* message time, ticks */
+  --tg-type-meta-line: var(--tg-raw-line-height-12);
+  --tg-type-title-size: var(--tg-raw-font-size-16); /* chat name in a list row */
+  --tg-type-title-line: var(--tg-raw-line-height-16);
+  --tg-type-subtitle-size: var(--tg-raw-font-size-14); /* last message preview */
+  --tg-type-subtitle-line: var(--tg-raw-line-height-18);
+  --tg-type-label-size: var(--tg-raw-font-size-13); /* section labels, hints */
+  --tg-type-label-line: var(--tg-raw-line-height-13);
+  --tg-type-badge-size: var(--tg-raw-font-size-12);
+  --tg-type-badge-line: var(--tg-raw-line-height-12);
+  --tg-type-header-size: var(--tg-raw-font-size-20); /* screen titles */
+  --tg-type-header-line: var(--tg-raw-line-height-20);
+  --tg-type-hero-size: var(--tg-raw-font-size-24);
+  --tg-type-hero-line: var(--tg-raw-line-height-24);
+
+  /* ══ Layout ════════════════════════════════════════════════════════════ */
+  --tg-header-height: var(--tg-raw-size-header);
+  --tg-menu-row-height: var(--tg-raw-size-menu-row);
+  --tg-control-height: var(--tg-raw-size-control);
+  --tg-touch-min: var(--tg-raw-size-touch);
+  --tg-column-width: var(--tg-raw-size-column);
+  --tg-column-width-max: var(--tg-raw-size-column-max);
+  --tg-icon-sm: var(--tg-raw-size-icon-16);
+  --tg-icon-md: var(--tg-raw-size-icon-20);
+  --tg-icon-lg: var(--tg-raw-size-icon-24);
+  --tg-avatar-sm: var(--tg-raw-size-avatar-sm);
+  --tg-avatar-md: var(--tg-raw-size-avatar-md);
+  --tg-round-video-size: var(--tg-raw-size-round-video);
+  --tg-focus-ring-width: 2px;
+  --tg-focus-ring-offset: 2px;
+  --tg-opacity-disabled: var(--tg-raw-alpha-disabled);
+  --tg-blur-menu: var(--tg-raw-blur-menu);
+  --tg-blur-glass: var(--tg-raw-blur-glass);
+
+  /* ══ Elevation ═════════════════════════════════════════════════════════
+     Geometry comes from the primitive layer, colour from the active theme —
+     so a theme switch restyles every shadow without touching a component.
+     Telegram has four elevations and no more: a panel edge, a section card,
+     a floating menu, and the composer strip. */
+  --tg-shadow-panel: var(--tg-raw-shadow-section) var(--tg-shadow-color);
+  --tg-shadow-panel-strong: var(--tg-raw-shadow-section-big)
+    var(--tg-shadow-color-column);
+  --tg-shadow-menu: var(--tg-raw-shadow-menu) var(--tg-shadow-color-strong);
+  --tg-shadow-column: var(--tg-raw-shadow-column) var(--tg-shadow-color-column);
+  --tg-shadow-composer: var(--tg-raw-shadow-composer)
+    var(--tg-shadow-color-column);
+
+  /* ══ Motion · durations ════════════════════════════════════════════════
+     `--tg-duration-fade` is the one duration that survives
+     prefers-reduced-motion: reduce. Everything that moves collapses to 1 ms;
+     everything that fades keeps fading. That is the degradation the frontend
+     discipline in docs/tg/agent-protocol.md §5 asks for. */
+  --tg-duration-press: var(--tg-raw-duration-100);
+  --tg-duration-fade: var(--tg-raw-duration-150);
+  --tg-duration-panel: var(--tg-raw-duration-200);
+  --tg-duration-exit: var(--tg-raw-duration-250);
+  --tg-duration-enter: var(--tg-raw-duration-300);
+  --tg-duration-spring: var(--tg-raw-duration-383);
+  --tg-duration-slide: var(--tg-raw-duration-400);
+  --tg-duration-spring-long: var(--tg-raw-duration-500);
+  --tg-duration-ripple: var(--tg-raw-duration-700);
+
+  /* ══ Motion · easings ══════════════════════════════════════════════════ */
+  --tg-ease-standard: var(--tg-raw-ease-standard);
+  --tg-ease-decelerate: var(--tg-raw-ease-out-quint);
+  --tg-ease-accelerate: var(--tg-raw-ease-emphasized-accelerate);
+  --tg-ease-overshoot: var(--tg-raw-ease-out-back);
+  --tg-ease-spring: var(--tg-raw-ease-spring-standard);
+  --tg-ease-spring-smooth: var(--tg-raw-ease-spring-smooth);
+  --tg-ease-spring-bounce: var(--tg-raw-ease-spring-bounce);
+  --tg-ease-badge-in: var(--tg-raw-ease-badge-in);
+  --tg-ease-badge-out: var(--tg-raw-ease-badge-out);
+
+  /* ══ Motion · composed transitions ═════════════════════════════════════
+     Use these so a component never hard-codes a duration/easing pair.
+       transition: opacity var(--tg-transition-fade);
+       transition: transform var(--tg-transition-spring); */
+  --tg-transition-press: var(--tg-duration-press) var(--tg-ease-standard);
+  --tg-transition-fade: var(--tg-duration-fade) var(--tg-ease-standard);
+  --tg-transition-panel: var(--tg-duration-panel) var(--tg-ease-decelerate);
+  --tg-transition-enter: var(--tg-duration-enter) var(--tg-ease-standard);
+  --tg-transition-exit: var(--tg-duration-exit) var(--tg-ease-standard);
+  --tg-transition-spring: var(--tg-duration-spring) var(--tg-ease-spring);
+  --tg-transition-spring-smooth: var(--tg-duration-spring)
+    var(--tg-ease-spring-smooth);
+  --tg-transition-spring-bounce: var(--tg-duration-spring-long)
+    var(--tg-ease-spring-bounce);
+  --tg-transition-slide: var(--tg-duration-slide) var(--tg-ease-decelerate);
+
+  /* ══ Motion · spring parameters for the JS animation layer ══════════════
+     `motion`/framer-motion takes mass, stiffness and damping in the same
+     units as CASpringAnimation, so the JS side must read THESE and must not
+     invent its own numbers. Read with
+     getComputedStyle(el).getPropertyValue('--tg-spring-stiffness'). */
+  --tg-spring-mass: var(--tg-raw-spring-standard-mass);
+  --tg-spring-stiffness: var(--tg-raw-spring-standard-stiffness);
+  --tg-spring-damping: var(--tg-raw-spring-standard-damping);
+  --tg-spring-smooth-mass: var(--tg-raw-spring-smooth-mass);
+  --tg-spring-smooth-stiffness: var(--tg-raw-spring-smooth-stiffness);
+  --tg-spring-smooth-damping: var(--tg-raw-spring-smooth-damping);
+  --tg-spring-bounce-mass: var(--tg-raw-spring-bounce-mass);
+  --tg-spring-bounce-stiffness: var(--tg-raw-spring-bounce-stiffness);
+  --tg-spring-bounce-damping: var(--tg-raw-spring-bounce-damping);
+
+  /* ══ Motion · ripple ═══════════════════════════════════════════════════
+     Telegram's ripple expands from the pointer, not from the centre of the
+     control. TG-010's `Ripple` must position the circle at the event point. */
+  --tg-ripple-duration: var(--tg-duration-ripple);
+  --tg-ripple-scale-start: var(--tg-raw-ripple-scale-start);
+  --tg-ripple-scale-end: var(--tg-raw-ripple-scale-end);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* Movement collapses; fades survive. 1ms rather than 0ms so that
+       transitionend / animationend still fire and state machines that wait on
+       them do not stall. */
+    --tg-duration-press: 1ms;
+    --tg-duration-panel: 1ms;
+    --tg-duration-exit: 1ms;
+    --tg-duration-enter: 1ms;
+    --tg-duration-spring: 1ms;
+    --tg-duration-slide: 1ms;
+    --tg-duration-spring-long: 1ms;
+    --tg-duration-ripple: var(--tg-duration-fade);
+    --tg-ease-spring: linear;
+    --tg-ease-spring-smooth: linear;
+    --tg-ease-spring-bounce: linear;
+    --tg-ease-overshoot: linear;
+    --tg-ease-badge-in: linear;
+    /* A ripple that does not travel still confirms the tap. */
+    --tg-ripple-scale-start: 1;
+    --tg-ripple-scale-end: 1;
+    /* The JS layer must degrade too: a critically damped, very stiff spring
+       settles within a frame without overshoot. */
+    --tg-spring-mass: 1;
+    --tg-spring-stiffness: 10000;
+    --tg-spring-damping: 200;
+    --tg-spring-bounce-mass: 1;
+    --tg-spring-bounce-stiffness: 10000;
+    --tg-spring-bounce-damping: 200;
+  }
+}

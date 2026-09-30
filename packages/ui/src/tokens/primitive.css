@@ -1,0 +1,236 @@
+/*
+ * Layer 1 — PRIMITIVE tokens. Raw values only. No semantics, no theming.
+ *
+ * ┌───────────────────────────────────────────────────────────────────────┐
+ * │ COMPONENTS MUST NEVER READ `--tg-raw-*`.                              │
+ * │ The `raw` prefix exists so the rule is greppable: any file under      │
+ * │ packages/ui/src/components/** containing `--tg-raw-` is a violation.  │
+ * │ Components read the `--tg-*` names from semantic.css + themes/.       │
+ * └───────────────────────────────────────────────────────────────────────┘
+ *
+ * PROVENANCE TAGS — every value carries one. Trust them; they are the point.
+ *   [web]      verbatim from Telegram Web K (morethanwords/tweb)
+ *   [desktop]  verbatim from Telegram Desktop (telegramdesktop/tdesktop,
+ *              Telegram/Resources/*.tdesktop-theme + desktop-app/lib_ui
+ *              ui/colors.palette)
+ *   [ios]      verbatim from Telegram iOS (TelegramMessenger/Telegram-iOS)
+ *   [android]  verbatim from Telegram Android (DrKLO/Telegram)
+ *   [derived]  computed from a [web]/[ios] value by a Telegram formula that is
+ *              named at the point of use
+ *   [ours]     our decision. Not in any Telegram source. Distrust these first.
+ */
+
+:root {
+  /* ══ Colour · neutral ramp ═════════════════════════════════════════════
+     Anchored on real Telegram values; unanchored steps are interpolation. */
+  --tg-raw-white: #ffffff;
+  --tg-raw-black: #000000;
+  --tg-raw-neutral-0: #ffffff; /* [web] day surface-color */
+  --tg-raw-neutral-50: #f4f4f5; /* [web] day background-color */
+  --tg-raw-neutral-100: #f1f1f1; /* [desktop] windowBgOver */
+  --tg-raw-neutral-150: #e9ecf0; /* [desktop] night windowFgOver */
+  --tg-raw-neutral-200: #dfe1e5; /* [web] day border-color */
+  --tg-raw-neutral-300: #c4c9cc; /* [web] day secondary-color */
+  --tg-raw-neutral-400: #aaaaaa; /* [web] night secondary-text-color */
+  --tg-raw-neutral-500: #9ba0a5; /* [web] input-placeholder-color */
+  --tg-raw-neutral-600: #707579; /* [web] day secondary-text-color */
+  --tg-raw-neutral-700: #545458; /* [ios] separator base colour */
+  --tg-raw-neutral-800: #2f2f2f; /* [web] night input-search-border-color */
+  --tg-raw-neutral-850: #212121; /* [web] night surface-color */
+  --tg-raw-neutral-900: #181818; /* [web] night background-color */
+  --tg-raw-neutral-950: #0f0f0f; /* [web] night border-color */
+
+  /* ══ Colour · blue ramp (day accent family) ════════════════════════════
+     500 is [web] day primary-color. 600/700/800/900 are [derived]: HSL
+     lightness −8/−16/−24/−32, which is tweb's own `dark-<name>` derivation
+     (themeController.applyAppColor, darkenAlpha = 0.08). 50–400 are
+     [derived]: the accent mixed over white at 6/12/26/45/70 %. */
+  --tg-raw-blue-50: #f3f8fe;
+  --tg-raw-blue-100: #e7f2fd;
+  --tg-raw-blue-200: #cae2fa;
+  --tg-raw-blue-300: #a3cdf6;
+  --tg-raw-blue-400: #70b1f2;
+  --tg-raw-blue-500: #3390ec;
+  --tg-raw-blue-600: #157ce1;
+  --tg-raw-blue-700: #1267bc;
+  --tg-raw-blue-800: #0e5397;
+  --tg-raw-blue-900: #0b3e71;
+  --tg-raw-blue-link-day: #00488f; /* [web] day link-color — the AA-safe blue */
+  --tg-raw-blue-desktop: #40a7e3; /* [desktop] day windowBgActive */
+  --tg-raw-blue-night: #3e88f7; /* [ios] blue accent on night base */
+
+  /* ══ Colour · violet ramp (night accent family) ════════════════════════
+     500 is [web] night primary-color. Other steps [derived] as above. */
+  --tg-raw-violet-50: #f8f7fd;
+  --tg-raw-violet-100: #f1eefb;
+  --tg-raw-violet-200: #e0dbf7;
+  --tg-raw-violet-300: #c9c0f2;
+  --tg-raw-violet-400: #ab9eea;
+  --tg-raw-violet-500: #8774e1;
+  --tg-raw-violet-600: #6a52da;
+  --tg-raw-violet-700: #4d31d3;
+  --tg-raw-violet-800: #3f27b4;
+  --tg-raw-violet-900: #342092;
+
+  /* ══ Colour · green ramp (day outgoing-bubble family) ══════════════════
+     500 is [web] day message-out-primary-color (#5CA853). Other steps
+     [derived] as above. 100 (#ebf5ea) happens to equal tweb's own derived
+     outgoing fill mix(#5CA853, #fff, 12 %) — the ramp and the formula agree. */
+  --tg-raw-green-50: #f5faf5;
+  --tg-raw-green-100: #ebf5ea;
+  --tg-raw-green-200: #d5e8d2;
+  --tg-raw-green-300: #b6d8b2;
+  --tg-raw-green-400: #8dc287;
+  --tg-raw-green-500: #5ca853;
+  --tg-raw-green-600: #4d8d46;
+  --tg-raw-green-700: #3e7138;
+  --tg-raw-green-800: #2f562b;
+  --tg-raw-green-900: #203b1d;
+  --tg-raw-green-bubble-day: #effdde; /* [desktop] msgOutBg, Classic — the canonical Telegram day bubble */
+  --tg-raw-green-online: #70b768; /* [web] day green-color */
+  --tg-raw-green-online-night: #5cc85e; /* [web] night green-color */
+
+  /* ══ Colour · red ramp (danger family) ═════════════════════════════════ */
+  --tg-raw-red-50: #fdf3f4;
+  --tg-raw-red-100: #fbe8e8;
+  --tg-raw-red-200: #f7cdcd;
+  --tg-raw-red-300: #f1a9a9;
+  --tg-raw-red-400: #e97979;
+  --tg-raw-red-500: #df3f40; /* [web] day danger-color */
+  --tg-raw-red-600: #d22324;
+  --tg-raw-red-700: #af1d1e;
+  --tg-raw-red-800: #8c1718;
+  --tg-raw-red-900: #691212;
+  --tg-raw-red-night: #ff595a; /* [web] night danger-color */
+
+  /* ══ Colour · accent base colours ══════════════════════════════════════
+     [ios] PresentationThemeBaseColor (PresentationThemeSettings.swift). These
+     are the nine accents a Telegram user can pick. themes/accents/*.css turn
+     them into full accent overrides. `blue` is brightened on the night base
+     (iOS colorFor(baseTheme:)): 0x0088ff → 0x3e88f7. */
+  --tg-raw-accent-blue: #0088ff;
+  --tg-raw-accent-cyan: #00c2ed;
+  --tg-raw-accent-green: #29b327;
+  --tg-raw-accent-pink: #eb6ca4;
+  --tg-raw-accent-orange: #f08200;
+  --tg-raw-accent-purple: #9472ee;
+  --tg-raw-accent-red: #d33213;
+  --tg-raw-accent-yellow: #edb400;
+  --tg-raw-accent-gray: #6d839e;
+
+  /* ══ Colour · night-theme surfaces from Telegram Desktop ═══════════════
+     Kept because themes/night.css documents the road not taken, and because
+     TG-507 will want tdesktop's navy Night as a third built-in theme. */
+  --tg-raw-navy-window: #17212b; /* [desktop] night windowBg */
+  --tg-raw-navy-hover: #232e3c; /* [desktop] night windowBgOver */
+  --tg-raw-navy-bubble-in: #182533; /* [desktop] night msgInBg */
+  --tg-raw-navy-bubble-out: #2b5278; /* [desktop] night msgOutBg */
+
+  /* ══ Spacing · 4 px base ═══════════════════════════════════════════════
+     rem so it follows the root font size. Telegram's real chat metrics need
+     the half steps: the gap inside a message group is 2 px and the gap
+     between groups is 6 px ([web] $bubble-margin / $bubble-margin-big). */
+  --tg-raw-space-0: 0;
+  --tg-raw-space-0-5: 0.125rem; /* 2px */
+  --tg-raw-space-1: 0.25rem; /* 4px */
+  --tg-raw-space-1-5: 0.375rem; /* 6px */
+  --tg-raw-space-2: 0.5rem; /* 8px */
+  --tg-raw-space-2-5: 0.625rem; /* 10px */
+  --tg-raw-space-3: 0.75rem; /* 12px */
+  --tg-raw-space-4: 1rem; /* 16px */
+  --tg-raw-space-5: 1.25rem; /* 20px */
+  --tg-raw-space-6: 1.5rem; /* 24px */
+  --tg-raw-space-7: 1.75rem; /* 28px */
+  --tg-raw-space-8: 2rem; /* 32px */
+  --tg-raw-space-10: 2.5rem; /* 40px */
+  --tg-raw-space-12: 3rem; /* 48px */
+  --tg-raw-space-14: 3.5rem; /* 56px */
+  --tg-raw-space-16: 4rem; /* 64px */
+  --tg-raw-space-20: 5rem; /* 80px */
+
+  /* ══ Radii ═════════════════════════════════════════════════════════════
+     px, not rem: Telegram's corner radii are fixed device pixels and do not
+     scale with the text size. */
+  --tg-raw-radius-2: 2px;
+  --tg-raw-radius-4: 4px;
+  --tg-raw-radius-5: 5px; /* [web] $bubble-border-radius-medium — merged bubble corner */
+  --tg-raw-radius-6: 6px; /* [android] merged bubble corner is min(5, bubbleRadius); media grid gap radius */
+  --tg-raw-radius-8: 8px;
+  --tg-raw-radius-12: 12px; /* [web] $border-radius — menus, inputs, tiles */
+  --tg-raw-radius-15: 15px; /* [web] $bubble-border-radius-big — free bubble corner */
+  --tg-raw-radius-16: 16px; /* [web] $border-radius-medium — buttons, fields */
+  --tg-raw-radius-17: 17px; /* [android] SharedConfig.bubbleRadius default */
+  --tg-raw-radius-24: 24px; /* [web] $border-radius-big — composer, rounded sections */
+  --tg-raw-radius-pill: 999px;
+  --tg-raw-radius-circle: 50%;
+  --tg-raw-radius-forum: 37%; /* [web] --avatar-border-radius-forum */
+
+  /* ══ Bubble geometry ═══════════════════════════════════════════════════ */
+  --tg-raw-bubble-tail-width: 11px; /* [web] .bubble-tail */
+  --tg-raw-bubble-tail-height: 20px; /* [web] .bubble-tail */
+  --tg-raw-bubble-tail-offset: -8.4px; /* [web] margin-inline-start / inset-inline-end of .bubble-tail on a tailed bubble */
+  --tg-raw-bubble-padding-top: 4px; /* [web] $message-padding-top */
+  --tg-raw-bubble-padding-bottom: 5px; /* [web] $message-padding-bottom */
+  --tg-raw-bubble-padding-inline: 8px; /* [web] $message-padding-horizontal */
+  --tg-raw-bubble-reply-padding: 8px; /* [web] $reply-padding-top / -horizontal */
+
+  /* ══ Type ══════════════════════════════════════════════════════════════
+     [web] font stacks and the px size/line-height pairs from base.scss.
+     Telegram's "bold" is 500, not 700 — --font-weight-bold: 500. Getting this
+     wrong is the fastest way to stop looking like Telegram. */
+  /* tweb lists "apple color emoji" as the THIRD family. Doing that here made
+     the space glyph resolve from the emoji font and every word gap doubled in
+     testing, so the emoji families are last. Deviation from [web], on purpose;
+     see docs/devlog/TG-009.md § Decisions. */
+  --tg-raw-font-sans: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  --tg-raw-font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+  --tg-raw-font-rounded: ui-rounded, "Numbers Rounded", "Roboto",
+    "Helvetica Neue", sans-serif;
+  --tg-raw-weight-regular: 400;
+  --tg-raw-weight-medium: 500;
+  --tg-raw-font-size-10: 10px;
+  --tg-raw-font-size-11: 11px;
+  --tg-raw-font-size-12: 12px;
+  --tg-raw-font-size-13: 13px;
+  --tg-raw-font-size-14: 14px;
+  --tg-raw-font-size-15: 15px;
+  --tg-raw-font-size-16: 16px;
+  --tg-raw-font-size-18: 18px;
+  --tg-raw-font-size-20: 20px;
+  --tg-raw-font-size-24: 24px;
+  --tg-raw-line-height-11: 15px;
+  --tg-raw-line-height-12: 16px;
+  --tg-raw-line-height-13: 17px;
+  --tg-raw-line-height-14: 18px;
+  --tg-raw-line-height-15: 20px;
+  --tg-raw-line-height-16: 21px;
+  --tg-raw-line-height-18: 24px;
+  --tg-raw-line-height-20: 26px;
+  --tg-raw-line-height-24: 30px;
+  --tg-raw-line-height-message: 1.3125; /* [web] --messages-line-height */
+  --tg-raw-letter-spacing: 0; /* [ours] carried over from design/README.md §8 */
+
+  /* ══ Layout sizes ══════════════════════════════════════════════════════ */
+  --tg-raw-size-header: 3.5rem; /* [web] $header-height 56px */
+  --tg-raw-size-menu-row: 3rem; /* [web] $menu-height 48px */
+  --tg-raw-size-control: 3rem; /* [web] $input-height / $button-height 48px */
+  --tg-raw-size-touch: 2.75rem; /* [ours] 44px, WCAG/HIG minimum */
+  --tg-raw-size-column: 360px; /* [web] $default-column-width */
+  --tg-raw-size-column-max: 480px; /* [web] $max-sidebar-width */
+  --tg-raw-size-bubble-max: 480px; /* [ours] tweb clamps to --chat-width; 480px matches it at the default column width */
+  --tg-raw-size-icon-16: 16px;
+  --tg-raw-size-icon-20: 20px;
+  --tg-raw-size-icon-24: 24px;
+  --tg-raw-size-avatar-sm: 2.125rem; /* 34px [web] .bubble avatar */
+  --tg-raw-size-avatar-md: 3.375rem; /* 54px [web] chatlist avatar */
+  --tg-raw-size-round-video: 280px; /* [web] --round-video-size */
+
+  /* ══ Alpha constants ═══════════════════════════════════════════════════ */
+  --tg-raw-alpha-hover: 0.08; /* [web] $hover-alpha */
+  --tg-raw-alpha-disabled: 0.3; /* [web] --disabled-opacity */
+  --tg-raw-alpha-bubble-meta: 0.5; /* [ios] outgoingSecondaryTextColor = white @ 0.5 */
+  --tg-raw-alpha-backdrop: 0.85; /* [web] --backdrop-opacity */
+}
