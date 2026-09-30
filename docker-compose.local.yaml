@@ -1,5 +1,12 @@
 name: chatroom-local
 
+# The test suite discovers these services ONLY through env vars (tests/service_skip/mod.rs):
+#   postgres -> TEST_POSTGRES_ADMIN_URL  (default mapping below: postgresql://chatroom:chatroom@127.0.0.1:52735/postgres)
+#   redis    -> TEST_REDIS_URL           (default mapping below: redis://127.0.0.1:6379/)
+# Var unset: the matching tests skip, each printing one "SKIPPED: <service> not verified" line.
+# Var set but service unreachable: those tests panic instead of skipping.
+# If you override POSTGRES_PORT, put the same port in TEST_POSTGRES_ADMIN_URL.
+
 services:
   postgres:
     image: postgres:17-alpine

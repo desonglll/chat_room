@@ -110,7 +110,11 @@ async fn the_active_username_index_is_unique_only_among_live_chats() {
 
 #[tokio::test]
 async fn a_fresh_postgres_database_has_the_chat_schema_and_no_stale_trigger_function() {
-    let Some((admin_url, admin_pool)) = postgres_admin_pool().await else {
+    let Some((admin_url, admin_pool)) = postgres_admin_pool(
+        "a_fresh_postgres_database_has_the_chat_schema_and_no_stale_trigger_function",
+    )
+    .await
+    else {
         return;
     };
     let scratch = create_postgres_scratch(&admin_url, &admin_pool, "fresh_chats").await;

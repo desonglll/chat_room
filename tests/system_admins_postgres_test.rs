@@ -3,28 +3,18 @@ use chat_room::{
     config::{AppConfig, AuthConfig},
     state::AppState,
 };
-use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
+
+mod service_skip;
 
 #[tokio::test]
 async fn postgres_enforces_bootstrap_role_and_invitation_invariants() {
-    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
-    let admin_url = configured
-        .clone()
-        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".into());
-    let admin_pool = match PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&admin_url)
-        .await
-    {
-        Ok(pool) => pool,
-        Err(error) if configured.is_some() => {
-            panic!("required PostgreSQL at {admin_url} is unavailable: {error}")
-        }
-        Err(error) => {
-            eprintln!("skipping system administrator PostgreSQL test: {error}");
-            return;
-        }
+    let Some((admin_url, admin_pool)) = service_skip::postgres_admin_pool_or_skip(
+        "postgres_enforces_bootstrap_role_and_invitation_invariants",
+    )
+    .await
+    else {
+        return;
     };
     let database_name = format!("chat_room_admin_test_{}", Uuid::new_v4().simple());
     sqlx::query(&format!(r#"CREATE DATABASE "{database_name}""#))

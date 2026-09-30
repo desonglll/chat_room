@@ -6,6 +6,8 @@ use reqwest::{header, Client, Response};
 use serde_json::json;
 use uuid::Uuid;
 
+mod service_skip;
+
 struct Server {
     base: String,
     task: tokio::task::JoinHandle<()>,
@@ -183,9 +185,9 @@ async fn responses_include_security_headers_and_cors_is_exact() {
 #[tokio::test]
 async fn redis_adapter_shares_limits_between_instances_when_configured() {
     dotenvy::dotenv().ok();
-    let Ok(redis_url) =
-        std::env::var("TEST_REDIS_URL").or_else(|_| std::env::var("CHAT_ROOM_REDIS_URL"))
-    else {
+    let Some(redis_url) = service_skip::redis_url_or_skip(
+        "redis_adapter_shares_limits_between_instances_when_configured",
+    ) else {
         return;
     };
     let mut config = limited_config();

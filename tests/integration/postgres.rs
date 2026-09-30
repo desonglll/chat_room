@@ -1,9 +1,11 @@
 //! Exercises the Postgres backend end to end (create chat, WS chat, restart
 //! persistence) against a real Postgres server. There is no fake/embedded
 //! Postgres to fall back to, so the test creates and drops a throwaway
-//! database on a real server rather than touching the app's own database —
-//! and skips itself (instead of failing) when no server is reachable, so it
-//! doesn't break `cargo test` on machines without Postgres set up.
+//! database on a real server rather than touching the app's own database.
+//! When `TEST_POSTGRES_ADMIN_URL` is unset the tests skip — visibly, one
+//! `SKIPPED: PostgreSQL not verified` marker each (see `tests/service_skip/`) —
+//! so `cargo test` still passes on machines without Postgres set up; when it
+//! is set, an unreachable server panics instead of skipping.
 
 use super::*;
 use chat_room::config::{AdminConfig, AppConfig};
@@ -22,6 +24,8 @@ mod global_search_postgres;
 mod observability_postgres;
 #[path = "postgres_database.rs"]
 mod postgres_database;
+#[path = "../service_skip/mod.rs"]
+mod service_skip;
 use postgres_database::{connect_postgres_admin, create_scratch_database, drop_scratch_database};
 
 #[tokio::test]

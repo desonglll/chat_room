@@ -5,29 +5,17 @@ use chat_room::{
     state::AppState,
 };
 use chrono::{Duration, Utc};
-use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
-async fn postgres_admin() -> Option<(String, sqlx::PgPool)> {
-    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
-    let url = configured
-        .clone()
-        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".into());
-    match PgPoolOptions::new().max_connections(1).connect(&url).await {
-        Ok(pool) => Some((url, pool)),
-        Err(error) if configured.is_some() => {
-            panic!("required PostgreSQL is unavailable: {error}")
-        }
-        Err(error) => {
-            eprintln!("skipping PostgreSQL AI governance test: {error}");
-            None
-        }
-    }
-}
+mod service_skip;
 
 #[tokio::test]
 async fn postgres_governance_policy_settings_and_usage_match_sqlite_contract() {
-    let Some((admin_url, admin_pool)) = postgres_admin().await else {
+    let Some((admin_url, admin_pool)) = service_skip::postgres_admin_pool_or_skip(
+        "postgres_governance_policy_settings_and_usage_match_sqlite_contract",
+    )
+    .await
+    else {
         return;
     };
     let database_name = format!("chat_room_ai_governance_{}", Uuid::new_v4().simple());

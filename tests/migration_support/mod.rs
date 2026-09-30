@@ -19,6 +19,8 @@ use sqlx::{
 
 pub mod chat_data;
 pub mod chat_schema;
+#[path = "../service_skip/mod.rs"]
+mod service_skip;
 
 /// The newest migration that existed before TG-004 — i.e. the schema at `a16f422`, the commit
 /// the Telegram-parity programme started from, and therefore the version every deployment is
@@ -69,27 +71,10 @@ pub async fn sqlite_pool(path: &Path) -> SqlitePool {
 
 /// `TEST_POSTGRES_ADMIN_URL` set means "PostgreSQL is required": the helper panics instead of
 /// skipping, so a broken PostgreSQL migration cannot hide behind a green run. Unset, the test
-/// skips, which is what an environment without Docker needs.
-pub fn postgres_admin_url() -> (String, bool) {
-    match std::env::var("TEST_POSTGRES_ADMIN_URL") {
-        Ok(url) => (url, true),
-        Err(_) => (
-            "postgresql://chatroom:chatroom@127.0.0.1:52735/postgres".into(),
-            false,
-        ),
-    }
-}
-
-pub async fn postgres_admin_pool() -> Option<(String, PgPool)> {
-    let (url, required) = postgres_admin_url();
-    match PgPoolOptions::new().max_connections(1).connect(&url).await {
-        Ok(pool) => Some((url, pool)),
-        Err(error) if required => panic!("required PostgreSQL at {url} is unavailable: {error}"),
-        Err(error) => {
-            eprintln!("skipping PostgreSQL migration test: {error}");
-            None
-        }
-    }
+/// skips — visibly, through `service_skip`'s marker on the real stderr — which is what an
+/// environment without Docker needs.
+pub async fn postgres_admin_pool(test_name: &str) -> Option<(String, PgPool)> {
+    service_skip::postgres_admin_pool_or_skip(test_name).await
 }
 
 pub struct PostgresScratch {

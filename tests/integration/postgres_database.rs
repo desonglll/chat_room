@@ -1,24 +1,12 @@
-use sqlx::postgres::PgPoolOptions;
+use super::service_skip;
 
+/// Admin connection for the PostgreSQL integration tests, via the shared visible-skip
+/// contract in `tests/service_skip/mod.rs`: `TEST_POSTGRES_ADMIN_URL` unset prints one
+/// greppable `SKIPPED: PostgreSQL not verified: <test_name>` marker and skips; set but
+/// unreachable panics. There is no fallback URL on purpose — a fallback that cannot
+/// connect disguises "misconfigured" as "not configured".
 pub(super) async fn connect_postgres_admin(test_name: &str) -> Option<(String, sqlx::PgPool)> {
-    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
-    let admin_url = configured
-        .clone()
-        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".to_string());
-    match PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&admin_url)
-        .await
-    {
-        Ok(pool) => Some((admin_url, pool)),
-        Err(error) if configured.is_some() => {
-            panic!("{test_name}: required PostgreSQL at {admin_url} is unavailable: {error}")
-        }
-        Err(error) => {
-            eprintln!("skipping {test_name}: could not reach PostgreSQL at {admin_url}: {error}");
-            None
-        }
-    }
+    service_skip::postgres_admin_pool_or_skip(test_name).await
 }
 
 pub(super) async fn create_scratch_database(

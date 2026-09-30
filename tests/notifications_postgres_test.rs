@@ -3,30 +3,14 @@ use std::sync::Arc;
 use chat_room::{build_app, config::AppConfig, state::AppState};
 use chrono::Utc;
 use reqwest::Client;
-use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use uuid::Uuid;
+
+mod service_skip;
 
 struct Account {
     id: Uuid,
     token: String,
-}
-
-async fn postgres_admin() -> Option<(String, sqlx::PgPool)> {
-    let configured = std::env::var("TEST_POSTGRES_ADMIN_URL").ok();
-    let url = configured
-        .clone()
-        .unwrap_or_else(|| "postgresql://postgres:postgres@localhost:52735/postgres".into());
-    match PgPoolOptions::new().max_connections(1).connect(&url).await {
-        Ok(pool) => Some((url, pool)),
-        Err(error) if configured.is_some() => {
-            panic!("required PostgreSQL at {url} is unavailable: {error}")
-        }
-        Err(error) => {
-            eprintln!("skipping PostgreSQL notification test: {error}");
-            None
-        }
-    }
 }
 
 async fn register(client: &Client, base: &str, username: &str) -> Account {
@@ -59,7 +43,11 @@ async fn notifications(client: &Client, base: &str, token: &str) -> serde_json::
 
 #[tokio::test]
 async fn postgres_notifications_match_trigger_and_authorization_contracts() {
-    let Some((admin_url, admin_pool)) = postgres_admin().await else {
+    let Some((admin_url, admin_pool)) = service_skip::postgres_admin_pool_or_skip(
+        "postgres_notifications_match_trigger_and_authorization_contracts",
+    )
+    .await
+    else {
         return;
     };
     let database_name = format!("chat_room_notifications_{}", Uuid::new_v4().simple());

@@ -5,11 +5,13 @@ use redis::AsyncCommands;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
+mod service_skip;
+
 #[tokio::test]
 async fn revocation_removes_database_and_redis_session_state() {
     dotenvy::dotenv().ok();
-    let Ok(redis_url) =
-        std::env::var("TEST_REDIS_URL").or_else(|_| std::env::var("CHAT_ROOM_REDIS_URL"))
+    let Some(redis_url) =
+        service_skip::redis_url_or_skip("revocation_removes_database_and_redis_session_state")
     else {
         return;
     };

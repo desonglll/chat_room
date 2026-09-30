@@ -134,7 +134,9 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
 
 #[tokio::test]
 async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
-    let Some((admin_url, admin_pool)) = postgres_admin_pool().await else {
+    let Some((admin_url, admin_pool)) =
+        postgres_admin_pool("postgres_upgrades_from_the_pre_fnd_002_schema").await
+    else {
         return;
     };
     let scratch = create_postgres_scratch(&admin_url, &admin_pool, "upgrade").await;
@@ -285,7 +287,9 @@ async fn sqlite_upgrades_from_the_pre_tg_004_schema() {
 
 #[tokio::test]
 async fn postgres_upgrades_from_the_pre_tg_004_schema() {
-    let Some((admin_url, admin_pool)) = postgres_admin_pool().await else {
+    let Some((admin_url, admin_pool)) =
+        postgres_admin_pool("postgres_upgrades_from_the_pre_tg_004_schema").await
+    else {
         return;
     };
     let scratch = create_postgres_scratch(&admin_url, &admin_pool, "chat_rename").await;
