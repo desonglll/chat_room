@@ -70,6 +70,13 @@ const SYSTEM_ADMINISTRATOR_PERMISSIONS: &[&str] = &[
     "members.promote",
 ];
 
+fn effective_permission(chat_type: Option<ChatType>, permission: &str) -> &str {
+    match chat_type {
+        Some(chat_type) => chat_type.effective_permission(permission),
+        None => permission,
+    }
+}
+
 impl AppState {
     /// Decide one chat action. The five steps run in this order and an earlier step never
     /// defers to a later one, except that step 5 can always veto:
@@ -91,13 +98,25 @@ impl AppState {
         user_id: Uuid,
         permission: &str,
     ) -> Result<ChatAuthorization, sqlx::Error> {
+        let chat_type = self.chat_type(room_id).await?;
+        // TG-202: in a channel `message.send` is decided as `message.post`, prerequisites
+        // included (`ChatType::effective_permission`).
+        let permission = effective_permission(chat_type, permission);
         if let Some(required) = prerequisite(permission) {
-            let decision = self.authorize_single(room_id, user_id, required).await?;
+            let decision = self
+                .authorize_single(
+                    room_id,
+                    user_id,
+                    effective_permission(chat_type, required),
+                    chat_type,
+                )
+                .await?;
             if !decision.is_allowed() {
                 return Ok(decision);
             }
         }
-        self.authorize_single(room_id, user_id, permission).await
+        self.authorize_single(room_id, user_id, permission, chat_type)
+            .await
     }
 
     async fn authorize_single(
@@ -105,6 +124,7 @@ impl AppState {
         room_id: Uuid,
         user_id: Uuid,
         permission: &str,
+        chat_type: Option<ChatType>,
     ) -> Result<ChatAuthorization, sqlx::Error> {
         let granted = self
             .chat_permission_grant(room_id, user_id, permission)
@@ -123,7 +143,6 @@ impl AppState {
         }
         // Step 5. Applies to every grant above it, including a system administrator's: no
         // account can pin a forum topic in a one-to-one chat, because the chat cannot hold one.
-        let chat_type = self.chat_type(room_id).await?;
         match chat_type {
             Some(chat_type) if !chat_type.permits(permission) => {
                 Ok(ChatAuthorization::ForbiddenByChatType(chat_type))

@@ -28,6 +28,8 @@ export interface SendVoiceInput {
   /** Exactly `VOICE_WAVEFORM_SAMPLES` integers in `0..VOICE_WAVEFORM_MAX`. */
   waveform: readonly number[]
   replyTo?: string | null
+  /** TG-204: the forum topic to post into; absent = General. */
+  topicId?: string | null
   signal?: AbortSignal
 }
 
@@ -49,6 +51,7 @@ export async function sendVoiceMessage(fetchImpl: FetchLike, input: SendVoiceInp
   form.append('waveform', input.waveform.join(','))
   form.append('duration_ms', String(Math.max(1, Math.round(input.durationMs))))
   if (input.replyTo) form.append('reply_to', input.replyTo)
+  if (input.topicId) form.append('topic_id', input.topicId)
   const response = await fetchImpl(path, {
     method: 'POST',
     cache: 'no-store',

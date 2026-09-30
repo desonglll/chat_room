@@ -57,7 +57,7 @@ pub async fn upload_attachment(
     let mut mime_type = None;
     let mut staged = None;
     let mut content = String::new();
-    let mut reply_to = None;
+    let (mut reply_to, mut topic_id) = (None, None);
     let mut is_sensitive = false;
 
     while let Some(field) = multipart.next_field().await.map_err(|error| {
@@ -76,15 +76,8 @@ pub async fn upload_attachment(
                 content =
                     normalize_caption(field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?)?;
             }
-            Some("reply_to") => {
-                reply_to = field
-                    .text()
-                    .await
-                    .map_err(|_| StatusCode::BAD_REQUEST)?
-                    .parse()
-                    .map(Some)
-                    .map_err(|_| StatusCode::BAD_REQUEST)?;
-            }
+            Some("reply_to") => reply_to = super::upload_validation::multipart_uuid(field).await?,
+            Some("topic_id") => topic_id = super::upload_validation::multipart_uuid(field).await?,
             Some("is_sensitive") => {
                 is_sensitive = field.text().await.map_err(|_| StatusCode::BAD_REQUEST)? == "true";
             }
@@ -103,9 +96,12 @@ pub async fn upload_attachment(
         .upload()
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let placement = state
+        .placement(chat.id, user.id, reply_to, topic_id)
+        .await?;
     let display_name = state.resolve_display_name(chat.id, &user).await;
     let message = state
-        .store_attachment_message(chat.id, &user, &display_name, upload, &content, reply_to)
+        .store_attachment_message(chat.id, &user, &display_name, upload, &content, placement)
         .await
         .map_err(|error| {
             tracing::error!("persist attachment message failed: {}", error);

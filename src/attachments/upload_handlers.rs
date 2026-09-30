@@ -16,10 +16,9 @@ use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
 use super::upload_validation::{
-    authorize, chunk_error, normalize_content_hash, normalize_file_name,
+    authorize, chunk_error, normalize_content_hash, normalize_file_name, placement,
 };
 
-const MAX_MESSAGE_CHARS: usize = 4096;
 const MAX_DIRECT_UPLOAD_BYTES: i64 = 5 * 1024 * 1024 * 1024;
 
 pub use super::upload_models::{
@@ -269,9 +268,10 @@ pub async fn complete_upload(
         return Err(StatusCode::BAD_REQUEST);
     }
     let content = request.content.trim();
-    if content.chars().count() > MAX_MESSAGE_CHARS {
+    if content.chars().count() > super::upload_validation::MAX_MESSAGE_CHARS {
         return Err(StatusCode::BAD_REQUEST);
     }
+    let placement = placement(&state, session.room_id, user.id, &request).await?;
     let _permit = state
         .work_queue()
         .upload()
@@ -306,7 +306,7 @@ pub async fn complete_upload(
                 session.declared_size_bytes,
                 request.is_sensitive,
                 content,
-                request.reply_to,
+                placement,
                 session
                     .content_hash
                     .clone()
@@ -331,7 +331,7 @@ pub async fn complete_upload(
                 session.declared_size_bytes,
                 request.is_sensitive,
                 content,
-                request.reply_to,
+                placement,
                 content_hash,
                 storage_key,
             )
@@ -347,7 +347,7 @@ pub async fn complete_upload(
                 session.mime_type.clone(),
                 request.is_sensitive,
                 content,
-                request.reply_to,
+                placement,
                 session.content_hash.as_deref(),
                 streamed_hash.as_deref(),
             )

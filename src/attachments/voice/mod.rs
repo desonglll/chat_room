@@ -61,6 +61,8 @@ pub struct VoiceUpload {
     /// Already validated by [`model::parse_waveform`].
     pub waveform: Vec<u8>,
     pub reply_to: Option<Uuid>,
+    /// TG-204: the forum topic to post into; `None` = General.
+    pub topic_id: Option<Uuid>,
 }
 
 /// Who may send a voice message into `room_id`: an active member holding `message.send`
@@ -103,6 +105,11 @@ pub async fn send_voice(
     upload: VoiceUpload,
 ) -> Result<StoredMessage, VoiceError> {
     authorize_voice_send(state, room_id, sender).await?;
+    // TG-204: the same topic gate as every other send path (closed topics, foreign topics).
+    let topic_id = state
+        .resolve_post_topic(room_id, sender.id, upload.topic_id)
+        .await
+        .map_err(VoiceError::from_topic)?;
     if upload.waveform.len() != WAVEFORM_SAMPLES {
         return Err(VoiceError::Invalid("invalid_waveform"));
     }
@@ -152,6 +159,7 @@ pub async fn send_voice(
                 duration_source,
                 waveform: upload.waveform,
                 reply_to: upload.reply_to,
+                topic_id,
             },
         )
         .await?;

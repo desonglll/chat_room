@@ -35,6 +35,8 @@ export interface CreateScheduledMessageInput {
   entities?: MessageEntity[]
   reply_to?: string
   silent?: boolean
+  /** TG-204: the forum topic to deliver into; absent = General. */
+  topic_id?: string
 }
 
 /** Absent fields keep their value. `entities` only applies together with `content`. */

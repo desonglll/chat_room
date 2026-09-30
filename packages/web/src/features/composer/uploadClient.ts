@@ -27,6 +27,8 @@ export interface UploadRequest {
   file: UploadSource
   caption: string
   replyTo: string | null
+  /** TG-204: the forum topic to post into; null/absent = General. */
+  topicId?: string | null | undefined
   onProgress(uploadedBytes: number, totalBytes: number): void
   signal?: AbortSignal
   chunkSize?: number
@@ -116,7 +118,12 @@ export async function uploadAttachment(fetchImpl: FetchLike, request: UploadRequ
     init(
       'POST',
       { ...auth, 'Content-Type': 'application/json' },
-      JSON.stringify({ content: request.caption, reply_to: request.replyTo || null, is_sensitive: false }),
+      JSON.stringify({
+        content: request.caption,
+        reply_to: request.replyTo || null,
+        is_sensitive: false,
+        ...(request.topicId ? { topic_id: request.topicId } : {}),
+      }),
     ),
   )
   if (!completed.ok) throw new UploadError('完成上传失败', completed.status)

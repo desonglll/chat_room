@@ -15,6 +15,8 @@ import './features/poll/register'
 import './features/sticker/register'
 // TG-401: registers the voice bubble body with the message content registry.
 import './features/voice/register'
+// TG-305: GIF bubble body, the media panel's GIF tab, and the "保存 GIF" menu row.
+import './features/gif/register'
 
 // Boot order matters: settings → theme attribute → session → render. The session is
 // restored synchronously so the router's first pass already knows whether `/` or

@@ -22,7 +22,7 @@ pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_mes
     reply.recalled_at AS reply_recalled_at, \
     reply_attachment.file_name AS reply_attachment_file_name, \
     messages.favorite_id, messages.forwarded_from_sender, messages.forwarded_from_room_name, \
-    messages.silent, messages.grouped_id FROM messages \
+    messages.topic_id, messages.silent, messages.grouped_id FROM messages \
     LEFT JOIN attachments ON attachments.id = messages.attachment_id \
     LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
     LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
@@ -41,6 +41,15 @@ pub struct NewAttachment {
     pub mime_type: String,
     pub is_sensitive: bool,
     pub staged: StagedUpload,
+}
+
+/// Where a new message sits: the message it answers and its forum topic (TG-204; `topic_id`
+/// is the stored value, `None` = General). Build it with `AppState::placement`, which applies
+/// the topic rule.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MessagePlacement {
+    pub reply_to: Option<Uuid>,
+    pub topic_id: Option<Uuid>,
 }
 
 pub struct AttachmentMetadata {
@@ -76,6 +85,7 @@ pub(crate) struct MessageRow {
     favorite_id: Option<Uuid>,
     forwarded_from_sender: Option<String>,
     forwarded_from_room_name: Option<String>,
+    topic_id: Option<Uuid>,
     silent: bool,
     grouped_id: Option<Uuid>,
 }
@@ -141,6 +151,7 @@ impl MessageRow {
             created_at: self.created_at,
             favorite_id: self.favorite_id,
             forwarded_from,
+            topic_id: self.topic_id,
             silent: self.silent,
             grouped_id: self.grouped_id,
             ..Default::default()

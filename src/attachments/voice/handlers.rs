@@ -51,6 +51,7 @@ pub async fn send(
     let mut waveform = None;
     let mut client_duration_ms = None;
     let mut reply_to = None;
+    let mut topic_id = None;
     while let Some(mut field) = multipart
         .next_field()
         .await
@@ -92,6 +93,17 @@ pub async fn send(
                     );
                 }
             }
+            Some("topic_id") => {
+                let value = text(field).await?;
+                if !value.trim().is_empty() {
+                    topic_id = Some(
+                        value
+                            .trim()
+                            .parse()
+                            .map_err(|_| VoiceError::Invalid("invalid_topic"))?,
+                    );
+                }
+            }
             _ => {}
         }
     }
@@ -103,6 +115,7 @@ pub async fn send(
         client_duration_ms,
         waveform: waveform.ok_or(VoiceError::Invalid("invalid_waveform"))?,
         reply_to,
+        topic_id,
     };
     let message = super::send_voice(&state, room_id, &user, upload).await?;
     Ok((StatusCode::CREATED, Json(message)))

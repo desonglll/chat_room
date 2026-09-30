@@ -1,0 +1,54 @@
+/* TG-305 GIFs: the player, the bubble body and the panel tab. Semantic tokens only. */
+
+.tg-gif {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: var(--tg-skeleton);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-gif__media {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.tg-gif__badge {
+  position: absolute;
+  inset-block-start: var(--tg-space-2);
+  inset-inline-start: var(--tg-space-2);
+  padding: 0 var(--tg-space-1);
+  border-radius: var(--tg-radius-sm);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-service-text);
+  font-size: var(--tg-type-badge-size);
+  font-weight: var(--tg-weight-medium);
+  line-height: 1.6;
+  pointer-events: none;
+}
+
+.tg-gif:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+/* Bubble: sized by the media itself, within the bubble's limits, like a photo. */
+.tg-gif--bubble {
+  inline-size: auto;
+  max-inline-size: 100%;
+}
+
+.tg-gif--bubble .tg-gif__media {
+  inline-size: auto;
+  max-inline-size: 100%;
+  block-size: auto;
+  min-inline-size: calc(var(--tg-space-20) * 1.5);
+  min-block-size: var(--tg-space-20);
+  max-block-size: calc(var(--tg-bubble-max-width) * 0.75);
+}

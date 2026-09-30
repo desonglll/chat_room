@@ -1,0 +1,266 @@
+/*
+ * TG-204 forum topics: the topic list, topic rows and icons, the topic dialog, the
+ * closed-topic bar and the admin switch. Semantic tokens only; a topic's palette colour
+ * arrives as the `--topic-color` custom property (topic data, not a theme value).
+ */
+
+.tg-forum__create {
+  margin-inline-start: auto;
+}
+
+.tg-forum__body {
+  flex: 1;
+  min-height: 0;
+  background: var(--tg-surface);
+}
+
+.tg-forum__loading {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: var(--tg-space-20);
+}
+
+.tg-forum__empty {
+  margin: 0;
+  padding: var(--tg-space-8) var(--tg-space-4);
+  text-align: center;
+  color: var(--tg-text-secondary);
+}
+
+.tg-forum__error {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-forum__list {
+  margin: 0;
+  padding: var(--tg-space-1) var(--tg-space-2);
+  list-style: none;
+}
+
+.tg-topicrow__menu {
+  display: block;
+}
+
+.tg-topicrow {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-2) var(--tg-space-2-5);
+  border-radius: var(--tg-radius-md);
+  color: var(--tg-text-primary);
+  text-decoration: none;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-topicrow:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-topicrow:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-topicrow[data-dimmed] {
+  opacity: 0.55;
+}
+
+.tg-topicrow__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+}
+
+.tg-topicrow__top,
+.tg-topicrow__bottom {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  min-width: 0;
+}
+
+.tg-topicrow__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-topicrow__glyph {
+  display: inline-flex;
+  flex: none;
+  color: var(--tg-text-secondary);
+}
+
+.tg-topicrow__time {
+  margin-inline-start: auto;
+  flex: none;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-topicrow__preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-topicrow__sender {
+  color: var(--tg-text-primary);
+}
+
+/* ── Topic icon ─────────────────────────────────────────────────────────── */
+
+.tg-topic-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  line-height: 1;
+}
+
+.tg-topic-icon--general {
+  color: var(--tg-text-secondary);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-topic-icon__bubble {
+  fill: var(--topic-color, var(--tg-accent));
+}
+
+.tg-topic-icon__letter {
+  fill: var(--tg-text-on-accent);
+  font-size: 10px;
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-forum__title-lock {
+  display: inline-flex;
+  margin-inline-start: var(--tg-space-1);
+  vertical-align: middle;
+  color: var(--tg-text-secondary);
+}
+
+/* ── Closed topic bar (replaces the composer) ──────────────────────────── */
+
+.tg-forum__closed {
+  display: grid;
+  place-items: center;
+  min-height: var(--tg-header-height);
+  padding: var(--tg-space-2) var(--tg-space-4);
+  background: var(--tg-surface);
+  border-top: 1px solid var(--tg-divider);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+}
+
+/* ── Create / edit dialog ───────────────────────────────────────────────── */
+
+.tg-topicdialog {
+  display: grid;
+  gap: var(--tg-space-4);
+}
+
+.tg-topicdialog__preview {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  min-width: 0;
+}
+
+.tg-topicdialog__preview-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-topicdialog__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-3);
+}
+
+.tg-topicdialog__swatch {
+  inline-size: var(--tg-space-8);
+  block-size: var(--tg-space-8);
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--tg-radius-circle);
+  background: var(--topic-color, var(--tg-accent));
+  background-clip: content-box;
+  cursor: pointer;
+}
+
+.tg-topicdialog__swatch[aria-pressed='true'] {
+  border-color: var(--tg-accent);
+  padding: 2px;
+}
+
+.tg-topicdialog__emoji {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tg-space-10), 1fr));
+  gap: var(--tg-space-1);
+}
+
+.tg-topicdialog__emoji-cell {
+  display: grid;
+  place-items: center;
+  block-size: var(--tg-space-10);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  font-size: var(--tg-type-header-size);
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-topicdialog__emoji-cell:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-topicdialog__emoji-cell[aria-pressed='true'] {
+  background: var(--tg-accent-soft);
+}
+
+.tg-topicdialog__swatch:focus-visible,
+.tg-topicdialog__emoji-cell:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+}
+
+.tg-topicdialog__error {
+  margin: 0;
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-label-size);
+}
+
+/* ── Admin switch ───────────────────────────────────────────────────────── */
+
+.tg-forum-toggle {
+  padding: var(--tg-space-2) var(--tg-space-4);
+  border-bottom: var(--tg-space-2) solid var(--tg-bg-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-topicrow,
+  .tg-topicdialog__emoji-cell {
+    transition: none;
+  }
+}

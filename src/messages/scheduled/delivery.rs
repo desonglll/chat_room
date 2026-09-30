@@ -96,7 +96,17 @@ pub(crate) async fn deliver(
         .await?
         .map(|reply| reply.message_id);
     let entities = row.entities();
-    if !may_send {
+    // TG-204: the topic may have been closed (or deleted) since scheduling; a closed topic
+    // refuses the delivery exactly as it would refuse a live send.
+    let topic_allows = match state
+        .resolve_post_topic(row.room_id, sender.id, row.topic_id)
+        .await
+    {
+        Ok(_) => true,
+        Err(crate::chats::TopicError::Database(error)) => return Err(error),
+        Err(_) => false,
+    };
+    if !may_send || !topic_allows {
         discard(state, &row).await?;
         return Ok(None);
     }

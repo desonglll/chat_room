@@ -153,6 +153,10 @@ pub struct SendStickerRequest {
     pub reply_to: Option<Uuid>,
     #[serde(default)]
     pub client_message_id: Option<Uuid>,
+    /// TG-204: the forum topic to post into; absent = General. The handler replaces it with
+    /// the resolved stored value (`None` = General) before `send_sticker_message`.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
 }
 
 /// The `sticker` field of a sticker message in history and in the `broadcast` frame. The

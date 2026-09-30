@@ -11,6 +11,7 @@ import {
   sendScheduledMessageNow,
   updateScheduledMessage,
 } from '@tg/core'
+import { activeTopicId } from '../forum/activeTopic'
 import type { ScheduledStore } from './scheduledStore'
 
 export interface ScheduledActionsDeps {
@@ -46,11 +47,13 @@ export function createScheduledActions({ client, token, store }: ScheduledAction
     },
 
     async schedule(chatId, input) {
+      const topicId = activeTopicId(chatId)
       const created = await createScheduledMessage(client, token(), chatId, {
         content: input.content,
         scheduled_at: input.at.toISOString(),
         ...(input.replyTo ? { reply_to: input.replyTo } : {}),
         ...(input.silent ? { silent: true } : {}),
+        ...(topicId ? { topic_id: topicId } : {}),
       })
       store.getState().upsert(created)
       return created

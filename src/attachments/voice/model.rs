@@ -83,6 +83,19 @@ pub enum VoiceError {
     Storage(anyhow::Error),
 }
 
+impl VoiceError {
+    /// TG-204's topic gate, in this module's wire vocabulary.
+    pub(crate) fn from_topic(error: crate::chats::TopicError) -> Self {
+        use crate::chats::TopicError;
+        match error {
+            TopicError::Database(error) => Self::Database(error),
+            TopicError::NotFound => Self::NotFound,
+            TopicError::Closed | TopicError::Forbidden => Self::Forbidden,
+            _ => Self::Invalid("invalid_topic"),
+        }
+    }
+}
+
 impl From<sqlx::Error> for VoiceError {
     fn from(error: sqlx::Error) -> Self {
         VoiceError::Database(error)

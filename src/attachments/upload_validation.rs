@@ -10,6 +10,8 @@ use crate::user_handlers::bearer_token;
 use super::upload_models::ChunkResponse;
 
 const MAX_FILE_NAME_CHARS: usize = 255;
+/// A caption's ceiling, as for a text message (moved here from `upload_handlers`).
+pub(super) const MAX_MESSAGE_CHARS: usize = 4096;
 
 pub(super) async fn authorize(
     state: &SharedState,
@@ -75,4 +77,25 @@ pub(super) fn chunk_error(
     received_bytes: i64,
 ) -> (StatusCode, Json<ChunkResponse>) {
     (status, Json(ChunkResponse { received_bytes }))
+}
+
+/// A multipart text field holding a UUID (`reply_to`, TG-204's `topic_id`); malformed is 400.
+pub(super) async fn multipart_uuid(
+    field: axum::extract::multipart::Field<'_>,
+) -> Result<Option<Uuid>, StatusCode> {
+    let text = field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?;
+    text.parse().map(Some).map_err(|_| StatusCode::BAD_REQUEST)
+}
+
+/// TG-204: a completed upload's reply target and forum topic, with the topic rule applied.
+pub(super) async fn placement(
+    state: &SharedState,
+    room_id: Uuid,
+    user_id: Uuid,
+    request: &super::upload_models::CompleteUploadRequest,
+) -> Result<crate::message_store::MessagePlacement, StatusCode> {
+    let (reply_to, topic_id) = (request.reply_to, request.topic_id);
+    Ok(state
+        .placement(room_id, user_id, reply_to, topic_id)
+        .await?)
 }

@@ -10,7 +10,7 @@ use crate::state::{with_pool, AppState};
 use crate::stickers::custom_emoji::{entity_store::insert_message_entities, MessageEntity};
 
 const SCHEDULED_SELECT: &str = "SELECT id, room_id, sender_id, content, entities, reply_to_id, \
-    silent, scheduled_at, created_at, updated_at FROM scheduled_messages";
+    silent, scheduled_at, created_at, updated_at, topic_id FROM scheduled_messages";
 
 #[derive(Debug, Clone, FromRow)]
 pub(crate) struct ScheduledRow {
@@ -24,6 +24,8 @@ pub(crate) struct ScheduledRow {
     pub scheduled_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// TG-204: the forum topic; `None` = General.
+    pub topic_id: Option<Uuid>,
 }
 
 impl ScheduledRow {
@@ -39,6 +41,7 @@ impl ScheduledRow {
             content: self.content,
             reply_to: self.reply_to_id,
             silent: self.silent,
+            topic_id: self.topic_id,
             scheduled_at: self.scheduled_at,
             created_at: self.created_at,
             updated_at: self.updated_at,
@@ -95,8 +98,8 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO scheduled_messages (id, room_id, sender_id, content, entities, \
-                 reply_to_id, silent, scheduled_at, created_at, updated_at) \
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                 reply_to_id, silent, scheduled_at, created_at, updated_at, topic_id) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
             )
             .bind(row.id)
             .bind(row.room_id)
@@ -108,6 +111,7 @@ impl AppState {
             .bind(row.scheduled_at)
             .bind(row.created_at)
             .bind(row.updated_at)
+            .bind(row.topic_id)
             .execute(pool)
             .await
             .map(|_| ())
@@ -243,8 +247,8 @@ impl AppState {
                 }
                 let inserted = sqlx::query(
                     "INSERT INTO messages (id, room_id, sender_id, sender, content, reply_to_id, \
-                     silent, created_at) \
-                     SELECT $1, $2, $3, $4, $5, $6, $7, $8 \
+                     silent, created_at, topic_id) \
+                     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9 \
                      WHERE EXISTS (SELECT 1 FROM chat_members WHERE chat_members.room_id = $2 \
                        AND chat_members.user_id = $3 AND chat_members.status = 'active') \
                      AND EXISTS (SELECT 1 FROM chats WHERE chats.id = $2 \
@@ -258,6 +262,7 @@ impl AppState {
                 .bind(delivery.reply_to)
                 .bind(row.silent)
                 .bind(delivery.created_at)
+                .bind(row.topic_id)
                 .execute(&mut *tx)
                 .await?
                 .rows_affected()

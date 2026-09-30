@@ -82,6 +82,12 @@ export interface BroadcastFrame {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'`. */
   sticker?: MessageSticker
+  /** TG-204: the forum topic; omitted (or null) for General and non-forum chats. */
+  topic_id?: string | null
+  /** TG-202: a channel post's view count; omitted for every other message. */
+  views?: number
+  /** TG-202: a signed channel post's author; omitted when unsigned. */
+  post_author?: string
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
   /** TG-404: true when sent without notifications; omitted otherwise. */
@@ -102,6 +108,12 @@ export interface TopicSummary {
   icon_emoji: string
   closed: boolean
   pinned: boolean
+  /** TG-204 additions, each omitted at its default. */
+  icon_color?: number
+  icon_custom_emoji_id?: string | null
+  hidden?: boolean
+  is_general?: boolean
+  deleted?: boolean
 }
 
 export interface MessageViewCount {
@@ -207,6 +219,8 @@ export type ClientFrame =
       reply_to?: string
       client_message_id?: string
       entities?: MessageEntity[]
+      /** TG-204: the forum topic to post into; omitted for General. */
+      topic_id?: string
       /** TG-404: deliver without notifications or push. */
       silent?: boolean
     }

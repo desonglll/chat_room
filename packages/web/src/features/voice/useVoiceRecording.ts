@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { ClientFrame } from '@tg/core'
 import { authStore, createChatActionSender, selectToken, sendVoiceMessage } from '@tg/core'
 import { browserClock, browserFetch } from '../../app/platform'
+import { activeTopicId } from '../forum/activeTopic'
 import { browserRecorderEnv } from './browserRecorderEnv'
 import { createRecordController, type RecordController, type RecordState } from './recordController'
 import { voiceFileName } from './recorderFormat'
@@ -49,6 +50,7 @@ export function useVoiceRecording(options: VoiceRecordingOptions): {
           durationMs: recording.durationMs,
           waveform: recording.waveform,
           replyTo: latest.current.replyTo,
+          topicId: activeTopicId(chatId),
         })
       },
       onSent: () => latest.current.onSent?.(),

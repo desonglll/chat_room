@@ -1,0 +1,83 @@
+/* TG-305 GIF tab: toolbar, virtual masonry grid. Semantic tokens only. */
+
+.tg-gif-tab {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tg-gif-tab__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2);
+}
+
+.tg-gif-tab__notice {
+  margin: 0;
+  padding: 0 var(--tg-space-2) var(--tg-space-2);
+  color: var(--tg-danger);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-gif-tab__state {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: var(--tg-space-4);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  text-align: center;
+}
+
+.tg-gif-tab__grid {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding-inline: var(--tg-space-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tg-gif-tab__canvas {
+  position: relative;
+}
+
+.tg-gif-tab__header {
+  position: absolute;
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  block-size: var(--tg-space-8);
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-gif-tab__cell {
+  position: absolute;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--tg-radius-sm);
+  background: var(--tg-skeleton);
+  cursor: pointer;
+}
+
+.tg-gif-tab__cell:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.tg-gif-tab__cell:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-gif-tab__player {
+  inline-size: 100%;
+  block-size: 100%;
+}
