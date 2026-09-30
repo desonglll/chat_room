@@ -374,10 +374,20 @@ pub async fn forward_favorite(
             });
             continue;
         };
-        match state
-            .forward_favorite(favorite_id, target_room_id, &user)
+        // TG-202: the full decision (restrictions, chat type — a channel needs
+        // `message.post`), not only the role grant the insert re-checks.
+        let may_send = state
+            .has_chat_permission(target_room_id, user.id, "message.send")
             .await
-        {
+            .map_err(internal_error)?;
+        let forwarded = if may_send {
+            state
+                .forward_favorite(favorite_id, target_room_id, &user)
+                .await
+        } else {
+            Ok(None)
+        };
+        match forwarded {
             Ok(Some(message)) => {
                 let forwarded_message_id = message.id;
                 state

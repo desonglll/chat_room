@@ -32,12 +32,16 @@ impl AppState {
         }
         let allowed: bool = with_pool!(self, |pool| {
             sqlx::query_scalar(
+                // TG-202: a channel subscriber holds no key but may react; elsewhere reacting
+                // is sending.
                 "SELECT EXISTS(SELECT 1 FROM messages \
+                 JOIN chats ON chats.id = messages.room_id \
                  JOIN chat_members ON chat_members.room_id = messages.room_id \
                    AND chat_members.user_id = $3 AND chat_members.status = 'active' \
-                 JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
-                   AND chat_role_permissions.permission_key = 'message.send' \
-                 WHERE messages.id = $1 AND messages.room_id = $2 AND messages.recalled_at IS NULL)",
+                 WHERE messages.id = $1 AND messages.room_id = $2 AND messages.recalled_at IS NULL \
+                   AND (chats.chat_type = 'channel' OR EXISTS (SELECT 1 FROM chat_role_permissions \
+                     WHERE chat_role_permissions.role_id = chat_members.role_id \
+                       AND chat_role_permissions.permission_key = 'message.send')))",
             )
             .bind(message_id)
             .bind(room_id)
@@ -114,6 +118,8 @@ impl AppState {
         }
         // TG-302/TG-304: every message loader runs this step, so media and entities ride along.
         self.attach_message_media(messages).await?;
+        // TG-202: a channel post's views and signature ride along the same way.
+        self.attach_channel_post_fields(messages).await?;
         self.attach_message_entities(messages).await
     }
 }

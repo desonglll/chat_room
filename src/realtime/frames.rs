@@ -148,6 +148,12 @@ pub enum ChatMessage {
         /// TG-304: omitted unless the message has entities.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-202: a channel post's view count; omitted for every other message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        views: Option<i64>,
+        /// TG-202: a signed channel post's author; omitted when unsigned.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        post_author: Option<String>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

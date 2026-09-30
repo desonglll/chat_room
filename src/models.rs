@@ -62,6 +62,12 @@ pub struct StoredMessage {
     /// TG-304: formatted ranges of `content` (custom emoji); omitted when there are none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entities: Vec<crate::stickers::custom_emoji::MessageEntity>,
+    /// TG-202: a channel post's view count; omitted for every other message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub views: Option<i64>,
+    /// TG-202: a signed channel post's author; omitted when unsigned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_author: Option<String>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

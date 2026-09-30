@@ -2,6 +2,7 @@
 
 use uuid::Uuid;
 
+use crate::chats::message_moderation::{MessageChange, MessageScope};
 use crate::models::{ChatMember, ChatMessage, TypingAction, User};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
@@ -35,12 +36,19 @@ pub async fn handle_client_message(
     message: ChatMessage,
 ) {
     // TG-201: marking read is reading — a member restricted from sending still does it.
-    let active = if matches!(message, ChatMessage::Read { .. }) {
-        state.can_read_chat(room_id, user.id).await
-    } else {
-        state
-            .has_chat_permission(room_id, user.id, "message.send")
-            .await
+    // TG-202: reacting has its own rule (a channel subscriber reacts), and an edit or recall
+    // is decided per message below (`MessageChange`). In a channel `message.send` is decided
+    // as `message.post`.
+    let active = match message {
+        ChatMessage::Read { .. } | ChatMessage::Edit { .. } | ChatMessage::Recall { .. } => {
+            state.can_read_chat(room_id, user.id).await
+        }
+        ChatMessage::Reaction { .. } => state.may_react(room_id, user.id).await,
+        _ => {
+            state
+                .has_chat_permission(room_id, user.id, "message.send")
+                .await
+        }
     }
     .unwrap_or(false);
     if !active {
@@ -141,10 +149,24 @@ pub async fn handle_client_message(
                 tracing::warn!(%room_id, user_id = %user.id, "message edit queue timed out");
                 return;
             };
-            match state
-                .edit_message(room_id, user.id, message_id, &content, &entities)
+            let edited = match state
+                .authorize_message_change(room_id, user.id, message_id, MessageChange::Edit)
                 .await
             {
+                Ok(Some(MessageScope::Own)) => {
+                    state
+                        .edit_message(room_id, user.id, message_id, &content, &entities)
+                        .await
+                }
+                Ok(Some(MessageScope::Any)) => {
+                    state
+                        .edit_any_message(room_id, message_id, &content, &entities)
+                        .await
+                }
+                Ok(None) => return,
+                Err(error) => Err(error),
+            };
+            match edited {
                 Ok(Some(edited_at)) => {
                     state
                         .broadcast(
@@ -183,6 +205,9 @@ pub async fn handle_client_message(
                 return;
             };
             match state.store_read_cursor(room_id, user.id, message_id).await {
+                // TG-202: a channel has no read receipts — one per subscriber read would
+                // reach every subscriber's connection.
+                Ok(true) if state.is_channel(room_id).await => {}
                 Ok(true) => {
                     state
                         .broadcast(
@@ -232,7 +257,18 @@ pub async fn handle_client_message(
                 tracing::warn!(%room_id, user_id = %user.id, "message recall queue timed out");
                 return;
             };
-            match state.recall_message(room_id, user.id, message_id).await {
+            let recalled = match state
+                .authorize_message_change(room_id, user.id, message_id, MessageChange::Recall)
+                .await
+            {
+                Ok(Some(MessageScope::Own)) => {
+                    state.recall_message(room_id, user.id, message_id).await
+                }
+                Ok(Some(MessageScope::Any)) => state.recall_any_message(room_id, message_id).await,
+                Ok(None) => return,
+                Err(error) => Err(error),
+            };
+            match recalled {
                 Ok(Some(recalled_at)) => {
                     state
                         .broadcast(

@@ -11,6 +11,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::time::timeout;
 use uuid::Uuid;
 
+use crate::chats::ChatType;
 use crate::models::{ChatMessage, TypingAction, UserStatus};
 use crate::realtime::history_replay::replay_history;
 use crate::realtime::outbound::spawn_chat_forwarder;
@@ -147,7 +148,15 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             return;
         }
     };
-    let read_receipts = match state.chat_read_receipts(room_id).await {
+    // TG-202: a channel is quiet — no join/presence/status frames, and the only read cursor
+    // a subscriber needs is its own (`chats::channels`).
+    let quiet = chat.chat_type == ChatType::Channel;
+    let receipts = if quiet {
+        state.own_read_receipts(room_id, user.id).await
+    } else {
+        state.chat_read_receipts(room_id).await
+    };
+    let read_receipts = match receipts {
         Ok(receipts) => receipts,
         Err(error) => {
             tracing::warn!("load chat read receipts failed: {}", error);
@@ -162,6 +171,19 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             tracing::warn!("load viewer chat title failed: {error}");
             chat.title.clone()
         }
+    };
+    // TG-202: a channel's connected list is its connected staff, not every subscriber.
+    let members = if quiet {
+        members
+            .into_iter()
+            .filter(|member| {
+                participants
+                    .iter()
+                    .any(|staff| staff.user_id == member.user_id)
+            })
+            .collect()
+    } else {
+        members
     };
     // TG-505: statuses and the connected list are filtered by last-seen privacy per viewer.
     let (statuses, visible_members) = state
@@ -199,7 +221,9 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         return;
     };
 
-    if membership.is_some() {
+    if quiet {
+        // Nothing to announce.
+    } else if membership.is_some() {
         state
             .broadcast(
                 room_id,
@@ -222,7 +246,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             )
             .await;
     }
-    if first_connection || membership.is_some() {
+    if !quiet && (first_connection || membership.is_some()) {
         // After the join system/presence frame; clients must not rely on that order.
         state
             .broadcast(
@@ -263,7 +287,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
     forwarder.abort();
     let (members, last_connection) = state.member_disconnected(room_id, user.id).await;
     let last_seen = touch_last_seen(&state, user.id).await;
-    if last_connection {
+    if last_connection && !quiet {
         state
             .broadcast(
                 room_id,
