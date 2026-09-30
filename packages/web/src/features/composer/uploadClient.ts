@@ -1,0 +1,124 @@
+/**
+ * Resumable chunked attachment upload for the composer: create the session, PUT the
+ * chunks at the server-confirmed offset, complete it with the caption. The completed
+ * message reaches every client (this one included) as a normal `broadcast` frame, so
+ * nothing here touches the message store.
+ *
+ * `@tg/core`'s `ApiClient` only speaks JSON bodies; a chunk is raw bytes, so the
+ * transport is an injected fetch (the app passes `browserFetch`, tests a fake). No
+ * content hash is sent: it is optional server-side (dedup + direct-to-OSS need it) and
+ * hashing a large file in the page before upload would double the wait. See devlog
+ * Decisions.
+ */
+import type { FetchLike, StoredMessage } from '@tg/core'
+import { UPLOAD_CHUNK_SIZE } from '@tg/core'
+
+export interface UploadSource {
+  name: string
+  size: number
+  type: string
+  lastModified?: number
+  slice(start: number, end: number): Blob
+}
+
+export interface UploadRequest {
+  chatId: string
+  token: string
+  file: UploadSource
+  caption: string
+  replyTo: string | null
+  onProgress(uploadedBytes: number, totalBytes: number): void
+  signal?: AbortSignal
+  chunkSize?: number
+}
+
+export class UploadError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'UploadError'
+  }
+}
+
+const CREATE_ERRORS: Record<number, string> = {
+  413: '文件超出大小限制',
+  409: '所选文件与未完成上传的内容不一致',
+  403: '没有在此会话发送文件的权限',
+}
+
+function abortIfNeeded(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    const error = new Error('upload cancelled')
+    error.name = 'AbortError'
+    throw error
+  }
+}
+
+export async function uploadAttachment(fetchImpl: FetchLike, request: UploadRequest): Promise<StoredMessage> {
+  const { file, token, signal } = request
+  const auth = { Authorization: `Bearer ${token}` }
+  const init = (method: string, headers: Record<string, string>, body?: BodyInit): RequestInit => ({
+    method,
+    headers,
+    cache: 'no-store',
+    ...(body === undefined ? {} : { body }),
+    ...(signal ? { signal } : {}),
+  })
+
+  const created = await fetchImpl(
+    `/api/chats/${encodeURIComponent(request.chatId)}/attachments/uploads`,
+    init(
+      'POST',
+      { ...auth, 'Content-Type': 'application/json' },
+      JSON.stringify({
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        size_bytes: file.size,
+        fingerprint: `${file.name}:${file.size}:${file.lastModified ?? 0}`,
+      }),
+    ),
+  )
+  if (!created.ok) throw new UploadError(CREATE_ERRORS[created.status] ?? '创建上传失败', created.status)
+  const session = (await created.json()) as { upload_id: string; received_bytes: number }
+  const uploadPath = `/api/attachments/uploads/${encodeURIComponent(session.upload_id)}`
+  const chunkSize = request.chunkSize ?? UPLOAD_CHUNK_SIZE
+
+  let offset = session.received_bytes
+  request.onProgress(offset, file.size)
+  while (offset < file.size) {
+    abortIfNeeded(signal)
+    const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size))
+    const response = await fetchImpl(
+      `${uploadPath}/chunks?offset=${offset}`,
+      init('PUT', { ...auth, 'Content-Type': 'application/octet-stream' }, chunk),
+    )
+    if (response.status === 409) {
+      // Offset mismatch: the server tells us where it actually is — resume from there.
+      const body = (await response.json()) as { received_bytes?: number }
+      const received = body.received_bytes
+      if (typeof received !== 'number' || received < 0 || received > file.size || received === offset) {
+        throw new UploadError('上传分片失败', 409)
+      }
+      offset = received
+    } else if (!response.ok) {
+      throw new UploadError('上传分片失败', response.status)
+    } else {
+      offset = ((await response.json()) as { received_bytes: number }).received_bytes
+    }
+    request.onProgress(offset, file.size)
+  }
+
+  abortIfNeeded(signal)
+  const completed = await fetchImpl(
+    `${uploadPath}/complete`,
+    init(
+      'POST',
+      { ...auth, 'Content-Type': 'application/json' },
+      JSON.stringify({ content: request.caption, reply_to: request.replyTo || null, is_sensitive: false }),
+    ),
+  )
+  if (!completed.ok) throw new UploadError('完成上传失败', completed.status)
+  return (await completed.json()) as StoredMessage
+}

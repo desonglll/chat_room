@@ -1,0 +1,280 @@
+/*
+ * TG-104 composer. Imported once from src/styles/index.css. Root class `tg-compose`
+ * (not `tg-composer`, which the retiring minimal composer in styles/chat.css still owns).
+ * Semantic `--tg-*` tokens only; every transition has a reduced-motion fallback below.
+ */
+
+@import url('./composerLayers.css');
+
+.tg-compose {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-4) var(--tg-space-3);
+}
+
+.tg-compose__field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--tg-surface);
+  border-radius: var(--tg-radius-sheet);
+  box-shadow: var(--tg-shadow-composer);
+}
+
+.tg-compose__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--tg-space-1);
+  padding-inline: var(--tg-space-1);
+}
+
+.tg-compose__tool {
+  flex: none;
+  margin-block: var(--tg-space-1);
+  color: var(--tg-text-tertiary);
+}
+
+.tg-compose__tool:hover,
+.tg-compose__tool[aria-expanded='true'] {
+  color: var(--tg-accent);
+}
+
+.tg-compose__input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  /* ~12 lines, then the field scrolls — Telegram's cap. */
+  max-height: calc(var(--tg-type-message-line) * 12 + var(--tg-space-3) * 2);
+  padding: var(--tg-space-3) var(--tg-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  letter-spacing: inherit;
+  resize: none;
+  overflow-y: auto;
+}
+
+.tg-compose__input::placeholder {
+  color: var(--tg-text-tertiary);
+}
+
+.tg-compose__input:focus-visible {
+  outline: none;
+}
+
+.tg-compose__send {
+  flex: none;
+  transition: transform var(--tg-transition-press);
+}
+
+.tg-compose__send:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* ---- reply / edit / forward bar ---- */
+
+.tg-compose__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-2) var(--tg-space-2) 0 var(--tg-space-3);
+  animation: tg-compose-bar-in var(--tg-duration-enter) var(--tg-ease-decelerate);
+}
+
+.tg-compose__bar-icon {
+  flex: none;
+  display: grid;
+  color: var(--tg-accent);
+}
+
+.tg-compose__bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding-inline-start: var(--tg-space-2);
+  border-inline-start: var(--tg-space-0-5) solid var(--tg-accent);
+}
+
+.tg-compose__bar-title {
+  color: var(--tg-accent);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-compose__bar-body {
+  overflow: hidden;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tg-compose__bar-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tg-control-height);
+  height: var(--tg-control-height);
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: transparent;
+  color: var(--tg-text-tertiary);
+  cursor: pointer;
+}
+
+.tg-compose__bar-close:hover {
+  background: var(--tg-surface-hover);
+  color: var(--tg-text-secondary);
+}
+
+@keyframes tg-compose-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--tg-space-2));
+  }
+}
+
+/* ---- floating layers over the field: mentions, format toolbar ---- */
+
+.tg-compose__mentions,
+.tg-compose__format {
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: calc(100% + var(--tg-space-2));
+  z-index: 2;
+  background: var(--tg-surface-raised);
+  border-radius: var(--tg-radius-lg);
+  box-shadow: var(--tg-shadow-menu);
+  animation: tg-compose-pop var(--tg-duration-enter) var(--tg-ease-spring);
+}
+
+.tg-compose__mentions {
+  inset-inline-end: 0;
+  max-height: calc(var(--tg-menu-row-height) * 5.5);
+  margin: 0;
+  padding: var(--tg-space-1) 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tg-compose__mention {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  min-height: var(--tg-menu-row-height);
+  padding-inline: var(--tg-space-3);
+  cursor: pointer;
+}
+
+.tg-compose__mention[aria-selected='true'] {
+  background: var(--tg-surface-hover);
+}
+
+.tg-compose__mention-name {
+  color: var(--tg-text-primary);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-compose__mention-handle {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-compose__format {
+  display: flex;
+  gap: var(--tg-space-0-5);
+  padding: var(--tg-space-1);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+}
+
+.tg-compose__format-button {
+  min-width: var(--tg-control-height);
+  height: var(--tg-control-height);
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-compose__format-button:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-compose__format-button[data-kind='bold'] {
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-compose__format-button[data-kind='italic'] {
+  font-style: italic;
+}
+
+.tg-compose__format-button[data-kind='underline'] {
+  text-decoration: underline;
+}
+
+.tg-compose__format-button[data-kind='strike'] {
+  text-decoration: line-through;
+}
+
+.tg-compose__format-button[data-kind='code'] {
+  font-family: var(--tg-font-mono);
+}
+
+.tg-compose__format-url {
+  width: calc(var(--tg-space-20) * 2.5);
+  padding-inline: var(--tg-space-2);
+  border: 0;
+  background: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+}
+
+.tg-compose__format-url:focus-visible {
+  outline: none;
+}
+
+@keyframes tg-compose-pop {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+/* ---- calculator hint, notices ---- */
+
+.tg-compose__calc {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-0-5) var(--tg-space-2);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-accent-soft);
+  color: var(--tg-accent);
+  font-size: var(--tg-type-meta-size);
+  white-space: nowrap;
+}
+
+.tg-compose__calc kbd {
+  color: var(--tg-text-secondary);
+  font: inherit;
+}
+
+.tg-compose__notice {
+  margin: 0;
+  padding: 0 var(--tg-space-4) var(--tg-space-2);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-meta-size);
+}

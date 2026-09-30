@@ -1,0 +1,242 @@
+/*
+ * TG-104 composer overlays: emoji panel, drag-and-drop zones, pending-files dialog,
+ * plus the reduced-motion fallback for every composer animation.
+ */
+
+/* ---- emoji panel (emoji-picker-element themed through --tg-* tokens) ---- */
+
+.tg-compose__emoji-popover {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tg-compose__emoji {
+  display: grid;
+  min-width: calc(var(--tg-space-20) * 4);
+  min-height: calc(var(--tg-space-20) * 4.5);
+}
+
+.tg-compose__emoji-picker {
+  width: calc(var(--tg-space-20) * 4.2);
+  max-width: 84vw;
+  height: calc(var(--tg-space-20) * 4.5);
+  --background: var(--tg-surface-raised);
+  --border-color: var(--tg-divider);
+  --indicator-color: var(--tg-accent);
+  --outline-color: var(--tg-focus-ring);
+  --input-border-color: var(--tg-border);
+  --input-font-color: var(--tg-text-primary);
+  --input-placeholder-color: var(--tg-text-tertiary);
+  --category-font-color: var(--tg-text-secondary);
+  --button-hover-background: var(--tg-surface-hover);
+  --button-active-background: var(--tg-accent-soft);
+  --category-emoji-size: var(--tg-icon-md);
+}
+
+.tg-compose__emoji-error {
+  place-self: center;
+  color: var(--tg-text-secondary);
+}
+
+/* ---- drag and drop ---- */
+
+.tg-compose__drop {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-4);
+  box-sizing: border-box;
+  background: var(--tg-overlay);
+  animation: tg-compose-fade var(--tg-duration-fade) var(--tg-ease-standard);
+}
+
+.tg-compose__drop-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tg-space-2);
+  border: var(--tg-space-0-5) dashed var(--tg-border-strong);
+  border-radius: var(--tg-radius-xl);
+  background: var(--tg-surface);
+  color: var(--tg-text-secondary);
+  transition:
+    border-color var(--tg-transition-fade),
+    color var(--tg-transition-fade);
+}
+
+.tg-compose__drop-zone[data-over] {
+  border-color: var(--tg-accent);
+  color: var(--tg-accent);
+}
+
+.tg-compose__drop-zone > * {
+  pointer-events: none;
+}
+
+.tg-compose__drop-title {
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-compose__drop-hint {
+  font-size: var(--tg-type-subtitle-size);
+}
+
+@keyframes tg-compose-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---- pending files dialog ---- */
+
+.tg-compose__pending-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--tg-space-20) * 1.4), 1fr));
+  gap: var(--tg-space-2);
+  max-height: 50vh;
+  margin: 0 0 var(--tg-space-3);
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tg-compose__pending-item {
+  position: relative;
+  display: grid;
+  min-height: calc(var(--tg-space-20) * 1.4);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-bg-secondary);
+  overflow: hidden;
+}
+
+.tg-compose__pending-item[data-kind='file'] {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.tg-compose__pending-item[data-status='sent'] {
+  opacity: var(--tg-opacity-disabled);
+}
+
+.tg-compose__pending-thumb {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.tg-compose__pending-file {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-2) var(--tg-space-10) var(--tg-space-2) var(--tg-space-2);
+}
+
+.tg-compose__pending-file-icon {
+  display: grid;
+  place-items: center;
+  width: var(--tg-avatar-sm);
+  height: var(--tg-avatar-sm);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-compose__pending-file-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-compose__pending-file-name {
+  overflow: hidden;
+  color: var(--tg-text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tg-compose__pending-file-size {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-compose__pending-progress {
+  position: absolute;
+  inset: auto var(--tg-space-1) var(--tg-space-1);
+  width: calc(100% - var(--tg-space-2));
+  height: var(--tg-space-1);
+  accent-color: var(--tg-accent);
+}
+
+.tg-compose__pending-error {
+  position: absolute;
+  inset: auto 0 0;
+  padding: var(--tg-space-1);
+  background: var(--tg-danger-soft);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-compose__pending-remove {
+  position: absolute;
+  top: var(--tg-space-1);
+  right: var(--tg-space-1);
+  display: grid;
+  place-items: center;
+  width: var(--tg-space-6);
+  height: var(--tg-space-6);
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-service-text);
+  cursor: pointer;
+}
+
+.tg-compose__pending-rejected {
+  margin: 0 0 var(--tg-space-2);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-compose__pending-caption {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: var(--tg-space-3);
+  padding: var(--tg-space-2) 0;
+  border: 0;
+  border-bottom: var(--tg-space-0-5) solid var(--tg-accent);
+  background: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+}
+
+.tg-compose__pending-caption:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-compose__bar,
+  .tg-compose__mentions,
+  .tg-compose__format {
+    animation: tg-compose-fade var(--tg-duration-fade) linear;
+  }
+
+  .tg-compose__drop {
+    animation: none;
+  }
+
+  .tg-compose__send,
+  .tg-compose__drop-zone {
+    transition: none;
+  }
+
+  .tg-compose__send:active:not(:disabled) {
+    transform: none;
+  }
+}
