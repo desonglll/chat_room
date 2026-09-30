@@ -28,6 +28,7 @@ import { ConnectedChatRow } from './ConnectedChatRow'
 import { NewChatDialog } from './NewChatDialog'
 import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
+import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
 
 export interface ChatListPaneProps {
   collapsed?: boolean | undefined
@@ -177,6 +178,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
             </li>
           ))}
         </ul>
+        {query.trim() && !collapsed ? <PublicSearchResults query={query} /> : null}
       </ScrollArea>
       <NewChatDialog
         open={creating}

@@ -14,6 +14,7 @@ import { EmptyChatState } from '../features/shell/EmptyChatState'
 import { WorkspaceShell } from '../features/shell/WorkspaceShell'
 import { StickerSetLinkRoute } from '../features/sticker/StickerSetLinkRoute'
 import { JoinChatRoute } from '../features/inviteLinks/JoinChatRoute'
+import { PublicChatRoute } from '../features/chatPreview/PublicChatRoute'
 
 function RequireSession({ children }: { children: ReactNode }) {
   const authenticated = useStore(authStore, (state) => state.session !== null)
@@ -46,6 +47,7 @@ export const appRouter = createBrowserRouter([
       { path: '/chat/:chatId/topic/:topicId', element: <ForumTopicRoute /> },
       { path: '/addstickers/:shortName', element: <StickerSetLinkRoute /> },
       { path: '/joinchat/:token', element: <JoinChatRoute /> },
+      { path: '/public/:username', element: <PublicChatRoute /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

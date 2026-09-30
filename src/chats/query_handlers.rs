@@ -18,6 +18,10 @@ pub struct ListQuery {
     /// clients keep working on both paths.
     #[serde(alias = "name")]
     pub title: Option<String>,
+    /// TG-206 (discover only): case-insensitive search — a public handle starting with `q`
+    /// (a leading `@` is ignored) or a title containing it.
+    #[serde(default)]
+    pub q: Option<String>,
 }
 
 #[utoipa::path(
@@ -70,7 +74,8 @@ pub async fn list_chats(
 #[utoipa::path(
     get,
     path = "/api/chats/discover",
-    params(("title" = Option<String>, Query, description = "Filter by exact chat title")),
+    params(("title" = Option<String>, Query, description = "Filter by exact chat title"),
+        ("q" = Option<String>, Query, description = "Search: public handle prefix or title substring")),
     responses((status = 200, description = "Discoverable public chats", body = Vec<Chat>))
 )]
 pub async fn discover_chats(
@@ -82,6 +87,21 @@ pub async fn discover_chats(
     let mut chats = state.list_chats(query.title.as_deref()).await;
     // A private chat is never discoverable: nobody but its two participants may join it.
     chats.retain(|chat| chat.chat_type != ChatType::Private && !chat.has_password);
+    if let Some(search) = query.q.as_deref().map(str::trim).filter(|q| !q.is_empty()) {
+        let needle = search.trim_start_matches('@').to_lowercase();
+        chats.retain(|chat| {
+            chat.username
+                .as_deref()
+                .is_some_and(|handle| handle.starts_with(&needle))
+                || chat.title.to_lowercase().contains(&needle)
+        });
+        // Exact handle first, then other handle matches, then title matches.
+        chats.sort_by_key(|chat| match chat.username.as_deref() {
+            Some(handle) if handle == needle => 0,
+            Some(handle) if handle.starts_with(&needle) => 1,
+            _ => 2,
+        });
+    }
 
     if let Some(token) = optional_bearer_token(&headers) {
         if let Some(user) = state
