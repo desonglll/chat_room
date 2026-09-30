@@ -121,6 +121,8 @@ export interface StoredMessage {
   voice?: VoiceNote
   /** TG-404: true when sent without notifications; omitted otherwise. */
   silent?: boolean
+  /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
+  grouped_id?: string
 }
 
 /**

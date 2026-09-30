@@ -17,6 +17,8 @@ import './features/sticker/register'
 import './features/voice/register'
 // TG-305: GIF bubble body, the media panel's GIF tab, and the "保存 GIF" menu row.
 import './features/gif/register'
+// TG-403: the album mosaic body for collapsed album rows.
+import './features/album/register'
 
 // Boot order matters: settings → theme attribute → session → render. The session is
 // restored synchronously so the router's first pass already knows whether `/` or

@@ -13,6 +13,7 @@
  */
 import type { ClientFrame, DisplayMessage, ComposerModeEvent } from '@tg/core'
 import type { DeliveryStatus, MessageActions } from '../message'
+import { rowMessageIds } from '../album/albumCollapse'
 
 export interface MessageActionDeps {
   chatId: string
@@ -37,6 +38,9 @@ export function bindMessageActions(message: DisplayMessage, deps: MessageActionD
   const own = message.sender_id !== null && message.sender_id === deps.viewerId
   const server = !id.startsWith('pending:')
   const text = message.content
+  // TG-403: an album row stands for all of its items — delete, forward and select act on
+  // every item; reply, react, pin and the caption edit address the first (Telegram).
+  const ids = rowMessageIds(message)
   const viewerReacted = (emoji: string) =>
     message.reactions.some((reaction) => reaction.emoji === emoji && reaction.user_ids.includes(deps.viewerId))
 
@@ -46,14 +50,14 @@ export function bindMessageActions(message: DisplayMessage, deps: MessageActionD
       own && server && text.trim() !== '' && !message.poll
         ? () => deps.dispatchMode(deps.chatId, { type: 'edit', messageId: id, text })
         : undefined,
-    onDelete: own && server ? () => deps.requestDelete([id]) : undefined,
-    onForward: server ? () => deps.requestForward([id]) : undefined,
+    onDelete: own && server ? () => deps.requestDelete(ids) : undefined,
+    onForward: server ? () => deps.requestForward(ids) : undefined,
     onReact: server
       ? (emoji) => deps.sendFrame({ type: 'reaction', message_id: id, emoji, active: !viewerReacted(emoji) })
       : undefined,
     onPin: deps.canPin && server ? () => deps.pin(id) : undefined,
     onCopy: text.trim() !== '' ? () => deps.copy(text) : undefined,
-    onSelect: server ? () => deps.toggleSelected(id) : undefined,
+    onSelect: server ? () => ids.forEach((itemId) => deps.toggleSelected(itemId)) : undefined,
     onOpenMedia: (attachmentId) => deps.openMedia(attachmentId),
     onJumpTo: (messageId) => deps.jumpTo(messageId),
   }

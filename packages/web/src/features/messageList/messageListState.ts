@@ -5,6 +5,7 @@
  */
 import type { BroadcastMessage, DisplayMessage } from '@tg/core'
 import { broadcastIds, messageKey, withoutLive } from '@tg/core'
+import { createAlbumCollapser, rowMessageIds } from '../album/albumCollapse'
 
 export const FIRST_ITEM_INDEX_BASE = 10_000_000
 export const OLDER_PAGE_SIZE = 50
@@ -121,6 +122,9 @@ export const initialMessageListState = (): MessageListState => ({
 /** Rows for a state + live timeline. Pure; the view memoizes it. */
 export type WindowShape = Pick<MessageListState, 'mode' | 'older' | 'olderHasMore' | 'detached' | 'detachedHasOlder'>
 
+// TG-403: consecutive items of one album render as one row.
+const collapseAlbums = createAlbumCollapser()
+
 export function visibleWindow(state: WindowShape, live: DisplayMessage[]): VisibleWindow {
   let all: DisplayMessage[]
   let hasOlder: boolean
@@ -133,6 +137,7 @@ export function visibleWindow(state: WindowShape, live: DisplayMessage[]): Visib
     all = older.length > 0 ? (older as DisplayMessage[]).concat(live) : live
     hasOlder = state.olderHasMore
   }
+  all = collapseAlbums(all)
   return { all, hidden: hasOlder && all.length > 1 ? 1 : 0 }
 }
 
@@ -149,6 +154,8 @@ export function rowIndexOf(view: VisibleWindow, messageId: string): number {
   for (let index = view.hidden; index < view.all.length; index += 1) {
     const message = view.all[index] as DisplayMessage
     if (message.type === 'broadcast' && message.message_id === messageId) return index - view.hidden
+    // TG-403: jumping to any item of an album lands on the album row.
+    if (rowMessageIds(message).includes(messageId)) return index - view.hidden
     if (messageKey(message) === messageId) return index - view.hidden
   }
   return -1
