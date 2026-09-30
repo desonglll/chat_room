@@ -33,6 +33,19 @@ devlog_field() {
   sed -n "s/^- ${field}:[[:space:]]*//p" "$file" 2>/dev/null | head -1
 }
 
+# A task's devlog lives inside its worktree while the task is active, and in the
+# main checkout once the branch has been merged and the worktree removed.
+devlog_path() {
+  local task="$1" id in_worktree
+  id="$(lower "$task")"
+  in_worktree="${WORKTREE_ROOT}/${id}/docs/devlog/${task}.md"
+  if [ -f "$in_worktree" ]; then
+    printf '%s' "$in_worktree"
+  else
+    printf '%s' "${DEVLOG_DIR}/${task}.md"
+  fi
+}
+
 cmd_new() {
   local task_raw="${1:-}" slug="${2:-}"
   [ -n "$task_raw" ] || die "usage: $0 new <TASK-ID> <slug>"
@@ -43,7 +56,9 @@ cmd_new() {
   id="$(lower "$task")"
   path="${WORKTREE_ROOT}/${id}"
   branch="agent/${id}-${slug}"
-  devlog="${DEVLOG_DIR}/${task}.md"
+  # The devlog lives inside the worktree so it can be committed together with
+  # the code it describes, as the protocol requires.
+  devlog="${path}/docs/devlog/${task}.md"
 
   [ -e "$path" ] && die "worktree already exists: ${path}"
   git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/${branch}" &&
@@ -66,7 +81,7 @@ cmd_new() {
       -e "s|<BASE-COMMIT>|${base_sha} (${base_subject})|g" \
       -e "s|<DATE>|$(date '+%Y-%m-%d')|g" \
       "$TEMPLATE" >"$devlog"
-    printf 'created devlog: docs/devlog/%s.md\n' "$task"
+    printf 'created devlog: %s\n' "${devlog#$REPO_ROOT/}"
   fi
 
   cat <<EOF
@@ -97,7 +112,7 @@ cmd_list() {
   for dir in "$WORKTREE_ROOT"/*/; do
     [ -d "$dir" ] || continue
     task="$(upper "$(basename "$dir")")"
-    devlog="${DEVLOG_DIR}/${task}.md"
+    devlog="$(devlog_path "$task")"
     status='(no devlog)'
     branch='?'
     updated='-'
@@ -114,8 +129,9 @@ cmd_status() {
   local task="${1:-}"
   [ -n "$task" ] || die "usage: $0 status <TASK-ID>"
   task="$(upper "$task")"
-  local devlog="${DEVLOG_DIR}/${task}.md"
-  [ -f "$devlog" ] || die "no devlog: docs/devlog/${task}.md"
+  local devlog
+  devlog="$(devlog_path "$task")"
+  [ -f "$devlog" ] || die "no devlog for ${task} in either the worktree or the main checkout"
   # Print the handoff snapshot only: that is what an incoming agent needs.
   awk '/^## Handoff snapshot/{p=1} /^## /{if(p && !/^## Handoff snapshot/) exit} p' "$devlog"
 }
@@ -127,12 +143,12 @@ cmd_check() {
   local id path devlog failed=0
   id="$(lower "$task")"
   path="${WORKTREE_ROOT}/${id}"
-  devlog="${DEVLOG_DIR}/${task}.md"
+  devlog="$(devlog_path "$task")"
   [ -d "$path" ] || die "no worktree: ${path}"
 
   printf '== devlog completeness ==\n'
   if [ ! -f "$devlog" ]; then
-    printf 'FAIL  docs/devlog/%s.md does not exist\n' "$task"
+    printf 'FAIL  %s does not exist\n' "${devlog#"$REPO_ROOT"/}"
     failed=1
   else
     local field
@@ -153,8 +169,9 @@ cmd_check() {
     [ "$failed" -eq 0 ] && printf 'ok\n'
   fi
 
+  # Audit the worktree's own tree, not the main checkout.
   printf '\n== migration parity ==\n'
-  if python3 "${REPO_ROOT}/scripts/check_migration_parity.py" 2>&1; then
+  if (cd "$path" && python3 scripts/check_migration_parity.py) 2>&1; then
     printf 'ok\n'
   else
     printf 'FAIL\n'
@@ -162,7 +179,7 @@ cmd_check() {
   fi
 
   printf '\n== file sizes ==\n'
-  if python3 "${REPO_ROOT}/scripts/check_file_sizes.py" 2>&1; then
+  if (cd "$path" && python3 scripts/check_file_sizes.py) 2>&1; then
     printf 'ok\n'
   else
     printf 'FAIL\n'
@@ -198,7 +215,8 @@ cmd_rm() {
   fi
   git -C "$REPO_ROOT" worktree remove "$path"
   printf 'removed %s\n' "$path"
-  printf 'the branch and docs/devlog/%s.md are kept. Set Status: merged or abandoned in the devlog.\n' "$task"
+  printf 'branch %s is kept; the devlog survives on it. Set Status: merged or abandoned before removing.\n' \
+    "agent/$(lower "$task")-*"
 }
 
 case "${1:-}" in
