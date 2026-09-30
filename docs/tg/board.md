@@ -208,6 +208,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 ## 集成负责人自己引入的缺陷
 
+- **2026-10-01** 在主 checkout 解决 TG-506 合并冲突时用了 `git add -A`，把本机未跟踪的 `web-v2/`（6136 个构建残留文件，含 node_modules）提交进了合并提交 `a2c73a5`。TG-306 的 agent 发现（文件大小审计 341 个错误）。已在 `36dfcae` 取消跟踪并加入 `.git/info/exclude`。**推送 `dev` 前必须用 index-filter 从 `a2c73a5` 起的历史中彻底清除 `web-v2/`**，否则约 185 MB 垃圾进入远端。教训：冲突解决只 `git add` 冲突文件本身。
+
 诚实记录，和 agent 的缺陷同等对待。
 
 - **2026-09-30** `f044c5d`（重写 web_client 测试）只跑了那个测试本身就提交，没过 `cargo fmt --check` —— main 的 fmt 门禁红了一轮，被 TG-007 与 TG-013 两个 agent 各自独立撞见（它们的分支在红基线上无法自绿）。已修（`b88c4af`）。教训：单文件测试修复也要走完整门禁清单；另外本机 rustfmt 无 toolchain pin，fmt 结论跨机器不可复现，TG-013 的 agent 建议加 `rust-toolchain.toml`，值得单独考虑。
