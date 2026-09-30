@@ -13,9 +13,10 @@
 use chrono::Utc;
 use uuid::Uuid;
 
+use super::permissions::{member_role_grants, DEFAULT_MEMBER_PERMISSIONS};
 use super::provisioning::{
     grant_role_permission, insert_chat_row, insert_system_role, system_role_id,
-    upsert_active_member, MEMBER_PERMISSIONS,
+    upsert_active_member,
 };
 use super::ChatType;
 use crate::direct_conversations::{self, PrivateChatPeer};
@@ -131,11 +132,11 @@ impl AppState {
                 Some(chat_id) => chat_id,
                 None => {
                     let chat = new_private_chat(now);
-                    // Exactly the two participants join below, so member_count is 2.
-                    insert_chat_row(&mut *transaction, &chat, None, 2).await?;
+                    // The membership triggers count the two participants inserted below.
+                    insert_chat_row(&mut *transaction, &chat, None).await?;
                     let role_id = system_role_id(chat.id, "member");
                     insert_system_role(&mut *transaction, &role_id, chat.id, "member", now).await?;
-                    for permission in MEMBER_PERMISSIONS {
+                    for permission in member_role_grants(DEFAULT_MEMBER_PERMISSIONS) {
                         grant_role_permission(&mut *transaction, &role_id, permission).await?;
                     }
                     direct_conversations::record_pair(&mut *transaction, chat.id, low, high, now)

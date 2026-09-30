@@ -5,28 +5,39 @@
 //! `docs/devlog/TG-004.md` "Frozen interface".
 
 pub mod access;
+pub mod admin_handlers;
+pub mod admin_models;
+pub mod admin_rights;
 pub mod authorization;
 pub mod bans;
+pub mod capabilities;
+pub(crate) mod chat_projection;
 pub mod chat_type;
 pub mod compat;
+pub mod default_permissions;
 pub mod drafts;
 pub mod governance_handlers;
 pub mod handlers;
 pub(crate) mod lifecycle;
 pub mod lifecycle_handlers;
+pub mod member_page;
 pub mod membership_handlers;
 pub mod membership_mutations;
 pub mod message_history;
 pub mod models;
 pub mod participants;
+pub mod permissions;
 pub mod private_chat_handlers;
 pub mod private_chats;
 pub mod provisioning;
 pub mod query_handlers;
+pub mod restrictions;
+pub mod roster_handlers;
 pub mod routes;
 pub mod supergroup_upgrade;
 
 pub use authorization::ChatAuthorization;
+pub use capabilities::{CapabilityError, CapabilityOutcome, ChatCapabilityChange};
 pub use chat_type::ChatType;
 pub use compat::ApiDialect;
 pub use supergroup_upgrade::{

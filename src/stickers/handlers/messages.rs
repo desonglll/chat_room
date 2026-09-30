@@ -25,7 +25,8 @@ pub async fn send_sticker(
     headers: HeaderMap,
     Json(request): Json<SendStickerRequest>,
 ) -> Result<(StatusCode, Json<StoredMessage>), StickerError> {
-    let (chat, user) = authorize_upload(&state, room_id, &headers).await?;
+    // TG-201: stickers have their own key (`message.send_sticker`, which implies sending).
+    let (chat, user) = authorize_upload(&state, room_id, &headers, "message.send_sticker").await?;
     let _permit = state
         .work_queue()
         .message()

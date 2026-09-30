@@ -4,9 +4,11 @@
 //! path calls it — `AGENTS.md` requires authorization at read time as well as write time, so
 //! there is deliberately no cheaper variant for reads to reach for.
 
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::chat_type::ChatType;
+use super::permissions::prerequisite;
 use crate::state::{with_pool, AppState};
 
 /// Why a chat action was allowed or refused. The variant is the audit trail: a caller that
@@ -22,6 +24,8 @@ pub enum ChatAuthorization {
     RolePermission,
     /// Step 3 — no role in this chat carries the permission for this account.
     NoRolePermission,
+    /// Step 4 — a role grants it, but a per-member restriction denies it until it expires.
+    RestrictedForMember,
     /// Step 5 — something granted the permission, but the chat's type cannot do it at all.
     ForbiddenByChatType(ChatType),
 }
@@ -42,6 +46,7 @@ impl ChatAuthorization {
             ChatAuthorization::Creator => "creator",
             ChatAuthorization::RolePermission => "role_permission",
             ChatAuthorization::NoRolePermission => "no_role_permission",
+            ChatAuthorization::RestrictedForMember => "restricted_for_member",
             ChatAuthorization::ForbiddenByChatType(_) => "forbidden_by_chat_type",
         }
     }
@@ -61,6 +66,8 @@ const SYSTEM_ADMINISTRATOR_PERMISSIONS: &[&str] = &[
     "members.invite",
     "members.remove",
     "members.roles",
+    "members.ban",
+    "members.promote",
 ];
 
 impl AppState {
@@ -69,12 +76,31 @@ impl AppState {
     ///
     /// 1. system administrator
     /// 2. chat creator
-    /// 3. role permission from `chat_role_permissions`
-    /// 4. per-user restriction — **reserved for M2** (`chat_member_restrictions`); it belongs
-    ///    between 3 and 5 and nowhere else, because it must be able to override a role grant
-    ///    while still being subject to the intrinsic constraint
+    /// 3. role permission from `chat_role_permissions`, or an administrator's explicit rights
+    ///    from `chat_admin_rights` when they were appointed with a selection
+    /// 4. per-user restriction from `chat_member_restrictions` — overrides a step-3 grant,
+    ///    never a step-1/2 one, and an expired restriction no longer counts even before the
+    ///    background cleanup has deleted it
     /// 5. `chat_type` intrinsic constraint, which can only turn an allow into a deny
+    ///
+    /// A key with a prerequisite (sending a sticker needs sending at all) is decided on the
+    /// prerequisite first; a denial there is the answer.
     pub async fn authorize_chat_action(
+        &self,
+        room_id: Uuid,
+        user_id: Uuid,
+        permission: &str,
+    ) -> Result<ChatAuthorization, sqlx::Error> {
+        if let Some(required) = prerequisite(permission) {
+            let decision = self.authorize_single(room_id, user_id, required).await?;
+            if !decision.is_allowed() {
+                return Ok(decision);
+            }
+        }
+        self.authorize_single(room_id, user_id, permission).await
+    }
+
+    async fn authorize_single(
         &self,
         room_id: Uuid,
         user_id: Uuid,
@@ -85,6 +111,15 @@ impl AppState {
             .await?;
         if !granted.is_allowed() {
             return Ok(granted);
+        }
+        // Step 4. Only a role grant can be overridden: the creator and a system
+        // administrator are not members that a restriction speaks to.
+        if granted == ChatAuthorization::RolePermission
+            && self
+                .chat_restriction_active(room_id, user_id, permission, Utc::now())
+                .await?
+        {
+            return Ok(ChatAuthorization::RestrictedForMember);
         }
         // Step 5. Applies to every grant above it, including a system administrator's: no
         // account can pin a forum topic in a one-to-one chat, because the chat cannot hold one.
@@ -97,7 +132,7 @@ impl AppState {
         }
     }
 
-    /// Steps 1 to 3. Step 4 slots in at the end of this function when M2 adds the table.
+    /// Steps 1 to 3.
     async fn chat_permission_grant(
         &self,
         room_id: Uuid,
@@ -134,26 +169,66 @@ impl AppState {
             .is_allowed())
     }
 
-    /// Step 3 on its own — the pre-TG-005 behaviour, kept separate so the decision order is
-    /// readable rather than buried in one query.
+    /// The read gate: an active member may read a chat's history, files and search results.
+    ///
+    /// Reading is deliberately not a permission key. Before TG-201 read paths asked for
+    /// `message.send`, which made a muted member (or every member of a group whose defaults
+    /// switch sending off) unable to read — Telegram's restricted members still read.
+    pub async fn can_read_chat(&self, room_id: Uuid, user_id: Uuid) -> Result<bool, sqlx::Error> {
+        self.is_chat_participant(room_id, user_id).await
+    }
+
+    /// Step 3 on its own. An administrator appointed with an explicit selection holds exactly
+    /// the rows in `chat_admin_rights`; every other active member holds their role's grants.
     pub async fn has_chat_role_permission(
         &self,
         room_id: Uuid,
         user_id: Uuid,
         permission: &str,
     ) -> Result<bool, sqlx::Error> {
-        with_pool!(self, |pool| {
+        let granted: Option<bool> = with_pool!(self, |pool| {
             sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM chat_members \
-                 JOIN chat_role_permissions \
-                   ON chat_role_permissions.role_id = chat_members.role_id \
-                 WHERE chat_members.room_id = $1 AND chat_members.user_id = $2 \
-                 AND chat_members.status = 'active' \
-                 AND chat_role_permissions.permission_key = $3)",
+                "SELECT CASE \
+                   WHEN roles.name = 'admin' AND EXISTS (SELECT 1 FROM chat_admin_rights AS own \
+                     WHERE own.room_id = members.room_id AND own.user_id = members.user_id) \
+                   THEN EXISTS (SELECT 1 FROM chat_admin_rights AS own \
+                     WHERE own.room_id = members.room_id AND own.user_id = members.user_id \
+                       AND own.permission_key = $3) \
+                   ELSE EXISTS (SELECT 1 FROM chat_role_permissions AS grants \
+                     WHERE grants.role_id = members.role_id AND grants.permission_key = $3) \
+                 END \
+                 FROM chat_members AS members \
+                 JOIN chat_roles AS roles ON roles.id = members.role_id \
+                 WHERE members.room_id = $1 AND members.user_id = $2 \
+                   AND members.status = 'active'",
             )
             .bind(room_id)
             .bind(user_id)
             .bind(permission)
+            .fetch_optional(pool)
+            .await
+        })?;
+        Ok(granted.unwrap_or(false))
+    }
+
+    /// Step 4 on its own: is `permission` denied to this account right now?
+    pub async fn chat_restriction_active(
+        &self,
+        room_id: Uuid,
+        user_id: Uuid,
+        permission: &str,
+        now: DateTime<Utc>,
+    ) -> Result<bool, sqlx::Error> {
+        with_pool!(self, |pool| {
+            sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM chat_member_restrictions \
+                 WHERE room_id = $1 AND user_id = $2 AND denied_permission_key = $3 \
+                   AND (until IS NULL OR until > $4))",
+            )
+            .bind(room_id)
+            .bind(user_id)
+            .bind(permission)
+            .bind(now)
             .fetch_one(pool)
             .await
         })

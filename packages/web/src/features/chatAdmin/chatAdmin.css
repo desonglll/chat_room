@@ -1,0 +1,223 @@
+/*
+ * TG-201 chat administration. Semantic tokens only. The panel fills whatever host it is
+ * given (ChatAdminEntry: a right sheet over the info column).
+ */
+
+.tg-chatadmin__sheet {
+  padding: 0;
+}
+
+.tg-chatadmin {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  block-size: 100%;
+  background: var(--tg-surface);
+  color: var(--tg-text-primary);
+}
+
+.tg-chatadmin__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  flex: none;
+  min-height: var(--tg-header-height);
+  padding-inline: var(--tg-space-2);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-chatadmin__heading {
+  flex: 1;
+  margin: 0;
+  padding-inline-start: var(--tg-space-2);
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatadmin__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.tg-chatadmin__error {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  color: var(--tg-text-danger);
+  background: var(--tg-danger-soft);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-chatadmin__type {
+  display: grid;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-4);
+  border-bottom: var(--tg-space-2) solid var(--tg-bg-secondary);
+}
+
+.tg-chatadmin__type-label {
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatadmin__type-count,
+.tg-chatadmin__note {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-chatadmin__note {
+  margin: 0;
+  padding-inline: var(--tg-space-4);
+  padding-block: var(--tg-space-2);
+}
+
+.tg-chatadmin__type .tg-chatadmin__note {
+  padding: 0;
+}
+
+.tg-chatadmin__navlist,
+.tg-chatadmin__members {
+  margin: 0;
+  padding: var(--tg-space-1) 0;
+  list-style: none;
+}
+
+.tg-chatadmin__nav,
+.tg-chatadmin__member-button,
+.tg-chatadmin__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-4);
+  inline-size: 100%;
+  min-height: var(--tg-menu-row-height);
+  padding: var(--tg-space-2) var(--tg-space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+div.tg-chatadmin__member-button {
+  cursor: default;
+}
+
+.tg-chatadmin__nav:hover,
+button.tg-chatadmin__member-button:hover,
+.tg-chatadmin__entry:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-chatadmin__nav:focus-visible,
+.tg-chatadmin__member-button:focus-visible,
+.tg-chatadmin__entry:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-chatadmin__nav {
+  justify-content: space-between;
+}
+
+.tg-chatadmin__nav-value {
+  color: var(--tg-text-link);
+}
+
+.tg-chatadmin__member-text,
+.tg-chatadmin__entry-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-chatadmin__member-name,
+.tg-chatadmin__entry-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatadmin__member-sub,
+.tg-chatadmin__entry-sub {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-chatadmin__member-sub[data-tone='danger'] {
+  color: var(--tg-text-danger);
+}
+
+.tg-chatadmin__badge {
+  flex: none;
+  color: var(--tg-text-link);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-chatadmin__entry-icon {
+  display: inline-flex;
+  color: var(--tg-text-secondary);
+}
+
+.tg-chatadmin__editor {
+  display: grid;
+  gap: var(--tg-space-2);
+  padding-block: var(--tg-space-2);
+}
+
+.tg-chatadmin__lead {
+  margin: 0;
+  padding-inline: var(--tg-space-4);
+}
+
+.tg-chatadmin__checklist {
+  display: grid;
+  gap: var(--tg-space-1);
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  border: 0;
+}
+
+.tg-chatadmin__section-title {
+  padding: 0 0 var(--tg-space-2);
+  color: var(--tg-text-link);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatadmin__check {
+  min-height: var(--tg-touch-min);
+}
+
+.tg-chatadmin__section {
+  padding: var(--tg-space-2) var(--tg-space-4);
+}
+
+.tg-chatadmin__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-4);
+}
+
+.tg-chatadmin__actions[data-stack] {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* The only motion here is the hover fade; the sheet's slide is @tg/ui's and has its own
+   reduced-motion fallback. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-chatadmin__nav,
+  .tg-chatadmin__member-button,
+  .tg-chatadmin__entry {
+    transition: none;
+  }
+}

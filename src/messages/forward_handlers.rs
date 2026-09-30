@@ -49,8 +49,9 @@ pub async fn forward_messages(
             }
             continue;
         };
+        // TG-201: reading the source needs membership, not the right to send there.
         let is_source_member = state
-            .has_chat_permission(source_room_id, user.id, "message.send")
+            .can_read_chat(source_room_id, user.id)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         if !is_source_member {

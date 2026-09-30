@@ -56,8 +56,10 @@ pub async fn list_messages(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    // TG-201: reading needs an active membership, not the right to send — a muted member
+    // still reads.
     if !state
-        .has_chat_permission(id, user.id, "message.send")
+        .can_read_chat(id, user.id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {

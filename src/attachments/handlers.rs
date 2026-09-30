@@ -52,7 +52,7 @@ pub async fn upload_attachment(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<(StatusCode, Json<StoredMessage>), StatusCode> {
-    let (chat, user) = authorize_upload(&state, room_id, &headers).await?;
+    let (chat, user) = authorize_upload(&state, room_id, &headers, "message.send_media").await?;
     let mut file_name = None;
     let mut mime_type = None;
     let mut staged = None;
@@ -253,6 +253,7 @@ pub(crate) async fn authorize_upload(
     state: &SharedState,
     room_id: Uuid,
     headers: &HeaderMap,
+    permission: &str,
 ) -> Result<(Chat, User), StatusCode> {
     let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     if chat.has_password {
@@ -280,16 +281,9 @@ pub(crate) async fn authorize_upload(
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    if !state
-        .has_chat_permission(room_id, user.id, "message.send")
-        .await
-        .map_err(|error| {
-            tracing::error!("check attachment permission failed: {}", error);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-    {
-        return Err(StatusCode::FORBIDDEN);
-    }
+    // TG-201: the content kind's own key (message.send_media, message.send_sticker).
+    crate::chats::membership_handlers::require_permission(state, room_id, user.id, permission)
+        .await?;
     Ok((chat, user))
 }
 
