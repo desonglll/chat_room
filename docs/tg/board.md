@@ -226,6 +226,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 ## 集成负责人自己引入的缺陷
 
+- **2026-10-01** 合并 TG-305 后只跑了 bun 门禁就合并 TG-205 并挂载 UI，cargo 门禁到最后才跑——才发现 `main` 自 TG-305 合并起**无法编译**：TG-305 基线早于 TG-201，其 GIF 发送调用 `authorize_upload` 少了 TG-201 新增的权限参数。已修（GIF 用 `message.send_sticker`，与 Telegram「贴纸与 GIF」同权）。教训：含 Rust 的分支合并后先跑 `cargo clippy` 再合下一个。
+
 - **2026-10-01** 在主 checkout 解决 TG-506 合并冲突时用了 `git add -A`，把本机未跟踪的 `web-v2/`（6136 个构建残留文件，含 node_modules）提交进了合并提交 `a2c73a5`。TG-306 的 agent 发现（文件大小审计 341 个错误）。已在 `36dfcae` 取消跟踪并加入 `.git/info/exclude`。**推送 `dev` 前必须用 index-filter 从 `a2c73a5` 起的历史中彻底清除 `web-v2/`**，否则约 185 MB 垃圾进入远端。教训：冲突解决只 `git add` 冲突文件本身。
 
 诚实记录，和 agent 的缺陷同等对待。
