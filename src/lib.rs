@@ -45,7 +45,6 @@ pub use admin::{
     system_lock as admin_system_lock,
 };
 pub use api_doc::ApiDoc;
-pub use api_doc_tg::TgApiDoc;
 pub(crate) use attachments::content as attachment_content;
 pub use attachments::{
     file_handlers, handlers as attachment_handlers, storage as attachment_storage,

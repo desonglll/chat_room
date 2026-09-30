@@ -1,6 +1,6 @@
 //! The OpenAPI entries of the Telegram-parity programme (M1 onwards), split from `api_doc.rs`
-//! when that list crossed the 350-line gate. `chats::compat::openapi_with_deprecated_chat_alias`
-//! merges both documents into the one spec the server serves. Same rules as `api_doc.rs`: the
+//! when that list crossed the 350-line gate. `ApiDoc::openapi()` (`api_doc.rs`) merges both
+//! documents, so every consumer sees one spec. Same rules as `api_doc.rs`: the
 //! glob import keeps entries in their `lib.rs`-relative spelling; register a new task's
 //! endpoints here.
 use crate::*;
@@ -119,4 +119,4 @@ use utoipa::OpenApi;
         accounts::two_factor::ConfirmRecoveryEmailRequest,
     ))
 )]
-pub struct TgApiDoc;
+pub(crate) struct TgApiDoc;

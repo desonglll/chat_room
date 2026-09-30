@@ -247,4 +247,17 @@ use utoipa::OpenApi;
         audit::AuditEventPage,
     ))
 )]
+struct LegacyApiDoc;
+
+/// The whole document: the entries below plus the Telegram-parity ones (`api_doc_tg.rs`).
+/// Every consumer (the served spec, `tests/openapi_contract_test.rs`) goes through this, so
+/// the split is invisible outside these two files.
 pub struct ApiDoc;
+
+impl OpenApi for ApiDoc {
+    fn openapi() -> utoipa::openapi::OpenApi {
+        let mut document = LegacyApiDoc::openapi();
+        document.merge(crate::api_doc_tg::TgApiDoc::openapi());
+        document
+    }
+}
