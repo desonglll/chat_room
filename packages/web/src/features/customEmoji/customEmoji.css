@@ -103,3 +103,13 @@
     transition: none;
   }
 }
+
+/* Dev fixture page only (fixtures/index.html). */
+.tg-custom-emoji-fixture {
+  max-inline-size: 30rem;
+  margin: 0 auto;
+  padding: var(--tg-space-4);
+  background: var(--tg-surface);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+}
