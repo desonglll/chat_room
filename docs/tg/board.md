@@ -5,7 +5,7 @@
 任务详情见 `docs/tg/roadmap.md`。每个进行中任务的细节见 `docs/devlog/<TASK-ID>.md`。
 
 - 盘点提交：`a16f422`
-- **绿色基线提交：`bd22ebf`** —— TG-007+TG-013 合并加四个负责人修复之后，实测 69 个测试二进制 312 过 0 挂（PG+Redis env 全设并真实执行；此前各处说的「18 个 PostgreSQL 测试」是标注错误，实为 16 PG + 2 Redis 门控）
+- **绿色基线提交：`6be5fa4`** —— TG-008+TG-011 合并加集成补丁与审计修复之后：cargo 72 个测试二进制 322 过 0 挂（PG+Redis 真实执行）、迁移 parity 53 对、bun 全仓 230 过 0 挂、fmt/clippy/文件大小全绿
 - 归档 tag：`archive/master-2026-09-30`（见 D-008）
 - 盘点日期：2026-09-30
 - 当前里程碑：**M0**
@@ -29,14 +29,15 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 ## 当前在飞的任务
 
-两个 worktree 并行。两者的卡都写了 `packages/core/src/**`，按**文件**划分所有权：TG-008 只写 `packages/core/src/api/drafts.ts` 与 `packages/core/src/domain/draft*`（及其测试），**不碰任何 `index.ts`**（re-export 行作为集成补丁交负责人）；TG-011 拥有 `packages/core/**` 其余全部，包括所有 `index.ts` 与 `composerStore` 骨架。
-
 | 任务 | worktree | 分支 | 说明 |
 | --- | --- | --- | --- |
-| TG-008 | `.claude/worktrees/tg-008` | `agent/tg-008-cloud-drafts` | 云端草稿：`chat_drafts` 表 + `PUT /api/chats/:id/draft` + `draft_updated` 帧（TG-007 已冻结帧形状与同账号路由）。迁移 `20261001000004` |
-| TG-011 | `.claude/worktrees/tg-011` | `agent/tg-011-core-skeleton` | `packages/core` 五层骨架 + 迁移旧 `web/src` 框架无关模块。获准改 `packages/core/package.json` + `bun.lock` 加 zustand（架构文档指定，负责人预批） |
+| TG-012 | `.claude/worktrees/tg-012` | `agent/tg-012-login-shell` | M0 收口：登录/注册 + 三栏壳 + 最简会话/消息/输入，消费 `@tg/core` + `@tg/ui`。共享构建目录（本波唯一 cargo 用户） |
 
-TG-008 用 cargo（共享构建目录，本波唯一 cargo 用户）；TG-011 纯 bun。TG-007 的私有 target 目录（17 GB）已在合并后删除。
+**TG-012 接线时要处理的接缝**（本波审计遗留，均已知会该 agent）：
+
+- `composerStore.applyDraftUpdated` 允许任何 `draft_updated` 帧覆盖仅本地草稿（`updatedAt === ''` 绕过陈旧守卫），而 `domain/draftSync.accept` 的语义是「正在输入的这块键盘赢」。接线时以 draftSync 的策略为准；若需改 core 一行，走集成补丁。
+- `packages/core/tsconfig.json` 的 `types:["bun"]` 把 WHATWG 环境类型也授给了 `src/`，架构上的「第二道网」失效——应拆分 src/test 两个 tsconfig（跟进项，不阻塞）。
+- `chatSocket` 的 `createSocket` 同步抛出时会静默卡在 `connecting`（可重试但无自愈）；补拉过滤用 RFC3339 字符串字典序比较（同源 chrono 低风险）。均记录在案。
 
 ### 已集成
 
@@ -49,13 +50,15 @@ TG-008 用 cargo（共享构建目录，本波唯一 cargo 用户）；TG-011 �
 | TG-003 `build.rs` 切 React 产物 | `3f2822e` | rebase 到 main 后**亲自起服务器 curl 验证**，不采信报告：`GET /` 返回含 `<div id="root">` 的 React `index.html`；**`/assets/app.js`（Vue 入口）→ 404**；React 入口 200、220080 字节与 Vite 自报一致；服务的 bundle 里 `react-dom` 1 次、`createRoot` 2 次、`__REACT_DEVTOOLS_GLOBAL_HOOK__` 8 次，而 `createApp` 0 次、`primevue` 0 次，且含 `App.tsx` 的字面文本。另验 `src/web.rs` 硬嵌的 9 个遗留路径全部 200，**合成的 `sw.js` 确实是自注销版且对 `app.js` 的引用为 0 次** —— 旧 Service Worker 会把回访浏览器钉在 404 上，这是卡上没写、agent 自己发现的。 |
 | TG-010 `packages/ui` 基础组件 | `38095c3` + `0d46042` | 集成补丁由负责人实测后落地：avatar 七色 token 补进两主题且集合仍完全一致（77=77）；`--tg-duration-loop` 放在 reduced-motion 折叠块之外的理由成立（循环动效收成 1ms 会频闪）；`.prettierignore` 按 14 个文件逐一测量后保留（出处标注是承重结构）；`bunfig.toml` 把裸 `bun test` 圈进 `packages/`，根 124/0、`web/` 208/0。**该合并当时未更新看板，此行为事后补记（见协议失效记录）。** |
 | TG-004+005+006 Chat 重命名 | `9d09c2d` + `d12aae2` | rebase 到 main 零文件交集；基线四行补丁由负责人折进功能提交，保持该提交自绿。独立验证未采信自我报告：fmt/clippy 干净；全量套件在 `TEST_POSTGRES_ADMIN_URL` 下全绿 —— 唯一失败定位为 main 自 TG-003 起的既有红灯（`web_client` 测试两侧逐字节相同），非本分支回归，已修于 `f044c5d`；bun 门禁 124/0 且 lockfile 无变化；四路对抗验证全绿：**SQLite** 64 个迁移用 CLI 3.51.0（默认 `legacy_alter_table=ON`，风险真实）全量重放 —— 触发器体确认重写、FK 探针拒绝孤儿行、`rooms`/`room_%` 对象为零、`foreign_key_check` 零行；**PostgreSQL** 54 个迁移重放 —— `pg_proc.prosrc` 扫描零旧表名、`record_room_join_notification` 确认重建、双触发路径带回滚冒烟通过、95 个外键全解析；**门禁突变**：501 行种子确实被咬、无陈旧基线键；迁移 parity 52 对。遗留（外观）：PostgreSQL 约束名保留旧名，devlog 已记。 |
+| TG-008 云端草稿 | `8d62e9d` | 负责人独立验证:合并树 cargo 72 个二进制 322/0、parity 53 对;对抗审计确认——`draft_updated` 唯一发射点走 `AppState::broadcast`(隐私过滤生效,live 测试驱动真实 PUT 断言他人账号收不到)、读写路径都重查活跃成员、幂等 PUT 不广播、迁移与 devlog schema 一致且无重命名隐患、日志零草稿正文。卡片修正:列名 `room_id`(TG-004 冻结规则)。它实测发现的共享构建目录陈旧 `sqlx::migrate!` 嵌入隐患已由集成补丁修入 `build.rs`。 |
+| TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
 | TG-009 Design tokens | `785953a` | rebase 到 main 后独立验证：**`day.css` 与 `night.css` 各声明 70 个 token 且集合完全一致**，6 个强调色文件集合亦完全一致 —— 主题切换不可能留下未定义变量（这是 agent 没提、但最容易出问题的不变量）。`preview.html` 对 `--tg-raw-` 原语的引用数为 **0**，且十六进制、`rgb()`/`hsl()`、命名颜色字面量各为 **0** —— 它确实只靠语义 token 上色，所以是证明而非效果图。原语仅被 token 层自身引用。每个值带 `[web]`/`[desktop]`/`[ios]`/`[derived]`/`[ours]` 出处标注，真实值与猜测值可区分。文件大小最大 253 行。 |
 
 ## 顺序约束
 
-剩余顺序：`TG-008` ∥ `TG-011`（进行中，core 内按文件切分，见在飞表）→ 两者齐 + `TG-003` ✓ + `TG-010` ✓ → `TG-012`（M0 收口）。
+剩余顺序：`TG-012`（进行中）→ M0 完成，开放 M1 三路并行。
 
 ## M0 地基
 
@@ -69,12 +72,12 @@ TG-008 用 cargo（共享构建目录，本波唯一 cargo 用户）；TG-011 �
 | TG-005 Rust 模块与类型重命名 | L | **merged** `9d09c2d`（同一提交） | agent:TG-004 | — | TG-004 ✓ |
 | TG-006 API 路径重命名与 alias | M | **merged** `9d09c2d`（同一提交） | agent:TG-004 | — | TG-005 ✓ |
 | TG-007 WebSocket 帧扩展 | M | **merged** `20913a5` | agent:TG-007 | — | TG-005 ✓ |
-| TG-008 云端草稿 | M | **in-progress** | agent:TG-008 | `tg-008` | TG-006 ✓, TG-007 ✓ |
+| TG-008 云端草稿 | M | **merged** `8d62e9d` | agent:TG-008 | — | TG-006 ✓, TG-007 ✓ |
 | TG-009 Design tokens 提取 | M | **merged** `785953a` | agent:TG-009 | — | — |
 | TG-013 修正 PostgreSQL 测试静默跳过 | S | **merged** `e786895` | agent:TG-013 | — | — |
 | TG-010 `packages/ui` 基础组件 | L | **merged** `38095c3`+`0d46042` | agent:TG-010 | — | TG-002 ✓, TG-009 ✓ |
-| TG-011 `packages/core` 骨架与逻辑迁移 | L | **in-progress** | agent:TG-011 | `tg-011` | TG-002 ✓, TG-006 ✓, TG-007 ✓ |
-| TG-012 登录与最小可用壳 | M | not-started | — | — | TG-003 ✓, TG-010 ✓, TG-011 |
+| TG-011 `packages/core` 骨架与逻辑迁移 | L | **merged** `6fc80a6` | agent:TG-011 | — | TG-002 ✓, TG-006 ✓, TG-007 ✓ |
+| TG-012 登录与最小可用壳 | M | **in-progress** | agent:TG-012 | `tg-012` | TG-003 ✓, TG-010 ✓, TG-011 ✓ |
 
 **M0 完成标志** 新 React 客户端能完成 注册 → 建群 → 发消息 → 刷新保留 → 第二浏览器实时收到；CI 全绿；共享构建目录体积记录在案。
 
