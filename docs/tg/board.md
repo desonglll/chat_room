@@ -58,6 +58,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-103 消息气泡系统 | `588054c` → `6108b90` | 负责人合并树复跑：三包 lint/typecheck 0，测试 core 147/0、ui 103/0、web 126/0（新增 86），文件大小通过。气泡经 `registerMessageContent` 注册表开放给 M3/M4 的新消息类型。已知：附件无宽高元数据，图片加载后行高变化（TG-101 的高度修正要兜住）；气泡与尾巴假定 LTR；相册比对待 TG-403。 |
 | TG-107 输入状态与在线状态 UI | `d1d5d2d` → `4181c4f` | 负责人在合并树上复跑：三包 lint/typecheck 全 0，测试 core 147/0、ui 103/0、web 40/0；文件大小（排除本机未跟踪的 `web-v2/` 构建残留）与迁移 parity 53 对通过。组件尚未挂载，待 TG-101/102 合并后由负责人接线。已知限制：服务端尚无 last-seen 持久化，未见过下线的用户显示「离线」，归 TG-505。 |
 | TG-009 Design tokens | `785953a` | rebase 到 main 后独立验证：**`day.css` 与 `night.css` 各声明 70 个 token 且集合完全一致**，6 个强调色文件集合亦完全一致 —— 主题切换不可能留下未定义变量（这是 agent 没提、但最容易出问题的不变量）。`preview.html` 对 `--tg-raw-` 原语的引用数为 **0**，且十六进制、`rgb()`/`hsl()`、命名颜色字面量各为 **0** —— 它确实只靠语义 token 上色，所以是证明而非效果图。原语仅被 token 层自身引用。每个值带 `[web]`/`[desktop]`/`[ios]`/`[derived]`/`[ours]` 出处标注，真实值与猜测值可区分。文件大小最大 253 行。 |
 
@@ -92,9 +93,9 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | --- | --- | --- | --- | --- | --- |
 | TG-101 虚拟消息列表 ← 最高风险 | XL | A | in-progress | — | TG-012 |
 | TG-102 三栏布局与会话侧栏 | L | B | in-progress | — | TG-012 |
-| TG-103 消息气泡系统 | L | C | in-progress | — | TG-012 |
+| TG-103 消息气泡系统 | L | C | **merged** `6108b90` | — | TG-012 |
 | TG-104 输入框 | L | B | blocked | — | TG-102, TG-008 |
-| TG-105 媒体查看器 | M | C | blocked | — | TG-103 |
+| TG-105 媒体查看器 | M | C | in-progress | — | TG-103 |
 | TG-106 右侧信息面板 | M | A | blocked | — | TG-101 |
 | TG-107 粒度输入状态与在线状态 UI | S | B | **merged** `4181c4f` | — | TG-007 |
 | TG-108 动效审计与 reduced-motion | M | C | blocked | — | M1 其余项 |
