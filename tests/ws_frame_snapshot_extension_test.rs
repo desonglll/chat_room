@@ -26,17 +26,48 @@ fn serialized(message: &ChatMessage) -> serde_json::Value {
     serde_json::to_value(message).unwrap()
 }
 
+/// Pins one server→client frame three ways, mirroring `ws_frame_snapshot_legacy_test.rs`:
+/// the order-insensitive `Value` snapshot (the readable shape), the exact serialised string
+/// (serde emits struct fields in declaration order, so a field reorder is a real wire change
+/// the `Value` comparison alone cannot see), and the exact string parsed back against the
+/// snapshot (so a typo in the literal cannot pin a wrong shape).
+fn assert_wire(frame: &ChatMessage, snapshot: serde_json::Value, exact: &str) {
+    assert_eq!(serialized(frame), snapshot);
+    assert_eq!(serde_json::to_string(frame).unwrap(), exact);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(exact).unwrap(),
+        snapshot
+    );
+}
+
 #[test]
 fn typing_carries_the_action_and_defaults_it_for_legacy_clients() {
-    assert_eq!(
-        serialized(&ChatMessage::Typing {
+    assert_wire(
+        &ChatMessage::Typing {
             content: "dra".into(),
             action: TypingAction::RecordingVoice,
             user_id: Some(id(3)),
             username: Some("alice".into()),
-        }),
+        },
         json!({ "type": "typing", "content": "dra", "action": "recording_voice",
-            "user_id": id(3), "username": "alice" })
+            "user_id": id(3), "username": "alice" }),
+        concat!(
+            r#"{"type":"typing","content":"dra","action":"recording_voice","#,
+            r#""user_id":"00000000-0000-0000-0000-000000000003","username":"alice"}"#
+        ),
+    );
+
+    // On output `user_id` / `username` are omitted — not null — when absent, per their
+    // `skip_serializing_if = "Option::is_none"` attrs in `src/realtime/frames.rs`.
+    assert_wire(
+        &ChatMessage::Typing {
+            content: String::new(),
+            action: TypingAction::Cancel,
+            user_id: None,
+            username: None,
+        },
+        json!({ "type": "typing", "content": "", "action": "cancel" }),
+        r#"{"type":"typing","content":"","action":"cancel"}"#,
     );
 
     // A pre-TG-007 client sends no action: that means plain typing.
@@ -101,8 +132,8 @@ fn auth_ok_gains_a_per_user_status_snapshot() {
             },
         ],
     };
-    assert_eq!(
-        serialized(&frame),
+    assert_wire(
+        &frame,
         json!({
             "type": "auth_ok",
             "room_name": "general",
@@ -111,31 +142,69 @@ fn auth_ok_gains_a_per_user_status_snapshot() {
                 { "user_id": id(3), "status": { "kind": "online" } },
                 { "user_id": id(4), "status": { "kind": "empty" } }
             ]
-        })
+        }),
+        concat!(
+            r#"{"type":"auth_ok","room_name":"general","members":[],"participants":[],"#,
+            r#""read_receipts":[],"#,
+            r#""statuses":[{"user_id":"00000000-0000-0000-0000-000000000003","#,
+            r#""status":{"kind":"online"}},"#,
+            r#"{"user_id":"00000000-0000-0000-0000-000000000004","#,
+            r#""status":{"kind":"empty"}}]}"#
+        ),
     );
 }
 
 #[test]
 fn user_status_frame_serializes_every_tier() {
-    assert_eq!(
-        serialized(&ChatMessage::UserStatusChanged {
+    assert_wire(
+        &ChatMessage::UserStatusChanged {
             user_id: id(3),
             status: UserStatus::Offline { last_seen: when() },
-        }),
+        },
         json!({ "type": "user_status", "user_id": id(3),
-            "status": { "kind": "offline", "last_seen": "2026-09-30T12:00:00Z" } })
+            "status": { "kind": "offline", "last_seen": "2026-09-30T12:00:00Z" } }),
+        concat!(
+            r#"{"type":"user_status","user_id":"00000000-0000-0000-0000-000000000003","#,
+            r#""status":{"kind":"offline","last_seen":"2026-09-30T12:00:00Z"}}"#
+        ),
     );
-    // The privacy tiers (TG-505's placeholders) and the two live kinds.
+    // The privacy tiers (TG-505's placeholders) and the two live kinds, each pinned to the
+    // exact string as well: `kind` must stay the first (here only) key of the tagged object.
     let tiers = [
-        (UserStatus::Online, json!({ "kind": "online" })),
-        (UserStatus::Recently, json!({ "kind": "recently" })),
-        (UserStatus::WithinWeek, json!({ "kind": "within_week" })),
-        (UserStatus::WithinMonth, json!({ "kind": "within_month" })),
-        (UserStatus::LongAgo, json!({ "kind": "long_ago" })),
-        (UserStatus::Empty, json!({ "kind": "empty" })),
+        (
+            UserStatus::Online,
+            json!({ "kind": "online" }),
+            r#"{"kind":"online"}"#,
+        ),
+        (
+            UserStatus::Recently,
+            json!({ "kind": "recently" }),
+            r#"{"kind":"recently"}"#,
+        ),
+        (
+            UserStatus::WithinWeek,
+            json!({ "kind": "within_week" }),
+            r#"{"kind":"within_week"}"#,
+        ),
+        (
+            UserStatus::WithinMonth,
+            json!({ "kind": "within_month" }),
+            r#"{"kind":"within_month"}"#,
+        ),
+        (
+            UserStatus::LongAgo,
+            json!({ "kind": "long_ago" }),
+            r#"{"kind":"long_ago"}"#,
+        ),
+        (
+            UserStatus::Empty,
+            json!({ "kind": "empty" }),
+            r#"{"kind":"empty"}"#,
+        ),
     ];
-    for (status, wire) in tiers {
+    for (status, wire, exact) in tiers {
         assert_eq!(serde_json::to_value(status).unwrap(), wire);
+        assert_eq!(serde_json::to_string(&status).unwrap(), exact);
     }
 }
 

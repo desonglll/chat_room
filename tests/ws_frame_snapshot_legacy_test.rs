@@ -36,6 +36,20 @@ fn serialized(message: &ChatMessage) -> serde_json::Value {
     serde_json::to_value(message).unwrap()
 }
 
+/// Pins one server→client frame three ways: the order-insensitive `Value` snapshot (the
+/// original TG-007 pin, kept as the readable shape), the exact serialised string (serde
+/// emits struct fields in declaration order, so a field reorder in `src/realtime/frames.rs`
+/// is a real wire change the `Value` comparison alone cannot see), and the exact string
+/// parsed back against the snapshot (so a typo in the literal cannot pin a wrong shape).
+fn assert_wire(frame: &ChatMessage, snapshot: serde_json::Value, exact: &str) {
+    assert_eq!(serialized(frame), snapshot);
+    assert_eq!(serde_json::to_string(frame).unwrap(), exact);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(exact).unwrap(),
+        snapshot
+    );
+}
+
 #[test]
 fn client_to_server_frames_deserialize_unchanged() {
     let join: ChatMessage =
@@ -83,15 +97,17 @@ fn client_to_server_frames_deserialize_unchanged() {
 
 #[test]
 fn lifecycle_frames_serialize_unchanged() {
-    assert_eq!(
-        serialized(&ChatMessage::HistoryComplete),
-        json!({ "type": "history_complete" })
+    assert_wire(
+        &ChatMessage::HistoryComplete,
+        json!({ "type": "history_complete" }),
+        r#"{"type":"history_complete"}"#,
     );
-    assert_eq!(
-        serialized(&ChatMessage::AuthFail {
-            reason: "wrong password".into()
-        }),
-        json!({ "type": "auth_fail", "reason": "wrong password" })
+    assert_wire(
+        &ChatMessage::AuthFail {
+            reason: "wrong password".into(),
+        },
+        json!({ "type": "auth_fail", "reason": "wrong password" }),
+        r#"{"type":"auth_fail","reason":"wrong password"}"#,
     );
 }
 
@@ -132,8 +148,8 @@ fn broadcast_frame_serializes_unchanged() {
             user_ids: vec![id(12)],
         }],
     };
-    assert_eq!(
-        serialized(&full),
+    assert_wire(
+        &full,
         json!({
             "type": "broadcast",
             "message_id": id(10),
@@ -152,11 +168,29 @@ fn broadcast_frame_serializes_unchanged() {
             "favorite_id": null,
             "forwarded_from": { "sender": "carol", "room_name": "origin" },
             "reactions": [ { "emoji": "👍", "user_ids": [id(12)] } ]
-        })
+        }),
+        concat!(
+            r#"{"type":"broadcast","message_id":"00000000-0000-0000-0000-00000000000a","#,
+            r#""client_message_id":"00000000-0000-0000-0000-00000000000b","#,
+            r#""sender_id":"00000000-0000-0000-0000-00000000000c","sender":"alice","#,
+            r#""sender_avatar":"🦀","content":"hello","#,
+            r#""attachment":{"id":"00000000-0000-0000-0000-00000000000d","#,
+            r#""file_name":"cat.png","mime_type":"image/png","size_bytes":42,"#,
+            r#""download_url":"/api/attachments/x","is_sensitive":false},"#,
+            r#""reply_to":{"message_id":"00000000-0000-0000-0000-00000000000e","#,
+            r#""sender":"bob","content":"earlier","attachment_file_name":null,"#,
+            r#""recalled":false},"recalled_at":null,"edited_at":"2026-09-30T12:00:00Z","#,
+            r#""timestamp":"2026-09-30T12:00:00Z","favorite_id":null,"#,
+            r#""forwarded_from":{"sender":"carol","room_name":"origin"},"#,
+            r#""reactions":[{"emoji":"👍","user_ids":["00000000-0000-0000-0000-00000000000c"]}]}"#
+        ),
     );
 
-    // `client_message_id` is omitted (not null) when absent — the frozen clients rely on it.
-    let minimal = serialized(&ChatMessage::Broadcast {
+    // The nullable fields stay *present as null* when absent (`sender_id`, `attachment`,
+    // `reply_to`, `recalled_at`, `edited_at`, `favorite_id`, `forwarded_from`) and
+    // `reactions` is always emitted; only `client_message_id` is omitted (not null) when
+    // absent — the frozen clients rely on both rules.
+    let minimal = ChatMessage::Broadcast {
         message_id: id(10),
         client_message_id: None,
         sender_id: None,
@@ -171,38 +205,76 @@ fn broadcast_frame_serializes_unchanged() {
         favorite_id: None,
         forwarded_from: None,
         reactions: Vec::new(),
-    });
-    assert!(minimal.get("client_message_id").is_none());
+    };
+    assert_wire(
+        &minimal,
+        json!({
+            "type": "broadcast",
+            "message_id": id(10),
+            "sender_id": null,
+            "sender": "alice",
+            "sender_avatar": "",
+            "content": "hello",
+            "attachment": null,
+            "reply_to": null,
+            "recalled_at": null,
+            "edited_at": null,
+            "timestamp": "2026-09-30T12:00:00Z",
+            "favorite_id": null,
+            "forwarded_from": null,
+            "reactions": []
+        }),
+        concat!(
+            r#"{"type":"broadcast","message_id":"00000000-0000-0000-0000-00000000000a","#,
+            r#""sender_id":null,"sender":"alice","sender_avatar":"","content":"hello","#,
+            r#""attachment":null,"reply_to":null,"recalled_at":null,"edited_at":null,"#,
+            r#""timestamp":"2026-09-30T12:00:00Z","favorite_id":null,"#,
+            r#""forwarded_from":null,"reactions":[]}"#
+        ),
+    );
+    assert!(serialized(&minimal).get("client_message_id").is_none());
 }
 
 #[test]
 fn edit_recall_reaction_frames_serialize_unchanged() {
-    assert_eq!(
-        serialized(&ChatMessage::MessageEdited {
+    assert_wire(
+        &ChatMessage::MessageEdited {
             message_id: id(2),
             content: "new".into(),
             edited_at: when(),
-        }),
+        },
         json!({ "type": "message_edited", "message_id": id(2), "content": "new",
-            "edited_at": "2026-09-30T12:00:00Z" })
+            "edited_at": "2026-09-30T12:00:00Z" }),
+        concat!(
+            r#"{"type":"message_edited","message_id":"00000000-0000-0000-0000-000000000002","#,
+            r#""content":"new","edited_at":"2026-09-30T12:00:00Z"}"#
+        ),
     );
-    assert_eq!(
-        serialized(&ChatMessage::MessageRecalled {
+    assert_wire(
+        &ChatMessage::MessageRecalled {
             message_id: id(2),
             recalled_at: when(),
-        }),
+        },
         json!({ "type": "message_recalled", "message_id": id(2),
-            "recalled_at": "2026-09-30T12:00:00Z" })
+            "recalled_at": "2026-09-30T12:00:00Z" }),
+        concat!(
+            r#"{"type":"message_recalled","message_id":"00000000-0000-0000-0000-000000000002","#,
+            r#""recalled_at":"2026-09-30T12:00:00Z"}"#
+        ),
     );
-    assert_eq!(
-        serialized(&ChatMessage::ReactionChanged {
+    assert_wire(
+        &ChatMessage::ReactionChanged {
             message_id: id(2),
             emoji: "👍".into(),
             user_id: id(3),
             active: false,
-        }),
+        },
         json!({ "type": "reaction_changed", "message_id": id(2), "emoji": "👍",
-            "user_id": id(3), "active": false })
+            "user_id": id(3), "active": false }),
+        concat!(
+            r#"{"type":"reaction_changed","message_id":"00000000-0000-0000-0000-000000000002","#,
+            r#""emoji":"👍","user_id":"00000000-0000-0000-0000-000000000003","active":false}"#
+        ),
     );
 }
 
@@ -210,11 +282,11 @@ fn edit_recall_reaction_frames_serialize_unchanged() {
 fn presence_read_receipt_and_system_frames_serialize_unchanged() {
     // TG-007 deliberately left `presence` and `ChatMember` alone: per-user status travels in
     // the new `user_status` frame instead (docs/devlog/TG-007.md, Frozen interface §2).
-    assert_eq!(
-        serialized(&ChatMessage::Presence {
+    assert_wire(
+        &ChatMessage::Presence {
             members: vec![member(3, "alice")],
             participants: vec![member(3, "alice"), member(4, "bob")],
-        }),
+        },
         json!({
             "type": "presence",
             "members": [ { "user_id": id(3), "username": "alice", "avatar_emoji": "🦀" } ],
@@ -222,35 +294,53 @@ fn presence_read_receipt_and_system_frames_serialize_unchanged() {
                 { "user_id": id(3), "username": "alice", "avatar_emoji": "🦀" },
                 { "user_id": id(4), "username": "bob", "avatar_emoji": "🦀" }
             ]
-        })
+        }),
+        concat!(
+            r#"{"type":"presence","members":[{"user_id":"00000000-0000-0000-0000-000000000003","#,
+            r#""username":"alice","avatar_emoji":"🦀"}],"#,
+            r#""participants":[{"user_id":"00000000-0000-0000-0000-000000000003","#,
+            r#""username":"alice","avatar_emoji":"🦀"},"#,
+            r#"{"user_id":"00000000-0000-0000-0000-000000000004","#,
+            r#""username":"bob","avatar_emoji":"🦀"}]}"#
+        ),
     );
-    assert_eq!(
-        serialized(&ChatMessage::ReadReceipt {
+    assert_wire(
+        &ChatMessage::ReadReceipt {
             user_id: id(3),
             username: "alice".into(),
             message_id: id(10),
-        }),
+        },
         json!({ "type": "read_receipt", "user_id": id(3), "username": "alice",
-            "message_id": id(10) })
+            "message_id": id(10) }),
+        concat!(
+            r#"{"type":"read_receipt","user_id":"00000000-0000-0000-0000-000000000003","#,
+            r#""username":"alice","message_id":"00000000-0000-0000-0000-00000000000a"}"#
+        ),
     );
-    assert_eq!(
-        serialized(&ChatMessage::System {
+    assert_wire(
+        &ChatMessage::System {
             content: "alice joined the chat".into(),
             members: Some(vec![member(3, "alice")]),
             participants: None,
-        }),
+        },
         json!({
             "type": "system",
             "content": "alice joined the chat",
             "members": [ { "user_id": id(3), "username": "alice", "avatar_emoji": "🦀" } ]
-        })
+        }),
+        concat!(
+            r#"{"type":"system","content":"alice joined the chat","#,
+            r#""members":[{"user_id":"00000000-0000-0000-0000-000000000003","#,
+            r#""username":"alice","avatar_emoji":"🦀"}]}"#
+        ),
     );
-    assert_eq!(
-        serialized(&ChatMessage::System {
+    assert_wire(
+        &ChatMessage::System {
             content: "session revoked".into(),
             members: None,
             participants: None,
-        }),
-        json!({ "type": "system", "content": "session revoked" })
+        },
+        json!({ "type": "system", "content": "session revoked" }),
+        r#"{"type":"system","content":"session revoked"}"#,
     );
 }
