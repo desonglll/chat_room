@@ -9,6 +9,7 @@ pub mod authorization;
 pub mod bans;
 pub mod chat_type;
 pub mod compat;
+pub mod drafts;
 pub mod governance_handlers;
 pub mod handlers;
 pub(crate) mod lifecycle;

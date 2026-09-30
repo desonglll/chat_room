@@ -25,6 +25,7 @@ for the list of names that stay on purpose.
 | AI reply suggestions | Complete | Complete | Not exposed | `POST /api/chats/{id}/ai/suggest` (alias `/api/rooms/{id}/ai/suggest`) |
 | AI threads and selected-message questions | Complete | Threads and selected context with polling | Not exposed | `/api/ai/threads*`, `/api/ai/runs/{id}` |
 | Administration and operations | Complete | Not exposed | Server admin commands only | `/api/admin/*`, server subcommands |
+| Cloud drafts (TG-008) | Not yet (new React client, TG-105) | Not exposed | Not exposed | `PUT`/`GET /api/chats/{id}/draft` (alias `/api/rooms/{id}/draft`), `draft_updated` WebSocket frame — delivered only to the drafting account's own connections |
 
 Desktop network code is intentionally an adapter over these released contracts.
 `FeatureApiMixin` contains endpoint and payload mappings, while the Qt HTTP adapter
@@ -36,6 +37,13 @@ transfer. Adding interactive parity there is deferred until a concrete terminal
 workflow requires it; no domain rule should be copied into the CLI in the meantime.
 It deliberately still calls `/api/rooms/*`: that is the end-to-end check that the
 deprecated alias works, and `tests/chat_api_alias_test.rs` is the automated half.
+
+Clients may rely on these cloud-draft guarantees (TG-008): a `PUT` identical to the
+stored draft is idempotent — it does not bump `updated_at` and broadcasts nothing;
+saving an empty text with no reply target clears the draft; `GET` answers the stored
+draft or JSON `null`, which is the reconnect path (a client that lost its socket
+re-reads the draft over REST). The frozen Vue/PySide6/CLI clients ignore the
+`draft_updated` frame (unknown-frame tolerance, TG-007) and never call the endpoints.
 
 Web-only advanced surfaces remain explicit: global-search date/sender filters,
 Favorite attachments/collaborators/forwarding, AI model selection, catch-up,

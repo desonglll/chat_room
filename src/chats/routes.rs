@@ -8,7 +8,7 @@ use std::sync::Arc;
 use axum::{routing::get, Router};
 
 use super::{
-    handlers, lifecycle_handlers, membership_handlers, message_history,
+    drafts, handlers, lifecycle_handlers, membership_handlers, message_history,
     query_handlers as chat_query_handlers,
 };
 use crate::{
@@ -43,6 +43,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
                 .delete(lifecycle_handlers::delete_chat),
         )
         .route(&path("/:id/messages"), get(message_history::list_messages))
+        .route(
+            &path("/:id/draft"),
+            get(drafts::get_draft).put(drafts::put_draft),
+        )
         .route(
             &path("/:id/messages/search"),
             get(message_search::search_messages),
