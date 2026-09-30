@@ -31,6 +31,8 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
 
+提前开工（后端为主、与波次 1 零路径交集，基线 `8ba40e5`）：TG-302 贴纸服务端、TG-506 两步验证。
+
 **M0 完成标志的状态**：探针级端到端已由集成负责人独立复验通过（见绿色基线行），但**真实浏览器的两窗口视觉走查还没有任何人做过**——这是刻意如实的区分，M1 开工前请用户完成：`cargo run --bin server` 后浏览器走一遍 注册 → 建群 → 发消息 → 刷新保留 → 第二浏览器实时收到。CI 从未运行（所有提交在本地未推送）。
 
 **M1 前的跟进项**（不阻塞，按优先级）：
@@ -114,7 +116,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | TG-301 TGS 解码与 Lottie 渲染 ← 性能风险 | L | A | blocked | — | M1 |
-| TG-302 贴纸数据模型与服务端 | L | B | blocked | — | M1 |
+| TG-302 贴纸数据模型与服务端 | L | B | in-progress | — | M1 |
 | TG-303 贴纸面板 | L | A | blocked | — | TG-301, TG-302 |
 | TG-304 自定义 emoji | M | B | blocked | — | TG-302 |
 | TG-305 GIF | M | A | blocked | — | TG-303 |
@@ -145,7 +147,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-503 Saved Messages ← 需决策确认 | M | B | blocked | — | TG-208 |
 | TG-504 全局搜索分栏 | M | B | blocked | — | M3, M4 |
 | TG-505 隐私设置矩阵 | L | C | blocked | — | TG-107 |
-| TG-506 两步验证云密码 | M | C | blocked | — | M0 |
+| TG-506 两步验证云密码 | M | C | in-progress | — | M0 |
 | TG-507 主题与聊天背景 | L | D | blocked | — | TG-009 |
 | TG-508 通知例外与自定义声音 | M | D | blocked | — | M1 |
 | TG-509 数据与存储 | M | A | blocked | — | M4 |
