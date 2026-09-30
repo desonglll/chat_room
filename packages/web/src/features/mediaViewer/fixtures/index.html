@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-105 media viewer</title>
+    <!--
+      Dev-only fixture page for the media viewer; never part of the shipped bundle (vite builds
+      only packages/web/index.html). Serve with Vite (plyr's sprite is a `?raw` import, which
+      Bun's HTML server does not understand):
+
+        cd packages/web && bunx vite
+        open http://localhost:5174/src/features/mediaViewer/fixtures/index.html
+
+      Stylesheets are imported from main.tsx (Vite cannot serve a `<link>` above its root).
+
+      Optional video: put any WebM/MP4 at ./sample.webm (not committed), e.g.
+        ffmpeg -f lavfi -i testsrc=size=1280x720:rate=30 -t 4 -c:v libvpx-vp9 sample.webm
+    -->
+  </head>
+  <body>
+    <div id="fixtures"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

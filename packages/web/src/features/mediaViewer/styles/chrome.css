@@ -1,0 +1,198 @@
+/* Top bar, side arrows, caption and thumbnail strip. */
+
+.tg-mv__bar {
+  position: relative;
+  z-index: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-space-4);
+  min-block-size: var(--tg-header-height);
+  padding: var(--tg-space-1) var(--tg-space-2) var(--tg-space-1) var(--tg-space-4);
+}
+
+.tg-mv__who {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.tg-mv__sender {
+  overflow: hidden;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-mv__when {
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  opacity: 0.75;
+}
+
+.tg-mv__position {
+  margin-inline-start: var(--tg-space-2);
+}
+
+.tg-mv__tools {
+  display: flex;
+  flex: none;
+  gap: var(--tg-space-1);
+}
+
+.tg-mv__tool {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--tg-touch-min);
+  block-size: var(--tg-touch-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-press);
+}
+
+.tg-mv__tool:hover {
+  background: var(--tg-media-time-bg);
+}
+
+.tg-mv__tool:focus-visible,
+.tg-mv__arrow:focus-visible,
+.tg-mv__thumb:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-mv__tool:disabled {
+  opacity: var(--tg-opacity-disabled);
+  cursor: default;
+}
+
+.tg-mv__tool--corner {
+  position: relative;
+  z-index: 2;
+  grid-row: 1;
+  justify-self: end;
+  margin: var(--tg-space-2);
+}
+
+.tg-mv__arrow {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: 50%;
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-space-16);
+  block-size: calc(var(--tg-space-20) * 2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.tg-mv__arrow:hover {
+  opacity: 1;
+}
+
+.tg-mv__arrow[data-side='left'] {
+  left: 0;
+}
+
+.tg-mv__arrow[data-side='right'] {
+  right: 0;
+}
+
+/* Touch devices swipe; arrows would only cover the medium. */
+@media (hover: none) {
+  .tg-mv__arrow {
+    display: none;
+  }
+}
+
+.tg-mv__footer {
+  position: relative;
+  z-index: 2;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tg-space-2);
+  min-inline-size: 0;
+  padding: var(--tg-space-2) var(--tg-space-4) var(--tg-space-3);
+}
+
+.tg-mv__footer:empty {
+  display: none;
+}
+
+.tg-mv__caption {
+  max-inline-size: min(100%, calc(var(--tg-bubble-max-width) * 1.5));
+  max-block-size: calc(var(--tg-type-message-line) * 4);
+  overflow-y: auto;
+  text-align: center;
+}
+
+.tg-mv__caption .tg-mv__caption-text {
+  padding: 0;
+  color: inherit;
+}
+
+.tg-mv__strip {
+  display: flex;
+  gap: var(--tg-space-1);
+  max-inline-size: 100%;
+  padding: var(--tg-space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tg-mv__thumb {
+  position: relative;
+  flex: none;
+  inline-size: var(--tg-space-12);
+  block-size: var(--tg-space-12);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-sm);
+  overflow: hidden;
+  background: var(--tg-media-time-bg);
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity var(--tg-transition-fade);
+}
+
+.tg-mv__thumb:hover,
+.tg-mv__thumb[aria-current='true'] {
+  opacity: 1;
+}
+
+.tg-mv__thumb[aria-current='true'] {
+  outline: var(--tg-focus-ring-width) solid var(--tg-service-text);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-mv__thumb > img,
+.tg-mv__thumb > video {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.tg-mv__thumb[data-sensitive] > :is(img, video) {
+  filter: blur(var(--tg-blur-glass));
+}
+
+.tg-mv__thumb-play {
+  inline-size: var(--tg-space-5);
+  block-size: var(--tg-space-5);
+}

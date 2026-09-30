@@ -1,0 +1,8 @@
+/*
+ * TG-105 media viewer — the one stylesheet of features/mediaViewer, imported once from
+ * `src/styles/index.css`. plyr's own stylesheet ships with its lazy chunk (video/plyrPlayer.ts).
+ */
+
+@import url('./styles/layout.css');
+@import url('./styles/stage.css');
+@import url('./styles/chrome.css');
