@@ -12,7 +12,7 @@
 
 ### 已知抖动测试
 
-- `tests/auth_security_test.rs::redis_adapter_shares_limits_between_instances_when_configured`：2 秒限流窗口，机器高负载时间歇失败。需要一个不依赖墙钟的版本（候选跟进项）。
+- 无。TG-111（`2fb1540`）已从源头修复此前三个（内存 SQLite 被换空库导致的 presence/隐私矩阵间歇失败、Redis 限流 2 秒窗口）。
 
 ### 服务依赖测试的可见性规则（TG-013 已修复静默跳过）
 
@@ -62,6 +62,8 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-111 确定性测试基础设施 | 接管后 → `2fb1540` | 源头修复内存 SQLite 被换成空库：具名 shared-cache 内存库 + 独立锚连接（仅测试/开发路径）；Redis 限流测试窗口 2 s → 600 s 并直接断言两实例共享的 Redis 计数器 = 3（证明力不减）；TG-505 的文件库绕行已撤回。原 owner 因 agent 故障中断，负责人接管验证：回归测试 4/4、Redis 测试 4/4、此前抖动的三套件循环 10 次零失败。**已知抖动测试清单由此清空。** |
+| TG-202 频道广播 | 接管后 → `9d8eea6` | 频道内 `message.send` 判定为 `message.post`（`ChatType::effective_permission`），所有发送路径一处生效——负责人补测试钉住后来合入的定时发送路径同样被拦（语音/GIF 经同一 `has_chat_permission`）。浏览量批量帧、签名、订阅者计数事务维护。原 owner 两个提交后中断，负责人合并 main、修 `voice_frame_snapshot_test` 字段、写 handoff；main 合并后 125 个二进制 539/0。 |
 | TG-305 GIF | `d61abd3` → 合并提交 | 无第三方 GIF 源（按指示）；无转码器（仓库与镜像都不带 ffmpeg）→ 接受真 .gif 与无音轨短 MP4/WebM，决策见 devlog。收藏 GIF 计入孤儿文件存活引用。新增 `registerMessageMenuItem` 消息菜单扩展点。 |
 | TG-205 邀请链接 | `9de6faf` → `9278340` | 43 字符随机 token；40 人并发抢 5 个名额恰好放行 5 人（双适配器）；审批链接复用既有加入请求队列；旧接口不变。负责人已挂载：信息面板群组显示 `ChatAdminEntry`（TG-201 补丁）、成员页改用服务端 keyset 分页、管理面板挂 `InviteLinksEntry variant="overlay"`（非 overlay 会双 sheet 抢焦点崩溃）；贴纸管理页经 `registerSettingsPage` 进「外观」。遗留：匿名访问 `/joinchat/…` 被导去登录后 token 丢失。 |
 | TG-404 定时与静默发送 | `3bd485f` → 合并提交 | 定时消息存独立 `scheduled_messages` 表、投递时才以同一 id 写入 `messages`——历史/搜索/未读/预览/通知/TG-502 弹出触发器都天然看不到它；重启与双实例下恰好投递一次（双适配器测试）。静默发送跳过提及/回复通知与 Web Push，仍计未读。暂不支持定时发送媒体/贴纸/投票/转发。合并冲突为三方追加（sticker/voice/silent 字段、restriction sweeper 与 scheduled dispatcher 两个后台任务、Composer 的 `ScheduledEntry`+带 `chatId` 的 `AttachMenu`）。 |
@@ -120,7 +122,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | --- | --- | --- | --- | --- | --- |
 | TG-100 M1 集成接线（负责人新增） | M | — | **merged** `bf7880d` | agent:TG-100 | TG-101..105,107 |
 | TG-110 集成批次 2 + 设置面板外壳（负责人新增） | M | — | **merged** | agent:TG-110 | TG-106,406,505,506 |
-| TG-111 确定性测试基础设施（负责人新增） | S | — | in-progress | agent:TG-111 | — |
+| TG-111 确定性测试基础设施（负责人新增） | S | — | **merged** `2fb1540` | agent:TG-111 | — |
 | TG-101 虚拟消息列表 ← 最高风险 | XL | A | **merged** `a2da0a2` | — | TG-012 |
 | TG-102 三栏布局与会话侧栏 | L | B | **merged** | — | TG-012 |
 | TG-103 消息气泡系统 | L | C | **merged** `6108b90` | — | TG-012 |
@@ -135,7 +137,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | TG-201 超级群与权限体系 | XL | A | **merged** | — | M1 |
-| TG-202 频道广播语义 | L | B | in-progress | — | TG-201 |
+| TG-202 频道广播语义 | L | B | **merged** `9d8eea6` | — | TG-201 |
 | TG-203 频道评论区 | M | B | blocked | — | TG-202 |
 | TG-204 话题（论坛模式） | L | C | in-progress | — | TG-201 |
 | TG-205 邀请链接体系 | M | A | **merged** `9278340` | — | TG-201 |
