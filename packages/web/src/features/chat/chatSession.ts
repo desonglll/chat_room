@@ -30,6 +30,7 @@ import {
   listChatMessages,
 } from '@tg/core'
 import { applyPollFrame, type PollStore } from '../poll/pollStore'
+import { applyVoiceListenedFrame } from '../voice/voiceStore'
 
 /** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
 export const MAX_MESSAGE_CHARS = 4096
@@ -211,6 +212,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('poll_updated', (frame) => {
           if (stores.poll) applyPollFrame(frame, stores.poll)
         }),
+        // TG-401: the listener's and the sender's unlistened dots (features/voice).
+        socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
       )
       socket.connect()
       options.draftsApi
