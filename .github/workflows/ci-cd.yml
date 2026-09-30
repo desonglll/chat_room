@@ -75,6 +75,20 @@ jobs:
           rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy,rustfmt
           rustup default "$RUST_VERSION"
 
+      # tests/admin_backup_test.rs shells out to pg_dump/pg_restore. The runner's
+      # preinstalled client is older than the postgres:17 service, and pg_dump
+      # refuses to dump a newer server, so install the matching client from PGDG.
+      # PySide6 needs libEGL and friends even under the offscreen platform.
+      - name: Install system packages
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17 \
+            libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+          pg_dump --version
+
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
@@ -155,6 +169,8 @@ jobs:
 
       - name: Run desktop tests
         working-directory: desktop
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: uv run pytest
 
       - name: Lint desktop client

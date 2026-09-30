@@ -40,7 +40,8 @@ presign_addressing_style = "virtual"
 kind = "postgres"
 sqlite_path = "chat_rooms.db"
 # postgres_url = "postgres://chat:password@localhost/chat_room"
-postgres_url = "postgresql://postgres:postgres@localhost:52735/chatroom"
+# Matches the defaults in docker-compose.local.yaml (POSTGRES_USER/PASSWORD/DB/PORT).
+postgres_url = "postgresql://chatroom:chatroom@localhost:52735/chatroom"
 max_connections = 10
 
 [observability]
