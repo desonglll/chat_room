@@ -42,11 +42,16 @@ pub struct TestServer {
     pub state: Arc<AppState>,
     pub client: Client,
     task: tokio::task::JoinHandle<()>,
+    /// Scratch SQLite file removed on drop (None for a caller-supplied state).
+    database: Option<std::path::PathBuf>,
 }
 
 impl Drop for TestServer {
     fn drop(&mut self) {
         self.task.abort();
+        if let Some(database) = &self.database {
+            migration_support::remove_sqlite_files(database);
+        }
     }
 }
 
@@ -68,11 +73,23 @@ pub async fn start_server_on(state: AppState) -> TestServer {
         state,
         client: Client::new(),
         task,
+        database: None,
     }
 }
 
+/// A server on a scratch **file-backed** SQLite database, not `AppState::new()`.
+///
+/// `AppState::new()` is an in-memory database behind a one-connection pool. When a task is
+/// cancelled while it holds that connection mid-query — which these tests do constantly by
+/// closing WebSockets, whose forwarder is aborted while it may be reading presence rules or
+/// polling messages — sqlx discards the connection and the pool opens a new one: a brand-new,
+/// EMPTY `:memory:` database ("no such table: sessions" → 500). A file-backed database
+/// survives a reconnect exactly as production (file SQLite / PostgreSQL) does.
 pub async fn start_server() -> TestServer {
-    start_server_on(AppState::new().await.unwrap()).await
+    let database = migration_support::sqlite_scratch_path("privacy");
+    let mut server = start_server_on(AppState::open(&database).await.unwrap()).await;
+    server.database = Some(database);
+    server
 }
 
 impl TestServer {
