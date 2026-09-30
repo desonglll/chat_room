@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
-use sqlx::{PgPool, SqlitePool};
+use sqlx::{ConnectOptions, Connection, PgPool, SqliteConnection, SqlitePool};
 use uuid::Uuid;
 
 use crate::attachment_storage::AttachmentStore;
@@ -61,22 +61,55 @@ pub async fn open_postgres_database(url: &str, max_connections: u32) -> Result<D
     Ok(DatabasePool::Postgres(pool))
 }
 
-/// Create a one-connection in-memory database for focused tests.
+/// Create an isolated in-memory database for tests and throwaway dev servers.
+///
+/// The database is a uniquely named shared-cache in-memory database, not a private
+/// `:memory:` one. A private in-memory database lives exactly as long as its one
+/// connection: when a task is cancelled mid-query sqlx discards that connection and the
+/// pool would reopen a brand-new, empty database ("no such table"). Here a detached
+/// anchor connection keeps the named database alive until the pool closes or is dropped,
+/// so pooled connections can churn freely. Production never uses this path: the server
+/// opens a file (`open_database`) or PostgreSQL.
 pub async fn open_memory_database(attachment_store: &AttachmentStore) -> Result<SqlitePool> {
     let options = SqliteConnectOptions::new()
-        .filename(":memory:")
+        // `mode=memory` in the URI, not sqlx's `in_memory(true)`: that sets the
+        // SQLITE_OPEN_MEMORY flag, which also turns `VACUUM INTO <file>` (backup export)
+        // into an in-memory target that never reaches disk.
+        .filename(format!(
+            "file:chat-room-memory-{}?mode=memory&cache=shared",
+            Uuid::new_v4()
+        ))
+        .create_if_missing(true)
+        .shared_cache(true)
         .foreign_keys(true)
         .busy_timeout(Duration::from_secs(5));
 
+    let anchor = options
+        .connect()
+        .await
+        .context("open in-memory SQLite anchor connection")?;
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(options)
         .await
         .context("open in-memory SQLite database")?;
+    hold_anchor_until_closed(&pool, anchor);
 
     export_legacy_attachments(&pool, attachment_store).await?;
     run_migrations(&pool).await?;
     Ok(pool)
+}
+
+/// Keep `anchor` open until every handle to `pool` is dropped or the pool is closed.
+///
+/// `close_event` does not hold a reference to the pool, so this task never extends the
+/// pool's lifetime; if the runtime shuts down first, the task is dropped with it.
+fn hold_anchor_until_closed(pool: &SqlitePool, anchor: SqliteConnection) {
+    let closed = pool.close_event();
+    tokio::spawn(async move {
+        closed.await;
+        let _ = anchor.close().await;
+    });
 }
 
 async fn export_legacy_attachments(
