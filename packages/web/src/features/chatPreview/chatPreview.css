@@ -1,0 +1,105 @@
+/* TG-206 public chat preview page, centred in the middle pane like the invite landing page. */
+.tg-public {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  background: var(--tg-bg-secondary);
+}
+
+.tg-public__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(360px, 100%);
+  padding: 28px 24px;
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-bg);
+  text-align: center;
+}
+
+.tg-public__title {
+  margin: 4px 0 0;
+  font-size: var(--tg-type-title-size);
+  font-weight: 600;
+  color: var(--tg-text-primary);
+}
+
+.tg-public__meta,
+.tg-public__description {
+  margin: 0;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-public__description {
+  color: var(--tg-text-primary);
+  white-space: pre-wrap;
+}
+
+/* TG-206 «公开链接» editor in the chat admin panel. */
+.tg-publiclink {
+  padding: 12px 16px;
+}
+
+.tg-publiclink__title {
+  margin: 0 0 8px;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-accent);
+}
+
+.tg-publiclink__status {
+  margin: 6px 0;
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-publiclink__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* TG-206 «全局搜索» section under the chat list's search results. */
+.tg-publicsearch__title {
+  margin: 0;
+  padding: 10px 16px 4px;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-text-secondary);
+  background: var(--tg-bg-secondary);
+}
+
+.tg-publicsearch__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-publicsearch__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-publicsearch__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-publicsearch__name {
+  color: var(--tg-text-primary);
+}
+
+.tg-publicsearch__meta {
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}

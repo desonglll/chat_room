@@ -13,6 +13,9 @@ import { ForumToggle } from '../forum/ForumToggle'
 import { AdminEditor } from './AdminEditor'
 import { adminCapabilities, CHAT_TYPE_LABEL, chatTypeNote, memberName } from './chatAdminModel'
 import { DefaultPermissionsPage } from './DefaultPermissionsPage'
+import { PublicLinkEditor } from '../chatPreview/PublicLinkEditor'
+import { useStore } from 'zustand/react'
+import { chatListStore } from '@tg/core'
 import { SlowModePicker } from './slowMode/SlowModePicker'
 import { MemberRow } from './MemberRow'
 import { RestrictionEditor } from './RestrictionEditor'
@@ -73,6 +76,11 @@ function NavRow({ label, value, onOpen }: { label: string; value: string; onOpen
 
 export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'home' }: ChatAdminPanelProps) {
   const admin = useChatAdmin(api, chatId, initial)
+  // TG-206: the chat's current public handle, kept live by `chat_updated` frames.
+  const publicUsername = useStore(
+    chatListStore,
+    (state) => state.chats.find((chat) => chat.id === chatId)?.username ?? null,
+  )
   const [stack, setStack] = useState<Page[]>(() =>
     initialPage === 'home' ? [{ id: 'home' }] : [{ id: 'home' }, { id: initialPage }],
   )
@@ -131,6 +139,12 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
           <NavRow label="成员" value={String(view.member_count)} onOpen={() => open({ id: 'members' })} />
         </ul>
         <ForumToggle chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
+        <PublicLinkEditor
+          chatId={chatId}
+          chatType={view.chat_type}
+          current={publicUsername}
+          myPermissions={view.my_permissions}
+        />
         {/* TG-205: `overlay` — a second sheet inside this one fights it for focus. */}
         <InviteLinksEntry chatId={chatId} variant="overlay" />
       </>

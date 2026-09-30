@@ -135,6 +135,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
                 .layer(axum::extract::DefaultBodyLimit::max(multipart_body_limit)),
         )
         .route(
+            &path("/:id/username"),
+            axum::routing::put(super::public_handles::put_username),
+        )
+        .route(
             &path("/:id/slow-mode"),
             get(slow_mode::get_slow_mode).put(slow_mode::put_slow_mode),
         )

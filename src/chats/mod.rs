@@ -36,6 +36,7 @@ pub mod permissions;
 pub mod private_chat_handlers;
 pub mod private_chats;
 pub mod provisioning;
+pub mod public_handles;
 pub mod query_handlers;
 pub mod restrictions;
 pub mod roster_handlers;

@@ -146,6 +146,18 @@ pub(crate) fn api_routes(
             axum::routing::put(social::handlers::block_user).delete(social::handlers::unblock_user),
         )
         .route(
+            "/api/public-usernames/:username/check",
+            get(chats::public_handles::check_username),
+        )
+        .route(
+            "/api/public/:username",
+            get(chats::public_handles::public_preview),
+        )
+        .route(
+            "/api/public/:username/join",
+            axum::routing::post(chats::public_handles::join_public),
+        )
+        .route(
             "/api/direct-chats",
             axum::routing::post(chats::private_chat_handlers::start_direct_chat),
         )
