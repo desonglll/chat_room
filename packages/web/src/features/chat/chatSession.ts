@@ -58,12 +58,17 @@ export interface ChatSessionOptions {
   isVisible?: () => boolean
 }
 
+/** TG-404: per-send options; `silent` delivers without notifications. */
+export interface SendMessageOptions {
+  silent?: boolean
+}
+
 export interface ChatSession {
   start(): void
   /** Flushes a pending draft save, closes the socket, detaches every subscription. */
   stop(): void
-  /** Optimistic append + WS send; false marks the row failed (offline). */
-  sendMessage(text: string): boolean
+  /** Optimistic append + WS send; false marks the row failed (offline). TG-404: `silent`. */
+  sendMessage(text: string, options?: SendMessageOptions): boolean
   /**
    * Composer edit: store + debounced cloud save. Typing frames are the composer's
    * (TG-107 `createChatActionSender` via `sendFrame`), not this method's.
@@ -241,7 +246,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
       stores.message.getState().clearChat(chatId)
     },
 
-    sendMessage(text) {
+    sendMessage(text, options) {
       const content = text.trim()
       if (!content || [...content].length > MAX_MESSAGE_CHARS) return false
       const clientMessageId = createRandomUuid()
@@ -259,6 +264,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         content,
         ...(replyTo ? { reply_to: replyTo } : {}),
         client_message_id: clientMessageId,
+        ...(options?.silent ? { silent: true } : {}),
       })
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
       stores.composer.getState().clearDraft(chatId)

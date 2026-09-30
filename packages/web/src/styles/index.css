@@ -21,4 +21,5 @@
 @import url('../features/settings/security/security.css');
 @import url('../features/poll/poll.css');
 @import url('../features/voice/voice.css');
+@import url('../features/scheduled/scheduled.css');
 @import url('../features/customEmoji/customEmoji.css');

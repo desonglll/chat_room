@@ -21,7 +21,8 @@ pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_mes
     reply.sender AS reply_sender, reply.content AS reply_content, \
     reply.recalled_at AS reply_recalled_at, \
     reply_attachment.file_name AS reply_attachment_file_name, \
-    messages.favorite_id, messages.forwarded_from_sender, messages.forwarded_from_room_name FROM messages \
+    messages.favorite_id, messages.forwarded_from_sender, messages.forwarded_from_room_name, \
+    messages.silent FROM messages \
     LEFT JOIN attachments ON attachments.id = messages.attachment_id \
     LEFT JOIN users AS sender_user ON sender_user.id = messages.sender_id \
     LEFT JOIN messages AS reply ON reply.id = messages.reply_to_id \
@@ -75,6 +76,7 @@ pub(crate) struct MessageRow {
     favorite_id: Option<Uuid>,
     forwarded_from_sender: Option<String>,
     forwarded_from_room_name: Option<String>,
+    silent: bool,
 }
 
 impl MessageRow {
@@ -138,6 +140,7 @@ impl MessageRow {
             created_at: self.created_at,
             favorite_id: self.favorite_id,
             forwarded_from,
+            silent: self.silent,
             ..Default::default()
         }
     }

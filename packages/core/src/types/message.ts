@@ -113,6 +113,8 @@ export interface StoredMessage {
   sticker?: MessageSticker
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
+  /** TG-404: true when sent without notifications; omitted otherwise. */
+  silent?: boolean
 }
 
 /**

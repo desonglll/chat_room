@@ -70,6 +70,9 @@ pub enum ChatMessage {
         /// TG-304: optional formatted ranges of `content` (docs/devlog/TG-304.md).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-404: deliver without notifications or Web Push (docs/devlog/TG-404.md).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        silent: bool,
     },
 
     /// Client -> Server: replace the content of a message sent by this account. TG-304: the
@@ -152,6 +155,9 @@ pub enum ChatMessage {
         /// TG-401: optional, omitted unless the message is a voice message (docs/devlog/TG-401.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         voice: Option<VoiceNote>,
+        /// TG-404: omitted unless the message was sent silently.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        silent: bool,
     },
 
     /// Server -> Client: one member added or removed an emoji response.
