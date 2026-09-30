@@ -47,6 +47,7 @@ fn in_progress_features_are_present_in_the_openapi_contract() {
             &["patch", "delete"][..],
         ),
         ("/api/favorites/attachments", &["post"][..]),
+        ("/api/chats/{id}/draft", &["get", "put"][..]),
     ] {
         let operations = paths
             .get(path)

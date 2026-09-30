@@ -40,6 +40,12 @@ self.addEventListener('activate', (event) => {
 
 fn main() {
     for path in [
+        // A custom rerun-if-changed list REPLACES cargo's default dirtiness rules, so without
+        // these two entries a migration-only change never rebuilds the crate — and with the
+        // shared build directory, a test binary can link a lib whose sqlx::migrate! embedded
+        // a STALE migration set (measured by TG-008: applied 64/53 vs on-disk 65/54).
+        "migrations",
+        "migrations-postgres",
         "package.json",
         "bun.lock",
         "tsconfig.base.json",

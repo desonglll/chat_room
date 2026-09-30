@@ -7,7 +7,7 @@
  * (`docs/devlog/TG-007.md` section 3), so one parser serves both transports.
  *
  * No platform global is touched: the host injects a fetch-shaped function and a token
- * source (architecture.md section 2). `fetch` itself satisfies `FetchLike`.
+ * source (architecture.md section 2). `fetch` itself satisfies `DraftFetchLike`.
  */
 
 /** A stored draft — identical to the `draft_updated` frame payload. */
@@ -33,7 +33,7 @@ export interface FetchLikeResponse {
 }
 
 /** The slice of `fetch` the client needs, injectable by any host platform. */
-export type FetchLike = (
+export type DraftFetchLike = (
   url: string,
   init: {
     method: string
@@ -66,7 +66,7 @@ export interface DraftsApi {
   put(chatId: string, draft: DraftWrite): Promise<ChatDraft>
 }
 
-export function createDraftsApi(fetchLike: FetchLike, options: DraftsApiOptions = {}): DraftsApi {
+export function createDraftsApi(fetchLike: DraftFetchLike, options: DraftsApiOptions = {}): DraftsApi {
   const base = options.baseUrl ?? ''
   const headers = (): Record<string, string> => {
     const token = options.token?.()

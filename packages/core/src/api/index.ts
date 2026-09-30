@@ -2,7 +2,6 @@
  * `@tg/core/api` — HTTP clients, one file per domain, all on the canonical
  * `/api/chats/*` dialect via the shared injected-fetch `ApiClient`.
  *
- * `api/drafts.ts` is RESERVED for TG-008 (cloud drafts) — do not add it here.
  */
 export * from './http'
 export * from './config'
@@ -10,3 +9,4 @@ export * from './auth'
 export * from './chats'
 export * from './messages'
 export * from './search'
+export * from './drafts'

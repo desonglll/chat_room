@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { createDraftsApi, DraftsApiError, type ChatDraft, type FetchLike } from './drafts'
+import { createDraftsApi, DraftsApiError, type ChatDraft, type DraftFetchLike } from './drafts'
 
 interface RecordedCall {
   url: string
-  init: Parameters<FetchLike>[1]
+  init: Parameters<DraftFetchLike>[1]
 }
 
 const draft: ChatDraft = {
@@ -16,7 +16,7 @@ const draft: ChatDraft = {
 
 const fetchReturning = (status: number, body: unknown) => {
   const calls: RecordedCall[] = []
-  const fetchLike: FetchLike = (url, init) => {
+  const fetchLike: DraftFetchLike = (url, init) => {
     calls.push({ url, init })
     return Promise.resolve({ status, json: () => Promise.resolve(body) })
   }
