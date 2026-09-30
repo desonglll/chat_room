@@ -46,8 +46,14 @@ async fn a_video_note_carries_its_duration_and_thumbnail(server: &TestServer) {
     assert_eq!(body["reply_to"]["message_id"], earlier.to_string());
     assert!(body.get("voice").is_none());
 
-    let frame = next_of(&mut member_socket, "broadcast").await;
-    assert_eq!(frame["message_id"], body["id"]);
+    // The reply target's own broadcast may still be queued on the member's socket (it was
+    // sent after the socket subscribed), so wait for the video note's frame specifically.
+    let frame = loop {
+        let frame = next_of(&mut member_socket, "broadcast").await;
+        if frame["message_id"] == body["id"] {
+            break frame;
+        }
+    };
     assert_eq!(frame["video_note"], body["video_note"]);
     assert_eq!(frame["media_kind"], "video_note");
 
