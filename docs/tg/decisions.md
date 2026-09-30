@@ -155,3 +155,11 @@ origin/master 有 10 个 main 没有的提交
 | TG-503 Saved Messages | **投影**：`favorites` 是唯一真相，Saved Messages 是它的聊天形态视图，不迁移数据、不造第二份存储 |
 | TG-506 开启 2FA | **终止当前会话以外的所有设备会话** |
 | TG-603 PySide6 桌面端 | **保留**，在 TG-602 删除 `/api/rooms` 别名之前切到 `/api/chats`，CI 继续测它 |
+
+## D-011 本机暂停共享构建目录（集成负责人，2026-10-01）
+
+TG-302 实测：共享 `CARGO_TARGET_DIR` 下，不同 worktree 的 workspace 成员产物（`chat_room` 库、`build.rs` 嵌入的 web 产物）互相覆盖，一个 worktree 的测试可能链接到另一个 worktree 的库——绿灯不可信。D-007 的「共享」前提是只有一个人在构建。
+
+**结论** 每个任务用私有 `CARGO_TARGET_DIR=/home/mike/workspace/.cargo-target/<task-id>`（仓库外，避免被文件大小审计扫描），`CARGO_BUILD_JOBS=6` 控制内存；任务合并后删除。集成负责人在 main 上用 `.../.cargo-target/lead`。磁盘余量（~190 GB）足够 5–8 个私有目录。
+
+**影响** 此前在共享目录下得到的 cargo 结论（TG-208/406/505/506 进行中）已通知各 agent 用私有目录重跑；合并时负责人在 main 上独立重跑全量套件，不采信共享目录下的结果。
