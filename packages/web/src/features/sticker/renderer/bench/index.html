@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-301 sticker benchmark</title>
+    <!--
+      Dev-only benchmark page for the animated-sticker renderer; never part of the shipped
+      bundle (vite builds only packages/web/index.html). Driven by ./measure.mjs, which builds
+      this page in production mode and measures it in headless Chromium. Manual use:
+
+        cd packages/web && bunx vite
+        open http://localhost:5174/src/features/sticker/renderer/bench/index.html?mode=raw&renderer=svg
+
+      Query: mode=raw|managed  renderer=svg|canvas|html (raw)  count=20  distinct=20
+             layers=24  size=160  offscreen=0|1  share=1|0 (raw: share parsed data)
+    -->
+  </head>
+  <body>
+    <div id="bench"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+/* TG-301 animated sticker. The frame is drawn at device pixels and scaled to the box. */
+.tg-sticker {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tg-sticker__still,
+.tg-sticker__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Nothing to show yet and no server thumbnail: a quiet placeholder, not an empty hole. */
+.tg-sticker[data-phase='loading']:not(:has(.tg-sticker__still)) {
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-skeleton);
+}
+
+.tg-sticker[data-phase='error']:not(:has(.tg-sticker__still)) {
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-bg-secondary);
+}

@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  background: var(--tg-bg);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+}
+
+.bench-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+}
+
+.bench-grid[data-offscreen='1'] {
+  margin-top: 200vh;
+}
+
+.bench-cell {
+  flex: none;
+}
