@@ -32,7 +32,7 @@ export TEST_POSTGRES_ADMIN_URL="postgresql://chatroom:chatroom@127.0.0.1:52735/p
 | --- | --- | --- | --- |
 | TG-003 | `.claude/worktrees/tg-003` | `agent/tg-003-embed-react-bundle` | 改 `build.rs` + `Dockerfile`；已收到 `archive/master` 的 feature 方案与 `--all-features` landmine |
 | TG-004+005+006 | `.claude/worktrees/tg-004` | `agent/tg-004-chat-model-rename` | Chat 重命名垂直切片，M0 风险最高项 |
-| TG-009 | `.claude/worktrees/tg-009` | `agent/tg-009-design-tokens` | 纯 CSS，不碰 `packages/ui` 的 manifest |
+| TG-010 | `.claude/worktrees/tg-010` | `agent/tg-010-ui-primitives` | 19 个基础组件，消费 TG-009 冻结的 197 个语义 token |
 
 TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这是预期行为。TG-004 已获授权在需要时切到私有 target 目录。
 
@@ -44,6 +44,7 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | TG-001 构建目录 | `4499a7e` | 见下方实测记录 |
 | TG-000 绿色基线 | `fb818ee` | rebase 到 main 后重跑：`check_file_sizes.py` 通过（33 个基线告警、无增长）、迁移 parity 49 对、`cargo fmt` 干净、`clippy --all-targets --all-features` 零告警、`cargo test --all-targets --all-features` **exit 0**。另外确认 `src/lib.rs` / `src/models.rs` / `src/routes.rs` / `Cargo.toml` 与 main 零差异，即公开接口未变。**合并后 pre-push 钩子从拒绝转为通过** —— 这是「基线变绿」最直接的闭环证据。 |
 | CI 加固 + D-008 | `8b9d178` | 钩子在红树上拒绝、在绿树上通过，两个方向都实测过 |
+| TG-009 Design tokens | `785953a` | rebase 到 main 后独立验证：**`day.css` 与 `night.css` 各声明 70 个 token 且集合完全一致**，6 个强调色文件集合亦完全一致 —— 主题切换不可能留下未定义变量（这是 agent 没提、但最容易出问题的不变量）。`preview.html` 对 `--tg-raw-` 原语的引用数为 **0**，且十六进制、`rgb()`/`hsl()`、命名颜色字面量各为 **0** —— 它确实只靠语义 token 上色，所以是证明而非效果图。原语仅被 token 层自身引用。每个值带 `[web]`/`[desktop]`/`[ios]`/`[derived]`/`[ours]` 出处标注，真实值与猜测值可区分。文件大小最大 253 行。 |
 
 ## 顺序约束
 
@@ -66,9 +67,9 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | TG-006 API 路径重命名与 alias | M | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-005 |
 | TG-007 WebSocket 帧扩展 | M | not-started | — | — | TG-005 |
 | TG-008 云端草稿 | M | not-started | — | — | TG-006, TG-007 |
-| TG-009 Design tokens 提取 | M | **in-progress** | agent:TG-009 | `tg-009` | — |
+| TG-009 Design tokens 提取 | M | **merged** `785953a` | agent:TG-009 | — | — |
 | TG-013 修正 PostgreSQL 测试静默跳过 | S | not-started | — | — | — |
-| TG-010 `packages/ui` 基础组件 | L | not-started | — | — | TG-002, TG-009 |
+| TG-010 `packages/ui` 基础组件 | L | **in-progress** | agent:TG-010 | `tg-010` | TG-002 ✓, TG-009 ✓ |
 | TG-011 `packages/core` 骨架与逻辑迁移 | L | not-started | — | — | TG-002, TG-006, TG-007 |
 | TG-012 登录与最小可用壳 | M | not-started | — | — | TG-003, TG-010, TG-011 |
 
