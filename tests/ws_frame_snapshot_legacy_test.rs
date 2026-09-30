@@ -109,6 +109,7 @@ fn broadcast_frame_serializes_unchanged() {
         post_author: None,
         voice: None,
         silent: false,
+        grouped_id: None,
     };
     assert_wire(
         &full,
@@ -174,6 +175,7 @@ fn broadcast_frame_serializes_unchanged() {
         post_author: None,
         voice: None,
         silent: false,
+        grouped_id: None,
     };
     assert_wire(
         &minimal,

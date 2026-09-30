@@ -1,6 +1,7 @@
 /**
  * Resumable chunked attachment upload for the composer: create the session, PUT the
- * chunks at the server-confirmed offset, complete it with the caption. The completed
+ * chunks at the server-confirmed offset (`uploadChunks`), complete it with the caption
+ * (`uploadAttachment`). The completed
  * message reaches every client (this one included) as a normal `broadcast` frame, so
  * nothing here touches the message store.
  *
@@ -58,7 +59,40 @@ function abortIfNeeded(signal?: AbortSignal): void {
   }
 }
 
+/** An upload session whose bytes are all on the server, not yet turned into a message. */
+export interface UploadedSession {
+  uploadId: string
+}
+
 export async function uploadAttachment(fetchImpl: FetchLike, request: UploadRequest): Promise<StoredMessage> {
+  const { uploadId } = await uploadChunks(fetchImpl, request)
+  const auth = { Authorization: `Bearer ${request.token}` }
+  abortIfNeeded(request.signal)
+  const completed = await fetchImpl(`/api/attachments/uploads/${encodeURIComponent(uploadId)}/complete`, {
+    method: 'POST',
+    headers: { ...auth, 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({
+      content: request.caption,
+      reply_to: request.replyTo || null,
+      is_sensitive: false,
+      ...(request.topicId ? { topic_id: request.topicId } : {}),
+    }),
+    ...(request.signal ? { signal: request.signal } : {}),
+  })
+  if (!completed.ok) throw new UploadError('完成上传失败', completed.status)
+  return (await completed.json()) as StoredMessage
+}
+
+/**
+ * Create (or resume, by fingerprint) the session and PUT every chunk. TG-403 albums stop
+ * here and hand the session ids to `POST /api/chats/:id/albums`, which turns them into
+ * messages in one transaction.
+ */
+export async function uploadChunks(
+  fetchImpl: FetchLike,
+  request: Omit<UploadRequest, 'caption' | 'replyTo' | 'topicId'>,
+): Promise<UploadedSession> {
   const { file, token, signal } = request
   const auth = { Authorization: `Bearer ${token}` }
   const init = (method: string, headers: Record<string, string>, body?: BodyInit): RequestInit => ({
@@ -111,21 +145,5 @@ export async function uploadAttachment(fetchImpl: FetchLike, request: UploadRequ
     }
     request.onProgress(offset, file.size)
   }
-
-  abortIfNeeded(signal)
-  const completed = await fetchImpl(
-    `${uploadPath}/complete`,
-    init(
-      'POST',
-      { ...auth, 'Content-Type': 'application/json' },
-      JSON.stringify({
-        content: request.caption,
-        reply_to: request.replyTo || null,
-        is_sensitive: false,
-        ...(request.topicId ? { topic_id: request.topicId } : {}),
-      }),
-    ),
-  )
-  if (!completed.ok) throw new UploadError('完成上传失败', completed.status)
-  return (await completed.json()) as StoredMessage
+  return { uploadId: session.upload_id }
 }

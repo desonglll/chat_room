@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod albums;
 mod catch_up;
 pub mod forward_handlers;
 mod forward_store;

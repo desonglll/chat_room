@@ -21,6 +21,26 @@ impl AppState {
         target_room_id: Uuid,
         forwarder: &User,
     ) -> Result<Option<StoredMessage>, sqlx::Error> {
+        self.forward_message_grouped(
+            source_message_id,
+            source_room_id,
+            target_room_id,
+            forwarder,
+            None,
+        )
+        .await
+    }
+
+    /// TG-403: `forward_message` whose copy joins album `grouped_id` in the target
+    /// (`messages::albums::ForwardPlan`); `None` is an ordinary forward.
+    pub async fn forward_message_grouped(
+        &self,
+        source_message_id: Uuid,
+        source_room_id: Uuid,
+        target_room_id: Uuid,
+        forwarder: &User,
+        grouped_id: Option<Uuid>,
+    ) -> Result<Option<StoredMessage>, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
         let forwarder_display_name = self.resolve_display_name(target_room_id, forwarder).await;
@@ -34,10 +54,10 @@ impl AppState {
             let inserted = sqlx::query(
                 "INSERT INTO messages \
                  (id, room_id, sender_id, sender, content, attachment_id, favorite_id, \
-                  forwarded_from_sender, forwarded_from_room_name, created_at) \
+                  forwarded_from_sender, forwarded_from_room_name, created_at, grouped_id) \
                  SELECT $3, $4, $5, $6, source.content, source.attachment_id, source.favorite_id, COALESCE($8, source.sender), \
                    CASE WHEN direct.room_id IS NULL THEN source_chat.title \
-                     ELSE COALESCE($8, NULLIF(peer.display_name, ''), peer.username) END, $7 \
+                     ELSE COALESCE($8, NULLIF(peer.display_name, ''), peer.username) END, $7, $9 \
                  FROM messages AS source \
                  JOIN chats AS source_chat ON source_chat.id = source.room_id \
                    AND source_chat.deleted_at IS NULL \
@@ -69,6 +89,7 @@ impl AppState {
             .bind(&forwarder_display_name)
             .bind(created_at)
             .bind(attribution_override)
+            .bind(grouped_id)
             .execute(&mut *transaction)
             .await?
             .rows_affected()

@@ -170,6 +170,9 @@ pub enum ChatMessage {
         /// TG-404: omitted unless the message was sent silently.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         silent: bool,
+        /// TG-403: the album this message belongs to; omitted for non-album messages.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grouped_id: Option<Uuid>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

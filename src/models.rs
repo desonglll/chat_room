@@ -77,6 +77,9 @@ pub struct StoredMessage {
     /// TG-404: sent without notifications; omitted (= false) for ordinary messages.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub silent: bool,
+    /// TG-403: the album this message belongs to; omitted for non-album messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grouped_id: Option<Uuid>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

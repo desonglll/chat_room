@@ -45,6 +45,7 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         post_author: message.post_author,
         voice: message.voice,
         silent: message.silent,
+        grouped_id: message.grouped_id,
     }
 }
 

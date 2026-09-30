@@ -18,8 +18,10 @@ import {
 import { browserFetch } from '../../app/platform'
 import { activeTopicId } from '../forum/activeTopic'
 import type { ComposerController } from './composerController'
+import { isAlbumBatch, sendPendingAlbum } from '../album/sendPendingAlbum'
+import { sendAlbum } from '../album/albumApi'
 import { sendPendingBatch } from './sendPendingBatch'
-import { uploadAttachment } from './uploadClient'
+import { uploadAttachment, uploadChunks } from './uploadClient'
 
 export interface PendingBatchHandle {
   batch: PendingBatch<File>
@@ -90,25 +92,39 @@ export function usePendingBatch(chatId: string, controller: ComposerController, 
     if (!token || batchRef.current.items.length === 0) return
     setSending(true)
     try {
-      const result = await sendPendingBatch<File>(
-        {
-          read: () => batchRef.current,
-          update,
-          upload: (file, caption, reply, onProgress) =>
-            uploadAttachment(browserFetch, {
-              chatId,
-              token,
-              file,
-              caption,
-              replyTo: reply,
-              topicId: activeTopicId(chatId),
-              onProgress,
-            }),
-          uploadStarted: (item) => controller.uploadStarted(item.kind),
-          uploadFinished: () => controller.uploadFinished(),
-        },
-        replyTo,
-      )
+      const topicId = activeTopicId(chatId)
+      const result = isAlbumBatch(batchRef.current)
+        ? await sendPendingAlbum<File>(
+            {
+              read: () => batchRef.current,
+              update,
+              uploadChunks: (file, onProgress) => uploadChunks(browserFetch, { chatId, token, file, onProgress }),
+              createAlbum: (uploadIds, caption, reply) =>
+                sendAlbum(browserFetch, { chatId, token, uploadIds, caption, replyTo: reply, topicId }),
+              uploadStarted: (item) => controller.uploadStarted(item.kind),
+              uploadFinished: () => controller.uploadFinished(),
+            },
+            replyTo,
+          )
+        : await sendPendingBatch<File>(
+            {
+              read: () => batchRef.current,
+              update,
+              upload: (file, caption, reply, onProgress) =>
+                uploadAttachment(browserFetch, {
+                  chatId,
+                  token,
+                  file,
+                  caption,
+                  replyTo: reply,
+                  topicId,
+                  onProgress,
+                }),
+              uploadStarted: (item) => controller.uploadStarted(item.kind),
+              uploadFinished: () => controller.uploadFinished(),
+            },
+            replyTo,
+          )
       if (result.sent > 0) controller.consumeReply()
       if (result.failed === 0) clear()
     } finally {
