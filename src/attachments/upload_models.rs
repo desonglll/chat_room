@@ -40,4 +40,7 @@ pub struct CompleteUploadRequest {
     pub reply_to: Option<Uuid>,
     #[serde(default)]
     pub is_sensitive: bool,
+    /// TG-204: the forum topic to post into; absent = General.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
 }

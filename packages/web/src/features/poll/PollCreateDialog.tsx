@@ -12,6 +12,7 @@ import type { StoredMessage } from '@tg/core'
 import { POLL_LIMITS, authStore, createPoll, createRandomUuid, selectToken } from '@tg/core'
 import { Button, IconButton, Modal, Radio, TextField, Toggle, VisuallyHidden } from '@tg/ui'
 import { apiClient } from '../../app/client'
+import { activeTopicId } from '../forum/activeTopic'
 import { CrossGlyph } from './glyphs'
 import {
   EMPTY_POLL_FORM,
@@ -56,7 +57,12 @@ export function PollCreateDialog({ open, chatId, onClose, onCreated }: PollCreat
     }
     setSending(true)
     setError(null)
-    createPoll(apiClient, token, chatId, { ...built.input, client_message_id: clientMessageId })
+    const topicId = activeTopicId(chatId)
+    createPoll(apiClient, token, chatId, {
+      ...built.input,
+      client_message_id: clientMessageId,
+      ...(topicId ? { topic_id: topicId } : {}),
+    })
       .then((message) => {
         if (message.poll) pollStore.getState().remember(message.poll)
         onCreated?.(message)

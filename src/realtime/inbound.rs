@@ -64,8 +64,18 @@ pub async fn handle_client_message(
             reply_to,
             client_message_id,
             entities,
+            topic_id,
             silent,
         } => {
+            // TG-204: the forum topic it lands in; a closed or unknown topic drops the frame,
+            // like any refused WebSocket send.
+            let topic_id = match state.resolve_post_topic(room_id, user.id, topic_id).await {
+                Ok(topic_id) => topic_id,
+                Err(error) => {
+                    tracing::warn!(%room_id, user_id = %user.id, "message refused by topic rule: {error:?}");
+                    return;
+                }
+            };
             let leading_trim = leading_trim_utf16(&content);
             let Some(content) = normalize_message(content) else {
                 tracing::warn!("ignored invalid message from {}", user.username);
@@ -100,6 +110,7 @@ pub async fn handle_client_message(
                     reply_to,
                     client_message_id,
                     &entities,
+                    topic_id,
                     silent,
                 )
                 .await

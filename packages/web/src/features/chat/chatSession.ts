@@ -7,6 +7,7 @@
  */
 import type {
   ApiClient,
+  BroadcastFrame,
   ChatDraft,
   ClientFrame,
   ChatListStore,
@@ -18,6 +19,8 @@ import type {
   DraftsApi,
   MessageStore,
   PresenceStore,
+  ServerFrame,
+  StoredMessage,
 } from '@tg/core'
 import {
   EMPTY_DRAFT,
@@ -28,6 +31,7 @@ import {
   createRandomUuid,
   getChat,
   listChatMessages,
+  storedMessageToBroadcast,
 } from '@tg/core'
 import { applyPollFrame, type PollStore } from '../poll/pollStore'
 import { applyViewsFrame, type ChannelStore } from '../channel/channelStore'
@@ -47,6 +51,21 @@ export interface ChatSessionStores {
   channel?: ChannelStore | undefined
 }
 
+/**
+ * TG-204 forum topic mode (built by `features/forum/topicSessionMode`): the timeline stays
+ * keyed by chat id but shows one topic — foreign broadcasts are dropped, history and
+ * catch-up come from the topic endpoints, reads go to the topic cursor.
+ */
+export interface ChatSessionTopicMode {
+  /** The WS `message` frame's `topic_id`; null for General (omitted on the wire). */
+  sendTopicId: string | null
+  accepts(frame: BroadcastFrame): boolean
+  /** The topic's newest page, in `listChatMessages` order. */
+  latest(): Promise<StoredMessage[]>
+  /** Advance the topic read cursor (replaces the chat-level `read` frame). */
+  read(messageId: string): void
+}
+
 export interface ChatSessionOptions {
   chatId: string
   token: string
@@ -59,6 +78,9 @@ export interface ChatSessionOptions {
   stores: ChatSessionStores
   /** Whether the reader can see the chat right now (page visible). Default: always. */
   isVisible?: () => boolean
+  topic?: ChatSessionTopicMode | null | undefined
+  /** False: never send the chat-level `read` frame (a forum chat reads per topic). Default true. */
+  readCursor?: boolean | undefined
 }
 
 /** TG-404: per-send options; `silent` delivers without notifications. */
@@ -87,10 +109,14 @@ export interface ChatSession {
   markRead(): void
   status(): ChatSocketStatus
   onStatus(handler: (status: ChatSocketStatus) => void): () => void
+  /** Every server frame, after the store fan-out (TG-204's topic list refreshes on them). */
+  onFrame(handler: (frame: ServerFrame) => void): () => void
 }
 
 export function createChatSession(options: ChatSessionOptions): ChatSession {
   const { chatId, currentUserId, clock, stores } = options
+  const topic = options.topic ?? null
+  let stopped = false
   const unsubscribers: Array<() => void> = []
   let expiryTimer: CoreTimerHandle | null = null
   let lastReadSent = ''
@@ -108,7 +134,9 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     // Catch-up page, newest-first from REST, reversed to chronological order; the
     // socket filters by cursor and `mergeIncomingBroadcast` dedups by message_id.
     fetchMissed: async () => {
-      const page = await listChatMessages(options.client, chatId, { token: options.token })
+      const page = topic
+        ? await topic.latest()
+        : await listChatMessages(options.client, chatId, { token: options.token })
       return page.slice().reverse()
     },
   })
@@ -169,6 +197,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
   }
 
   function markRead(): void {
+    if (options.readCursor === false) return
     if (socket.status() !== 'online' || !(options.isVisible?.() ?? true)) return
     const timeline = stores.message.getState().timelines[chatId]
     if (!timeline?.historyReady) return
@@ -181,7 +210,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     }
     if (!newest || newest === lastReadSent || newest === timeline.readCursors[currentUserId]) return
     lastReadSent = newest
-    socket.send({ type: 'read', message_id: newest })
+    if (topic) topic.read(newest)
+    else socket.send({ type: 'read', message_id: newest })
   }
 
   return {
@@ -193,10 +223,26 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
           refreshDescriptor(frame.participants.length)
         }),
         socket.on('history_complete', () => {
-          stores.message.getState().setHistoryReady(chatId, true)
-          markRead()
+          const ready = () => {
+            if (stopped) return
+            stores.message.getState().setHistoryReady(chatId, true)
+            markRead()
+          }
+          if (!topic) return ready()
+          // The chat-wide replay may hold none of a quiet topic's messages: merge the
+          // topic's newest page (older than the replay, deduped by id) before opening.
+          topic
+            .latest()
+            .then((page) => {
+              if (!stopped) stores.message.getState().prependHistory(chatId, page.map(storedMessageToBroadcast))
+            })
+            .catch(() => {
+              // The replayed rows still open; older pages load on scroll.
+            })
+            .finally(ready)
         }),
         socket.on('broadcast', (frame) => {
+          if (topic && !topic.accepts(frame)) return
           const ready = stores.message.getState().timelines[chatId]?.historyReady ?? false
           const motion = classifyMessageMotion(ready, frame.sender_id, currentUserId)
           stores.message.getState().applyBroadcast(chatId, frame, motion)
@@ -238,6 +284,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     },
 
     stop() {
+      stopped = true
       synchronizer.flush(chatId)
       synchronizer.dispose()
       for (const unsubscribe of unsubscribers) unsubscribe()
@@ -270,6 +317,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         content,
         ...(replyTo ? { reply_to: replyTo } : {}),
         client_message_id: clientMessageId,
+        ...(topic?.sendTopicId ? { topic_id: topic.sendTopicId } : {}),
         ...(options?.silent ? { silent: true } : {}),
       })
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
@@ -302,5 +350,6 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
 
     status: () => socket.status(),
     onStatus: (handler) => socket.onStatus(handler),
+    onFrame: (handler) => socket.onAnyFrame(handler),
   }
 }

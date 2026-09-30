@@ -23,6 +23,7 @@ import {
   type StickerStore,
 } from '@tg/core'
 import { apiClient } from '../../app/client'
+import { activeTopicId } from '../forum/activeTopic'
 
 export interface StickerLibraryDeps {
   api: StickersApi
@@ -126,10 +127,12 @@ export function createStickerLibrary({
     lookupSet: (shortName) => api.set(shortName),
     async send({ chatId, sticker, replyTo }) {
       try {
+        const topicId = activeTopicId(chatId)
         const stored = await api.send(chatId, {
           sticker_id: sticker.id,
           reply_to: replyTo ?? undefined,
           client_message_id: uuid(),
+          ...(topicId ? { topic_id: topicId } : {}),
         })
         messages.getState().applyBroadcast(chatId, storedMessageToBroadcast(stored), 'outgoing')
         state().pushRecent(sticker)

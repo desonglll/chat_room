@@ -70,6 +70,9 @@ pub enum ChatMessage {
         /// TG-304: optional formatted ranges of `content` (docs/devlog/TG-304.md).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-204: the forum topic to post into; absent = General (docs/devlog/TG-204.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topic_id: Option<Uuid>,
         /// TG-404: deliver without notifications or Web Push (docs/devlog/TG-404.md).
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         silent: bool,
@@ -152,6 +155,9 @@ pub enum ChatMessage {
         /// TG-304: omitted unless the message has entities.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-204: the forum topic; omitted for General (and every non-forum chat).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topic_id: Option<Uuid>,
         /// TG-202: a channel post's view count; omitted for every other message.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         views: Option<i64>,

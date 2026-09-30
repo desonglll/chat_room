@@ -57,7 +57,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const [creating, setCreating] = useState(false)
   const [creatingChannel, setCreatingChannel] = useState(false)
   const navigate = useNavigate()
-  const activeChatId = useMatch('/chat/:chatId')?.params.chatId ?? ''
+  const activeChatId = useMatch('/chat/:chatId/*')?.params.chatId ?? ''
   const now = useMinuteClock()
   const [archiveMode, setArchiveMode] = useState<ArchiveRowMode>(() => readArchiveRowMode(browserStorage))
 

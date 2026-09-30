@@ -41,6 +41,7 @@ pub mod restrictions;
 pub mod roster_handlers;
 pub mod routes;
 pub mod supergroup_upgrade;
+pub mod topics;
 
 pub use authorization::ChatAuthorization;
 pub use capabilities::{CapabilityError, CapabilityOutcome, ChatCapabilityChange};
@@ -49,3 +50,4 @@ pub use compat::ApiDialect;
 pub use supergroup_upgrade::{
     supergroup_upgrade_trigger, ChatCapabilityRequest, SupergroupUpgradeTrigger,
 };
+pub use topics::TopicError;

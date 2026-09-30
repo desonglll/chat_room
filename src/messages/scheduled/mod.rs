@@ -110,6 +110,10 @@ pub async fn schedule(
     if state.count_scheduled(room_id, sender.id).await? >= MAX_SCHEDULED_PER_CHAT {
         return Err(ScheduledError::Limit);
     }
+    let topic_id = state
+        .resolve_post_topic(room_id, sender.id, request.topic_id)
+        .await
+        .map_err(ScheduledError::from_topic)?;
     let (content, entities) = accept_text(state, request.content, request.entities).await?;
     let reply_to = state
         .reply_preview(room_id, request.reply_to)
@@ -126,6 +130,7 @@ pub async fn schedule(
         scheduled_at: request.scheduled_at,
         created_at: now,
         updated_at: now,
+        topic_id,
     };
     state.insert_scheduled(&row).await?;
     Ok(row.into_view())

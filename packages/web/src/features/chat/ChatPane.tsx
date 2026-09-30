@@ -4,7 +4,7 @@
  * action bound, and TG-104's composer — or the selection bar while messages are selected.
  * `?message=<id>` deep-links into history through the list's jump-to-message.
  */
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import {
   authStore,
@@ -19,6 +19,7 @@ import {
   selectToken,
   uiStore,
 } from '@tg/core'
+import type { ServerFrame } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { apiClient } from '../../app/client'
 import { copyText } from '../../app/platform'
@@ -27,6 +28,8 @@ import { chatAdminApi } from '../chatAdmin'
 import { Composer } from '../composer'
 import { openMediaViewer } from '../mediaViewer'
 import { MessageList } from '../messageList/MessageList'
+import type { MessageListApi } from '../messageList/messageListController'
+import type { ChatSessionTopicMode } from './chatSession'
 import { requestDelete, requestForward } from './chatDialogStore'
 import { ChatHeader } from './ChatHeader'
 import type { ChatRenderOptions } from './ChatMessage'
@@ -37,7 +40,19 @@ import { SelectionBar } from './SelectionBar'
 import { useChatSession } from './useChatSession'
 import { useMessageSelection } from './useMessageSelection'
 
-export function ChatPane() {
+/** TG-204: one forum topic's view of the chat, assembled by `features/forum`. */
+export interface ChatPaneTopic {
+  id: string
+  mode: ChatSessionTopicMode
+  header: ReactNode
+  listApi: MessageListApi
+  /** Replaces the composer (a closed topic for a non-manager). */
+  composerLock?: ReactNode
+  /** Every server frame of the chat socket (topic edits refresh the header). */
+  onFrame?: ((frame: ServerFrame) => void) | undefined
+}
+
+export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) {
   const { chatId = '' } = useParams()
   const [searchParams] = useSearchParams()
   const chat = useStore(chatListStore, selectChatById(chatId))
@@ -47,7 +62,7 @@ export function ChatPane() {
   )
   const presence = useStore(presenceStore, selectPresence(chatId))
   const currentUserId = useStore(authStore, (state) => state.session?.user.id ?? '')
-  const session = useChatSession(chatId)
+  const session = useChatSession(chatId, { topic: topic?.mode ?? null, onFrame: topic?.onFrame })
   const { connection, sendFrame } = session
   const selection = useMessageSelection(chatId)
   const { selected, toggle: toggleSelected, clear: clearSelection } = selection
@@ -106,14 +121,15 @@ export function ChatPane() {
 
   return (
     <div className="tg-chat">
-      <ChatHeader chatId={chatId} connection={connection} />
+      {topic ? topic.header : <ChatHeader chatId={chatId} connection={connection} />}
       <MessageList
-        key={chatId}
+        key={topic ? `${chatId}:${topic.id}` : chatId}
         chatId={chatId}
         currentUserId={currentUserId}
         renderMessage={renderMessage}
         selectedMessageIds={selected}
         targetMessageId={searchParams.get('message')?.trim() ?? ''}
+        {...(topic ? { api: topic.listApi } : {})}
       />
       {selectionMode ? (
         <SelectionBar
@@ -132,6 +148,8 @@ export function ChatPane() {
         />
       ) : !canPublish ? (
         <ChannelFooter chatId={chatId} />
+      ) : topic?.composerLock ? (
+        topic.composerLock
       ) : (
         <Composer
           chatId={chatId}

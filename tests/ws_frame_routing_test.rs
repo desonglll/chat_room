@@ -104,6 +104,7 @@ async fn skeleton_frames_traverse_the_broadcast_path() {
                 icon_emoji: String::new(),
                 closed: false,
                 pinned: false,
+                ..Default::default()
             },
         },
         ChatMessage::MessageViewsUpdated {

@@ -67,6 +67,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
             None,
             Some(Uuid::new_v4()),
             &[],
+            None,
             false,
         )
         .await
@@ -82,6 +83,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
             None,
             Some(Uuid::new_v4()),
             &[],
+            None,
             false,
         )
         .await

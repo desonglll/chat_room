@@ -111,6 +111,8 @@ export interface StoredMessage {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'` (and on recall). */
   sticker?: MessageSticker
+  /** TG-204: the forum topic; omitted (or null) for General and non-forum chats. */
+  topic_id?: string | null
   /** TG-202: a channel post's view count; omitted for every other message. */
   views?: number
   /** TG-202: a signed channel post's author; omitted when unsigned. */

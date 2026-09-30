@@ -367,7 +367,7 @@ async fn restart_backfills_legacy_uuid_keyed_file_hash() {
                 staged,
             },
             "",
-            None,
+            Default::default(),
         )
         .await
         .unwrap();
