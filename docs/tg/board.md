@@ -5,34 +5,45 @@
 任务详情见 `docs/tg/roadmap.md`。每个进行中任务的细节见 `docs/devlog/<TASK-ID>.md`。
 
 - 盘点提交：`a16f422`
-- **绿色基线提交：尚无 —— `a16f422` 的 `check_file_sizes.py` 是红的，见 TG-000**
+- 计划与协议提交：`5ee18f4`、`2fa8488`
+- **绿色基线提交：尚无 —— `a16f422` 的 `check_file_sizes.py` 是红的，TG-000 正在修**
 - 盘点日期：2026-09-30
-- 当前里程碑：**M0（串行，禁止并行）**
+- 当前里程碑：**M0**
 
-## 现在可以开工的任务
+## 当前在飞的任务
 
-**先做 TG-000。** 基线不绿，后续任务无法区分「我弄坏的」和「本来就坏的」。
+三个 worktree 并行。路径不重叠，构建目录只有 TG-000 在用，所以不会有锁竞争。
 
-之后 M0 按下表顺序串行推进，**TG-004 合并进 `main` 之前不要创建第二个 worktree。**
+| 任务 | worktree | 分支 | 说明 |
+| --- | --- | --- | --- |
+| TG-000 | `.claude/worktrees/tg-000` | `agent/tg-000-green-baseline` | 唯一使用 cargo 的任务 |
+| TG-002 | `.claude/worktrees/tg-002` | `agent/tg-002-monorepo-skeleton` | 纯 JS，不碰 Rust |
+| TG-009 | `.claude/worktrees/tg-009` | `agent/tg-009-design-tokens` | 纯 CSS，不碰 `packages/ui` 的 manifest |
 
-`TG-000` → `TG-001` → `TG-002` → `TG-003` → `TG-004` → `TG-005` → `TG-006` → `TG-007` → `TG-008`
+**TG-002 与 TG-009 都会创建 `packages/ui/`**，但写的是不同文件（TG-002 写 `package.json` 与 `tsconfig.json`，TG-009 写 `src/tokens/**`），合并时不冲突。
 
-`TG-009`（design tokens）不碰 Rust 也不碰 `packages/`，是 M0 里唯一可以真正并行的任务，TG-000 之后即可与其余任务同时进行。
+## 顺序约束
+
+M0 其余任务串行，**TG-004 合并进 `main` 之前不要再创建 worktree。**
+
+`TG-003` → `TG-004` → `TG-005` → `TG-006` → `TG-007` → `TG-008`，之后 `TG-010` / `TG-011` → `TG-012`。
+
+**TG-004 与 TG-005 必须由同一个 worktree 连续完成。** 迁移重命名了表名，而 Rust 代码仍在查旧表名 —— 单独合并 TG-004 会让树无法编译。TG-006 也建议放在同一个 worktree 里，三者是一个垂直切片。
 
 ## M0 地基
 
 | 任务 | 规模 | 状态 | Owner | Worktree | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| TG-000 修复红色基线 ← **先做这个** | S | not-started | — | — | — |
-| TG-001 回收构建目录并验证共享配置 | S | not-started | — | — | TG-000 |
-| TG-002 monorepo 骨架 | M | not-started | — | — | TG-001 |
+| TG-000 修复红色基线 | S | **in-progress** | agent:TG-000 | `tg-000` | — |
+| TG-001 回收构建目录并验证共享配置 | S | **review** | 集成负责人 | main | — |
+| TG-002 monorepo 骨架 | M | **in-progress** | agent:TG-002 | `tg-002` | — |
 | TG-003 `build.rs` 切换嵌入目标 | S | not-started | — | — | TG-002 |
 | TG-004 Chat 数据模型迁移 | L | not-started | — | — | TG-001 |
 | TG-005 Rust 模块与类型重命名 | L | not-started | — | — | TG-004 |
 | TG-006 API 路径重命名与 alias | M | not-started | — | — | TG-005 |
 | TG-007 WebSocket 帧扩展 | M | not-started | — | — | TG-005 |
 | TG-008 云端草稿 | M | not-started | — | — | TG-006, TG-007 |
-| TG-009 Design tokens 提取 | M | not-started | — | — | — |
+| TG-009 Design tokens 提取 | M | **in-progress** | agent:TG-009 | `tg-009` | — |
 | TG-010 `packages/ui` 基础组件 | L | not-started | — | — | TG-002, TG-009 |
 | TG-011 `packages/core` 骨架与逻辑迁移 | L | not-started | — | — | TG-002, TG-006, TG-007 |
 | TG-012 登录与最小可用壳 | M | not-started | — | — | TG-003, TG-010, TG-011 |
@@ -126,6 +137,21 @@
 `not-started` · `in-progress` · `blocked` · `review` · `merged` · `abandoned`
 
 `blocked` 用于「依赖未满足」和「被外部问题卡住」两种情况，后者必须在对应 devlog 的 Blockers 一节写明卡在什么上。
+
+## TG-001 实测记录（集成负责人执行）
+
+| 项 | 结果 |
+| --- | --- |
+| 旧 `target/` 删除 | 卷可用空间 450Gi → **642Gi**，回收 192GB |
+| 共享目录冷编译 | `cargo clippy --all-targets` 通过，1m44s，产生 1.4–1.5GB |
+| 共享配置生效 | 确认新路径被创建并填充 |
+| CI 覆盖 | `.github/workflows/ci-cd.yml` env 块设 `CARGO_TARGET_DIR` |
+| Docker 覆盖 | `Dockerfile` builder 阶段设 `CARGO_TARGET_DIR=/app/target`，保住 cache mount |
+| 清理工具 | `scripts/tg-sweep-build-cache.sh`，默认 dry-run，检测 `rustc` 在跑时拒绝清理 |
+| `cargo-sweep` | **未安装**。脚本会提示安装命令并降级为只报告。装它要编译，需等无人构建时再做 |
+| `docker build` 验证 | **未执行** —— 留给 TG-003（它要改 `Dockerfile` 的 COPY 列表，一起验证更省一次完整镜像构建） |
+
+结论：194GB 里 99% 以上是沉积。一次 `clippy --all-targets` 的真实足迹是 1.5GB。
 
 ## 协议失效记录
 
