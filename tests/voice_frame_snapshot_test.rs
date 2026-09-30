@@ -63,6 +63,8 @@ fn broadcast_voice_is_omitted_when_absent_and_shaped_when_present() {
         poll: None,
         entities: Vec::new(),
         voice,
+        silent: false,
+        grouped_id: None,
     };
     let plain = serde_json::to_value(broadcast(None)).unwrap();
     assert!(plain.get("voice").is_none());

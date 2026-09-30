@@ -106,6 +106,7 @@ fn broadcast_frame_serializes_unchanged() {
         entities: Vec::new(),
         voice: None,
         silent: false,
+        grouped_id: None,
     };
     assert_wire(
         &full,
@@ -168,6 +169,7 @@ fn broadcast_frame_serializes_unchanged() {
         entities: Vec::new(),
         voice: None,
         silent: false,
+        grouped_id: None,
     };
     assert_wire(
         &minimal,
