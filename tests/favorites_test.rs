@@ -3,14 +3,14 @@ use uuid::Uuid;
 
 #[allow(dead_code)]
 mod favorites_support;
-use favorites_support::{create_room, register, start_server};
+use favorites_support::{create_chat, register, start_server};
 
 #[tokio::test]
 async fn files_can_be_uploaded_directly_to_favorites_and_forwarded() {
     let server = start_server().await;
     let client = Client::new();
     let (token, _) = register(&client, &server.base, "favorite-file-owner").await;
-    let target_room = create_room(&client, &server.base, &token, "favorite-file-target").await;
+    let target_chat = create_chat(&client, &server.base, &token, "favorite-file-target").await;
     let bytes = b"favorite-image-bytes".to_vec();
 
     let response = client
@@ -63,7 +63,7 @@ async fn files_can_be_uploaded_directly_to_favorites_and_forwarded() {
             favorite["id"].as_str().unwrap()
         ))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "target_room_ids": [target_room] }))
+        .json(&serde_json::json!({ "target_room_ids": [target_chat] }))
         .send()
         .await
         .unwrap()
@@ -72,7 +72,7 @@ async fn files_can_be_uploaded_directly_to_favorites_and_forwarded() {
         .unwrap();
     assert!(forwarded[0]["forwarded_message_id"].is_string());
     let messages: Vec<serde_json::Value> = client
-        .get(format!("{}/api/rooms/{target_room}/messages", server.base))
+        .get(format!("{}/api/chats/{target_chat}/messages", server.base))
         .bearer_auth(&token)
         .send()
         .await
@@ -89,10 +89,10 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
     let server = start_server().await;
     let client = Client::new();
     let (token, user_id) = register(&client, &server.base, "favorite-user").await;
-    let source_room = create_room(&client, &server.base, &token, "favorite-source").await;
-    let target_room = create_room(&client, &server.base, &token, "favorite-target").await;
+    let source_chat = create_chat(&client, &server.base, &token, "favorite-source").await;
+    let target_chat = create_chat(&client, &server.base, &token, "favorite-target").await;
     let (outsider_token, _) = register(&client, &server.base, "favorite-outsider").await;
-    let outsider_room = create_room(
+    let outsider_chat = create_chat(
         &client,
         &server.base,
         &outsider_token,
@@ -103,7 +103,7 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
     let video_bytes = b"test-video-content".to_vec();
     let upload: serde_json::Value = client
         .post(format!(
-            "{}/api/rooms/{source_room}/attachments",
+            "{}/api/chats/{source_chat}/attachments",
             server.base
         ))
         .bearer_auth(&token)
@@ -143,7 +143,7 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
     assert_eq!(favorites.len(), 1);
     assert_eq!(favorites[0]["kind"], "video");
     assert_eq!(favorites[0]["content"], "值得保存的视频");
-    assert_eq!(favorites[0]["source_room_id"], source_room.to_string());
+    assert_eq!(favorites[0]["source_room_id"], source_chat.to_string());
     let video_favorite_id = favorites[0]["id"].as_str().unwrap();
 
     let duplicate: Vec<serde_json::Value> = client
@@ -160,7 +160,7 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
 
     assert!(server
         .state
-        .recall_message(source_room, user_id, message_id)
+        .recall_message(source_chat, user_id, message_id)
         .await
         .unwrap()
         .is_some());
@@ -183,7 +183,7 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
         .unwrap();
     assert_eq!(
         recalled_favorites[0]["source_room_id"],
-        source_room.to_string()
+        source_chat.to_string()
     );
 
     let manual: serde_json::Value = client
@@ -208,7 +208,7 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
             manual["id"].as_str().unwrap()
         ))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "target_room_ids": [target_room, outsider_room] }))
+        .json(&serde_json::json!({ "target_room_ids": [target_chat, outsider_chat] }))
         .send()
         .await
         .unwrap()
@@ -218,11 +218,11 @@ async fn favorites_preserve_video_support_manual_items_and_forwarding() {
     assert!(outcomes[0]["forwarded_message_id"].is_string());
     assert_eq!(
         outcomes[1]["skipped_reason"],
-        "cannot send to the target room"
+        "cannot send to the target chat"
     );
 
     let forwarded: Vec<serde_json::Value> = client
-        .get(format!("{}/api/rooms/{target_room}/messages", server.base))
+        .get(format!("{}/api/chats/{target_chat}/messages", server.base))
         .bearer_auth(&token)
         .send()
         .await

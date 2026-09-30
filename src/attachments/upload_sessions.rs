@@ -38,7 +38,7 @@ pub(crate) struct AttachmentUploadSpec<'a> {
 
 impl AppState {
     /// Create a new chunked upload session, or hand back an existing in-progress
-    /// one for the same (uploader, room, fingerprint) — the resume handshake: the
+    /// one for the same (uploader, chat, fingerprint) — the resume handshake: the
     /// client re-selects the same file and this lets it continue instead of
     /// restarting from byte zero.
     pub(crate) async fn create_or_resume_attachment_upload(

@@ -55,7 +55,7 @@ async fn provider_chat(
     } else {
         json!({
         "candidates": [
-            { "kind": "decision", "title": "Friday release", "detail": "The room approved Friday", "source_labels": ["S1"] },
+            { "kind": "decision", "title": "Friday release", "detail": "The chat approved Friday", "source_labels": ["S1"] },
             { "kind": "task", "title": "Prepare release notes", "detail": "Notes are needed before release", "source_labels": ["S2"] },
             { "kind": "task", "title": "Prepare   release notes", "detail": "Duplicate wording", "source_labels": ["S2", "S2"] },
             { "kind": "task", "title": "Arrange a retrospective", "detail": "This was not stated directly", "source_labels": [] }
@@ -126,9 +126,9 @@ pub async fn register(client: &Client, server: &TestServer, username: &str) -> A
     }
 }
 
-pub async fn create_room(client: &Client, server: &TestServer, owner: &Account) -> Uuid {
-    let room: Value = client
-        .post(format!("{}/api/rooms", server.base))
+pub async fn create_chat(client: &Client, server: &TestServer, owner: &Account) -> Uuid {
+    let chat: Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&owner.token)
         .json(&json!({
             "name": format!("Extraction {}", Uuid::new_v4().simple()),
@@ -140,7 +140,7 @@ pub async fn create_room(client: &Client, server: &TestServer, owner: &Account) 
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 pub async fn insert_message(
@@ -178,7 +178,7 @@ pub async fn create_extraction(
 ) -> Value {
     let response = client
         .post(format!(
-            "{}/api/rooms/{room_id}/ai/extractions",
+            "{}/api/chats/{room_id}/ai/extractions",
             server.base
         ))
         .bearer_auth(&owner.token)

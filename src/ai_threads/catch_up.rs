@@ -13,7 +13,7 @@ use super::{
     runs::spawn_run,
 };
 use crate::{
-    ai_governance::AiAdmissionRequest, ai_handlers::require_room_password, state::SharedState,
+    ai_governance::AiAdmissionRequest, ai_handlers::require_chat_password, state::SharedState,
 };
 
 #[utoipa::path(
@@ -24,9 +24,9 @@ use crate::{
     responses(
         (status = 202, description = "Durable unread-summary run accepted", body = super::models::AiRun),
         (status = 204, description = "No unread messages; no model was invoked"),
-        (status = 401, description = "Missing session or private-room password"),
-        (status = 403, description = "Active room membership is required"),
-        (status = 404, description = "AI session or room not found"),
+        (status = 401, description = "Missing session or private-chat password"),
+        (status = 403, description = "Active chat membership is required"),
+        (status = 404, description = "AI session or chat not found"),
         (status = 409, description = "The session already has an active run"),
         (status = 429, description = "Too many AI requests"),
         (status = 503, description = "AI assistant is unavailable")
@@ -51,8 +51,8 @@ pub async fn create_catch_up(
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::NOT_FOUND)?;
-    let room = state
-        .room(payload.room_id)
+    let chat = state
+        .chat(payload.room_id)
         .await
         .ok_or(StatusCode::NOT_FOUND)?;
     let conversation = state
@@ -60,7 +60,7 @@ pub async fn create_catch_up(
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::FORBIDDEN)?;
-    require_room_password(&room, &headers)?;
+    require_chat_password(&chat, &headers)?;
     let Some(window) = state
         .catch_up_window(payload.room_id, user.id)
         .await

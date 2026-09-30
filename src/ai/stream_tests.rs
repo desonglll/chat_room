@@ -22,7 +22,7 @@ fn retrieved_evidence_prompt_requires_source_citations() {
     assert!(encoded.contains("authorized conversation context"));
     assert!(encoded.contains("exact label such as [S1]"));
     assert!(encoded.contains("retrieved_evidence"));
-    assert!(encoded.contains("full room history"));
+    assert!(encoded.contains("full chat history"));
     assert!(encoded.contains("participants, events, chronology"));
     assert!(encoded.contains("查找事实"));
 }
@@ -35,7 +35,7 @@ fn broad_summary_prompt_requires_reviewing_every_visual_projection() {
              A1,message-1,attachment-1,{summary:\"whiteboard\",uncertainties:[\"date unclear\"]}",
         ),
         &[],
-        "Summarize everything in the room, including the images.",
+        "Summarize everything in the chat, including the images.",
         false,
         Some("conversation summary"),
     );
@@ -94,7 +94,7 @@ async fn conversation_answer_stream_preserves_chunks_and_v1_base_path() {
 
     let mut stream = assistant
         .answer_stream(
-            Some("room: test"),
+            Some("chat: test"),
             &[],
             "总结",
             false,

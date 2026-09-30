@@ -11,7 +11,7 @@ pub struct RealtimeConfig {
     pub auth_timeout_secs: u64,
     pub history_replay_limit: i64,
     pub message_poll_limit: i64,
-    /// Per-(room, from, target) cooldown between pokes.
+    /// Per-(chat, from, target) cooldown between pokes.
     pub poke_cooldown_secs: u64,
 }
 

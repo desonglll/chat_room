@@ -60,9 +60,9 @@ impl AgentPlan {
 pub(super) async fn plan_request(
     assistant: &AiAssistant,
     question: &str,
-    has_room: bool,
+    has_chat: bool,
 ) -> anyhow::Result<AgentPlan> {
-    if !has_room {
+    if !has_chat {
         return Ok(AgentPlan {
             intent: AgentIntent::General,
             context_scope: ContextScope::None,
@@ -70,21 +70,21 @@ pub(super) async fn plan_request(
             research_questions: Vec::new(),
         });
     }
-    normalize_decision(question, assistant.plan_room_task(question).await?)
+    normalize_decision(question, assistant.plan_chat_task(question).await?)
 }
 
-pub(super) fn fallback_plan(question: &str, has_room: bool) -> AgentPlan {
-    if has_room && requests_room_wide_overview(question) {
-        return room_wide_overview_plan();
+pub(super) fn fallback_plan(question: &str, has_chat: bool) -> AgentPlan {
+    if has_chat && requests_chat_wide_overview(question) {
+        return chat_wide_overview_plan();
     }
     AgentPlan {
         intent: AgentIntent::General,
-        context_scope: if has_room {
+        context_scope: if has_chat {
             ContextScope::Recent
         } else {
             ContextScope::None
         },
-        semantic_search: has_room,
+        semantic_search: has_chat,
         research_questions: Vec::new(),
     }
 }
@@ -99,8 +99,8 @@ pub(super) fn catch_up_plan() -> AgentPlan {
 }
 
 fn normalize_decision(question: &str, decision: AiTaskPlanDecision) -> anyhow::Result<AgentPlan> {
-    if requests_room_wide_overview(question) {
-        return Ok(room_wide_overview_plan());
+    if requests_chat_wide_overview(question) {
+        return Ok(chat_wide_overview_plan());
     }
     let intent = match decision.intent.trim().to_ascii_lowercase().as_str() {
         "overview" => AgentIntent::Overview,
@@ -131,7 +131,7 @@ fn normalize_decision(question: &str, decision: AiTaskPlanDecision) -> anyhow::R
     })
 }
 
-fn room_wide_overview_plan() -> AgentPlan {
+fn chat_wide_overview_plan() -> AgentPlan {
     AgentPlan {
         intent: AgentIntent::Overview,
         context_scope: ContextScope::Full,
@@ -140,7 +140,7 @@ fn room_wide_overview_plan() -> AgentPlan {
     }
 }
 
-fn requests_room_wide_overview(question: &str) -> bool {
+fn requests_chat_wide_overview(question: &str) -> bool {
     let question = question.trim().to_lowercase();
     let explicitly_recent = ["最近", "近期", "刚才", "recent", "latest"]
         .iter()
@@ -148,7 +148,7 @@ fn requests_room_wide_overview(question: &str) -> bool {
     if explicitly_recent {
         return false;
     }
-    let room_wide = [
+    let chat_wide = [
         "整个聊天室",
         "整个房间",
         "整个对话",
@@ -158,8 +158,8 @@ fn requests_room_wide_overview(question: &str) -> bool {
         "所有消息",
         "都聊了什么",
         "都聊了些什么",
-        "full room",
-        "entire room",
+        "full chat",
+        "entire chat",
         "whole conversation",
         "entire conversation",
         "all messages",
@@ -182,7 +182,7 @@ fn requests_room_wide_overview(question: &str) -> bool {
     ]
     .iter()
     .any(|marker| question.contains(marker));
-    room_wide && overview
+    chat_wide && overview
 }
 
 #[cfg(test)]
@@ -232,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn explicit_room_wide_overview_overrides_a_recent_general_plan() {
+    fn explicit_chat_wide_overview_overrides_a_recent_general_plan() {
         let plan = normalize_decision(
             "这个对话都聊了些什么",
             AiTaskPlanDecision {
@@ -251,6 +251,6 @@ mod tests {
 
     #[test]
     fn a_recent_overview_remains_bounded() {
-        assert!(!requests_room_wide_overview("总结最近的聊天内容"));
+        assert!(!requests_chat_wide_overview("总结最近的聊天内容"));
     }
 }

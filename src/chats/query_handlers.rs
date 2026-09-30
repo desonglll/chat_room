@@ -1,39 +1,43 @@
-//! Viewer-aware room discovery and detail queries.
+//! Viewer-aware chat discovery and detail queries.
 
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
-    Json,
+    response::Response,
 };
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::models::Room;
+use super::ApiDialect;
 use crate::state::SharedState;
 use crate::user_handlers::optional_bearer_token;
 
 #[derive(Deserialize)]
 pub struct ListQuery {
-    pub name: Option<String>,
+    /// Exact title filter. Accepted under its pre-TG-006 name `name` as well, so the frozen
+    /// clients keep working on both paths.
+    #[serde(alias = "name")]
+    pub title: Option<String>,
 }
 
 #[utoipa::path(
     get,
-    path = "/api/rooms",
-    params(("name" = Option<String>, Query, description = "Filter by exact room name")),
-    responses((status = 200, description = "Matching rooms", body = Vec<Room>))
+    path = "/api/chats",
+    params(("title" = Option<String>, Query, description = "Filter by exact chat title")),
+    responses((status = 200, description = "Matching chats", body = Vec<Chat>))
 )]
-pub async fn list_rooms(
+pub async fn list_chats(
     State(state): State<SharedState>,
     Query(query): Query<ListQuery>,
+    dialect: ApiDialect,
     headers: HeaderMap,
-) -> Result<Json<Vec<Room>>, StatusCode> {
+) -> Result<Response, StatusCode> {
     let direct_ids = state
         .direct_room_ids()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let mut rooms = state.list_rooms(query.name.as_deref()).await;
-    rooms.retain(|room| !direct_ids.contains(&room.id));
+    let mut chats = state.list_chats(query.title.as_deref()).await;
+    chats.retain(|chat| !direct_ids.contains(&chat.id));
     let user = if let Some(token) = optional_bearer_token(&headers) {
         state
             .session_user(token)
@@ -43,33 +47,34 @@ pub async fn list_rooms(
         None
     };
     let Some(user) = user else {
-        return Ok(Json(Vec::new()));
+        return Ok(dialect.chats(Vec::new()));
     };
     state
-        .decorate_rooms_for_user(&mut rooms, user.id)
+        .decorate_chats_for_user(&mut chats, user.id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    rooms.retain(|room| room.membership_status.as_deref() == Some("active"));
-    Ok(Json(rooms))
+    chats.retain(|chat| chat.membership_status.as_deref() == Some("active"));
+    Ok(dialect.chats(chats))
 }
 
 #[utoipa::path(
     get,
-    path = "/api/rooms/discover",
-    params(("name" = Option<String>, Query, description = "Filter by exact room name")),
-    responses((status = 200, description = "Discoverable public rooms", body = Vec<Room>))
+    path = "/api/chats/discover",
+    params(("title" = Option<String>, Query, description = "Filter by exact chat title")),
+    responses((status = 200, description = "Discoverable public chats", body = Vec<Chat>))
 )]
-pub async fn discover_rooms(
+pub async fn discover_chats(
     State(state): State<SharedState>,
     Query(query): Query<ListQuery>,
+    dialect: ApiDialect,
     headers: HeaderMap,
-) -> Result<Json<Vec<Room>>, StatusCode> {
+) -> Result<Response, StatusCode> {
     let direct_ids = state
         .direct_room_ids()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let mut rooms = state.list_rooms(query.name.as_deref()).await;
-    rooms.retain(|room| !direct_ids.contains(&room.id) && !room.has_password);
+    let mut chats = state.list_chats(query.title.as_deref()).await;
+    chats.retain(|chat| !direct_ids.contains(&chat.id) && !chat.has_password);
 
     if let Some(token) = optional_bearer_token(&headers) {
         if let Some(user) = state
@@ -78,32 +83,33 @@ pub async fn discover_rooms(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         {
             state
-                .decorate_rooms_for_user(&mut rooms, user.id)
+                .decorate_chats_for_user(&mut chats, user.id)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            rooms.retain(|room| room.membership_status.as_deref() != Some("active"));
+            chats.retain(|chat| chat.membership_status.as_deref() != Some("active"));
         }
     }
-    Ok(Json(rooms))
+    Ok(dialect.chats(chats))
 }
 
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}",
-    params(("id" = Uuid, description = "Room id")),
+    path = "/api/chats/{id}",
+    params(("id" = Uuid, description = "Chat id")),
     responses(
-        (status = 200, description = "Room found", body = Room),
-        (status = 404, description = "Room not found")
+        (status = 200, description = "Chat found", body = Chat),
+        (status = 404, description = "Chat not found")
     )
 )]
-pub async fn get_room(
+pub async fn get_chat(
     State(state): State<SharedState>,
     Path(id): Path<Uuid>,
+    dialect: ApiDialect,
     headers: HeaderMap,
-) -> Result<Json<Room>, StatusCode> {
-    let mut room = state.room(id).await.ok_or(StatusCode::NOT_FOUND)?;
-    room.membership_status = None;
-    room.membership_role = None;
+) -> Result<Response, StatusCode> {
+    let mut chat = state.chat(id).await.ok_or(StatusCode::NOT_FOUND)?;
+    chat.membership_status = None;
+    chat.membership_role = None;
     let user = if let Some(token) = optional_bearer_token(&headers) {
         state
             .session_user(token)
@@ -118,16 +124,16 @@ pub async fn get_room(
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         {
-            room.membership_status = Some(status);
-            room.membership_role = Some(role);
+            chat.membership_status = Some(status);
+            chat.membership_role = Some(role);
         }
     }
     let direct = state
-        .is_direct_room(id)
+        .is_direct_chat(id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if direct {
-        if room.membership_status.as_deref() != Some("active") {
+        if chat.membership_status.as_deref() != Some("active") {
             return Err(StatusCode::NOT_FOUND);
         }
         let user = user.ok_or(StatusCode::NOT_FOUND)?;
@@ -136,9 +142,9 @@ pub async fn get_room(
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .ok_or(StatusCode::NOT_FOUND)?;
-        room.name = conversation.title;
-        room.avatar_emoji = conversation.avatar_emoji;
-        room.description = conversation.description;
+        chat.title = conversation.title;
+        chat.avatar_emoji = conversation.avatar_emoji;
+        chat.description = conversation.description;
     }
-    Ok(Json(room))
+    Ok(dialect.chat(chat))
 }

@@ -65,11 +65,11 @@ async fn configured_upload_limit_is_public_and_enforced() {
         .unwrap();
     assert_eq!(config["max_upload_bytes"], 1024 * 1024);
 
-    let room_id = create_room(&server.base, "limited-media", "").await;
+    let room_id = create_chat(&server.base, "limited-media", "").await;
     let token = session_token(&server.base, "limited-uploader").await;
-    let mut socket = connect_room(&server.base, &room_id, &token).await;
+    let mut socket = connect_chat(&server.base, &room_id, &token).await;
     let response = client
-        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .post(format!("{}/api/chats/{room_id}/attachments", server.base))
         .bearer_auth(token)
         .multipart(upload_form(
             vec![0; 1024 * 1024 + 1],
@@ -83,10 +83,10 @@ async fn configured_upload_limit_is_public_and_enforced() {
     socket.close(None).await.unwrap();
 }
 
-async fn create_room(base: &str, name: &str, password: &str) -> String {
+async fn create_chat(base: &str, name: &str, password: &str) -> String {
     let owner_token = session_token(base, &format!("{name}-owner")).await;
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(owner_token)
         .json(&serde_json::json!({ "name": name, "password": password, "join_policy": "open" }))
         .send()
@@ -100,7 +100,7 @@ async fn create_room(base: &str, name: &str, password: &str) -> String {
         .to_string()
 }
 
-async fn connect_room(
+async fn connect_chat(
     base: &str,
     room_id: &str,
     token: &str,
@@ -146,13 +146,13 @@ fn upload_form(bytes: Vec<u8>, name: &str, mime: &str) -> multipart::Form {
 async fn attachment_upload_replays_and_supports_range_downloads() {
     let server = start_server().await;
     let client = reqwest::Client::new();
-    let room_id = create_room(&server.base, "media", "").await;
+    let room_id = create_chat(&server.base, "media", "").await;
     let token = session_token(&server.base, "alice-media").await;
-    let mut socket = connect_room(&server.base, &room_id, &token).await;
+    let mut socket = connect_chat(&server.base, &room_id, &token).await;
     let bytes = b"fake-png-binary".to_vec();
 
     let response = client
-        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .post(format!("{}/api/chats/{room_id}/attachments", server.base))
         .bearer_auth(&token)
         .multipart(
             upload_form(bytes.clone(), "tiny.png", "image/png")
@@ -202,7 +202,7 @@ async fn attachment_upload_replays_and_supports_range_downloads() {
     assert_eq!(partial.bytes().await.unwrap().as_ref(), &bytes[2..=5]);
 
     let history = client
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&token)
         .send()
         .await
@@ -233,16 +233,16 @@ async fn attachment_upload_replays_and_supports_range_downloads() {
 }
 
 #[tokio::test]
-async fn private_room_upload_requires_account_and_room_credentials() {
+async fn private_chat_upload_requires_account_and_chat_credentials() {
     let server = start_server().await;
     let client = reqwest::Client::new();
-    let room_id = create_room(&server.base, "private-media", "room-secret").await;
+    let room_id = create_chat(&server.base, "private-media", "chat-secret").await;
     let token = session_token(&server.base, "private-media-user").await;
-    let url = format!("{}/api/rooms/{room_id}/attachments", server.base);
+    let url = format!("{}/api/chats/{room_id}/attachments", server.base);
 
     let anonymous = client
         .post(&url)
-        .header("x-room-password", "room-secret")
+        .header("x-room-password", "chat-secret")
         .multipart(upload_form(vec![1], "file.bin", "application/octet-stream"))
         .send()
         .await
@@ -260,9 +260,9 @@ async fn private_room_upload_requires_account_and_room_credentials() {
     assert_eq!(wrong_password.status(), 401);
 
     let accepted = client
-        .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+        .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "password": "room-secret" }))
+        .json(&serde_json::json!({ "password": "chat-secret" }))
         .send()
         .await
         .unwrap();
@@ -271,7 +271,7 @@ async fn private_room_upload_requires_account_and_room_credentials() {
     let accepted = client
         .post(&url)
         .bearer_auth(&token)
-        .header("x-room-password", "room-secret")
+        .header("x-room-password", "chat-secret")
         .multipart(upload_form(
             vec![1, 2, 3],
             "file.bin",

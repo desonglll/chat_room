@@ -71,8 +71,8 @@ pub async fn upload(
             .attachment
             .context("server omitted uploaded attachment metadata"),
         400 => bail!("server rejected the file name or upload body"),
-        401 => bail!("login expired or room password is incorrect"),
-        404 => bail!("room no longer exists"),
+        401 => bail!("login expired or chat password is incorrect"),
+        404 => bail!("chat no longer exists"),
         413 => bail!("file exceeds the 50 MiB upload limit"),
         status => bail!("upload returned unexpected status {status}"),
     }

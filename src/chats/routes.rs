@@ -1,0 +1,130 @@
+//! The chat-scoped route tree, mounted twice.
+//!
+//! `docs/tg/architecture.md` §5.1: `/api/chats/*` is the contract and `/api/rooms/*` is a
+//! deprecated alias that forwards to the same handlers and is removed in M6.
+
+use std::sync::Arc;
+
+use axum::{routing::get, Router};
+
+use super::{
+    handlers, lifecycle_handlers, membership_handlers, message_history,
+    query_handlers as chat_query_handlers,
+};
+use crate::{
+    ai_extractions, ai_governance, ai_suggestions, attachment_handlers, attachment_upload_handlers,
+    audit, file_handlers, message_pins, message_search, state::AppState, tasks,
+};
+
+/// The canonical chat contract.
+pub(crate) const CHAT_PREFIX: &str = "/api/chats";
+/// Deprecated pre-TG-006 spelling, kept until M6 for the frozen Vue, PySide6 and ratatui
+/// clients. `docs/tg/architecture.md` §5.1.
+pub(crate) const DEPRECATED_CHAT_PREFIX: &str = "/api/rooms";
+
+/// Every chat-scoped route, built once and mounted twice.
+///
+/// The deprecated `/api/rooms/*` alias is this same function with a different prefix and one
+/// extra layer that marks the request's dialect. There is no second route list and no second
+/// handler, so the alias cannot drift from the contract — which is a stronger guarantee than
+/// the equivalence test alone gives.
+fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<AppState>> {
+    let path = |suffix: &str| format!("{prefix}{suffix}");
+    Router::new()
+        .route(
+            &path(""),
+            get(chat_query_handlers::list_chats).post(handlers::create_chat),
+        )
+        .route(&path("/discover"), get(chat_query_handlers::discover_chats))
+        .route(
+            &path("/:id"),
+            get(chat_query_handlers::get_chat)
+                .patch(lifecycle_handlers::update_chat)
+                .delete(lifecycle_handlers::delete_chat),
+        )
+        .route(&path("/:id/messages"), get(message_history::list_messages))
+        .route(
+            &path("/:id/messages/search"),
+            get(message_search::search_messages),
+        )
+        .route(
+            &path("/:id/messages/:message_id/context"),
+            get(message_search::message_context),
+        )
+        .route(
+            &path("/:id/tasks"),
+            get(tasks::handlers::list).post(tasks::handlers::create),
+        )
+        .route(
+            &path("/:id/tasks/:task_id"),
+            axum::routing::patch(tasks::handlers::update).delete(tasks::handlers::delete),
+        )
+        .route(&path("/:id/pins"), get(message_pins::list_pins))
+        .route(
+            &path("/:id/pins/:message_id"),
+            axum::routing::post(message_pins::pin_message).delete(message_pins::unpin_message),
+        )
+        .route(&path("/:id/files"), get(file_handlers::list_chat_files))
+        .route(
+            &path("/:id/ai/suggest"),
+            axum::routing::post(ai_suggestions::suggest),
+        )
+        .route(
+            &path("/:id/ai/suggest/events"),
+            axum::routing::post(ai_suggestions::suggest_events),
+        )
+        .route(
+            &path("/:id/ai/extractions"),
+            axum::routing::post(ai_extractions::handlers::create),
+        )
+        .route(&path("/:id/audit-events"), get(audit::handlers::list_chat))
+        .route(
+            &path("/:id/ai-policy"),
+            get(ai_governance::handlers::chat_policy)
+                .patch(ai_governance::handlers::update_chat_policy),
+        )
+        .route(
+            &path("/:id/members"),
+            get(membership_handlers::list_members),
+        )
+        .route(
+            &path("/:id/members/me"),
+            axum::routing::delete(membership_handlers::leave_chat)
+                .patch(membership_handlers::update_own_nickname),
+        )
+        .route(
+            &path("/:id/members/:user_id"),
+            axum::routing::patch(membership_handlers::update_member),
+        )
+        .route(
+            &path("/:id/join-requests"),
+            axum::routing::post(membership_handlers::request_join),
+        )
+        .route(
+            &path("/:id/invitations"),
+            axum::routing::post(membership_handlers::invite_member),
+        )
+        .route(
+            &path("/:id/attachments"),
+            axum::routing::post(attachment_handlers::upload_attachment)
+                .layer(axum::extract::DefaultBodyLimit::max(multipart_body_limit)),
+        )
+        .route(
+            &path("/:id/attachments/uploads"),
+            axum::routing::post(attachment_upload_handlers::create_upload)
+                .get(attachment_upload_handlers::list_uploads),
+        )
+}
+
+/// `/api/chats/*` — the contract.
+pub(crate) fn canonical(multipart_body_limit: usize) -> Router<Arc<AppState>> {
+    chat_scoped_routes(CHAT_PREFIX, multipart_body_limit)
+}
+
+/// `/api/rooms/*` — the same tree, plus the one layer that tells the chat-descriptor handlers
+/// to answer in the pre-rename dialect. Routing only: no handler is duplicated.
+pub(crate) fn deprecated_alias(multipart_body_limit: usize) -> Router<Arc<AppState>> {
+    chat_scoped_routes(DEPRECATED_CHAT_PREFIX, multipart_body_limit).layer(
+        axum::middleware::from_fn(super::compat::mark_legacy_room_dialect),
+    )
+}

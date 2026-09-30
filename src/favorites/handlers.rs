@@ -340,8 +340,8 @@ pub async fn delete_favorite(
     params(("id" = Uuid, Path, description = "Favorite id")),
     request_body = ForwardFavoriteRequest,
     responses(
-        (status = 200, description = "Per-room forward outcome", body = [FavoriteForwardResult]),
-        (status = 400, description = "Invalid target-room batch"),
+        (status = 200, description = "Per-chat forward outcome", body = [FavoriteForwardResult]),
+        (status = 400, description = "Invalid target-chat batch"),
         (status = 404, description = "Favorite not found")
     )
 )]
@@ -394,7 +394,7 @@ pub async fn forward_favorite(
                 favorite_id,
                 target_room_id,
                 forwarded_message_id: None,
-                skipped_reason: Some("cannot send to the target room".into()),
+                skipped_reason: Some("cannot send to the target chat".into()),
             }),
             Err(error) => {
                 tracing::error!(%favorite_id, %target_room_id, "forward favorite failed: {error}");

@@ -174,20 +174,20 @@ async fn message_notifications_reauthorize_and_redact_recalled_sources() {
     let client = Client::new();
     let alice = register(&client, &server.base, "notify-message-alice").await;
     let bob = register(&client, &server.base, "notify-message-bob").await;
-    let room: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+    let chat: serde_json::Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&alice.token)
-        .json(&serde_json::json!({ "name": "notification-room", "join_policy": "approval" }))
+        .json(&serde_json::json!({ "name": "notification-chat", "join_policy": "approval" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    let room_id: Uuid = room["id"].as_str().unwrap().parse().unwrap();
+    let room_id: Uuid = chat["id"].as_str().unwrap().parse().unwrap();
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&bob.token)
             .json(&serde_json::json!({}))
             .send()
@@ -208,7 +208,7 @@ async fn message_notifications_reauthorize_and_redact_recalled_sources() {
     assert_eq!(
         client
             .patch(format!(
-                "{}/api/rooms/{room_id}/members/{}",
+                "{}/api/chats/{room_id}/members/{}",
                 server.base, bob.id
             ))
             .bearer_auth(&alice.token)

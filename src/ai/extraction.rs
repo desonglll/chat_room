@@ -38,7 +38,7 @@ impl AiAssistant {
     ) -> anyhow::Result<Vec<AiExtractedCandidate>> {
         let transcript = serde_json::to_string(messages)?;
         let system_prompt = format!(
-            "You extract proposed decisions and actionable tasks from a private chat room named {room_name:?}. Return ONLY one JSON object with this exact shape: {{\"candidates\":[{{\"kind\":\"decision|task\",\"title\":\"short title\",\"detail\":\"concise supporting detail\",\"source_labels\":[\"S1\"]}}]}}. Return at most 20 candidates. Use only source labels present in the input. Include every supporting source label. If a useful candidate is a reasonable inference but no message directly supports it, use an empty source_labels array. Do not invent assignees, due dates, task statuses, message IDs, or database IDs. Write in the conversation's main language."
+            "You extract proposed decisions and actionable tasks from a private chat named {room_name:?}. Return ONLY one JSON object with this exact shape: {{\"candidates\":[{{\"kind\":\"decision|task\",\"title\":\"short title\",\"detail\":\"concise supporting detail\",\"source_labels\":[\"S1\"]}}]}}. Return at most 20 candidates. Use only source labels present in the input. Include every supporting source label. If a useful candidate is a reasonable inference but no message directly supports it, use an empty source_labels array. Do not invent assignees, due dates, task statuses, message IDs, or database IDs. Write in the conversation's main language."
         );
         let request = ChatRequest::new(vec![
             ChatMessage::system(system_prompt),

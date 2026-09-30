@@ -3,16 +3,16 @@
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::models::RoomMembership;
+use crate::models::ChatMembership;
 use crate::state::{with_pool, AppState};
 
 impl AppState {
-    pub async fn invite_room_member(
+    pub async fn invite_chat_member(
         &self,
         room_id: Uuid,
         invited_by: Uuid,
         username: &str,
-    ) -> Result<Option<RoomMembership>, sqlx::Error> {
+    ) -> Result<Option<ChatMembership>, sqlx::Error> {
         let user_id: Option<Uuid> = with_pool!(self, |pool| {
             sqlx::query_scalar("SELECT id FROM users WHERE LOWER(username) = LOWER($1)")
                 .bind(username)
@@ -22,23 +22,23 @@ impl AppState {
         let Some(user_id) = user_id else {
             return Ok(None);
         };
-        if self.room_banned(room_id, user_id).await? {
+        if self.chat_banned(room_id, user_id).await? {
             return Ok(None);
         }
         let now = Utc::now();
         with_pool!(self, |pool| {
             sqlx::query(
-                "INSERT INTO room_memberships \
+                "INSERT INTO chat_members \
              (room_id, user_id, role_id, status, invited_by, requested_at) \
-             SELECT $1, $2, room_roles.id, 'invited', $3, $4 FROM room_roles \
-             WHERE room_roles.room_id = $5 AND room_roles.name = 'member' \
+             SELECT $1, $2, chat_roles.id, 'invited', $3, $4 FROM chat_roles \
+             WHERE chat_roles.room_id = $5 AND chat_roles.name = 'member' \
              ON CONFLICT(room_id, user_id) DO UPDATE SET \
-               status = CASE WHEN room_memberships.status = 'active' \
+               status = CASE WHEN chat_members.status = 'active' \
                  THEN 'active' ELSE 'invited' END, \
-               invited_by = CASE WHEN room_memberships.status = 'active' \
-                 THEN room_memberships.invited_by ELSE excluded.invited_by END, \
-               requested_at = CASE WHEN room_memberships.status = 'active' \
-                 THEN room_memberships.requested_at ELSE excluded.requested_at END",
+               invited_by = CASE WHEN chat_members.status = 'active' \
+                 THEN chat_members.invited_by ELSE excluded.invited_by END, \
+               requested_at = CASE WHEN chat_members.status = 'active' \
+                 THEN chat_members.requested_at ELSE excluded.requested_at END",
             )
             .bind(room_id)
             .bind(user_id)
@@ -49,41 +49,41 @@ impl AppState {
             .await
             .map(|_| ())
         })?;
-        self.room_membership(room_id, user_id).await
+        self.chat_membership(room_id, user_id).await
     }
 
-    pub async fn activate_room_member(
+    pub async fn activate_chat_member(
         &self,
         room_id: Uuid,
         user_id: Uuid,
-    ) -> Result<Option<RoomMembership>, sqlx::Error> {
+    ) -> Result<Option<ChatMembership>, sqlx::Error> {
         let changed = with_pool!(self, |pool| {
             sqlx::query(
-            "UPDATE room_memberships SET status = 'active', joined_at = COALESCE(joined_at, $1) \
+                "UPDATE chat_members SET status = 'active', joined_at = COALESCE(joined_at, $1) \
              WHERE room_id = $2 AND user_id = $3 AND status IN ('pending', 'invited')",
-        )
-        .bind(Utc::now())
-        .bind(room_id)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .map(|result| result.rows_affected())
+            )
+            .bind(Utc::now())
+            .bind(room_id)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map(|result| result.rows_affected())
         })?;
         if changed == 0 {
             return Ok(None);
         }
-        self.room_membership(room_id, user_id).await
+        self.chat_membership(room_id, user_id).await
     }
 
-    pub async fn set_room_member_role(
+    pub async fn set_chat_member_role(
         &self,
         room_id: Uuid,
         user_id: Uuid,
         role: &str,
-    ) -> Result<Option<RoomMembership>, sqlx::Error> {
+    ) -> Result<Option<ChatMembership>, sqlx::Error> {
         let role_exists: bool = with_pool!(self, |pool| {
             sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM room_roles \
+                "SELECT EXISTS(SELECT 1 FROM chat_roles \
              WHERE room_id = $1 AND name = $2 AND name IN ('admin', 'member'))",
             )
             .bind(room_id)
@@ -96,10 +96,10 @@ impl AppState {
         }
         let changed = with_pool!(self, |pool| {
             sqlx::query(
-                "UPDATE room_memberships SET role_id = (\
-               SELECT id FROM room_roles WHERE room_id = $1 AND name = $2\
+                "UPDATE chat_members SET role_id = (\
+               SELECT id FROM chat_roles WHERE room_id = $1 AND name = $2\
              ) WHERE room_id = $3 AND user_id = $4 AND status = 'active' \
-             AND role_id <> (SELECT id FROM room_roles WHERE room_id = $5 AND name = 'owner')",
+             AND role_id <> (SELECT id FROM chat_roles WHERE room_id = $5 AND name = 'owner')",
             )
             .bind(room_id)
             .bind(role)
@@ -113,16 +113,16 @@ impl AppState {
         if changed == 0 {
             return Ok(None);
         }
-        self.room_membership(room_id, user_id).await
+        self.chat_membership(room_id, user_id).await
     }
 
-    pub async fn delete_room_membership(
+    pub async fn delete_chat_membership(
         &self,
         room_id: Uuid,
         user_id: Uuid,
         transfer_owner: bool,
-    ) -> Result<Option<RoomMembership>, sqlx::Error> {
-        let membership = self.room_membership(room_id, user_id).await?;
+    ) -> Result<Option<ChatMembership>, sqlx::Error> {
+        let membership = self.chat_membership(room_id, user_id).await?;
         let Some(membership) = membership else {
             return Ok(None);
         };
@@ -133,8 +133,8 @@ impl AppState {
             let mut transaction = pool.begin().await?;
             let successor_id = if membership.role == "owner" {
                 sqlx::query_scalar(
-                    "SELECT memberships.user_id FROM room_memberships AS memberships \
-                     JOIN room_roles AS roles ON roles.id = memberships.role_id \
+                    "SELECT memberships.user_id FROM chat_members AS memberships \
+                     JOIN chat_roles AS roles ON roles.id = memberships.role_id \
                      WHERE memberships.room_id = $1 AND memberships.user_id <> $2 \
                        AND memberships.status = 'active' \
                      ORDER BY CASE WHEN roles.name = 'admin' THEN 0 ELSE 1 END, \
@@ -149,7 +149,7 @@ impl AppState {
             };
             if membership.role == "owner" && successor_id.is_none() {
                 let is_public: bool = sqlx::query_scalar(
-                    "SELECT password_hash = '' FROM rooms WHERE id = $1 AND deleted_at IS NULL",
+                    "SELECT password_hash = '' FROM chats WHERE id = $1 AND deleted_at IS NULL",
                 )
                 .bind(room_id)
                 .fetch_one(&mut *transaction)
@@ -158,15 +158,15 @@ impl AppState {
                     transaction.rollback().await?;
                     return Ok(None);
                 }
-                sqlx::query("UPDATE rooms SET creator_user_id = NULL WHERE id = $1")
+                sqlx::query("UPDATE chats SET creator_user_id = NULL WHERE id = $1")
                     .bind(room_id)
                     .execute(&mut *transaction)
                     .await?;
             }
             if let Some(successor_id) = successor_id {
                 sqlx::query(
-                    "UPDATE room_memberships SET role_id = (\
-                       SELECT id FROM room_roles WHERE room_id = $1 AND name = 'owner'\
+                    "UPDATE chat_members SET role_id = (\
+                       SELECT id FROM chat_roles WHERE room_id = $1 AND name = 'owner'\
                      ) WHERE room_id = $2 AND user_id = $3 AND status = 'active'",
                 )
                 .bind(room_id)
@@ -174,18 +174,18 @@ impl AppState {
                 .bind(successor_id)
                 .execute(&mut *transaction)
                 .await?;
-                sqlx::query("UPDATE rooms SET creator_user_id = $1 WHERE id = $2")
+                sqlx::query("UPDATE chats SET creator_user_id = $1 WHERE id = $2")
                     .bind(successor_id)
                     .bind(room_id)
                     .execute(&mut *transaction)
                     .await?;
             }
-            sqlx::query("DELETE FROM room_reads WHERE room_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM chat_reads WHERE room_id = $1 AND user_id = $2")
                 .bind(room_id)
                 .bind(user_id)
                 .execute(&mut *transaction)
                 .await?;
-            sqlx::query("DELETE FROM room_memberships WHERE room_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM chat_members WHERE room_id = $1 AND user_id = $2")
                 .bind(room_id)
                 .bind(user_id)
                 .execute(&mut *transaction)
@@ -194,9 +194,9 @@ impl AppState {
             Ok::<_, sqlx::Error>(successor_id)
         })?;
         if membership.role == "owner" {
-            if let Some(mut room) = self.room(room_id).await {
-                room.creator_user_id = successor_id;
-                self.cache_updated_room(room).await;
+            if let Some(mut chat) = self.chat(room_id).await {
+                chat.creator_user_id = successor_id;
+                self.cache_updated_chat(chat).await;
             }
         }
         Ok(Some(membership))

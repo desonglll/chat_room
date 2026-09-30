@@ -1,4 +1,4 @@
-//! Durable per-user room read positions.
+//! Durable per-user chat read positions.
 
 use chrono::Utc;
 use sqlx::FromRow;
@@ -8,7 +8,7 @@ use crate::models::ReadReceipt;
 use crate::state::{with_pool, AppState};
 
 impl AppState {
-    /// Advance a user's room read cursor only when the target message is newer.
+    /// Advance a user's chat read cursor only when the target message is newer.
     pub async fn store_read_cursor(
         &self,
         room_id: Uuid,
@@ -17,7 +17,7 @@ impl AppState {
     ) -> Result<bool, sqlx::Error> {
         let changed = with_pool!(self, |pool| {
             sqlx::query(
-                "INSERT INTO room_reads (room_id, user_id, message_id, read_at) \
+                "INSERT INTO chat_reads (room_id, user_id, message_id, read_at) \
              SELECT $1, $2, $3, $4 WHERE EXISTS (\
                  SELECT 1 FROM messages WHERE id = $5 AND room_id = $6\
              ) ON CONFLICT(room_id, user_id) DO UPDATE SET \
@@ -25,7 +25,7 @@ impl AppState {
              WHERE EXISTS (\
                  SELECT 1 FROM messages AS next, messages AS current \
                  WHERE next.id = excluded.message_id \
-                   AND current.id = room_reads.message_id \
+                   AND current.id = chat_reads.message_id \
                    AND (next.created_at > current.created_at OR \
                         (next.created_at = current.created_at AND next.id > current.id))\
              )",
@@ -43,12 +43,12 @@ impl AppState {
         Ok(changed > 0)
     }
 
-    pub async fn room_read_receipts(&self, room_id: Uuid) -> Result<Vec<ReadReceipt>, sqlx::Error> {
+    pub async fn chat_read_receipts(&self, room_id: Uuid) -> Result<Vec<ReadReceipt>, sqlx::Error> {
         let rows: Vec<ReadRow> = with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT room_reads.user_id, users.username, room_reads.message_id \
-             FROM room_reads JOIN users ON users.id = room_reads.user_id \
-             WHERE room_reads.room_id = $1 ORDER BY LOWER(users.username)",
+                "SELECT chat_reads.user_id, users.username, chat_reads.message_id \
+             FROM chat_reads JOIN users ON users.id = chat_reads.user_id \
+             WHERE chat_reads.room_id = $1 ORDER BY LOWER(users.username)",
             )
             .bind(room_id)
             .fetch_all(pool)

@@ -6,7 +6,7 @@ use futures_util::{stream::SplitSink, SinkExt};
 use super::ws::send_json;
 use uuid::Uuid;
 
-use crate::admin_system_lock::room_lock_reason;
+use crate::admin_system_lock::chat_lock_reason;
 use crate::models::ChatMessage;
 use crate::state::SharedState;
 
@@ -15,7 +15,7 @@ pub(super) async fn reject_locked_auth(
     room_id: Uuid,
     sink: &mut SplitSink<WebSocket, Message>,
 ) -> bool {
-    let reason = match room_lock_reason(state, room_id).await {
+    let reason = match chat_lock_reason(state, room_id).await {
         Ok(None) => return false,
         Ok(Some(reason)) => reason,
         Err(error) => {
@@ -38,7 +38,7 @@ pub(super) async fn close_if_locked(
     room_id: Uuid,
     sink: &mut SplitSink<WebSocket, Message>,
 ) -> bool {
-    match room_lock_reason(state, room_id).await {
+    match chat_lock_reason(state, room_id).await {
         Ok(Some(reason)) => {
             let _ = send_json(
                 sink,

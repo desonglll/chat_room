@@ -217,7 +217,7 @@ fn observability_accepts_only_fixed_dependency_names() {
     assert!(configured.observability.json_logs);
     assert!(configured.validate().is_ok());
 
-    for dependencies in ["['database']", "['redis', 'redis']", "['room-123']"] {
+    for dependencies in ["['database']", "['redis', 'redis']", "['chat-123']"] {
         let config: AppConfig = toml::from_str(&format!(
             "[observability]\nrequired_dependencies = {dependencies}"
         ))

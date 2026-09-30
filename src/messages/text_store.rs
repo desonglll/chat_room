@@ -32,11 +32,11 @@ impl AppState {
                 "INSERT INTO messages \
                  (id, room_id, sender_id, sender, content, reply_to_id, client_message_id, created_at) \
                  SELECT $1, $2, $3, $4, $5, $6, $7, $8 \
-                 WHERE EXISTS (SELECT 1 FROM room_memberships \
-                   JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
-                   WHERE room_memberships.room_id = $2 AND room_memberships.user_id = $3 \
-                     AND room_memberships.status = 'active' \
-                     AND room_role_permissions.permission_key = 'message.send') \
+                 WHERE EXISTS (SELECT 1 FROM chat_members \
+                   JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
+                   WHERE chat_members.room_id = $2 AND chat_members.user_id = $3 \
+                     AND chat_members.status = 'active' \
+                     AND chat_role_permissions.permission_key = 'message.send') \
                  ON CONFLICT (room_id, sender_id, client_message_id) \
                  WHERE client_message_id IS NOT NULL DO NOTHING",
             )

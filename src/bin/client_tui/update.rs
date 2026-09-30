@@ -113,21 +113,21 @@ impl App {
     }
 
     pub(super) fn connect_selected(&mut self, target_message: Option<uuid::Uuid>) -> Vec<Action> {
-        let Some(room_id) = self.selected_conversation().map(|room| room.room_id) else {
+        let Some(room_id) = self.selected_conversation().map(|chat| chat.room_id) else {
             return Vec::new();
         };
-        self.connect_room(room_id, target_message)
+        self.connect_chat(room_id, target_message)
     }
 
-    pub(super) fn connect_room(
+    pub(super) fn connect_chat(
         &mut self,
         room_id: uuid::Uuid,
         target_message: Option<uuid::Uuid>,
     ) -> Vec<Action> {
-        let password = self.room_passwords.get(&room_id).cloned();
+        let password = self.chat_passwords.get(&room_id).cloned();
         self.busy = true;
         self.status = "Connecting...".into();
-        vec![Action::ConnectRoom {
+        vec![Action::ConnectChat {
             room_id,
             password,
             target_message,
@@ -185,13 +185,13 @@ mod tests {
 
     #[test]
     fn left_then_down_and_enter_switches_conversation() {
-        let first_room = uuid::Uuid::new_v4();
-        let next_room = uuid::Uuid::new_v4();
+        let first_chat = uuid::Uuid::new_v4();
+        let next_chat = uuid::Uuid::new_v4();
         let mut app = App::new("http://localhost".into(), UserConfig::default(), None);
         app.screen = Screen::Main;
         app.focus = Focus::Content;
-        app.active_room = Some(first_room);
-        app.conversations = [first_room, next_room]
+        app.active_chat = Some(first_chat);
+        app.conversations = [first_chat, next_chat]
             .into_iter()
             .map(|room_id| Conversation {
                 room_id,
@@ -211,7 +211,7 @@ mod tests {
 
         assert!(matches!(
             actions.as_slice(),
-            [Action::ConnectRoom { room_id, .. }] if *room_id == next_room
+            [Action::ConnectChat { room_id, .. }] if *room_id == next_chat
         ));
     }
 

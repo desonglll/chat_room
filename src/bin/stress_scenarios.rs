@@ -116,15 +116,15 @@ pub async fn prepare(client: &Client, base: &str, run_id: &str) -> Result<(Strin
         }))
         .send()
         .await
-        .context("create stress-test room")?;
+        .context("create stress-test chat")?;
     let status = response.status();
-    let room: Value = response.json().await.context("decode room response")?;
+    let chat: Value = response.json().await.context("decode chat response")?;
     if !status.is_success() {
-        bail!("room creation returned {status}: {room}");
+        bail!("chat creation returned {status}: {chat}");
     }
-    let room_id = room["id"]
+    let room_id = chat["id"]
         .as_str()
-        .context("room response has no id")?
+        .context("chat response has no id")?
         .to_string();
     Ok((token, room_id))
 }

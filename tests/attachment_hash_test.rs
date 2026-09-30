@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chat_room::{
     build_app,
     config::{AppConfig, AttachmentConfig},
-    models::Room,
+    models::Chat,
     state::AppState,
 };
 use chrono::Utc;
@@ -39,10 +39,10 @@ async fn start() -> Server {
     Server { base, state, task }
 }
 
-async fn room_for(base: &str, username: &str, room_name: &str) -> (String, String) {
+async fn chat_for(base: &str, username: &str, room_name: &str) -> (String, String) {
     let token = session_token(base, username).await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "name": room_name, "password": "" }))
         .send()
@@ -51,12 +51,12 @@ async fn room_for(base: &str, username: &str, room_name: &str) -> (String, Strin
         .json()
         .await
         .unwrap();
-    (room["id"].as_str().unwrap().to_string(), token)
+    (chat["id"].as_str().unwrap().to_string(), token)
 }
 
-async fn create_room(base: &str, token: &str, room_name: &str) -> String {
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+async fn create_chat(base: &str, token: &str, room_name: &str) -> String {
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": room_name, "password": "" }))
         .send()
@@ -65,7 +65,7 @@ async fn create_room(base: &str, token: &str, room_name: &str) -> String {
         .json()
         .await
         .unwrap();
-    room["id"].as_str().unwrap().to_string()
+    chat["id"].as_str().unwrap().to_string()
 }
 
 async fn upload(
@@ -80,7 +80,7 @@ async fn upload(
         .mime_str("application/octet-stream")
         .unwrap();
     let response = reqwest::Client::new()
-        .post(format!("{base}/api/rooms/{room_id}/attachments"))
+        .post(format!("{base}/api/chats/{room_id}/attachments"))
         .bearer_auth(token)
         .multipart(multipart::Form::new().part("file", part))
         .send()
@@ -99,7 +99,7 @@ async fn upload_chunked(
 ) -> serde_json::Value {
     let client = reqwest::Client::new();
     let session: serde_json::Value = client
-        .post(format!("{base}/api/rooms/{room_id}/attachments/uploads"))
+        .post(format!("{base}/api/chats/{room_id}/attachments/uploads"))
         .bearer_auth(token)
         .json(&serde_json::json!({
             "file_name": name,
@@ -143,7 +143,7 @@ async fn upload_chunked(
 #[tokio::test]
 async fn identical_uploads_share_one_physical_object() {
     let server = start().await;
-    let (room_id, token) = room_for(&server.base, "hash-owner", "hash-room").await;
+    let (room_id, token) = chat_for(&server.base, "hash-owner", "hash-chat").await;
     let bytes = b"same-content-for-sequential-dedup".to_vec();
     let first = upload(&server.base, &room_id, &token, "first.bin", bytes.clone()).await;
     let second = upload(&server.base, &room_id, &token, "second.bin", bytes.clone()).await;
@@ -173,7 +173,7 @@ async fn identical_uploads_share_one_physical_object() {
 #[tokio::test]
 async fn concurrent_identical_uploads_are_race_safe() {
     let server = start().await;
-    let (room_id, token) = room_for(&server.base, "race-owner", "race-room").await;
+    let (room_id, token) = chat_for(&server.base, "race-owner", "race-chat").await;
     let bytes = b"same-content-from-many-concurrent-requests".to_vec();
     let uploads = (0..16).map(|index| {
         let base = server.base.clone();
@@ -202,7 +202,7 @@ async fn concurrent_identical_uploads_are_race_safe() {
 #[tokio::test]
 async fn chunked_upload_reuses_single_shot_content() {
     let server = start().await;
-    let (room_id, token) = room_for(&server.base, "chunk-owner", "chunk-room").await;
+    let (room_id, token) = chat_for(&server.base, "chunk-owner", "chunk-chat").await;
     let bytes = b"content-shared-by-both-upload-protocols".to_vec();
     let first = upload(&server.base, &room_id, &token, "single.bin", bytes.clone()).await;
     let second = upload_chunked(&server.base, &room_id, &token, "chunked.bin", &bytes).await;
@@ -223,7 +223,7 @@ async fn chunked_upload_reuses_single_shot_content() {
 #[tokio::test]
 async fn new_reference_clears_orphan_marker_for_shared_content() {
     let server = start().await;
-    let (room_id, token) = room_for(&server.base, "revive-owner", "revive-room").await;
+    let (room_id, token) = chat_for(&server.base, "revive-owner", "revive-chat").await;
     let bytes = b"orphaned-content-referenced-again".to_vec();
     let first = upload(&server.base, &room_id, &token, "old.bin", bytes.clone()).await;
     let first_id = Uuid::parse_str(first["attachment"]["id"].as_str().unwrap()).unwrap();
@@ -247,11 +247,11 @@ async fn new_reference_clears_orphan_marker_for_shared_content() {
 #[tokio::test]
 async fn forwarded_message_keeps_content_referenced_until_every_copy_is_recalled() {
     let server = start().await;
-    let (source_room, token) = room_for(&server.base, "forward-owner", "forward-source-room").await;
-    let target_room = create_room(&server.base, &token, "forward-target-room").await;
+    let (source_chat, token) = chat_for(&server.base, "forward-owner", "forward-source-chat").await;
+    let target_chat = create_chat(&server.base, &token, "forward-target-chat").await;
     let uploaded = upload(
         &server.base,
-        &source_room,
+        &source_chat,
         &token,
         "forward.bin",
         b"forwarded-content".to_vec(),
@@ -270,8 +270,8 @@ async fn forwarded_message_keeps_content_referenced_until_every_copy_is_recalled
         .state
         .forward_message(
             source_message,
-            Uuid::parse_str(&source_room).unwrap(),
-            Uuid::parse_str(&target_room).unwrap(),
+            Uuid::parse_str(&source_chat).unwrap(),
+            Uuid::parse_str(&target_chat).unwrap(),
             &user,
         )
         .await
@@ -281,7 +281,7 @@ async fn forwarded_message_keeps_content_referenced_until_every_copy_is_recalled
     server
         .state
         .recall_message(
-            Uuid::parse_str(&source_room).unwrap(),
+            Uuid::parse_str(&source_chat).unwrap(),
             user.id,
             source_message,
         )
@@ -298,7 +298,7 @@ async fn forwarded_message_keeps_content_referenced_until_every_copy_is_recalled
     server
         .state
         .recall_message(
-            Uuid::parse_str(&target_room).unwrap(),
+            Uuid::parse_str(&target_chat).unwrap(),
             user.id,
             forwarded.id,
         )
@@ -324,7 +324,7 @@ async fn restart_backfills_legacy_uuid_keyed_file_hash() {
     let root = std::env::temp_dir()
         .join("chat-room-hash-backfill")
         .join(Uuid::new_v4().simple().to_string());
-    let database = root.join("rooms.db");
+    let database = root.join("chats.db");
     let attachment_dir = root.join("attachments");
     let config = AppConfig {
         attachments: AttachmentConfig {
@@ -337,22 +337,19 @@ async fn restart_backfills_legacy_uuid_keyed_file_hash() {
         .await
         .unwrap();
     let user = state.insert_user("legacy-owner", "not-used").await.unwrap();
-    let room = Room {
+    let chat = Chat {
         id: Uuid::new_v4(),
-        name: "legacy-hash-room".into(),
-        password_hash: String::new(),
-        has_password: false,
+        title: "legacy-hash-chat".into(),
         creator_user_id: Some(user.id),
         join_policy: "open".into(),
-        avatar_emoji: String::new(),
-        description: String::new(),
         membership_status: Some("active".into()),
         membership_role: Some("owner".into()),
-        unread_count: 0,
         created_at: Utc::now(),
+
+        ..Chat::default()
     };
     state
-        .create_room_with_owner(room.clone(), user.id)
+        .create_chat_with_owner(chat.clone(), user.id)
         .await
         .unwrap();
     let bytes = b"legacy-file-needs-backfill";
@@ -360,7 +357,7 @@ async fn restart_backfills_legacy_uuid_keyed_file_hash() {
     staged.write(bytes).await.unwrap();
     let message = state
         .store_attachment_message(
-            room.id,
+            chat.id,
             &user,
             &user.username,
             chat_room::message_store::NewAttachment {

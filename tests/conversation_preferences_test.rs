@@ -52,9 +52,9 @@ async fn register(client: &Client, base: &str, username: &str) -> Account {
     }
 }
 
-async fn create_room(client: &Client, base: &str, token: &str, name: &str) -> String {
+async fn create_chat(client: &Client, base: &str, token: &str, name: &str) -> String {
     client
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": name, "join_policy": "open" }))
         .send()
@@ -111,10 +111,10 @@ async fn preferences_are_private_partial_and_embedded_in_summaries() {
     let client = Client::new();
     let alice = register(&client, &server.base, "preferences-alice").await;
     let bob = register(&client, &server.base, "preferences-bob").await;
-    let room_id = create_room(&client, &server.base, &alice.token, "preferences-shared").await;
+    let room_id = create_chat(&client, &server.base, &alice.token, "preferences-shared").await;
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&bob.token)
             .json(&serde_json::json!({}))
             .send()
@@ -191,8 +191,8 @@ async fn pinned_and_archived_sorting_applies_to_groups_and_direct_conversations(
     let client = Client::new();
     let alice = register(&client, &server.base, "preferences-sort-alice").await;
     let bob = register(&client, &server.base, "preferences-sort-bob").await;
-    let normal_id = create_room(&client, &server.base, &alice.token, "normal-room").await;
-    let archived_id = create_room(&client, &server.base, &alice.token, "archived-room").await;
+    let normal_id = create_chat(&client, &server.base, &alice.token, "normal-chat").await;
+    let archived_id = create_chat(&client, &server.base, &alice.token, "archived-chat").await;
 
     client
         .post(format!("{}/api/friend-requests", server.base))
@@ -263,7 +263,7 @@ async fn pinned_and_archived_sorting_applies_to_groups_and_direct_conversations(
 
     assert_eq!(
         client
-            .delete(format!("{}/api/rooms/{normal_id}/members/me", server.base))
+            .delete(format!("{}/api/chats/{normal_id}/members/me", server.base))
             .bearer_auth(&alice.token)
             .send()
             .await

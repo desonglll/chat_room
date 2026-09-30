@@ -9,7 +9,11 @@ use uuid::Uuid;
 #[serde(rename_all = "snake_case")]
 pub enum NotificationKind {
     FriendRequest,
-    RoomJoinRequest,
+    /// The stored and wire value stays `room_join_request`: it is written by the
+    /// `notifications_room_join_*` database triggers, read by the frozen clients, and already
+    /// present in every existing `notifications` row. Frozen until M6.
+    #[serde(rename = "room_join_request")]
+    ChatJoinRequest,
     Mention,
     Reply,
     AiRunCompleted,
@@ -19,7 +23,7 @@ impl NotificationKind {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::FriendRequest => "friend_request",
-            Self::RoomJoinRequest => "room_join_request",
+            Self::ChatJoinRequest => "room_join_request",
             Self::Mention => "mention",
             Self::Reply => "reply",
             Self::AiRunCompleted => "ai_run_completed",
@@ -33,7 +37,7 @@ impl FromStr for NotificationKind {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "friend_request" => Ok(Self::FriendRequest),
-            "room_join_request" => Ok(Self::RoomJoinRequest),
+            "room_join_request" => Ok(Self::ChatJoinRequest),
             "mention" => Ok(Self::Mention),
             "reply" => Ok(Self::Reply),
             "ai_run_completed" => Ok(Self::AiRunCompleted),

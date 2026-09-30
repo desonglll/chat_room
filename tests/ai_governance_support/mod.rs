@@ -53,9 +53,9 @@ pub async fn start(base_url: String) -> Server {
     Server { base, state, task }
 }
 
-pub async fn create_room(client: &Client, server: &Server, token: &str) -> Uuid {
-    let room: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+pub async fn create_chat(client: &Client, server: &Server, token: &str) -> Uuid {
+    let chat: serde_json::Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(token)
         .json(
             &serde_json::json!({ "name": "AI governance", "password": "", "join_policy": "open" }),
@@ -66,7 +66,7 @@ pub async fn create_room(client: &Client, server: &Server, token: &str) -> Uuid 
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 pub async fn create_thread(
@@ -97,7 +97,7 @@ pub async fn patch_policy(
     version: i64,
 ) -> reqwest::Response {
     client
-        .patch(format!("{}/api/rooms/{room_id}/ai-policy", server.base))
+        .patch(format!("{}/api/chats/{room_id}/ai-policy", server.base))
         .bearer_auth(token)
         .json(&serde_json::json!({ "mode": mode, "version": version }))
         .send()

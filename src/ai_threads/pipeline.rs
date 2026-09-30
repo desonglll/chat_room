@@ -53,12 +53,12 @@ pub(super) async fn generate_answer(
                 "",
             )
             .await?;
-        let has_room = execution.room_id.is_some();
-        match plan_request(&assistant, &execution.question, has_room).await {
+        let has_chat = execution.room_id.is_some();
+        match plan_request(&assistant, &execution.question, has_chat).await {
             Ok(plan) => plan,
             Err(error) => {
                 tracing::warn!(run_id = %execution.id, "planning agent failed; using safe fallback: {error:#}");
-                fallback_plan(&execution.question, has_room)
+                fallback_plan(&execution.question, has_chat)
             }
         }
     };

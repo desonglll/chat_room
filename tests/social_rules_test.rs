@@ -26,7 +26,7 @@ async fn register(client: &Client, base: &str, username: &str) -> Account {
 }
 
 #[tokio::test]
-async fn requests_are_cancelable_cross_requests_accept_and_direct_room_is_constrained() {
+async fn requests_are_cancelable_cross_requests_accept_and_direct_chat_is_constrained() {
     let state = Arc::new(AppState::new().await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -111,7 +111,7 @@ async fn requests_are_cancelable_cross_requests_accept_and_direct_room_is_constr
 
     assert_eq!(
         client
-            .patch(format!("{base}/api/rooms/{room_id}"))
+            .patch(format!("{base}/api/chats/{room_id}"))
             .bearer_auth(&alice.token)
             .json(&serde_json::json!({ "name": "not-a-group" }))
             .send()
@@ -122,7 +122,7 @@ async fn requests_are_cancelable_cross_requests_accept_and_direct_room_is_constr
     );
     assert_eq!(
         client
-            .patch(format!("{base}/api/rooms/{room_id}/members/me"))
+            .patch(format!("{base}/api/chats/{room_id}/members/me"))
             .bearer_auth(&alice.token)
             .json(&serde_json::json!({ "nickname": "hidden" }))
             .send()
@@ -133,7 +133,7 @@ async fn requests_are_cancelable_cross_requests_accept_and_direct_room_is_constr
     );
     assert_eq!(
         client
-            .delete(format!("{base}/api/rooms/{room_id}/members/me"))
+            .delete(format!("{base}/api/chats/{room_id}/members/me"))
             .bearer_auth(&bob.token)
             .send()
             .await
@@ -143,7 +143,7 @@ async fn requests_are_cancelable_cross_requests_accept_and_direct_room_is_constr
     );
     assert_eq!(
         client
-            .post(format!("{base}/api/rooms/{room_id}/invitations"))
+            .post(format!("{base}/api/chats/{room_id}/invitations"))
             .bearer_auth(&alice.token)
             .json(&serde_json::json!({ "username": "someone" }))
             .send()
@@ -214,8 +214,8 @@ async fn deleting_an_account_closes_its_direct_conversations() {
         .await
         .unwrap();
     assert!(conversations.is_empty());
-    let rooms = client
-        .get(format!("{base}/api/rooms"))
+    let chats = client
+        .get(format!("{base}/api/chats"))
         .bearer_auth(&bob.token)
         .send()
         .await
@@ -223,10 +223,10 @@ async fn deleting_an_account_closes_its_direct_conversations() {
         .json::<Vec<serde_json::Value>>()
         .await
         .unwrap();
-    assert!(rooms.iter().all(|room| room["id"] != room_id));
+    assert!(chats.iter().all(|chat| chat["id"] != room_id));
     assert_eq!(
         client
-            .get(format!("{base}/api/rooms/{room_id}"))
+            .get(format!("{base}/api/chats/{room_id}"))
             .bearer_auth(&bob.token)
             .send()
             .await

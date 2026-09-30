@@ -87,7 +87,7 @@ fn remove_sqlite_files(path: &Path) {
     let _ = std::fs::remove_file(format!("{}-shm", path.display()));
 }
 
-async fn create_room(base: &str, name: &str, password: Option<&str>) -> (String, bool) {
+async fn create_chat(base: &str, name: &str, password: Option<&str>) -> (String, bool) {
     let client = reqwest::Client::new();
     let owner_token = session_token(base, &format!("owner-{name}")).await;
     let body = serde_json::json!({
@@ -95,7 +95,7 @@ async fn create_room(base: &str, name: &str, password: Option<&str>) -> (String,
         "password": password.unwrap_or("")
     });
     let resp = client
-        .post(format!("{}/api/rooms", base))
+        .post(format!("{}/api/chats", base))
         .bearer_auth(owner_token)
         .json(&body)
         .send()
@@ -104,7 +104,7 @@ async fn create_room(base: &str, name: &str, password: Option<&str>) -> (String,
     assert_eq!(
         resp.status(),
         201,
-        "create_room failed: {:?}",
+        "create_chat failed: {:?}",
         resp.text().await
     );
     let body: serde_json::Value = resp.json().await.unwrap();
@@ -214,10 +214,10 @@ async fn ws_connect(
 // ── REST API tests ──────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn create_and_list_rooms() {
+async fn create_and_list_chats() {
     let base = start_server().await;
 
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", base))
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/chats", base))
         .await
         .unwrap()
         .json()
@@ -225,12 +225,12 @@ async fn create_and_list_rooms() {
         .unwrap();
     assert!(list.is_empty());
 
-    let id1 = create_room(&base, "general", Some("pw1")).await.0;
-    let id2 = create_room(&base, "random", None).await.0;
+    let id1 = create_chat(&base, "general", Some("pw1")).await.0;
+    let id2 = create_chat(&base, "random", None).await.0;
     assert_ne!(id1, id2);
 
     // The chat list is membership-only, including for anonymous visitors.
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", base))
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/chats", base))
         .await
         .unwrap()
         .json()
@@ -238,19 +238,19 @@ async fn create_and_list_rooms() {
         .unwrap();
     assert!(list.is_empty());
 
-    let discover: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms/discover", base))
+    let discover: Vec<serde_json::Value> = reqwest::get(format!("{}/api/chats/discover", base))
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
     assert_eq!(discover.len(), 1);
-    assert_eq!(discover[0]["name"], "random");
+    assert_eq!(discover[0]["title"], "random");
 
-    // An authenticated member sees only rooms they actually joined.
+    // An authenticated member sees only chats they actually joined.
     let owner_token = session_token(&base, "owner-general").await;
     let authed_list: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms", base))
+        .get(format!("{}/api/chats", base))
         .bearer_auth(owner_token)
         .send()
         .await
@@ -259,23 +259,23 @@ async fn create_and_list_rooms() {
         .await
         .unwrap();
     assert_eq!(authed_list.len(), 1);
-    assert_eq!(authed_list[0]["name"], "general");
+    assert_eq!(authed_list[0]["title"], "general");
 }
 
-/// Regression test: the room struct cached at creation time carries the
-/// creator's own membership_status/membership_role (see handlers::create_room),
+/// Regression test: the chat struct cached at creation time carries the
+/// creator's own membership_status/membership_role (see handlers::create_chat),
 /// so an unrelated user's decorated view must never inherit those stale
-/// values — otherwise every room looks joined to everyone, and a private
-/// room's password-gate gets silently bypassed by the listing endpoint.
+/// values — otherwise every chat looks joined to everyone, and a private
+/// chat's password-gate gets silently bypassed by the listing endpoint.
 #[tokio::test]
-async fn list_rooms_does_not_leak_creator_membership_to_other_users() {
+async fn list_chats_does_not_leak_creator_membership_to_other_users() {
     let base = start_server().await;
-    let (public_id, _) = create_room(&base, "leak-check-public", None).await;
-    let (private_id, _) = create_room(&base, "leak-check-private", Some("pw")).await;
+    let (public_id, _) = create_chat(&base, "leak-check-public", None).await;
+    let (private_id, _) = create_chat(&base, "leak-check-private", Some("pw")).await;
 
     let other_token = session_token(&base, "bystander").await;
     let list: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms", base))
+        .get(format!("{}/api/chats", base))
         .bearer_auth(other_token)
         .send()
         .await
@@ -285,23 +285,23 @@ async fn list_rooms_does_not_leak_creator_membership_to_other_users() {
         .unwrap();
 
     assert!(
-        list.iter().all(|room| room["id"] != public_id),
-        "a public room the caller never joined belongs in discovery, not the chat list"
+        list.iter().all(|chat| chat["id"] != public_id),
+        "a public chat the caller never joined belongs in discovery, not the chat list"
     );
 
     assert!(
-        list.iter().all(|room| room["id"] != private_id),
-        "a private room the caller never joined must not appear in the listing at all"
+        list.iter().all(|chat| chat["id"] != private_id),
+        "a private chat the caller never joined must not appear in the listing at all"
     );
 }
 
 #[tokio::test]
-async fn public_room_has_password_false() {
+async fn public_chat_has_password_false() {
     let base = start_server().await;
-    let (id, has_password) = create_room(&base, "lobby", None).await;
-    assert!(!has_password, "public room should have has_password=false");
+    let (id, has_password) = create_chat(&base, "lobby", None).await;
+    assert!(!has_password, "public chat should have has_password=false");
 
-    let resp = reqwest::get(format!("{}/api/rooms/{}", base, id))
+    let resp = reqwest::get(format!("{}/api/chats/{}", base, id))
         .await
         .unwrap();
     let body: serde_json::Value = resp.json().await.unwrap();
@@ -309,12 +309,12 @@ async fn public_room_has_password_false() {
 }
 
 #[tokio::test]
-async fn private_room_has_password_true() {
+async fn private_chat_has_password_true() {
     let base = start_server().await;
-    let (id, has_password) = create_room(&base, "vip", Some("secret")).await;
+    let (id, has_password) = create_chat(&base, "vip", Some("secret")).await;
     assert!(has_password);
 
-    let resp = reqwest::get(format!("{}/api/rooms/{}", base, id))
+    let resp = reqwest::get(format!("{}/api/chats/{}", base, id))
         .await
         .unwrap();
     let body: serde_json::Value = resp.json().await.unwrap();
@@ -322,16 +322,16 @@ async fn private_room_has_password_true() {
 }
 
 #[tokio::test]
-async fn reject_invalid_room_inputs() {
+async fn reject_invalid_chat_inputs() {
     let server = start_server().await;
     let client = reqwest::Client::new();
-    let url = format!("{}/api/rooms", server);
-    let token = session_token(&server, "invalid-room-owner").await;
+    let url = format!("{}/api/chats", server);
+    let token = session_token(&server, "invalid-chat-owner").await;
 
     for body in [
         serde_json::json!({ "name": "   ", "password": "" }),
         serde_json::json!({ "name": "x".repeat(81), "password": "" }),
-        serde_json::json!({ "name": "room", "password": "x".repeat(257) }),
+        serde_json::json!({ "name": "chat", "password": "x".repeat(257) }),
     ] {
         let response = client
             .post(&url)
@@ -347,12 +347,12 @@ async fn reject_invalid_room_inputs() {
 #[tokio::test]
 async fn reject_duplicate_room_name() {
     let base = start_server().await;
-    create_room(&base, "lobby", None).await;
+    create_chat(&base, "lobby", None).await;
     let token = session_token(&base, "owner-lobby").await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/api/rooms", base))
+        .post(format!("{}/api/chats", base))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": "lobby", "password": "" }))
         .send()
@@ -362,20 +362,20 @@ async fn reject_duplicate_room_name() {
 }
 
 #[tokio::test]
-async fn get_room_by_id() {
+async fn get_chat_by_id() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "mychat", Some("secret")).await;
+    let (id, _) = create_chat(&base, "mychat", Some("secret")).await;
 
-    let resp = reqwest::get(format!("{}/api/rooms/{}", base, id))
+    let resp = reqwest::get(format!("{}/api/chats/{}", base, id))
         .await
         .unwrap();
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(body["name"], "mychat");
+    assert_eq!(body["title"], "mychat");
     assert!(body.get("password_hash").is_none());
 
     let resp = reqwest::get(format!(
-        "{}/api/rooms/00000000-0000-0000-0000-000000000000",
+        "{}/api/chats/00000000-0000-0000-0000-000000000000",
         base
     ))
     .await

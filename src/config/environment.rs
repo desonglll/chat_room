@@ -29,7 +29,7 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
     );
     set_parsed(
         &mut config.admin.deleted_room_retention_days,
-        value("CHAT_ROOM_ADMIN_DELETED_ROOM_RETENTION_DAYS"),
+        value("CHAT_ROOM_ADMIN_DELETED_CHAT_RETENTION_DAYS"),
     );
     set_parsed(
         &mut config.observability.json_logs,

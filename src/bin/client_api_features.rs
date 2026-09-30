@@ -128,10 +128,10 @@ impl ApiClient {
         thread_id: Uuid,
         question: &str,
         room_id: Option<Uuid>,
-        room_password: Option<&str>,
+        chat_password: Option<&str>,
     ) -> ApiResult<AiRun> {
         let mut request = self.auth(Method::POST, &format!("/api/ai/threads/{thread_id}/runs"))?;
-        if let Some(password) = room_password {
+        if let Some(password) = chat_password {
             request = request.header("x-room-password", password);
         }
         self.json(
@@ -175,6 +175,6 @@ mod tests {
 
     #[test]
     fn notification_ids_are_safe_path_segments() {
-        assert_eq!(encode_component("reply/room:1"), "reply%2Froom%3A1");
+        assert_eq!(encode_component("reply/chat:1"), "reply%2Fchat%3A1");
     }
 }

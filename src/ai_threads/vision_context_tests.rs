@@ -6,7 +6,7 @@ use uuid::Uuid;
 use super::{bounded_visual_context, VisualEvidence};
 use crate::ai::{VisionLimits, VisualProjection};
 use crate::ai_threads::{AiCitationAttachment, AiCitationSource};
-use crate::models::Room;
+use crate::models::Chat;
 use crate::state::AppState;
 
 use super::super::run_store::AiRunExecution;
@@ -15,25 +15,19 @@ use super::super::vision_store::{
 };
 
 #[tokio::test]
-async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
+async fn image_bytes_are_loaded_only_while_chat_membership_is_active() {
     let state = Arc::new(AppState::new().await.unwrap());
     let owner = state.insert_user("vision-owner", "unused").await.unwrap();
-    let room = Room {
+    let chat = Chat {
         id: Uuid::new_v4(),
-        name: "Vision room".into(),
-        password_hash: String::new(),
-        has_password: false,
+        title: "Vision chat".into(),
         creator_user_id: Some(owner.id),
         join_policy: "open".into(),
-        avatar_emoji: String::new(),
-        description: String::new(),
-        membership_status: None,
-        membership_role: None,
-        unread_count: 0,
         created_at: Utc::now(),
+        ..Chat::default()
     };
     state
-        .create_room_with_owner(room.clone(), owner.id)
+        .create_chat_with_owner(chat.clone(), owner.id)
         .await
         .unwrap();
     let attachment_id = Uuid::new_v4();
@@ -51,7 +45,7 @@ async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
     )
     .bind(attachment_id)
     .bind(Uuid::new_v4())
-    .bind(room.id)
+    .bind(chat.id)
     .bind(owner.id)
     .bind(bytes.len() as i64)
     .bind(Utc::now())
@@ -63,15 +57,15 @@ async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
          VALUES (?, ?, ?, 'vision-owner', 'release screenshot', ?, ?)",
     )
     .bind(message_id)
-    .bind(room.id)
+    .bind(chat.id)
     .bind(owner.id)
     .bind(attachment_id)
     .bind(Utc::now())
     .execute(state.pool())
     .await
     .unwrap();
-    let execution = execution(owner.id, room.id);
-    let source = source(room.id, message_id, attachment_id, bytes.len() as i64);
+    let execution = execution(owner.id, chat.id);
+    let source = source(chat.id, message_id, attachment_id, bytes.len() as i64);
     let limits = VisionLimits {
         max_images: 1,
         max_total_images: 1,
@@ -115,8 +109,8 @@ async fn image_bytes_are_loaded_only_while_room_membership_is_active() {
             .unwrap();
     assert_eq!(operation, "upsert");
 
-    sqlx::query("DELETE FROM room_memberships WHERE room_id = ? AND user_id = ?")
-        .bind(room.id)
+    sqlx::query("DELETE FROM chat_members WHERE room_id = ? AND user_id = ?")
+        .bind(chat.id)
         .bind(owner.id)
         .execute(state.pool())
         .await
@@ -161,7 +155,7 @@ fn visual_projection_is_bound_to_its_source_message_in_context() {
 }
 
 #[tokio::test]
-async fn fresh_schema_contains_room_scoped_visual_projections() {
+async fn fresh_schema_contains_chat_scoped_visual_projections() {
     let state = AppState::new().await.unwrap();
 
     sqlx::query(

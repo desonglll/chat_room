@@ -57,33 +57,33 @@ pub fn action(app: &mut App, action: Action, sender: mpsc::UnboundedSender<AppEv
         Action::LoadConversations => spawn(sender, async move {
             AppEvent::Conversations(ApiClient::new(&server, token).conversations().await)
         }),
-        Action::LoadRooms => spawn(sender, async move {
-            AppEvent::Rooms(ApiClient::new(&server, token).discover_rooms().await)
+        Action::LoadChats => spawn(sender, async move {
+            AppEvent::Chats(ApiClient::new(&server, token).discover_chats().await)
         }),
-        Action::CreateRoom { name, password } => {
+        Action::CreateChat { name, password } => {
             let saved_password = (!password.is_empty()).then_some(password.clone());
             spawn(sender, async move {
-                AppEvent::RoomCreated {
+                AppEvent::ChatCreated {
                     password: saved_password,
                     result: ApiClient::new(&server, token)
-                        .create_room(&name, Some(&password))
+                        .create_chat(&name, Some(&password))
                         .await,
                 }
             });
         }
-        Action::JoinRoom { room_id, password } => {
+        Action::JoinChat { room_id, password } => {
             let request_password = password.clone();
             spawn(sender, async move {
-                AppEvent::RoomJoined {
+                AppEvent::ChatJoined {
                     room_id,
                     password,
                     result: ApiClient::new(&server, token)
-                        .join_room(room_id, request_password.as_deref())
+                        .join_chat(room_id, request_password.as_deref())
                         .await,
                 }
             });
         }
-        Action::ConnectRoom {
+        Action::ConnectChat {
             room_id,
             password,
             target_message,
@@ -211,14 +211,14 @@ pub fn action(app: &mut App, action: Action, sender: mpsc::UnboundedSender<AppEv
             thread_id,
             question,
             room_id,
-            room_password,
+            chat_password,
         } => spawn_ai(
             sender,
             ApiClient::new(&server, token),
             thread_id,
             question,
             room_id,
-            room_password,
+            chat_password,
         ),
         Action::Chat(_) | Action::Quit => unreachable!("handled before dispatch"),
     }
@@ -240,7 +240,7 @@ fn spawn_ai(
     thread_id: Option<uuid::Uuid>,
     question: String,
     room_id: Option<uuid::Uuid>,
-    room_password: Option<String>,
+    chat_password: Option<String>,
 ) {
     tokio::spawn(async move {
         let result = async {
@@ -257,7 +257,7 @@ fn spawn_ai(
                 None => api.create_ai_thread(room_id).await?,
             };
             let run = api
-                .create_ai_run(thread.id, &question, room_id, room_password.as_deref())
+                .create_ai_run(thread.id, &question, room_id, chat_password.as_deref())
                 .await?;
             Ok((thread, run))
         }

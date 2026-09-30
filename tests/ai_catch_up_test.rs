@@ -113,10 +113,10 @@ async fn register(client: &Client, server: &TestServer, username: &str) -> Accou
     }
 }
 
-async fn create_room(client: &Client, server: &TestServer, account: &Account) -> Uuid {
+async fn create_chat(client: &Client, server: &TestServer, account: &Account) -> Uuid {
     let name = format!("Catch-up {}", Uuid::new_v4().simple());
-    let room: Value = client
-        .post(format!("{}/api/rooms", server.base))
+    let chat: Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&account.token)
         .json(&json!({ "name": name, "join_policy": "open" }))
         .send()
@@ -125,7 +125,7 @@ async fn create_room(client: &Client, server: &TestServer, account: &Account) ->
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 async fn create_thread(client: &Client, server: &TestServer, account: &Account) -> Uuid {
@@ -199,13 +199,13 @@ async fn catch_up_uses_server_boundaries_and_persists_only_cited_sources() {
     let client = Client::new();
     let reader = register(&client, &server, "catch-up-reader").await;
     let sender = register(&client, &server, "catch-up-sender").await;
-    let room_id = create_room(&client, &server, &reader).await;
+    let room_id = create_chat(&client, &server, &reader).await;
     let read_id = insert_message(&server, room_id, &sender, "already-read", 1, false).await;
     let cited_id = insert_message(&server, room_id, &sender, "used-marker", 2, false).await;
     insert_message(&server, room_id, &sender, "recalled-secret", 3, true).await;
     let latest_id = insert_message(&server, room_id, &sender, "unused-marker", 4, false).await;
     sqlx::query(
-        "INSERT INTO room_reads (room_id, user_id, message_id, read_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO chat_reads (room_id, user_id, message_id, read_at) VALUES (?, ?, ?, ?)",
     )
     .bind(room_id)
     .bind(reader.id)
@@ -265,14 +265,14 @@ async fn catch_up_uses_server_boundaries_and_persists_only_cited_sources() {
         .unwrap();
     assert_eq!(answer["sources"].as_array().unwrap().len(), 1);
     assert_eq!(answer["sources"][0]["message_id"], cited_id.to_string());
-    let hidden_room = create_room(&client, &server, &sender).await;
+    let hidden_chat = create_chat(&client, &server, &sender).await;
     let denied = client
         .post(format!(
             "{}/api/ai/threads/{thread_id}/catch-up",
             server.base
         ))
         .bearer_auth(&reader.token)
-        .json(&json!({ "room_id": hidden_room, "client_request_id": Uuid::new_v4() }))
+        .json(&json!({ "room_id": hidden_chat, "client_request_id": Uuid::new_v4() }))
         .send()
         .await
         .unwrap();
@@ -284,7 +284,7 @@ async fn catch_up_skips_the_model_when_there_are_no_incoming_unreads() {
     let server = start_server().await;
     let client = Client::new();
     let reader = register(&client, &server, "caught-up-reader").await;
-    let room_id = create_room(&client, &server, &reader).await;
+    let room_id = create_chat(&client, &server, &reader).await;
     insert_message(&server, room_id, &reader, "my-own-message", 1, false).await;
     let thread_id = create_thread(&client, &server, &reader).await;
     let response = client
@@ -312,7 +312,7 @@ async fn catch_up_context_is_bounded_to_the_latest_five_hundred_messages() {
     let client = Client::new();
     let reader = register(&client, &server, "bounded-reader").await;
     let sender = register(&client, &server, "bounded-sender").await;
-    let room_id = create_room(&client, &server, &reader).await;
+    let room_id = create_chat(&client, &server, &reader).await;
     for index in 0..505 {
         insert_message(
             &server,

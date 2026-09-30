@@ -67,7 +67,7 @@ async fn next_type(socket: &mut Socket, expected: &str) -> serde_json::Value {
     }
 }
 
-async fn open_room(base: &str, room_id: &str, token: &str) -> (Socket, serde_json::Value) {
+async fn open_chat(base: &str, room_id: &str, token: &str) -> (Socket, serde_json::Value) {
     let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
     let (mut socket, _) = connect_async(url).await.unwrap();
     socket
@@ -90,7 +90,7 @@ async fn set_lock(client: &Client, base: &str, token: &str, locked: bool) -> req
         .unwrap()
 }
 
-async fn set_room_lock(
+async fn set_chat_lock(
     client: &Client,
     base: &str,
     token: &str,
@@ -113,11 +113,11 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
     let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
     let regular = session_token(&server.base, "lock-regular").await;
     let visitor = session_token(&server.base, "lock-visitor").await;
-    let room: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+    let chat: serde_json::Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&regular)
         .json(&serde_json::json!({
-            "name": "lock-test-room",
+            "name": "lock-test-chat",
             "password": "",
             "join_policy": "open"
         }))
@@ -127,8 +127,8 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
-    let (mut connected, auth) = open_room(&server.base, room_id, &regular).await;
+    let room_id = chat["id"].as_str().unwrap();
+    let (mut connected, auth) = open_chat(&server.base, room_id, &regular).await;
     assert_eq!(auth["type"], "auth_ok");
 
     assert_eq!(
@@ -157,12 +157,12 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
     let disconnected = next_type(&mut connected, "system").await;
     assert_eq!(disconnected["content"], "system locked");
 
-    let (_, rejected) = open_room(&server.base, room_id, &regular).await;
+    let (_, rejected) = open_chat(&server.base, room_id, &regular).await;
     assert_eq!(rejected["type"], "auth_fail");
     assert_eq!(rejected["reason"], "system locked");
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&visitor)
             .json(&serde_json::json!({}))
             .send()
@@ -173,9 +173,9 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
     );
     assert_eq!(
         client
-            .post(format!("{}/api/rooms", server.base))
+            .post(format!("{}/api/chats", server.base))
             .bearer_auth(&regular)
-            .json(&serde_json::json!({ "name": "blocked-room", "password": "" }))
+            .json(&serde_json::json!({ "name": "blocked-chat", "password": "" }))
             .send()
             .await
             .unwrap()
@@ -212,21 +212,21 @@ async fn administrators_can_lock_and_unlock_every_chat_room() {
         .await
         .unwrap();
     assert_eq!(unlocked["locked"], false);
-    let (_, restored) = open_room(&server.base, room_id, &regular).await;
+    let (_, restored) = open_chat(&server.base, room_id, &regular).await;
     assert_eq!(restored["type"], "auth_ok");
 }
 
 #[tokio::test]
-async fn administrators_can_lock_one_room_without_affecting_others() {
+async fn administrators_can_lock_one_chat_without_affecting_others() {
     let server = start().await;
     let client = Client::new();
     let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
-    let regular = session_token(&server.base, "room-lock-regular").await;
-    let visitor = session_token(&server.base, "room-lock-visitor").await;
+    let regular = session_token(&server.base, "chat-lock-regular").await;
+    let visitor = session_token(&server.base, "chat-lock-visitor").await;
     let first: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&regular)
-        .json(&serde_json::json!({ "name": "locked-room", "password": "" }))
+        .json(&serde_json::json!({ "name": "locked-chat", "password": "" }))
         .send()
         .await
         .unwrap()
@@ -234,9 +234,9 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
         .await
         .unwrap();
     let second: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&regular)
-        .json(&serde_json::json!({ "name": "open-room", "password": "" }))
+        .json(&serde_json::json!({ "name": "open-chat", "password": "" }))
         .send()
         .await
         .unwrap()
@@ -245,8 +245,8 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
         .unwrap();
     let first_id = first["id"].as_str().unwrap();
     let second_id = second["id"].as_str().unwrap();
-    let (mut first_socket, first_auth) = open_room(&server.base, first_id, &regular).await;
-    let (_, second_auth) = open_room(&server.base, second_id, &regular).await;
+    let (mut first_socket, first_auth) = open_chat(&server.base, first_id, &regular).await;
+    let (_, second_auth) = open_chat(&server.base, second_id, &regular).await;
     assert_eq!(first_auth["type"], "auth_ok");
     assert_eq!(second_auth["type"], "auth_ok");
 
@@ -271,7 +271,7 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
         .unwrap();
     assert_eq!(initial["locked"], false);
 
-    let locked: serde_json::Value = set_room_lock(&client, &server.base, &admin, first_id, true)
+    let locked: serde_json::Value = set_chat_lock(&client, &server.base, &admin, first_id, true)
         .await
         .json()
         .await
@@ -280,18 +280,18 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
     assert_eq!(locked["locked"], true);
     assert_eq!(
         next_type(&mut first_socket, "system").await["content"],
-        "room locked"
+        "chat locked"
     );
 
-    let (_, rejected) = open_room(&server.base, first_id, &regular).await;
+    let (_, rejected) = open_chat(&server.base, first_id, &regular).await;
     assert_eq!(rejected["type"], "auth_fail");
-    assert_eq!(rejected["reason"], "room locked");
-    let (_, unaffected) = open_room(&server.base, second_id, &regular).await;
+    assert_eq!(rejected["reason"], "chat locked");
+    let (_, unaffected) = open_chat(&server.base, second_id, &regular).await;
     assert_eq!(unaffected["type"], "auth_ok");
     assert_eq!(
         client
             .post(format!(
-                "{}/api/rooms/{first_id}/join-requests",
+                "{}/api/chats/{first_id}/join-requests",
                 server.base
             ))
             .bearer_auth(&visitor)
@@ -304,7 +304,7 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
     );
     assert!(client
         .post(format!(
-            "{}/api/rooms/{second_id}/join-requests",
+            "{}/api/chats/{second_id}/join-requests",
             server.base
         ))
         .bearer_auth(&visitor)
@@ -316,7 +316,7 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
         .is_success());
     assert_eq!(
         client
-            .post(format!("{}/api/rooms", server.base))
+            .post(format!("{}/api/chats", server.base))
             .bearer_auth(&regular)
             .json(&serde_json::json!({ "name": "still-open", "password": "" }))
             .send()
@@ -327,11 +327,11 @@ async fn administrators_can_lock_one_room_without_affecting_others() {
     );
 
     assert_eq!(
-        set_room_lock(&client, &server.base, &admin, first_id, false)
+        set_chat_lock(&client, &server.base, &admin, first_id, false)
             .await
             .status(),
         StatusCode::OK
     );
-    let (_, restored) = open_room(&server.base, first_id, &regular).await;
+    let (_, restored) = open_chat(&server.base, first_id, &regular).await;
     assert_eq!(restored["type"], "auth_ok");
 }

@@ -4,7 +4,7 @@ use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, ToSchema)]
-pub struct RoomAiPolicy {
+pub struct ChatAiPolicy {
     pub room_id: Uuid,
     pub mode: String,
     pub version: i64,
@@ -13,7 +13,7 @@ pub struct RoomAiPolicy {
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdateRoomAiPolicy {
+pub struct UpdateChatAiPolicy {
     pub mode: String,
     pub version: i64,
 }

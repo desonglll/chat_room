@@ -45,9 +45,9 @@ impl AppState {
                   WHERE sources.candidate_id = candidates.id ORDER BY sources.ordinal LIMIT 1) \
                     AS source_message_id \
                  FROM ai_extraction_candidates candidates JOIN users ON users.id = $2 \
-                 JOIN rooms ON rooms.id = candidates.room_id AND rooms.deleted_at IS NULL \
+                 JOIN chats ON chats.id = candidates.room_id AND chats.deleted_at IS NULL \
                  WHERE candidates.id = $1 AND candidates.user_id = $2 AND EXISTS \
-                 (SELECT 1 FROM room_memberships WHERE room_id = candidates.room_id \
+                 (SELECT 1 FROM chat_members WHERE room_id = candidates.room_id \
                    AND user_id = $2 AND status = 'active')",
             )
             .bind(candidate_id)
@@ -119,7 +119,7 @@ impl AppState {
 
                 if candidate.kind == "task" {
                     sqlx::query(
-                        "INSERT INTO room_tasks \
+                        "INSERT INTO chat_tasks \
                      (id, room_id, title, status, assignee_id, created_by_id, created_by_name, \
                       source_message_id, due_at, version, created_at, updated_at) \
                      VALUES ($1, $2, $3, 'open', NULL, $4, $5, $6, NULL, 1, $7, $7)",

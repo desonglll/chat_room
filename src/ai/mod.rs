@@ -1,4 +1,4 @@
-//! AI "magic button": summarize recent room activity and suggest replies.
+//! AI "magic button": summarize recent chat activity and suggest replies.
 //!
 //! Built on the `genai` crate so new providers only need a config change
 //! (genai infers the adapter from the model name, e.g. `gpt-*` vs `claude-*`).
@@ -163,12 +163,12 @@ impl AiAssistant {
         prompt::parse_suggestions(text)
     }
 
-    pub(crate) async fn plan_room_task(
+    pub(crate) async fn plan_chat_task(
         &self,
         question: &str,
     ) -> anyhow::Result<AiTaskPlanDecision> {
         let request = ChatRequest::new(vec![
-            ChatMessage::system(prompt::PLAN_ROOM_TASK_PROMPT),
+            ChatMessage::system(prompt::PLAN_CHAT_TASK_PROMPT),
             ChatMessage::user(question),
         ]);
         let timeout = self.request_timeout.min(std::time::Duration::from_secs(8));

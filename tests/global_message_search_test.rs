@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 mod global_search_support;
 use global_search_support::{
-    create_direct_chat, create_room, insert_message, register, search, search_after, start_server,
+    create_chat, create_direct_chat, insert_message, register, search, search_after, start_server,
 };
 
 #[tokio::test]
@@ -14,13 +14,13 @@ async fn global_search_is_authorized_filterable_and_stably_paginated() {
     let viewer = register(&client, &server.base, "global-search-viewer").await;
     let teammate = register(&client, &server.base, "global-search-teammate").await;
     let outsider = register(&client, &server.base, "global-search-outsider").await;
-    let primary = create_room(&client, &server.base, &viewer, "Global Search Primary").await;
-    let secondary = create_room(&client, &server.base, &viewer, "Global Search Secondary").await;
-    let hidden = create_room(&client, &server.base, &outsider, "Global Search Hidden").await;
+    let primary = create_chat(&client, &server.base, &viewer, "Global Search Primary").await;
+    let secondary = create_chat(&client, &server.base, &viewer, "Global Search Secondary").await;
+    let hidden = create_chat(&client, &server.base, &outsider, "Global Search Hidden").await;
     let direct = create_direct_chat(&client, &server.base, &viewer, &teammate).await;
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{primary}/join-requests", server.base))
+            .post(format!("{}/api/chats/{primary}/join-requests", server.base))
             .bearer_auth(&teammate.token)
             .json(&serde_json::json!({}))
             .send()
@@ -247,7 +247,7 @@ async fn global_search_is_authorized_filterable_and_stably_paginated() {
 
     assert_eq!(
         client
-            .delete(format!("{}/api/rooms/{secondary}/members/me", server.base))
+            .delete(format!("{}/api/chats/{secondary}/members/me", server.base))
             .bearer_auth(&viewer.token)
             .send()
             .await

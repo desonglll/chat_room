@@ -1,4 +1,4 @@
-//! Authorized semantic retrieval of room messages, ranked for AI answering.
+//! Authorized semantic retrieval of chat messages, ranked for AI answering.
 //!
 //! Two responsibilities were split out: this file fetches candidates from the
 //! vector index, re-authorizes them, and ranks them; `rag_evidence.rs` turns the
@@ -22,7 +22,7 @@ mod evidence;
 
 use self::evidence::{render_rag_context, truncate_chars, RagContext, MAX_DOCUMENT_CHARS};
 
-pub(crate) async fn retrieve_room_context(
+pub(crate) async fn retrieve_chat_context(
     state: SharedState,
     index: MessageIndex,
     user_id: Uuid,
@@ -31,7 +31,7 @@ pub(crate) async fn retrieve_room_context(
     excluded_message_ids: HashSet<Uuid>,
     source_offset: usize,
 ) -> anyhow::Result<RagContext> {
-    let retriever = RoomMessageRetriever {
+    let retriever = ChatMessageRetriever {
         state,
         index,
         user_id,
@@ -46,7 +46,7 @@ pub(crate) async fn retrieve_room_context(
     render_rag_context(documents)
 }
 
-struct RoomMessageRetriever {
+struct ChatMessageRetriever {
     state: SharedState,
     index: MessageIndex,
     user_id: Uuid,
@@ -56,7 +56,7 @@ struct RoomMessageRetriever {
 }
 
 #[async_trait]
-impl Retriever for RoomMessageRetriever {
+impl Retriever for ChatMessageRetriever {
     async fn get_relevant_documents(&self, query: &str) -> Result<Vec<Document>, Box<dyn Error>> {
         self.retrieve(query).await.map_err(|error| {
             Box::new(std::io::Error::other(format!("{error:#}"))) as Box<dyn Error>
@@ -64,7 +64,7 @@ impl Retriever for RoomMessageRetriever {
     }
 }
 
-impl RoomMessageRetriever {
+impl ChatMessageRetriever {
     async fn retrieve(&self, query: &str) -> anyhow::Result<Vec<Document>> {
         let vector = self.index.embed_question(query).await?;
         let candidates = self
@@ -76,7 +76,7 @@ impl RoomMessageRetriever {
             .state
             .authorized_retrieved_messages(self.user_id, self.room_id, &candidate_ids)
             .await
-            .context("authorize retrieved room messages")?;
+            .context("authorize retrieved chat messages")?;
         let mut documents = documents_from_messages(
             self.room_id,
             candidates,

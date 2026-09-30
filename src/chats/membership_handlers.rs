@@ -1,4 +1,4 @@
-//! Explicit room membership lifecycle endpoints.
+//! Explicit chat membership lifecycle endpoints.
 
 use axum::{
     extract::{Path, State},
@@ -7,11 +7,11 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::admin_system_lock::require_room_unlocked;
+use crate::admin_system_lock::require_chat_unlocked;
 use crate::audit::AuditEventDraft;
-use crate::handlers::authorize_room;
+use crate::handlers::authorize_chat;
 use crate::models::{
-    ChatMessage, InviteMemberRequest, JoinRoomRequest, RoomMembership, UpdateNicknameRequest,
+    ChatMembership, ChatMessage, InviteMemberRequest, JoinChatRequest, UpdateNicknameRequest,
 };
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
@@ -42,22 +42,22 @@ pub(crate) async fn require_permission(
     permission: &str,
 ) -> Result<(), StatusCode> {
     state
-        .has_room_permission(room_id, user_id, permission)
+        .has_chat_permission(room_id, user_id, permission)
         .await
         .map_err(|error| {
-            tracing::error!("check room permission failed: {}", error);
+            tracing::error!("check chat permission failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .then_some(())
         .ok_or(StatusCode::FORBIDDEN)
 }
 
-pub(crate) async fn reject_direct_room(
+pub(crate) async fn reject_direct_chat(
     state: &SharedState,
     room_id: Uuid,
 ) -> Result<(), StatusCode> {
     if state
-        .is_direct_room(room_id)
+        .is_direct_chat(room_id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
@@ -71,7 +71,7 @@ pub(crate) async fn publish_membership_joined(
     room_id: Uuid,
     username: &str,
 ) -> Result<(), StatusCode> {
-    let participants = state.room_participants(room_id).await.map_err(|error| {
+    let participants = state.chat_participants(room_id).await.map_err(|error| {
         tracing::error!(
             "load participants after membership change failed: {}",
             error
@@ -82,7 +82,7 @@ pub(crate) async fn publish_membership_joined(
         .broadcast(
             room_id,
             ChatMessage::System {
-                content: format!("{} joined the room", username),
+                content: format!("{} joined the chat", username),
                 members: Some(state.connected_members(room_id).await),
                 participants: Some(participants),
             },
@@ -95,20 +95,20 @@ pub async fn request_join(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
-    Json(request): Json<JoinRoomRequest>,
-) -> Result<(StatusCode, Json<RoomMembership>), StatusCode> {
+    Json(request): Json<JoinChatRequest>,
+) -> Result<(StatusCode, Json<ChatMembership>), StatusCode> {
     let user = session_user(&state, &headers).await?;
-    require_room_unlocked(&state, room_id).await?;
-    reject_direct_room(&state, room_id).await?;
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    require_chat_unlocked(&state, room_id).await?;
+    reject_direct_chat(&state, room_id).await?;
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     if state
-        .room_banned(room_id, user.id)
+        .chat_banned(room_id, user.id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    if !authorize_room(&room, request.password.as_deref()) {
+    if !authorize_chat(&chat, request.password.as_deref()) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let previous = state
@@ -116,10 +116,10 @@ pub async fn request_join(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let membership = state
-        .request_room_membership(room_id, user.id, room.join_policy == "open")
+        .request_chat_membership(room_id, user.id, chat.join_policy == "open")
         .await
         .map_err(|error| {
-            tracing::error!("request room membership failed: {}", error);
+            tracing::error!("request chat membership failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     if membership.status == "active"
@@ -141,17 +141,17 @@ pub async fn list_members(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
-) -> Result<Json<Vec<RoomMembership>>, StatusCode> {
-    reject_direct_room(&state, room_id).await?;
+) -> Result<Json<Vec<ChatMembership>>, StatusCode> {
+    reject_direct_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.review").await?;
-    let mut members = state.room_memberships(room_id).await.map_err(|error| {
-        tracing::error!("list room memberships failed: {}", error);
+    let mut members = state.chat_members(room_id).await.map_err(|error| {
+        tracing::error!("list chat memberships failed: {}", error);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
     members.extend(
         state
-            .banned_room_members(room_id)
+            .banned_chat_members(room_id)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
     );
@@ -163,8 +163,8 @@ pub async fn invite_member(
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
     Json(request): Json<InviteMemberRequest>,
-) -> Result<Json<RoomMembership>, StatusCode> {
-    reject_direct_room(&state, room_id).await?;
+) -> Result<Json<ChatMembership>, StatusCode> {
+    reject_direct_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     require_permission(&state, room_id, user.id, "members.invite").await?;
     let username = request.username.trim();
@@ -173,34 +173,34 @@ pub async fn invite_member(
     }
     state
         .record_audit_event(
-            AuditEventDraft::room(&user, room_id, "room.member.invite_requested")
+            AuditEventDraft::chat(&user, room_id, "room.member.invite_requested")
                 .target("username", username),
         )
         .await
         .map_err(|error| {
-            tracing::error!("required Room invitation audit failed: {error}");
+            tracing::error!("required Chat invitation audit failed: {error}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     state
-        .invite_room_member(room_id, user.id, username)
+        .invite_chat_member(room_id, user.id, username)
         .await
         .map_err(|error| {
-            tracing::error!("invite room member failed: {}", error);
+            tracing::error!("invite chat member failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .map(Json)
         .ok_or(StatusCode::NOT_FOUND)
 }
 
-/// Set the caller's own nickname within one room. Any active member can do this —
+/// Set the caller's own nickname within one chat. Any active member can do this —
 /// unlike role/approval actions, it needs no management permission.
 pub async fn update_own_nickname(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
     Json(request): Json<UpdateNicknameRequest>,
-) -> Result<Json<RoomMembership>, StatusCode> {
-    reject_direct_room(&state, room_id).await?;
+) -> Result<Json<ChatMembership>, StatusCode> {
+    reject_direct_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
     let nickname = request.nickname.trim();
     if nickname.chars().count() > MAX_NICKNAME_CHARS || nickname.chars().any(char::is_control) {
@@ -217,27 +217,27 @@ pub async fn update_own_nickname(
         .ok_or(StatusCode::NOT_FOUND)
 }
 
-/// Leave a room permanently until the account explicitly joins it again.
-pub async fn leave_room(
+/// Leave a chat permanently until the account explicitly joins it again.
+pub async fn leave_chat(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
-    reject_direct_room(&state, room_id).await?;
+    reject_direct_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
-    if state.room(room_id).await.is_none() {
+    if state.chat(room_id).await.is_none() {
         return Err(StatusCode::NOT_FOUND);
     }
     let removed = state
-        .delete_room_membership(room_id, user.id, true)
+        .delete_chat_membership(room_id, user.id, true)
         .await
         .map_err(|error| {
-            tracing::error!("remove room participant failed: {}", error);
+            tracing::error!("remove chat participant failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     let Some(removed) = removed else {
         if state
-            .room_membership(room_id, user.id)
+            .chat_membership(room_id, user.id)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .is_some_and(|membership| membership.role == "owner")
@@ -248,22 +248,22 @@ pub async fn leave_room(
     };
 
     let members = state.remove_connected_member(room_id, user.id).await;
-    let participants = state.room_participants(room_id).await.map_err(|error| {
-        tracing::error!("reload room participants after leave failed: {}", error);
+    let participants = state.chat_participants(room_id).await.map_err(|error| {
+        tracing::error!("reload chat participants after leave failed: {}", error);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
     state
         .broadcast(
             room_id,
             ChatMessage::System {
-                content: format!("{} left the room", removed.username),
+                content: format!("{} left the chat", removed.username),
                 members: Some(members),
                 participants: Some(participants),
             },
         )
         .await;
     state
-        .disconnect_room_member(room_id, user.id, "membership left")
+        .disconnect_chat_member(room_id, user.id, "membership left")
         .await;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -1,4 +1,4 @@
-//! Authorized Room context preparation for durable AI analysis.
+//! Authorized Chat context preparation for durable AI analysis.
 
 use std::collections::HashSet;
 
@@ -7,44 +7,44 @@ use uuid::Uuid;
 
 use crate::ai::{bounded_conversation_context_to_toon, AiContextMessage};
 use crate::ai_threads::{AiCitationAttachment, AiCitationSource};
-use crate::handlers::authorize_room;
+use crate::handlers::authorize_chat;
 use crate::messages::store::MessageCursor;
-use crate::models::{Room, StoredMessage};
+use crate::models::{Chat, StoredMessage};
 use crate::state::SharedState;
 
 const MAX_CONTEXT_MESSAGE_CHARS: usize = 1_500;
 const MAX_CONTEXT_TOON_BYTES: usize = 256 * 1024;
 const MESSAGE_HISTORY_PAGE_SIZE: usize = 500;
 
-pub(crate) struct PreparedRoomContext {
+pub(crate) struct PreparedChatContext {
     pub toon_context: String,
     pub context_message_count: usize,
     pub message_ids: HashSet<Uuid>,
     pub sources: Vec<AiCitationSource>,
 }
 
-pub(crate) async fn room_context_for_user(
+pub(crate) async fn chat_context_for_user(
     state: &SharedState,
     user_id: Uuid,
     room_id: Uuid,
     headers: &axum::http::HeaderMap,
-) -> Result<PreparedRoomContext, StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+) -> Result<PreparedChatContext, StatusCode> {
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     state
         .conversation_summary(user_id, room_id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::FORBIDDEN)?;
-    require_room_password(&room, headers)?;
-    room_context_for_authorized_user(state, user_id, room_id).await
+    require_chat_password(&chat, headers)?;
+    chat_context_for_authorized_user(state, user_id, room_id).await
 }
 
-pub(crate) async fn room_context_for_authorized_user(
+pub(crate) async fn chat_context_for_authorized_user(
     state: &SharedState,
     user_id: Uuid,
     room_id: Uuid,
-) -> Result<PreparedRoomContext, StatusCode> {
-    room_context_for_authorized_user_with_limit(
+) -> Result<PreparedChatContext, StatusCode> {
+    chat_context_for_authorized_user_with_limit(
         state,
         user_id,
         room_id,
@@ -53,19 +53,19 @@ pub(crate) async fn room_context_for_authorized_user(
     .await
 }
 
-pub(crate) async fn room_context_for_authorized_user_with_limit(
+pub(crate) async fn chat_context_for_authorized_user_with_limit(
     state: &SharedState,
     user_id: Uuid,
     room_id: Uuid,
     limit: usize,
-) -> Result<PreparedRoomContext, StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+) -> Result<PreparedChatContext, StatusCode> {
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     let conversation = state
         .conversation_summary(user_id, room_id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::FORBIDDEN)?;
-    let history = load_room_history(state, room.id, user_id, limit).await?;
+    let history = load_chat_history(state, chat.id, user_id, limit).await?;
     let mut sources = Vec::new();
     let mut context = Vec::new();
     for message in history
@@ -135,7 +135,7 @@ pub(crate) async fn room_context_for_authorized_user_with_limit(
         .iter()
         .filter_map(|message| Uuid::parse_str(&message.message_id).ok())
         .collect();
-    Ok(PreparedRoomContext {
+    Ok(PreparedChatContext {
         toon_context,
         context_message_count: context.len(),
         message_ids,
@@ -143,7 +143,7 @@ pub(crate) async fn room_context_for_authorized_user_with_limit(
     })
 }
 
-async fn load_room_history(
+async fn load_chat_history(
     state: &SharedState,
     room_id: Uuid,
     user_id: Uuid,
@@ -185,17 +185,17 @@ async fn load_room_history(
     Ok(pages.into_iter().flatten().collect())
 }
 
-pub(crate) fn require_room_password(
-    room: &Room,
+pub(crate) fn require_chat_password(
+    chat: &Chat,
     headers: &axum::http::HeaderMap,
 ) -> Result<(), StatusCode> {
-    if !room.has_password {
+    if !chat.has_password {
         return Ok(());
     }
     let supplied = headers
         .get("x-room-password")
         .and_then(|value| value.to_str().ok());
-    authorize_room(room, supplied)
+    authorize_chat(chat, supplied)
         .then_some(())
         .ok_or(StatusCode::UNAUTHORIZED)
 }
@@ -216,33 +216,27 @@ mod tests {
     use chrono::{Duration, Utc};
     use uuid::Uuid;
 
-    use super::room_context_for_authorized_user_with_limit;
-    use crate::{models::Room, state::AppState};
+    use super::chat_context_for_authorized_user_with_limit;
+    use crate::{models::Chat, state::AppState};
 
     #[tokio::test]
-    async fn full_room_context_reads_across_message_history_pages() {
+    async fn full_chat_context_reads_across_message_history_pages() {
         let state = Arc::new(AppState::new().await.unwrap());
         let owner = state
             .insert_user("ai-context-owner", "unused")
             .await
             .unwrap();
         let now = Utc::now();
-        let room = Room {
+        let chat = Chat {
             id: Uuid::new_v4(),
-            name: "Long room".into(),
-            password_hash: String::new(),
-            has_password: false,
+            title: "Long chat".into(),
             creator_user_id: Some(owner.id),
             join_policy: "open".into(),
-            avatar_emoji: String::new(),
-            description: String::new(),
-            membership_status: None,
-            membership_role: None,
-            unread_count: 0,
             created_at: now,
+            ..Chat::default()
         };
         state
-            .create_room_with_owner(room.clone(), owner.id)
+            .create_chat_with_owner(chat.clone(), owner.id)
             .await
             .unwrap();
         let mut transaction = state.pool().begin().await.unwrap();
@@ -252,7 +246,7 @@ mod tests {
                  VALUES (?, ?, ?, 'owner', ?, ?)",
             )
             .bind(Uuid::new_v4())
-            .bind(room.id)
+            .bind(chat.id)
             .bind(owner.id)
             .bind(format!("history-message-{index}"))
             .bind(now + Duration::milliseconds(index))
@@ -262,7 +256,7 @@ mod tests {
         }
         transaction.commit().await.unwrap();
 
-        let context = room_context_for_authorized_user_with_limit(&state, owner.id, room.id, 501)
+        let context = chat_context_for_authorized_user_with_limit(&state, owner.id, chat.id, 501)
             .await
             .unwrap();
 

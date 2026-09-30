@@ -49,18 +49,18 @@ async fn register(client: &Client, base: &str, username: &str) -> (String, Uuid)
     )
 }
 
-async fn create_room(client: &Client, base: &str, token: &str) -> Uuid {
-    let room: serde_json::Value = client
-        .post(format!("{base}/api/rooms"))
+async fn create_chat(client: &Client, base: &str, token: &str) -> Uuid {
+    let chat: serde_json::Value = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
-        .json(&serde_json::json!({ "name": "searchable-room", "password": "" }))
+        .json(&serde_json::json!({ "name": "searchable-chat", "password": "" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 async fn insert_message(
@@ -88,12 +88,12 @@ async fn insert_message(
 }
 
 #[tokio::test]
-async fn room_search_and_message_context_are_authorized_and_precise() {
+async fn chat_search_and_message_context_are_authorized_and_precise() {
     let server = start_server().await;
     let client = Client::new();
     let (owner_token, owner_id) = register(&client, &server.base, "search-owner").await;
     let (outsider_token, _) = register(&client, &server.base, "search-outsider").await;
-    let room_id = create_room(&client, &server.base, &owner_token).await;
+    let room_id = create_chat(&client, &server.base, &owner_token).await;
 
     let first = insert_message(
         &server.state,
@@ -114,7 +114,7 @@ async fn room_search_and_message_context_are_authorized_and_precise() {
 
     let matches: Vec<serde_json::Value> = client
         .get(format!(
-            "{}/api/rooms/{room_id}/messages/search?q=Aurora&limit=20",
+            "{}/api/chats/{room_id}/messages/search?q=Aurora&limit=20",
             server.base
         ))
         .bearer_auth(&owner_token)
@@ -130,7 +130,7 @@ async fn room_search_and_message_context_are_authorized_and_precise() {
 
     let context: Vec<serde_json::Value> = client
         .get(format!(
-            "{}/api/rooms/{room_id}/messages/{}/context?limit=20",
+            "{}/api/chats/{room_id}/messages/{}/context?limit=20",
             server.base, first
         ))
         .bearer_auth(&owner_token)
@@ -147,7 +147,7 @@ async fn room_search_and_message_context_are_authorized_and_precise() {
     assert_eq!(
         client
             .get(format!(
-                "{}/api/rooms/{room_id}/messages/search?q=Aurora",
+                "{}/api/chats/{room_id}/messages/search?q=Aurora",
                 server.base
             ))
             .bearer_auth(&outsider_token)
@@ -160,7 +160,7 @@ async fn room_search_and_message_context_are_authorized_and_precise() {
     assert_eq!(
         client
             .get(format!(
-                "{}/api/rooms/{room_id}/messages/search?q=%20%20",
+                "{}/api/chats/{room_id}/messages/search?q=%20%20",
                 server.base
             ))
             .bearer_auth(&owner_token)

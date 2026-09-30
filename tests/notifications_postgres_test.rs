@@ -99,19 +99,19 @@ async fn postgres_notifications_match_trigger_and_authorization_contracts() {
     assert_eq!(bob_page["items"][0]["kind"], "friend_request");
     assert_eq!(bob_page["items"][0]["actor"]["id"], alice.id.to_string());
 
-    let room: serde_json::Value = client
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&alice.token)
-        .json(&serde_json::json!({ "name": "pg-notification-room", "join_policy": "open" }))
+        .json(&serde_json::json!({ "name": "pg-notification-chat", "join_policy": "open" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    let room_id: Uuid = room["id"].as_str().unwrap().parse().unwrap();
+    let room_id: Uuid = chat["id"].as_str().unwrap().parse().unwrap();
     client
-        .post(format!("{base}/api/rooms/{room_id}/join-requests"))
+        .post(format!("{base}/api/chats/{room_id}/join-requests"))
         .bearer_auth(&bob.token)
         .json(&serde_json::json!({}))
         .send()

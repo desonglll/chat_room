@@ -2,7 +2,7 @@ mod ai_governance_support;
 mod support;
 
 use ai_governance_support::{
-    create_room, create_thread, patch_policy, save_governance, slow_provider, start,
+    create_chat, create_thread, patch_policy, save_governance, slow_provider, start,
 };
 use chrono::{Duration, Utc};
 use reqwest::{Client, StatusCode};
@@ -16,10 +16,10 @@ async fn owners_and_deployment_admins_control_policy_models_limits_and_usage() {
     let client = Client::new();
     let owner = system_admin_token(&server.state, &server.base, "governance-owner").await;
     let member = session_token(&server.base, "governance-member").await;
-    let room_id = create_room(&client, &server, &owner).await;
+    let room_id = create_chat(&client, &server, &owner).await;
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&member)
             .json(&serde_json::json!({}))
             .send()
@@ -29,7 +29,7 @@ async fn owners_and_deployment_admins_control_policy_models_limits_and_usage() {
         StatusCode::OK
     );
     let default_policy: serde_json::Value = client
-        .get(format!("{}/api/rooms/{room_id}/ai-policy", server.base))
+        .get(format!("{}/api/chats/{room_id}/ai-policy", server.base))
         .bearer_auth(&member)
         .send()
         .await
@@ -69,15 +69,15 @@ async fn owners_and_deployment_admins_control_policy_models_limits_and_usage() {
         StatusCode::CONFLICT
     );
 
-    let member_room_thread = create_thread(&client, &server, &member, Some(room_id)).await;
+    let member_chat_thread = create_thread(&client, &server, &member, Some(room_id)).await;
     let policy_blocked = client
         .post(format!(
-            "{}/api/ai/threads/{member_room_thread}/runs",
+            "{}/api/ai/threads/{member_chat_thread}/runs",
             server.base
         ))
         .bearer_auth(&member)
         .json(&serde_json::json!({
-            "question": "member room question", "client_request_id": Uuid::new_v4()
+            "question": "member chat question", "client_request_id": Uuid::new_v4()
         }))
         .send()
         .await
@@ -168,7 +168,7 @@ async fn owners_and_deployment_admins_control_policy_models_limits_and_usage() {
     assert_eq!(report["token_source"], "estimated");
     assert_eq!(report["items"][0]["total_tokens"], 1_500);
     assert_eq!(report["items"][0]["estimated_cost_micros"], 6_000);
-    sqlx::query("DELETE FROM rooms WHERE id = $1")
+    sqlx::query("DELETE FROM chats WHERE id = $1")
         .bind(room_id)
         .execute(server.state.pool())
         .await
@@ -198,7 +198,7 @@ async fn concurrency_is_atomic_and_policy_changes_only_reject_new_runs() {
     let server = start(provider_url).await;
     let client = Client::new();
     let owner = system_admin_token(&server.state, &server.base, "running-policy-owner").await;
-    let room_id = create_room(&client, &server, &owner).await;
+    let room_id = create_chat(&client, &server, &owner).await;
     save_governance(&client, &server, &owner, 1, None, true).await;
     let thread_id = create_thread(&client, &server, &owner, Some(room_id)).await;
     let client_request_id = Uuid::new_v4();
@@ -259,7 +259,7 @@ async fn concurrency_is_atomic_and_policy_changes_only_reject_new_runs() {
         ))
         .bearer_auth(&owner)
         .json(
-            &serde_json::json!({ "question": "new room run", "client_request_id": Uuid::new_v4() }),
+            &serde_json::json!({ "question": "new chat run", "client_request_id": Uuid::new_v4() }),
         )
         .send()
         .await

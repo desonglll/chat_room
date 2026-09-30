@@ -7,8 +7,8 @@ use sqlx::{pool::PoolConnection, Postgres, Sqlite};
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    models::Room,
-    state::{with_pool, AppState, RoomChannel, SELECT_ROOMS},
+    models::Chat,
+    state::{with_pool, AppState, ChatChannel, SELECT_CHATS},
 };
 
 #[derive(Default)]
@@ -77,17 +77,17 @@ impl AppState {
         Ok(SqliteConnections { connections })
     }
 
-    pub(crate) async fn reload_room_cache(&self) -> Result<()> {
-        let loaded: Vec<Room> = with_pool!(self, |pool| {
-            sqlx::query_as(SELECT_ROOMS).fetch_all(pool).await
+    pub(crate) async fn reload_chat_cache(&self) -> Result<()> {
+        let loaded: Vec<Chat> = with_pool!(self, |pool| {
+            sqlx::query_as(SELECT_CHATS).fetch_all(pool).await
         })
-        .context("reload rooms after database restore")?;
-        let rooms: HashMap<_, _> = loaded.iter().cloned().map(|room| (room.id, room)).collect();
+        .context("reload chats after database restore")?;
+        let chats: HashMap<_, _> = loaded.iter().cloned().map(|chat| (chat.id, chat)).collect();
         let channels: HashMap<_, _> = loaded
             .into_iter()
-            .map(|room| (room.id, RoomChannel::new()))
+            .map(|chat| (chat.id, ChatChannel::new()))
             .collect();
-        *self.rooms.write().await = rooms;
+        *self.chats.write().await = chats;
         *self.channels.write().await = channels;
         self.members.write().await.clear();
         Ok(())

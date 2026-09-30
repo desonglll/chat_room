@@ -1,4 +1,4 @@
-//! Governed synchronous and streaming Room reply suggestions.
+//! Governed synchronous and streaming Chat reply suggestions.
 
 use std::{convert::Infallible, time::Duration};
 
@@ -16,20 +16,20 @@ use crate::{
         model_options::ResolvedAiModel, AiAssistant, AiContextMessage, AiStreamItem, AiSuggestions,
     },
     ai_governance::{estimate_tokens, AiAdmissionRequest, GovernedAiStream},
-    ai_handlers::require_room_password,
+    ai_handlers::require_chat_password,
     state::SharedState,
     user_handlers::bearer_token,
 };
 
 #[utoipa::path(
     post,
-    path = "/api/rooms/{id}/ai/suggest",
-    params(("id" = Uuid, Path, description = "Room ID")),
+    path = "/api/chats/{id}/ai/suggest",
+    params(("id" = Uuid, Path, description = "Chat ID")),
     responses(
         (status = 200, description = "Summary and suggested replies", body = AiSuggestions),
         (status = 401, description = "Missing or expired session"),
-        (status = 403, description = "Room AI policy or posting permission denied"),
-        (status = 404, description = "Room not found"),
+        (status = 403, description = "Chat AI policy or posting permission denied"),
+        (status = 404, description = "Chat not found"),
         (status = 429, description = "Cooldown, concurrency, or usage limit reached"),
         (status = 503, description = "AI model is disabled, blocked, or unavailable")
     )
@@ -78,12 +78,12 @@ pub async fn suggest(
 
 #[utoipa::path(
     post,
-    path = "/api/rooms/{id}/ai/suggest/events",
-    params(("id" = Uuid, Path, description = "Room ID")),
+    path = "/api/chats/{id}/ai/suggest/events",
+    params(("id" = Uuid, Path, description = "Chat ID")),
     responses(
         (status = 200, description = "Streaming NDJSON suggestion chunks over server-sent events"),
         (status = 401, description = "Missing or expired session"),
-        (status = 403, description = "Room AI policy or posting permission denied"),
+        (status = 403, description = "Chat AI policy or posting permission denied"),
         (status = 429, description = "Cooldown, concurrency, or usage limit reached"),
         (status = 503, description = "AI model is disabled, blocked, or unavailable")
     )
@@ -160,15 +160,15 @@ async fn prepare_suggestion(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     if !state
-        .has_room_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send")
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    require_room_password(&room, headers)?;
+    require_chat_password(&chat, headers)?;
     let assistant = state
         .ai_assistant()
         .cloned()
@@ -211,7 +211,7 @@ async fn prepare_suggestion(
                 .unwrap_or_default(),
         })
         .collect();
-    Ok((assistant, model, user.id, room.name, context))
+    Ok((assistant, model, user.id, chat.title, context))
 }
 
 fn suggestion_input_tokens(room_name: &str, context: &[AiContextMessage]) -> i64 {

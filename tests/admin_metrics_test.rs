@@ -46,9 +46,9 @@ async fn start() -> Server {
     Server { base, state, task }
 }
 
-async fn create_room(base: &str, token: &str, name: &str) -> serde_json::Value {
+async fn create_chat(base: &str, token: &str, name: &str) -> serde_json::Value {
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": name, "password": "" }))
         .send()
@@ -65,7 +65,7 @@ async fn overview_requires_allowlisted_authenticated_account() {
     let client = reqwest::Client::new();
     let regular = session_token(&server.base, "regular-user").await;
     let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
-    create_room(&server.base, &admin, "admin-visible-room").await;
+    create_chat(&server.base, &admin, "admin-visible-chat").await;
 
     assert_eq!(
         client
@@ -102,7 +102,7 @@ async fn overview_requires_allowlisted_authenticated_account() {
     assert_eq!(overview["totals"]["users"], 2);
     assert_eq!(overview["totals"]["active_rooms"], 1);
     assert!(overview["runtime"]["requests"].as_u64().unwrap() >= 2);
-    assert_eq!(overview["top_rooms"][0]["name"], "admin-visible-room");
+    assert_eq!(overview["top_rooms"][0]["name"], "admin-visible-chat");
     assert_eq!(overview["services"]["items"][0]["id"], "database");
     assert_eq!(overview["services"]["items"][0]["state"], "healthy");
     assert_eq!(overview["services"]["items"][1]["id"], "redis");
@@ -180,14 +180,14 @@ async fn purge_removes_only_data_older_than_configured_retention() {
     let server = start().await;
     let client = reqwest::Client::new();
     let admin = system_admin_token(&server.state, &server.base, "OPS-ADMIN").await;
-    let room = create_room(&server.base, &admin, "retention-room").await;
-    let room_id = Uuid::parse_str(room["id"].as_str().unwrap()).unwrap();
+    let chat = create_chat(&server.base, &admin, "retention-chat").await;
+    let room_id = Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap();
     let part = multipart::Part::bytes(b"expired-orphan".to_vec())
         .file_name("expired.bin")
         .mime_str("application/octet-stream")
         .unwrap();
     let uploaded: serde_json::Value = client
-        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .post(format!("{}/api/chats/{room_id}/attachments", server.base))
         .bearer_auth(&admin)
         .multipart(multipart::Form::new().part("file", part))
         .send()
@@ -242,12 +242,12 @@ async fn purge_removes_only_data_older_than_configured_retention() {
         .unwrap());
 
     client
-        .delete(format!("{}/api/rooms/{room_id}", server.base))
+        .delete(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&admin)
         .send()
         .await
         .unwrap();
-    sqlx::query("UPDATE rooms SET deleted_at = ? WHERE id = ?")
+    sqlx::query("UPDATE chats SET deleted_at = ? WHERE id = ?")
         .bind(Utc::now() - Duration::days(2))
         .bind(room_id)
         .execute(server.state.pool())
@@ -266,18 +266,18 @@ async fn purge_removes_only_data_older_than_configured_retention() {
 }
 
 #[tokio::test]
-async fn purge_preserves_a_deleted_room_while_its_video_is_favorited() {
+async fn purge_preserves_a_deleted_chat_while_its_video_is_favorited() {
     let server = start().await;
     let client = reqwest::Client::new();
     let admin = system_admin_token(&server.state, &server.base, "ops-admin").await;
-    let room = create_room(&server.base, &admin, "favorited-retention-room").await;
-    let room_id = Uuid::parse_str(room["id"].as_str().unwrap()).unwrap();
+    let chat = create_chat(&server.base, &admin, "favorited-retention-chat").await;
+    let room_id = Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap();
     let part = multipart::Part::bytes(b"favorite-video".to_vec())
         .file_name("preserved.mp4")
         .mime_str("video/mp4")
         .unwrap();
     let uploaded: serde_json::Value = client
-        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .post(format!("{}/api/chats/{room_id}/attachments", server.base))
         .bearer_auth(&admin)
         .multipart(multipart::Form::new().part("file", part))
         .send()
@@ -300,12 +300,12 @@ async fn purge_preserves_a_deleted_room_while_its_video_is_favorited() {
         .unwrap();
 
     client
-        .delete(format!("{}/api/rooms/{room_id}", server.base))
+        .delete(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&admin)
         .send()
         .await
         .unwrap();
-    sqlx::query("UPDATE rooms SET deleted_at = ? WHERE id = ?")
+    sqlx::query("UPDATE chats SET deleted_at = ? WHERE id = ?")
         .bind(Utc::now() - Duration::days(2))
         .bind(room_id)
         .execute(server.state.pool())

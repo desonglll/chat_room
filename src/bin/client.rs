@@ -17,7 +17,7 @@ use client_api::ApiClient;
 use client_auth::require_session;
 
 #[derive(Parser)]
-#[command(name = "chat-client", about = "Chat room CLI client")]
+#[command(name = "chat-client", about = "Echo Gate chat CLI client")]
 struct Cli {
     /// Server base URL.
     #[arg(long, default_value = "http://127.0.0.1:3000")]
@@ -47,76 +47,76 @@ enum Command {
     },
     /// Revoke and clear the saved login session.
     Logout,
-    /// List all rooms.
+    /// List all chats.
     List,
-    /// Create a room. Omit --password for a public room.
+    /// Create a chat. Omit --password for a public chat.
     Create {
         #[arg(long)]
         name: String,
         #[arg(long)]
         password: Option<String>,
     },
-    /// Join a room and start an interactive chat.
+    /// Join a chat and start an interactive chat.
     Join(JoinArgs),
 }
 
 #[derive(Args)]
-#[command(group = clap::ArgGroup::new("room").required(true).multiple(false))]
+#[command(group = clap::ArgGroup::new("chat").required(true).multiple(false))]
 struct JoinArgs {
-    /// Resolve and join a room by name.
-    #[arg(long, group = "room")]
+    /// Resolve and join a chat by name.
+    #[arg(long, group = "chat")]
     room_name: Option<String>,
 
-    /// Join directly by room UUID.
-    #[arg(long, group = "room")]
+    /// Join directly by chat UUID.
+    #[arg(long, group = "chat")]
     room_id: Option<Uuid>,
 
-    /// Room password. Omit for public rooms.
+    /// Chat password. Omit for public chats.
     #[arg(long)]
     password: Option<String>,
 }
 
-async fn lookup_room(http_base: &str, name: &str) -> Result<Option<Uuid>> {
+async fn lookup_chat(http_base: &str, name: &str) -> Result<Option<Uuid>> {
     let config = require_session()?;
     let api = ApiClient::new(http_base, config.token);
-    let mut rooms = api.rooms().await?;
-    rooms.extend(api.discover_rooms().await?);
-    Ok(rooms
+    let mut chats = api.chats().await?;
+    chats.extend(api.discover_chats().await?);
+    Ok(chats
         .into_iter()
-        .find(|room| room.name == name)
-        .map(|room| room.id))
+        .find(|chat| chat.name == name)
+        .map(|chat| chat.id))
 }
 
-async fn list_rooms(http_base: &str) -> Result<()> {
+async fn list_chats(http_base: &str) -> Result<()> {
     let config = require_session()?;
-    let rooms = ApiClient::new(http_base, config.token).rooms().await?;
-    if rooms.is_empty() {
-        println!("No rooms. Create one with: client create --name <name>");
+    let chats = ApiClient::new(http_base, config.token).chats().await?;
+    if chats.is_empty() {
+        println!("No chats. Create one with: client create --name <name>");
         return Ok(());
     }
 
-    for room in rooms {
-        let access = if room.has_password {
+    for chat in chats {
+        let access = if chat.has_password {
             "private"
         } else {
             "public"
         };
-        println!("[{access}] {}  {}", room.name, room.id);
+        println!("[{access}] {}  {}", chat.name, chat.id);
     }
     Ok(())
 }
 
-async fn create_room(http_base: &str, name: &str, password: Option<&str>) -> Result<()> {
+async fn create_chat(http_base: &str, name: &str, password: Option<&str>) -> Result<()> {
     let config = require_session()?;
-    let room = ApiClient::new(http_base, config.token)
-        .create_room(name, password)
+    let chat = ApiClient::new(http_base, config.token)
+        .create_chat(name, password)
         .await?;
-    let access = if room.has_password {
+    let access = if chat.has_password {
         "private"
     } else {
         "public"
     };
-    println!("Created {access} room '{}' ({})", room.name, room.id);
+    println!("Created {access} chat '{}' ({})", chat.name, chat.id);
     Ok(())
 }
 
@@ -135,24 +135,24 @@ async fn main() -> Result<()> {
             client_auth::authenticate(http_base, "login", &username, &password).await
         }
         Some(Command::Logout) => client_auth::logout(http_base).await,
-        Some(Command::List) => list_rooms(http_base).await,
+        Some(Command::List) => list_chats(http_base).await,
         Some(Command::Create { name, password }) => {
-            create_room(http_base, &name, password.as_deref()).await
+            create_chat(http_base, &name, password.as_deref()).await
         }
         Some(Command::Join(arguments)) => {
             let room_id = match (arguments.room_id, arguments.room_name.as_deref()) {
                 (Some(id), _) => id,
-                (None, Some(name)) => lookup_room(http_base, name)
+                (None, Some(name)) => lookup_chat(http_base, name)
                     .await?
-                    .with_context(|| format!("room '{name}' not found"))?,
-                (None, None) => unreachable!("clap requires room name or id"),
+                    .with_context(|| format!("chat '{name}' not found"))?,
+                (None, None) => unreachable!("clap requires chat name or id"),
             };
             let config = require_session()?;
             let membership = ApiClient::new(http_base, config.token)
-                .join_room(room_id, arguments.password.as_deref())
+                .join_chat(room_id, arguments.password.as_deref())
                 .await?;
             if membership.status != "active" {
-                println!("Join request submitted; waiting for room approval.");
+                println!("Join request submitted; waiting for chat approval.");
                 return Ok(());
             }
             client_tui::run(http_base, Some((room_id, arguments.password))).await

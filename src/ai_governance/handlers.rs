@@ -7,8 +7,8 @@ use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use super::{
-    models::AiUsageQuery, AiGovernanceSettings, AiUsageReport, RoomAiPolicy,
-    UpdateAiGovernanceSettings, UpdateRoomAiPolicy,
+    models::AiUsageQuery, AiGovernanceSettings, AiUsageReport, ChatAiPolicy,
+    UpdateAiGovernanceSettings, UpdateChatAiPolicy,
 };
 use crate::{
     admin::access::require_admin, models::User, state::SharedState, user_handlers::bearer_token,
@@ -39,22 +39,22 @@ async fn active_role(
 
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}/ai-policy",
-    params(("id" = Uuid, Path, description = "Room identifier")),
+    path = "/api/chats/{id}/ai-policy",
+    params(("id" = Uuid, Path, description = "Chat identifier")),
     responses(
-        (status = 200, description = "Room AI policy", body = RoomAiPolicy),
-        (status = 403, description = "Active room membership required")
+        (status = 200, description = "Chat AI policy", body = ChatAiPolicy),
+        (status = 403, description = "Active chat membership required")
     )
 )]
-pub async fn room_policy(
+pub async fn chat_policy(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
-) -> Result<Json<RoomAiPolicy>, StatusCode> {
+) -> Result<Json<ChatAiPolicy>, StatusCode> {
     let user = actor(&state, &headers).await?;
     active_role(&state, room_id, user.id).await?;
     state
-        .room_ai_policy(room_id)
+        .chat_ai_policy(room_id)
         .await
         .map(Json)
         .map_err(internal_error)
@@ -62,22 +62,22 @@ pub async fn room_policy(
 
 #[utoipa::path(
     patch,
-    path = "/api/rooms/{id}/ai-policy",
-    params(("id" = Uuid, Path, description = "Room identifier")),
-    request_body = UpdateRoomAiPolicy,
+    path = "/api/chats/{id}/ai-policy",
+    params(("id" = Uuid, Path, description = "Chat identifier")),
+    request_body = UpdateChatAiPolicy,
     responses(
-        (status = 200, description = "Updated Room AI policy", body = RoomAiPolicy),
+        (status = 200, description = "Updated Chat AI policy", body = ChatAiPolicy),
         (status = 400, description = "Invalid policy"),
-        (status = 403, description = "Room owner required"),
+        (status = 403, description = "Chat owner required"),
         (status = 409, description = "Policy version changed")
     )
 )]
-pub async fn update_room_policy(
+pub async fn update_chat_policy(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
-    Json(payload): Json<UpdateRoomAiPolicy>,
-) -> Result<Json<RoomAiPolicy>, StatusCode> {
+    Json(payload): Json<UpdateChatAiPolicy>,
+) -> Result<Json<ChatAiPolicy>, StatusCode> {
     let user = actor(&state, &headers).await?;
     if active_role(&state, room_id, user.id).await? != "owner" {
         return Err(StatusCode::FORBIDDEN);
@@ -86,7 +86,7 @@ pub async fn update_room_policy(
         return Err(StatusCode::BAD_REQUEST);
     }
     state
-        .update_room_ai_policy(room_id, user.id, &payload.mode, payload.version)
+        .update_chat_ai_policy(room_id, user.id, &payload.mode, payload.version)
         .await
         .map_err(internal_error)?
         .map(Json)

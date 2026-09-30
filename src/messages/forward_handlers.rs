@@ -1,4 +1,4 @@
-//! Batch-forward previously sent messages into other rooms.
+//! Batch-forward previously sent messages into other chats.
 
 use axum::{extract::State, http::StatusCode, Json};
 
@@ -7,9 +7,9 @@ use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
-/// Forward one or more messages into one or more target rooms. Each
-/// (source message, target room) pair is attempted independently — a message
-/// that has since been recalled, or a room the caller can no longer post in,
+/// Forward one or more messages into one or more target chats. Each
+/// (source message, target chat) pair is attempted independently — a message
+/// that has since been recalled, or a chat the caller can no longer post in,
 /// is skipped rather than failing the whole batch.
 #[utoipa::path(
     post,
@@ -35,7 +35,7 @@ pub async fn forward_messages(
     let mut results = Vec::with_capacity(request.message_ids.len() * request.target_room_ids.len());
     for &message_id in &request.message_ids {
         let Some(source_room_id) = state.message_room_id(message_id).await.map_err(|error| {
-            tracing::error!("look up source room for forward failed: {}", error);
+            tracing::error!("look up source chat for forward failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         else {
@@ -50,7 +50,7 @@ pub async fn forward_messages(
             continue;
         };
         let is_source_member = state
-            .has_room_permission(source_room_id, user.id, "message.send")
+            .has_chat_permission(source_room_id, user.id, "message.send")
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         if !is_source_member {
@@ -59,14 +59,14 @@ pub async fn forward_messages(
                     message_id,
                     target_room_id,
                     forwarded_message_id: None,
-                    skipped_reason: Some("not a member of the source room".into()),
+                    skipped_reason: Some("not a member of the source chat".into()),
                 });
             }
             continue;
         }
         for &target_room_id in &request.target_room_ids {
             let can_send = state
-                .has_room_permission(target_room_id, user.id, "message.send")
+                .has_chat_permission(target_room_id, user.id, "message.send")
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             if !can_send {
@@ -74,7 +74,7 @@ pub async fn forward_messages(
                     message_id,
                     target_room_id,
                     forwarded_message_id: None,
-                    skipped_reason: Some("cannot send to the target room".into()),
+                    skipped_reason: Some("cannot send to the target chat".into()),
                 });
                 continue;
             }

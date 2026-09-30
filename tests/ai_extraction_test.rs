@@ -14,7 +14,7 @@ async fn extraction_validates_sources_dedupes_and_confirms_atomically() {
     let client = Client::new();
     let owner = register(&client, &server, "extract-owner").await;
     let outsider = register(&client, &server, "extract-outsider").await;
-    let room_id = create_room(&client, &server, &owner).await;
+    let room_id = create_chat(&client, &server, &owner).await;
     let now = Utc::now();
     let decision_source = insert_message(
         &server,
@@ -63,11 +63,11 @@ async fn extraction_validates_sources_dedupes_and_confirms_atomically() {
     )
     .await;
     let run_id = accepted["id"].as_str().unwrap();
-    let second_room = create_room(&client, &server, &owner).await;
+    let second_chat = create_chat(&client, &server, &owner).await;
     assert_eq!(
         client
             .post(format!(
-                "{}/api/rooms/{second_room}/ai/extractions",
+                "{}/api/chats/{second_chat}/ai/extractions",
                 server.base
             ))
             .bearer_auth(&owner.token)
@@ -134,7 +134,7 @@ async fn extraction_validates_sources_dedupes_and_confirms_atomically() {
         Option<chrono::DateTime<Utc>>,
         Option<Uuid>,
     ) = sqlx::query_as(
-        "SELECT status, assignee_id, due_at, source_message_id FROM room_tasks WHERE id = ?",
+        "SELECT status, assignee_id, due_at, source_message_id FROM chat_tasks WHERE id = ?",
     )
     .bind(Uuid::parse_str(task["result_id"].as_str().unwrap()).unwrap())
     .fetch_one(server.state.pool())
@@ -147,7 +147,7 @@ async fn extraction_validates_sources_dedupes_and_confirms_atomically() {
             .status(),
         StatusCode::OK
     );
-    let task_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM room_tasks")
+    let task_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chat_tasks")
         .fetch_one(server.state.pool())
         .await
         .unwrap();
@@ -225,7 +225,7 @@ async fn extraction_rejects_unknown_model_sources_before_persistence() {
     let server = start_server().await;
     let client = Client::new();
     let owner = register(&client, &server, "invalid-source-owner").await;
-    let room_id = create_room(&client, &server, &owner).await;
+    let room_id = create_chat(&client, &server, &owner).await;
     let now = Utc::now();
     insert_message(
         &server,

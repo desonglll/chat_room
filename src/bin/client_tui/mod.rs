@@ -30,12 +30,12 @@ mod update_views;
 
 use model::{Action, App, AppEvent};
 
-pub async fn run(server: &str, initial_room: Option<(Uuid, Option<String>)>) -> Result<()> {
+pub async fn run(server: &str, initial_chat: Option<(Uuid, Option<String>)>) -> Result<()> {
     if !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
         bail!("the terminal UI requires an interactive terminal");
     }
     let config = client_auth::load_config()?;
-    let mut app = App::new(server.to_string(), config, initial_room);
+    let mut app = App::new(server.to_string(), config, initial_chat);
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
     let mut terminal = ratatui::try_init().context("initialize terminal UI")?;
     let result = run_loop(&mut terminal, &mut app, event_tx, &mut event_rx).await;
@@ -182,7 +182,7 @@ mod tests {
         let screen = terminal.backend().to_string();
         assert!(screen.contains("Keyboard shortcuts"));
         assert!(screen.contains("Change view"));
-        assert!(screen.contains("Select room"));
+        assert!(screen.contains("Select chat"));
 
         let backend = TestBackend::new(60, 16);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -203,24 +203,24 @@ mod tests {
             client_auth::UserConfig::default(),
             None,
         );
-        app.active_room = Some(room_id);
-        app.active_room_name = "Test room".into();
-        app.conversations = vec![conversation(room_id, "Test room")];
+        app.active_chat = Some(room_id);
+        app.active_room_name = "Test chat".into();
+        app.conversations = vec![conversation(room_id, "Test chat")];
 
         app.focus = model::Focus::List;
-        let rooms = render_chat(&mut app, 80);
-        assert!(rooms.contains("Conversations"));
-        assert!(!rooms.contains("Messages · Test room"));
+        let chats = render_chat(&mut app, 80);
+        assert!(chats.contains("Conversations"));
+        assert!(!chats.contains("Messages · Test chat"));
 
         app.focus = model::Focus::Content;
         let messages = render_chat(&mut app, 80);
         assert!(!messages.contains("Conversations"));
-        assert!(messages.contains("Messages · Test room"));
+        assert!(messages.contains("Messages · Test chat"));
 
         let wide = render_chat(&mut app, 120);
         assert!(wide.contains("Conversations"));
-        assert!(wide.contains("Messages · Test room"));
-        assert!(wide.contains("● # Test room"));
+        assert!(wide.contains("Messages · Test chat"));
+        assert!(wide.contains("● # Test chat"));
     }
 
     #[test]
@@ -232,8 +232,8 @@ mod tests {
             None,
         );
         app.screen = model::Screen::Main;
-        app.active_room = Some(room_id);
-        app.active_room_name = "Test room".into();
+        app.active_chat = Some(room_id);
+        app.active_room_name = "Test chat".into();
         app.focus = model::Focus::Input;
         let (chat, _commands) = tokio::sync::mpsc::unbounded_channel();
         app.chat = Some(chat);

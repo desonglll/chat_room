@@ -31,13 +31,13 @@ async fn start() -> Server {
     Server { base, state, task }
 }
 
-async fn upload(base: &str, room: &str, token: &str, name: &str, mime: &str) -> serde_json::Value {
+async fn upload(base: &str, chat: &str, token: &str, name: &str, mime: &str) -> serde_json::Value {
     let part = multipart::Part::bytes(format!("bytes-{name}").into_bytes())
         .file_name(name.to_string())
         .mime_str(mime)
         .unwrap();
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms/{room}/attachments"))
+        .post(format!("{base}/api/chats/{chat}/attachments"))
         .bearer_auth(token)
         .multipart(multipart::Form::new().part("file", part))
         .send()
@@ -49,11 +49,11 @@ async fn upload(base: &str, room: &str, token: &str, name: &str, mime: &str) -> 
 }
 
 #[tokio::test]
-async fn room_files_are_disk_backed_filtered_and_paginated() {
+async fn chat_files_are_disk_backed_filtered_and_paginated() {
     let server = start().await;
     let token = session_token(&server.base, "files-owner").await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{}/api/rooms", server.base))
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "name": "file-pages", "password": "" }))
         .send()
@@ -62,7 +62,7 @@ async fn room_files_are_disk_backed_filtered_and_paginated() {
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     let image = upload(&server.base, room_id, &token, "one.png", "image/png").await;
     let video = upload(&server.base, room_id, &token, "two.mp4", "video/mp4").await;
     let document = upload(
@@ -76,7 +76,7 @@ async fn room_files_are_disk_backed_filtered_and_paginated() {
 
     let first: serde_json::Value = reqwest::Client::new()
         .get(format!(
-            "{}/api/rooms/{room_id}/files?limit=2&kind=all",
+            "{}/api/chats/{room_id}/files?limit=2&kind=all",
             server.base
         ))
         .bearer_auth(&token)
@@ -90,7 +90,7 @@ async fn room_files_are_disk_backed_filtered_and_paginated() {
     let cursor = first["next_before"].as_str().unwrap();
     let second: serde_json::Value = reqwest::Client::new()
         .get(format!(
-            "{}/api/rooms/{room_id}/files?limit=2&kind=all&before={cursor}",
+            "{}/api/chats/{room_id}/files?limit=2&kind=all&before={cursor}",
             server.base
         ))
         .bearer_auth(&token)
@@ -104,7 +104,7 @@ async fn room_files_are_disk_backed_filtered_and_paginated() {
 
     let images: serde_json::Value = reqwest::Client::new()
         .get(format!(
-            "{}/api/rooms/{room_id}/files?kind=image",
+            "{}/api/chats/{room_id}/files?kind=image",
             server.base
         ))
         .bearer_auth(&token)
@@ -145,7 +145,7 @@ async fn room_files_are_disk_backed_filtered_and_paginated() {
         .unwrap();
     let videos: serde_json::Value = reqwest::Client::new()
         .get(format!(
-            "{}/api/rooms/{room_id}/files?kind=video",
+            "{}/api/chats/{room_id}/files?kind=video",
             server.base
         ))
         .bearer_auth(&token)

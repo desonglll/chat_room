@@ -49,7 +49,7 @@ pub async fn connect(
     };
     sink.send(Message::Text(greeting.to_string()))
         .await
-        .context("send room authentication")?;
+        .context("send chat authentication")?;
 
     let room_name = loop {
         match stream.next().await {
@@ -148,7 +148,7 @@ mod tests {
             assert_eq!(greeting["type"], "join");
             socket
                 .send(Message::Text(
-                    serde_json::json!({ "type": "auth_ok", "room_name": "Test room" }).to_string(),
+                    serde_json::json!({ "type": "auth_ok", "room_name": "Test chat" }).to_string(),
                 ))
                 .await
                 .unwrap();

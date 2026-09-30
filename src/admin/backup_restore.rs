@@ -187,7 +187,7 @@ pub(super) async fn execute(
     if let Err(error) = state.set_chat_rooms_locked(true).await {
         return internal_error("恢复系统锁", error.into());
     }
-    if let Err(error) = state.reload_room_cache().await {
+    if let Err(error) = state.reload_chat_cache().await {
         return internal_error("刷新服务状态", error);
     }
     let index_sync = match indexes::sync_enabled(&state).await {

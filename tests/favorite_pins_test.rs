@@ -46,20 +46,20 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
     let owner = register(&client, &server.base, "pin-owner").await;
     let member = register(&client, &server.base, "pin-member").await;
 
-    let room: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+    let chat: serde_json::Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&owner)
-        .json(&serde_json::json!({ "name": "pin-room", "join_policy": "open" }))
+        .json(&serde_json::json!({ "name": "pin-chat", "join_policy": "open" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&member)
             .json(&serde_json::json!({}))
             .send()
@@ -97,7 +97,7 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
 
     let pin: serde_json::Value = client
         .post(format!(
-            "{}/api/rooms/{room_id}/pins/{message_id}",
+            "{}/api/chats/{room_id}/pins/{message_id}",
             server.base
         ))
         .bearer_auth(&owner)
@@ -126,7 +126,7 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
     assert_eq!(
         client
             .post(format!(
-                "{}/api/rooms/{room_id}/pins/{message_id}",
+                "{}/api/chats/{room_id}/pins/{message_id}",
                 server.base
             ))
             .bearer_auth(&member)
@@ -151,7 +151,7 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
     assert_eq!(edited["version"], 2);
 
     let messages: Vec<serde_json::Value> = client
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&member)
         .send()
         .await
@@ -164,7 +164,7 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
     assert_eq!(
         client
             .delete(format!(
-                "{}/api/rooms/{room_id}/pins/{message_id}",
+                "{}/api/chats/{room_id}/pins/{message_id}",
                 server.base
             ))
             .bearer_auth(&owner)
@@ -269,7 +269,7 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
         assert_eq!(
             client
                 .post(format!(
-                    "{}/api/rooms/{direct_room_id}/pins/{message_id}",
+                    "{}/api/chats/{direct_room_id}/pins/{message_id}",
                     server.base
                 ))
                 .bearer_auth(token)
@@ -281,7 +281,7 @@ async fn pinned_favorite_is_a_group_editable_document_until_unpinned() {
         );
     }
     let direct_pins: Vec<serde_json::Value> = client
-        .get(format!("{}/api/rooms/{direct_room_id}/pins", server.base))
+        .get(format!("{}/api/chats/{direct_room_id}/pins", server.base))
         .bearer_auth(&member)
         .send()
         .await

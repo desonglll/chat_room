@@ -22,7 +22,7 @@ async fn postgres_ai_extraction_runs_and_confirms_results_atomically() {
     );
     let server = start_server_with_state(state.clone()).await;
     let client = reqwest::Client::new();
-    let (room_id, _) = create_room(&server, "pg-ai-extraction", None).await;
+    let (room_id, _) = create_chat(&server, "pg-ai-extraction", None).await;
     let token = session_token(&server, "owner-pg-ai-extraction").await;
     let room_id = room_id.parse::<uuid::Uuid>().unwrap();
     let user = state
@@ -33,7 +33,7 @@ async fn postgres_ai_extraction_runs_and_confirms_results_atomically() {
     let now = Utc::now();
 
     let accepted: serde_json::Value = client
-        .post(format!("{server}/api/rooms/{room_id}/ai/extractions"))
+        .post(format!("{server}/api/chats/{room_id}/ai/extractions"))
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "from_at": now - Duration::hours(1),
@@ -139,7 +139,7 @@ async fn postgres_ai_extraction_runs_and_confirms_results_atomically() {
         Option<chrono::DateTime<Utc>>,
         Option<uuid::Uuid>,
     ) = sqlx::query_as(
-        "SELECT status, assignee_id, due_at, source_message_id FROM room_tasks \
+        "SELECT status, assignee_id, due_at, source_message_id FROM chat_tasks \
              WHERE source_message_id = $1",
     )
     .bind(message_id)

@@ -18,17 +18,17 @@ async fn postgres_global_search_matches_the_sqlite_contract_and_uses_its_index()
     let server = start_server_with_state(state.clone()).await;
     let client = reqwest::Client::new();
     let token = session_token(&server, "pg-global-search").await;
-    let room: serde_json::Value = client
-        .post(format!("{server}/api/rooms"))
+    let chat: serde_json::Value = client
+        .post(format!("{server}/api/chats"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": "pg-global-search-room" }))
+        .json(&serde_json::json!({ "name": "pg-global-search-chat" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap().parse::<uuid::Uuid>().unwrap();
+    let room_id = chat["id"].as_str().unwrap().parse::<uuid::Uuid>().unwrap();
     let user: serde_json::Value = client
         .get(format!("{server}/api/users/me"))
         .bearer_auth(&token)

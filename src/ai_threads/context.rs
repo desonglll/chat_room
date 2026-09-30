@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use crate::ai::AiConversationTurn;
-use crate::ai_handlers::room_context_for_authorized_user_with_limit;
-use crate::knowledge::retrieve_room_context;
+use crate::ai_handlers::chat_context_for_authorized_user_with_limit;
+use crate::knowledge::retrieve_chat_context;
 use crate::state::SharedState;
 use futures_util::{stream::FuturesUnordered, StreamExt};
 
@@ -60,25 +60,25 @@ pub(super) async fn prepare_generation_context(
         ContextScope::Recent => Some(state.ai_max_context_messages()),
         ContextScope::Full => Some(state.ai_analysis_context_messages()),
     };
-    let room_context = match (execution.room_id, context_limit) {
+    let chat_context = match (execution.room_id, context_limit) {
         (Some(room_id), Some(limit)) => Some(
-            room_context_for_authorized_user_with_limit(state, execution.user_id, room_id, limit)
+            chat_context_for_authorized_user_with_limit(state, execution.user_id, room_id, limit)
                 .await
-                .map_err(|status| anyhow::anyhow!("room context unavailable: {status}"))?,
+                .map_err(|status| anyhow::anyhow!("chat context unavailable: {status}"))?,
         ),
         _ => None,
     };
     let history = completed_thread_history(state, execution).await?;
-    let attachment_sources = room_context
+    let attachment_sources = chat_context
         .as_ref()
         .map(|context| context.sources.clone())
         .unwrap_or_default();
     let mut context = GenerationContext {
         history,
-        message_count: room_context
+        message_count: chat_context
             .as_ref()
             .map_or(0, |context| context.context_message_count) as i64,
-        toon_context: room_context
+        toon_context: chat_context
             .as_ref()
             .map(|context| context.toon_context.clone()),
         retrieved_message_count: 0,
@@ -131,7 +131,7 @@ pub(super) async fn prepare_generation_context(
             .await?;
         return Ok(context);
     }
-    let excluded_message_ids = room_context
+    let excluded_message_ids = chat_context
         .map(|context| context.message_ids)
         .unwrap_or_default();
     let Some(index) = state.message_index().cloned() else {
@@ -189,7 +189,7 @@ pub(super) async fn prepare_generation_context(
                 let started = tokio::time::Instant::now();
                 let result = tokio::time::timeout(
                     SEMANTIC_SEARCH_TIMEOUT,
-                    retrieve_room_context(
+                    retrieve_chat_context(
                         state,
                         index,
                         execution.user_id,

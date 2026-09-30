@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use crate::{
     client_api::{
-        AiRun, AiThread, AiThreadMessage, ApiResult, AuthSession, Conversation, Favorite,
-        Notification, NotificationPage, PreferencePatch, RoomSummary, SearchPage, SearchResult,
+        AiRun, AiThread, AiThreadMessage, ApiResult, AuthSession, ChatSummary, Conversation,
+        Favorite, Notification, NotificationPage, PreferencePatch, SearchPage, SearchResult,
     },
     client_auth::UserConfig,
     client_chat::{ChatCommand, ChatEvent, ChatMessage, ChatSender},
@@ -73,7 +73,7 @@ pub enum Focus {
 
 #[derive(Clone, Debug)]
 pub enum PromptKind {
-    RoomJoinPassword(Uuid),
+    ChatJoinPassword(Uuid),
     Upload,
     Download(Attachment),
     EditMessage(Uuid),
@@ -94,13 +94,13 @@ pub enum Dialog {
         kind: PromptKind,
         input: TextField,
     },
-    CreateRoom {
+    CreateChat {
         name: TextField,
         password: TextField,
         field: usize,
     },
-    Rooms {
-        items: Vec<RoomSummary>,
+    Chats {
+        items: Vec<ChatSummary>,
         selected: usize,
     },
     FavoriteEditor {
@@ -126,16 +126,16 @@ pub enum Action {
     },
     Logout,
     LoadConversations,
-    LoadRooms,
-    CreateRoom {
+    LoadChats,
+    CreateChat {
         name: String,
         password: String,
     },
-    JoinRoom {
+    JoinChat {
         room_id: Uuid,
         password: Option<String>,
     },
-    ConnectRoom {
+    ConnectChat {
         room_id: Uuid,
         password: Option<String>,
         target_message: Option<Uuid>,
@@ -173,7 +173,7 @@ pub enum Action {
         thread_id: Option<Uuid>,
         question: String,
         room_id: Option<Uuid>,
-        room_password: Option<String>,
+        chat_password: Option<String>,
     },
     Quit,
 }
@@ -183,15 +183,15 @@ pub enum AppEvent {
     Authenticated(ApiResult<AuthSession>),
     LoggedOut(ApiResult<()>),
     Conversations(ApiResult<Vec<Conversation>>),
-    Rooms(ApiResult<Vec<RoomSummary>>),
-    RoomCreated {
+    Chats(ApiResult<Vec<ChatSummary>>),
+    ChatCreated {
         password: Option<String>,
-        result: ApiResult<RoomSummary>,
+        result: ApiResult<ChatSummary>,
     },
-    RoomJoined {
+    ChatJoined {
         room_id: Uuid,
         password: Option<String>,
-        result: ApiResult<crate::client_api::RoomMembership>,
+        result: ApiResult<crate::client_api::ChatMembership>,
     },
     ChatConnected {
         room_id: Uuid,
@@ -234,9 +234,9 @@ pub struct App {
     pub focus: Focus,
     pub conversations: Vec<Conversation>,
     pub conversation_index: usize,
-    pub active_room: Option<Uuid>,
+    pub active_chat: Option<Uuid>,
     pub active_room_name: String,
-    pub room_passwords: HashMap<Uuid, String>,
+    pub chat_passwords: HashMap<Uuid, String>,
     pub messages: Vec<ChatMessage>,
     pub message_index: usize,
     pub chat: Option<ChatSender>,
@@ -260,14 +260,14 @@ pub struct App {
     pub dialog: Option<Dialog>,
     pub status: String,
     pub busy: bool,
-    pub initial_room: Option<(Uuid, Option<String>)>,
+    pub initial_chat: Option<(Uuid, Option<String>)>,
 }
 
 impl App {
     pub fn new(
         server: String,
         config: UserConfig,
-        initial_room: Option<(Uuid, Option<String>)>,
+        initial_chat: Option<(Uuid, Option<String>)>,
     ) -> Self {
         let signed_in = !config.username.is_empty() && config.token.is_some();
         Self {
@@ -287,9 +287,9 @@ impl App {
             focus: Focus::List,
             conversations: Vec::new(),
             conversation_index: 0,
-            active_room: None,
+            active_chat: None,
             active_room_name: String::new(),
-            room_passwords: HashMap::new(),
+            chat_passwords: HashMap::new(),
             messages: Vec::new(),
             message_index: 0,
             chat: None,
@@ -317,7 +317,7 @@ impl App {
                 "Sign in to continue".into()
             },
             busy: signed_in,
-            initial_room,
+            initial_chat,
         }
     }
 

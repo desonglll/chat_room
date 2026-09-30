@@ -38,7 +38,7 @@ impl AppState {
         with_pool!(self, |pool| {
             sqlx::query_as::<_, PreferenceRow>(
                 "SELECT room_id, is_pinned, is_archived, notification_level, muted_until, \
-                 preferences_updated_at FROM room_memberships \
+                 preferences_updated_at FROM chat_members \
                  WHERE user_id = $1 AND room_id = $2 AND status = 'active'",
             )
             .bind(user_id)
@@ -63,7 +63,7 @@ impl AppState {
         let notification_level = update.notification_level.map(NotificationLevel::as_str);
         let updated = with_pool!(self, |pool| {
             sqlx::query(
-                "UPDATE room_memberships SET \
+                "UPDATE chat_members SET \
                  is_pinned = COALESCE($1, is_pinned), \
                  is_archived = COALESCE($2, is_archived), \
                  notification_level = COALESCE($3, notification_level), \

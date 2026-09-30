@@ -144,7 +144,7 @@ impl MessageRow {
 }
 
 impl AppState {
-    /// Copy a still-visible message (and its attachment, if any) into another room as
+    /// Copy a still-visible message (and its attachment, if any) into another chat as
     /// a new message sent by `forwarder`. Returns `None` if the source message doesn't
     /// exist, isn't in `source_room_id`, or has been recalled.
     pub async fn forward_message(
@@ -163,27 +163,27 @@ impl AppState {
                  (id, room_id, sender_id, sender, content, attachment_id, favorite_id, \
                   forwarded_from_sender, forwarded_from_room_name, created_at) \
                  SELECT $3, $4, $5, $6, source.content, source.attachment_id, source.favorite_id, source.sender, \
-                   CASE WHEN direct.room_id IS NULL THEN source_room.name \
+                   CASE WHEN direct.room_id IS NULL THEN source_chat.title \
                      ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END, $7 \
                  FROM messages AS source \
-                 JOIN rooms AS source_room ON source_room.id = source.room_id \
-                   AND source_room.deleted_at IS NULL \
-                 LEFT JOIN direct_conversations AS direct ON direct.room_id = source_room.id \
+                 JOIN chats AS source_chat ON source_chat.id = source.room_id \
+                   AND source_chat.deleted_at IS NULL \
+                 LEFT JOIN direct_conversations AS direct ON direct.room_id = source_chat.id \
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $5 THEN direct.user_high_id \
                    WHEN direct.user_high_id = $5 THEN direct.user_low_id ELSE NULL END \
                  WHERE source.id = $1 AND source.room_id = $2 AND source.recalled_at IS NULL \
-                   AND EXISTS (SELECT 1 FROM room_memberships AS source_membership \
-                     JOIN room_role_permissions AS source_permission \
+                   AND EXISTS (SELECT 1 FROM chat_members AS source_membership \
+                     JOIN chat_role_permissions AS source_permission \
                        ON source_permission.role_id = source_membership.role_id \
                      WHERE source_membership.room_id = $2 AND source_membership.user_id = $5 \
                        AND source_membership.status = 'active' \
                        AND source_permission.permission_key = 'message.send') \
-                   AND EXISTS (SELECT 1 FROM room_memberships AS target_membership \
-                     JOIN room_role_permissions AS target_permission \
+                   AND EXISTS (SELECT 1 FROM chat_members AS target_membership \
+                     JOIN chat_role_permissions AS target_permission \
                        ON target_permission.role_id = target_membership.role_id \
-                     JOIN rooms AS target_room ON target_room.id = target_membership.room_id \
-                       AND target_room.deleted_at IS NULL \
+                     JOIN chats AS target_chat ON target_chat.id = target_membership.room_id \
+                       AND target_chat.deleted_at IS NULL \
                      WHERE target_membership.room_id = $4 AND target_membership.user_id = $5 \
                        AND target_membership.status = 'active' \
                        AND target_permission.permission_key = 'message.send')",

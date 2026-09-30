@@ -1,4 +1,4 @@
-//! Durable account-level message cursor used by cross-room notifications.
+//! Durable account-level message cursor used by cross-chat notifications.
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -79,9 +79,9 @@ impl AppState {
         let row: Option<(DateTime<Utc>, Uuid)> = with_pool!(self, |pool| {
             sqlx::query_as(
             "SELECT messages.created_at, messages.id FROM messages \
-             JOIN room_memberships ON room_memberships.room_id = messages.room_id \
-             WHERE room_memberships.user_id = $1 AND room_memberships.status = 'active' \
-             AND messages.created_at >= COALESCE(room_memberships.joined_at, room_memberships.requested_at) \
+             JOIN chat_members ON chat_members.room_id = messages.room_id \
+             WHERE chat_members.user_id = $1 AND chat_members.status = 'active' \
+             AND messages.created_at >= COALESCE(chat_members.joined_at, chat_members.requested_at) \
              ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1",
         )
         .bind(user_id)
@@ -102,26 +102,26 @@ impl AppState {
             ""
         };
         let sql = format!(
-            "SELECT messages.id AS message_id, messages.room_id, rooms.name AS room_name, \
+            "SELECT messages.id AS message_id, messages.room_id, chats.title AS room_name, \
              CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END \
                AS conversation_kind, \
-             CASE WHEN direct.room_id IS NULL THEN rooms.name \
+             CASE WHEN direct.room_id IS NULL THEN chats.title \
                ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END \
                AS conversation_title, \
              messages.sender_id, messages.sender, messages.content, \
              attachments.file_name AS attachment_file_name, messages.created_at, \
              (mention.message_id IS NOT NULL) AS is_mention \
-             FROM messages JOIN rooms ON rooms.id = messages.room_id \
-             JOIN room_memberships ON room_memberships.room_id = messages.room_id \
-             LEFT JOIN direct_conversations AS direct ON direct.room_id = rooms.id \
+             FROM messages JOIN chats ON chats.id = messages.room_id \
+             JOIN chat_members ON chat_members.room_id = messages.room_id \
+             LEFT JOIN direct_conversations AS direct ON direct.room_id = chats.id \
              LEFT JOIN users AS peer ON peer.id = CASE \
                WHEN direct.user_low_id = $1 THEN direct.user_high_id \
                WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \
              LEFT JOIN attachments ON attachments.id = messages.attachment_id \
              LEFT JOIN message_mentions AS mention ON mention.message_id = messages.id \
                AND mention.mentioned_user_id = $1 \
-             WHERE room_memberships.user_id = $1 AND room_memberships.status = 'active' \
-             AND messages.created_at >= COALESCE(room_memberships.joined_at, room_memberships.requested_at) \
+             WHERE chat_members.user_id = $1 AND chat_members.status = 'active' \
+             AND messages.created_at >= COALESCE(chat_members.joined_at, chat_members.requested_at) \
              AND messages.recalled_at IS NULL {cursor_clause} \
              ORDER BY messages.created_at ASC, messages.id ASC LIMIT 200"
         );

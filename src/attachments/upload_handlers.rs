@@ -34,13 +34,13 @@ pub struct ChunkQuery {
 /// for the same file (matched by `fingerprint`).
 #[utoipa::path(
     post,
-    path = "/api/rooms/{id}/attachments/uploads",
+    path = "/api/chats/{id}/attachments/uploads",
     request_body = CreateUploadRequest,
     responses(
         (status = 200, description = "Session created or resumed", body = CreateUploadResponse),
         (status = 400, description = "Invalid file name or size"),
         (status = 409, description = "Selected content does not match the resumable session"),
-        (status = 401, description = "Invalid account or room credentials"),
+        (status = 401, description = "Invalid account or chat credentials"),
         (status = 413, description = "Declared size exceeds the configured upload limit")
     )
 )]
@@ -373,10 +373,10 @@ pub async fn complete_upload(
     }
 }
 
-/// List the caller's own in-progress uploads in a room (resume discovery).
+/// List the caller's own in-progress uploads in a chat (resume discovery).
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}/attachments/uploads",
+    path = "/api/chats/{id}/attachments/uploads",
     responses((status = 200, description = "In-progress uploads", body = Vec<AttachmentUploadSession>))
 )]
 pub async fn list_uploads(

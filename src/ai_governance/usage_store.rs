@@ -119,7 +119,7 @@ impl AppState {
             with_pool!(self, |pool| {
                 sqlx::query_as(
                     "SELECT records.room_id AS group_id, \
-                     rooms.name AS label, CAST(COUNT(*) AS BIGINT) AS runs, \
+                     chats.title AS label, CAST(COUNT(*) AS BIGINT) AS runs, \
                      CAST(SUM(CASE WHEN records.status = 'completed' THEN 1 ELSE 0 END) AS BIGINT) AS completed_runs, \
                      CAST(SUM(CASE WHEN records.status = 'failed' THEN 1 ELSE 0 END) AS BIGINT) AS failed_runs, \
                      CAST(SUM(records.input_tokens) AS BIGINT) AS input_tokens, \
@@ -127,9 +127,9 @@ impl AppState {
                      CAST(SUM(records.total_tokens) AS BIGINT) AS total_tokens, \
                      CAST(SUM(records.duration_ms) AS BIGINT) AS duration_ms, \
                      CAST(SUM(records.estimated_cost_micros) AS BIGINT) AS estimated_cost_micros \
-                     FROM ai_usage_records records LEFT JOIN rooms ON rooms.id = records.room_id \
+                     FROM ai_usage_records records LEFT JOIN chats ON chats.id = records.room_id \
                      WHERE records.created_at >= $1 AND records.created_at < $2 \
-                     GROUP BY records.room_id, rooms.name \
+                     GROUP BY records.room_id, chats.title \
                      ORDER BY estimated_cost_micros DESC, total_tokens DESC, records.room_id",
                 )
                 .bind(from)

@@ -296,7 +296,7 @@ impl AppState {
             .await?;
             for room_id in &direct_room_ids {
                 sqlx::query(
-                    "UPDATE rooms SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL",
+                    "UPDATE chats SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL",
                 )
                 .bind(Utc::now())
                 .bind(room_id)

@@ -1,29 +1,29 @@
-//! Room update and soft-deletion lifecycle.
+//! Chat update and soft-deletion lifecycle.
 
 use chrono::Utc;
 use uuid::Uuid;
 
 use crate::{
-    models::Room,
+    models::Chat,
     state::{with_pool, AppState},
 };
 
 impl AppState {
-    /// Persist a room edit only if the caller's view is still current.
-    pub async fn update_room(&self, previous: &Room, updated: Room) -> Result<bool, sqlx::Error> {
+    /// Persist a chat edit only if the caller's view is still current.
+    pub async fn update_chat(&self, previous: &Chat, updated: Chat) -> Result<bool, sqlx::Error> {
         let changed = with_pool!(self, |pool| {
             sqlx::query(
-                "UPDATE rooms SET name = $1, password_hash = $2, join_policy = $3, \
+                "UPDATE chats SET title = $1, password_hash = $2, join_policy = $3, \
                  avatar_emoji = $4, description = $5 \
-                 WHERE id = $6 AND name = $7 AND password_hash = $8 AND join_policy = $9",
+                 WHERE id = $6 AND title = $7 AND password_hash = $8 AND join_policy = $9",
             )
-            .bind(&updated.name)
+            .bind(&updated.title)
             .bind(&updated.password_hash)
             .bind(&updated.join_policy)
             .bind(&updated.avatar_emoji)
             .bind(&updated.description)
             .bind(previous.id)
-            .bind(&previous.name)
+            .bind(&previous.title)
             .bind(&previous.password_hash)
             .bind(&previous.join_policy)
             .execute(pool)
@@ -33,20 +33,20 @@ impl AppState {
         if changed == 0 {
             return Ok(false);
         }
-        self.cache_updated_room(updated).await;
+        self.cache_updated_chat(updated).await;
         Ok(true)
     }
 
     /// Soft deletion keeps messages and attachment references recoverable for
     /// an explicit administrator retention/purge workflow.
-    pub async fn delete_room(
+    pub async fn delete_chat(
         &self,
         id: Uuid,
         expected_password_hash: &str,
     ) -> Result<bool, sqlx::Error> {
         let changed = with_pool!(self, |pool| {
             sqlx::query(
-                "UPDATE rooms SET deleted_at = $1 \
+                "UPDATE chats SET deleted_at = $1 \
                  WHERE id = $2 AND password_hash = $3 AND deleted_at IS NULL",
             )
             .bind(Utc::now())
@@ -59,7 +59,7 @@ impl AppState {
         if changed == 0 {
             return Ok(false);
         }
-        self.remove_cached_room(id, "room deleted").await;
+        self.remove_cached_chat(id, "chat deleted").await;
         Ok(true)
     }
 }

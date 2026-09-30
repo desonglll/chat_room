@@ -23,24 +23,24 @@ impl App {
                 }
                 Err(error) => self.api_error(error),
             },
-            AppEvent::Rooms(result) => {
+            AppEvent::Chats(result) => {
                 self.busy = false;
                 match result {
-                    Ok(items) => self.dialog = Some(Dialog::Rooms { items, selected: 0 }),
+                    Ok(items) => self.dialog = Some(Dialog::Chats { items, selected: 0 }),
                     Err(error) => self.status = error.to_string(),
                 }
                 Vec::new()
             }
-            AppEvent::RoomCreated { password, result } => match result {
-                Ok(room) => {
+            AppEvent::ChatCreated { password, result } => match result {
+                Ok(chat) => {
                     self.busy = false;
                     if let Some(password) = password.clone() {
-                        self.room_passwords.insert(room.id, password);
+                        self.chat_passwords.insert(chat.id, password);
                     }
                     vec![
                         Action::LoadConversations,
-                        Action::ConnectRoom {
-                            room_id: room.id,
+                        Action::ConnectChat {
+                            room_id: chat.id,
                             password,
                             target_message: None,
                         },
@@ -48,7 +48,7 @@ impl App {
                 }
                 Err(error) => self.api_error(error),
             },
-            AppEvent::RoomJoined {
+            AppEvent::ChatJoined {
                 room_id,
                 password,
                 result,
@@ -56,7 +56,7 @@ impl App {
                 Ok(membership) if membership.status == "active" => {
                     vec![
                         Action::LoadConversations,
-                        Action::ConnectRoom {
+                        Action::ConnectChat {
                             room_id,
                             password,
                             target_message: None,
@@ -65,7 +65,7 @@ impl App {
                 }
                 Ok(_) => {
                     self.busy = false;
-                    self.status = "Join request submitted; waiting for room approval".into();
+                    self.status = "Join request submitted; waiting for chat approval".into();
                     Vec::new()
                 }
                 Err(error) => self.api_error(error),
@@ -78,7 +78,7 @@ impl App {
                 self.busy = false;
                 match result {
                     Ok((name, sender)) => {
-                        self.active_room = Some(room_id);
+                        self.active_chat = Some(room_id);
                         self.active_room_name = name;
                         self.sync_conversation_selection();
                         self.messages.clear();
@@ -237,10 +237,10 @@ impl App {
     }
 
     fn sync_conversation_selection(&mut self) {
-        if let Some(index) = self.active_room.and_then(|active_room| {
+        if let Some(index) = self.active_chat.and_then(|active_chat| {
             self.conversations
                 .iter()
-                .position(|conversation| conversation.room_id == active_room)
+                .position(|conversation| conversation.room_id == active_chat)
         }) {
             self.conversation_index = index;
         } else {
@@ -258,7 +258,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        client_api::{Conversation, ConversationPreferences, RoomMembership},
+        client_api::{ChatMembership, Conversation, ConversationPreferences},
         client_auth::UserConfig,
     };
 
@@ -279,34 +279,34 @@ mod tests {
         let mut app = App::new("http://localhost".into(), UserConfig::default(), None);
         app.busy = true;
 
-        let actions = app.apply_event(AppEvent::RoomJoined {
+        let actions = app.apply_event(AppEvent::ChatJoined {
             room_id: Uuid::new_v4(),
             password: None,
-            result: Ok(RoomMembership {
+            result: Ok(ChatMembership {
                 status: "pending".into(),
             }),
         });
 
         assert!(actions.is_empty());
         assert!(!app.busy);
-        assert!(app.status.contains("waiting for room approval"));
+        assert!(app.status.contains("waiting for chat approval"));
     }
 
     #[test]
-    fn conversations_loaded_after_connect_select_the_active_room() {
+    fn conversations_loaded_after_connect_select_the_active_chat() {
         let mut app = App::new("http://localhost".into(), UserConfig::default(), None);
-        let first_room = Uuid::new_v4();
-        let active_room = Uuid::new_v4();
+        let first_chat = Uuid::new_v4();
+        let active_chat = Uuid::new_v4();
         let (sender, _receiver) = mpsc::unbounded_channel();
 
         app.apply_event(AppEvent::ChatConnected {
-            room_id: active_room,
+            room_id: active_chat,
             target_message: None,
-            result: Ok(("Active room".into(), sender)),
+            result: Ok(("Active chat".into(), sender)),
         });
         app.apply_event(AppEvent::Conversations(Ok(vec![
-            conversation(first_room, "First room"),
-            conversation(active_room, "Active room"),
+            conversation(first_chat, "First chat"),
+            conversation(active_chat, "Active chat"),
         ])));
 
         assert_eq!(app.conversation_index, 1);

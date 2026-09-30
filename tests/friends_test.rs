@@ -69,7 +69,7 @@ async fn next_type(
     }
 }
 
-async fn open_room(
+async fn open_chat(
     base: &str,
     room_id: &str,
     token: &str,
@@ -191,7 +191,7 @@ async fn friends_can_start_one_shared_direct_conversation() {
 }
 
 #[tokio::test]
-async fn direct_conversation_is_private_and_reuses_room_messaging() {
+async fn direct_conversation_is_private_and_reuses_chat_messaging() {
     let server = start_server().await;
     let client = Client::new();
     let alice = register(&client, &server.base, "private-alice").await;
@@ -232,18 +232,18 @@ async fn direct_conversation_is_private_and_reuses_room_messaging() {
         .unwrap();
     let room_id = conversation["room_id"].as_str().unwrap();
 
-    let public_rooms = client
-        .get(format!("{}/api/rooms", server.base))
+    let public_chats = client
+        .get(format!("{}/api/chats", server.base))
         .send()
         .await
         .unwrap()
         .json::<Vec<serde_json::Value>>()
         .await
         .unwrap();
-    assert!(public_rooms.iter().all(|room| room["id"] != room_id));
+    assert!(public_chats.iter().all(|chat| chat["id"] != room_id));
     assert_eq!(
         client
-            .get(format!("{}/api/rooms/{room_id}", server.base))
+            .get(format!("{}/api/chats/{room_id}", server.base))
             .bearer_auth(&charlie.token)
             .send()
             .await
@@ -251,8 +251,8 @@ async fn direct_conversation_is_private_and_reuses_room_messaging() {
             .status(),
         StatusCode::NOT_FOUND
     );
-    let alice_room: serde_json::Value = client
-        .get(format!("{}/api/rooms/{room_id}", server.base))
+    let alice_chat: serde_json::Value = client
+        .get(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&alice.token)
         .send()
         .await
@@ -260,10 +260,10 @@ async fn direct_conversation_is_private_and_reuses_room_messaging() {
         .json()
         .await
         .unwrap();
-    assert_eq!(alice_room["name"], "private-bob");
+    assert_eq!(alice_chat["title"], "private-bob");
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&charlie.token)
             .json(&serde_json::json!({}))
             .send()
@@ -273,7 +273,7 @@ async fn direct_conversation_is_private_and_reuses_room_messaging() {
         StatusCode::NOT_FOUND
     );
 
-    let mut socket = open_room(&server.base, room_id, &alice.token, "private-bob").await;
+    let mut socket = open_chat(&server.base, room_id, &alice.token, "private-bob").await;
     socket
         .send(Message::Text(
             serde_json::json!({ "type": "message", "content": "direct hello" }).to_string(),

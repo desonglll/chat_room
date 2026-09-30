@@ -52,9 +52,9 @@ async fn account(base: &str, username: &str) -> (String, String) {
     )
 }
 
-async fn create_room(base: &str, token: &str, name: &str, policy: &str) -> String {
+async fn create_chat(base: &str, token: &str, name: &str, policy: &str) -> String {
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({
             "name": name,
@@ -72,7 +72,7 @@ async fn create_room(base: &str, token: &str, name: &str, policy: &str) -> Strin
         .to_string()
 }
 
-async fn open_room(base: &str, room_id: &str, token: &str) -> Socket {
+async fn open_chat(base: &str, room_id: &str, token: &str) -> Socket {
     let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
     let (mut socket, _) = connect_async(url).await.unwrap();
     socket
@@ -116,9 +116,9 @@ async fn owner_controls_requests_invitations_roles_and_active_roster() {
     let (applicant_token, applicant_id) = account(&server.base, "permissions-applicant").await;
     let (invitee_token, invitee_id) = account(&server.base, "permissions-invitee").await;
     let (_, outsider_id) = account(&server.base, "permissions-outsider").await;
-    let room_id = create_room(&server.base, &owner_token, "approval-room", "approval").await;
-    let join_url = format!("{}/api/rooms/{room_id}/join-requests", server.base);
-    let members_url = format!("{}/api/rooms/{room_id}/members", server.base);
+    let room_id = create_chat(&server.base, &owner_token, "approval-chat", "approval").await;
+    let join_url = format!("{}/api/chats/{room_id}/join-requests", server.base);
+    let members_url = format!("{}/api/chats/{room_id}/members", server.base);
 
     let pending = client
         .post(&join_url)
@@ -133,7 +133,7 @@ async fn owner_controls_requests_invitations_roles_and_active_roster() {
         "pending"
     );
 
-    let mut pending_socket = open_room(&server.base, &room_id, &applicant_token).await;
+    let mut pending_socket = open_chat(&server.base, &room_id, &applicant_token).await;
     assert_eq!(next_json(&mut pending_socket).await["type"], "auth_fail");
 
     assert_eq!(
@@ -177,7 +177,7 @@ async fn owner_controls_requests_invitations_roles_and_active_roster() {
     );
 
     let invited = client
-        .post(format!("{}/api/rooms/{room_id}/invitations", server.base))
+        .post(format!("{}/api/chats/{room_id}/invitations", server.base))
         .bearer_auth(&owner_token)
         .json(&serde_json::json!({ "username": "permissions-invitee" }))
         .send()
@@ -210,9 +210,9 @@ async fn owner_controls_requests_invitations_roles_and_active_roster() {
     );
     assert_eq!(
         client
-            .patch(format!("{}/api/rooms/{room_id}", server.base))
+            .patch(format!("{}/api/chats/{room_id}", server.base))
             .bearer_auth(&applicant_token)
-            .json(&serde_json::json!({ "name": "admin-renamed-room" }))
+            .json(&serde_json::json!({ "name": "admin-renamed-chat" }))
             .send()
             .await
             .unwrap()
@@ -221,7 +221,7 @@ async fn owner_controls_requests_invitations_roles_and_active_roster() {
     );
     assert_eq!(
         client
-            .patch(format!("{}/api/rooms/{room_id}", server.base))
+            .patch(format!("{}/api/chats/{room_id}", server.base))
             .bearer_auth(&invitee_token)
             .json(&serde_json::json!({ "name": "forbidden-name" }))
             .send()
@@ -279,11 +279,11 @@ async fn account_socket_updates_unread_count_after_message_and_read() {
     let server = start_server().await;
     let (owner_token, _) = account(&server.base, "unread-owner").await;
     let (reader_token, _) = account(&server.base, "unread-reader").await;
-    let room_id = create_room(&server.base, &owner_token, "unread-room", "open").await;
-    let mut owner = open_room(&server.base, &room_id, &owner_token).await;
+    let room_id = create_chat(&server.base, &owner_token, "unread-chat", "open").await;
+    let mut owner = open_chat(&server.base, &room_id, &owner_token).await;
     assert_eq!(next_json(&mut owner).await["type"], "auth_ok");
     let _ = next_type(&mut owner, "presence").await;
-    let mut reader = open_room(&server.base, &room_id, &reader_token).await;
+    let mut reader = open_chat(&server.base, &room_id, &reader_token).await;
     assert_eq!(next_json(&mut reader).await["type"], "auth_ok");
     let _ = next_type(&mut reader, "system").await;
     let _ = next_type(&mut owner, "system").await;
@@ -297,7 +297,7 @@ async fn account_socket_updates_unread_count_after_message_and_read() {
         .await
         .unwrap();
     let initial = next_type(&mut account_socket, "unread_counts").await;
-    assert_eq!(initial["rooms"][0]["unread_count"], 0);
+    assert_eq!(initial["chats"][0]["unread_count"], 0);
 
     owner
         .send(Message::Text(
@@ -307,7 +307,7 @@ async fn account_socket_updates_unread_count_after_message_and_read() {
         .unwrap();
     let incoming = next_type(&mut reader, "broadcast").await;
     let unread = next_type(&mut account_socket, "unread_counts").await;
-    assert_eq!(unread["rooms"][0]["unread_count"], 1);
+    assert_eq!(unread["chats"][0]["unread_count"], 1);
 
     reader
         .send(Message::Text(
@@ -316,19 +316,19 @@ async fn account_socket_updates_unread_count_after_message_and_read() {
         .await
         .unwrap();
     let read = next_type(&mut account_socket, "unread_counts").await;
-    assert_eq!(read["rooms"][0]["unread_count"], 0);
+    assert_eq!(read["chats"][0]["unread_count"], 0);
 }
 
 #[tokio::test]
-async fn account_socket_surfaces_join_requests_to_room_managers() {
+async fn account_socket_surfaces_join_requests_to_chat_managers() {
     let server = start_server().await;
     let client = reqwest::Client::new();
     let (owner_token, _) = account(&server.base, "request-notice-owner").await;
     let (applicant_token, applicant_id) = account(&server.base, "request-notice-applicant").await;
-    let room_id = create_room(
+    let room_id = create_chat(
         &server.base,
         &owner_token,
-        "request-notice-room",
+        "request-notice-chat",
         "approval",
     )
     .await;
@@ -341,17 +341,17 @@ async fn account_socket_surfaces_join_requests_to_room_managers() {
         .await
         .unwrap();
     let initial = next_type(&mut owner_account, "unread_counts").await;
-    let room = initial["rooms"]
+    let chat = initial["chats"]
         .as_array()
         .unwrap()
         .iter()
         .find(|item| item["room_id"] == room_id)
         .unwrap();
-    assert_eq!(room["pending_join_requests"], 0);
+    assert_eq!(chat["pending_join_requests"], 0);
 
     assert_eq!(
         client
-            .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+            .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
             .bearer_auth(&applicant_token)
             .json(&serde_json::json!({}))
             .send()
@@ -362,14 +362,14 @@ async fn account_socket_surfaces_join_requests_to_room_managers() {
     );
 
     let updated = next_type(&mut owner_account, "unread_counts").await;
-    let room = updated["rooms"]
+    let chat = updated["chats"]
         .as_array()
         .unwrap()
         .iter()
         .find(|item| item["room_id"] == room_id)
         .unwrap();
-    assert_eq!(room["pending_join_requests"], 1);
-    assert!(room["pending_join_requested_at"].is_string());
+    assert_eq!(chat["pending_join_requests"], 1);
+    assert!(chat["pending_join_requested_at"].is_string());
 
     let conversations: Vec<serde_json::Value> = client
         .get(format!("{}/api/conversations", server.base))
@@ -397,13 +397,13 @@ async fn account_socket_surfaces_join_requests_to_room_managers() {
         .unwrap();
     assert!(
         applicant_conversations.is_empty(),
-        "a pending membership must not expose the room as a conversation"
+        "a pending membership must not expose the chat as a conversation"
     );
 
     assert_eq!(
         client
             .patch(format!(
-                "{}/api/rooms/{room_id}/members/{applicant_id}",
+                "{}/api/chats/{room_id}/members/{applicant_id}",
                 server.base
             ))
             .bearer_auth(&owner_token)
@@ -415,11 +415,11 @@ async fn account_socket_surfaces_join_requests_to_room_managers() {
         StatusCode::OK
     );
     let resolved = next_type(&mut owner_account, "unread_counts").await;
-    let room = resolved["rooms"]
+    let chat = resolved["chats"]
         .as_array()
         .unwrap()
         .iter()
         .find(|item| item["room_id"] == room_id)
         .unwrap();
-    assert_eq!(room["pending_join_requests"], 0);
+    assert_eq!(chat["pending_join_requests"], 0);
 }

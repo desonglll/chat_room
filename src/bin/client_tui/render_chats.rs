@@ -42,7 +42,7 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
         .conversations
         .iter()
         .map(|conversation| {
-            let active = app.active_room == Some(conversation.room_id);
+            let active = app.active_chat == Some(conversation.room_id);
             let marker = if conversation.preferences.muted_until.is_some() {
                 "!"
             } else if conversation.preferences.is_pinned {
@@ -169,7 +169,7 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
     } else {
         format!("Messages · {}", clean(&app.active_room_name))
     };
-    let empty = if app.active_room.is_some() {
+    let empty = if app.active_chat.is_some() {
         "No messages yet"
     } else {
         "Select a conversation"

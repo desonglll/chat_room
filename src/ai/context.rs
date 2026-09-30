@@ -20,7 +20,7 @@ pub struct AiContextMessage {
 
 #[derive(Serialize)]
 struct ToonConversation<'a> {
-    room: &'a str,
+    chat: &'a str,
     messages: &'a [AiContextMessage],
 }
 
@@ -29,7 +29,7 @@ pub fn conversation_context_to_toon(
     context: &[AiContextMessage],
 ) -> anyhow::Result<String> {
     toon_format::encode_default(&ToonConversation {
-        room: room_name,
+        chat: room_name,
         messages: context,
     })
     .map_err(|error| anyhow::anyhow!("encode TOON context: {error}"))

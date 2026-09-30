@@ -44,7 +44,7 @@ pub async fn list_conversations(
 #[utoipa::path(
     put,
     path = "/api/conversations/{room_id}/alias",
-    params(("room_id" = Uuid, Path, description = "Conversation room ID")),
+    params(("room_id" = Uuid, Path, description = "Conversation chat ID")),
     request_body = UpdateConversationAliasRequest,
     responses(
         (status = 200, description = "Updated private conversation alias", body = ConversationSummary),
@@ -93,7 +93,7 @@ pub async fn update_conversation_alias(
 #[utoipa::path(
     get,
     path = "/api/conversations/{room_id}/preferences",
-    params(("room_id" = Uuid, Path, description = "Conversation room ID")),
+    params(("room_id" = Uuid, Path, description = "Conversation chat ID")),
     responses(
         (status = 200, description = "Viewer conversation preferences", body = ConversationPreferences),
         (status = 401, description = "Missing or expired session"),
@@ -125,7 +125,7 @@ pub async fn get_conversation_preferences(
 #[utoipa::path(
     patch,
     path = "/api/conversations/{room_id}/preferences",
-    params(("room_id" = Uuid, Path, description = "Conversation room ID")),
+    params(("room_id" = Uuid, Path, description = "Conversation chat ID")),
     request_body = UpdateConversationPreferencesRequest,
     responses(
         (status = 200, description = "Updated viewer conversation preferences", body = ConversationPreferences),

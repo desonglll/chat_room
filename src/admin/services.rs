@@ -178,7 +178,7 @@ async fn index_queue_status(state: &AppState) -> VectorIndexStatus {
     responses(
         (status = 200, description = "Semantic message retrieval diagnostic", body = VectorProbeResult),
         (status = 400, description = "Invalid query"),
-        (status = 403, description = "Admin is not an active member of the room"),
+        (status = 403, description = "Admin is not an active member of the chat"),
         (status = 409, description = "Vector search is disabled"),
         (status = 504, description = "Vector search timed out")
     )
@@ -194,7 +194,7 @@ pub async fn probe_vector_search(
         return Err(StatusCode::BAD_REQUEST);
     }
     if !state
-        .has_room_permission(payload.room_id, user.id, "message.send")
+        .has_chat_permission(payload.room_id, user.id, "message.send")
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {

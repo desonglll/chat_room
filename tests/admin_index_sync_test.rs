@@ -57,18 +57,18 @@ async fn start() -> Server {
     Server { base, state, task }
 }
 
-async fn create_room(base: &str, token: &str) -> Uuid {
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+async fn create_chat(base: &str, token: &str) -> Uuid {
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
-        .json(&serde_json::json!({ "name": "index sync room", "password": "" }))
+        .json(&serde_json::json!({ "name": "index sync chat", "password": "" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 async fn next_type(socket: &mut Socket, expected: &str) -> serde_json::Value {
@@ -86,7 +86,7 @@ async fn next_type(socket: &mut Socket, expected: &str) -> serde_json::Value {
     }
 }
 
-async fn open_room(base: &str, room_id: Uuid, token: &str) -> Socket {
+async fn open_chat(base: &str, room_id: Uuid, token: &str) -> Socket {
     let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
     let (mut socket, _) = connect_async(url).await.unwrap();
     socket
@@ -103,8 +103,8 @@ async fn open_room(base: &str, room_id: Uuid, token: &str) -> Socket {
 async fn message_changes_are_automatically_queued_for_vector_sync() {
     let server = start().await;
     let token = session_token(&server.base, "automatic-index-owner").await;
-    let room_id = create_room(&server.base, &token).await;
-    let mut socket = open_room(&server.base, room_id, &token).await;
+    let room_id = create_chat(&server.base, &token).await;
+    let mut socket = open_chat(&server.base, room_id, &token).await;
     socket
         .send(Message::Text(
             serde_json::json!({
@@ -185,7 +185,7 @@ async fn admin_can_resync_the_vector_outbox() {
         .await
         .unwrap()
         .unwrap();
-    let room_id = create_room(&server.base, &admin_token).await;
+    let room_id = create_chat(&server.base, &admin_token).await;
     let active_id = Uuid::new_v4();
     let recalled_id = Uuid::new_v4();
     for (id, content, recalled_at) in [

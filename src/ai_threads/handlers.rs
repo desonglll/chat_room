@@ -25,7 +25,7 @@ pub(super) async fn current_user(
         .ok_or(StatusCode::UNAUTHORIZED)
 }
 
-pub(super) async fn validate_room_access(
+pub(super) async fn validate_chat_access(
     state: &SharedState,
     user_id: Uuid,
     room_id: Option<Uuid>,
@@ -78,7 +78,7 @@ pub async fn create_thread(
     if title.is_empty() || title.chars().count() > MAX_TITLE_CHARS {
         return Err(StatusCode::BAD_REQUEST);
     }
-    validate_room_access(&state, user.id, payload.room_id).await?;
+    validate_chat_access(&state, user.id, payload.room_id).await?;
     state
         .create_ai_thread(
             user.id,
@@ -122,7 +122,7 @@ pub async fn update_thread(
     } else {
         payload.room_id.or(current.room_id)
     };
-    validate_room_access(&state, user.id, room_id).await?;
+    validate_chat_access(&state, user.id, room_id).await?;
     state
         .update_ai_thread(
             user.id,

@@ -12,9 +12,9 @@ use crate::{
 const VECTOR_SYNC_SQL: &str = "INSERT INTO message_index_outbox \
     (message_id, operation, attempt_count, generation, next_attempt_at, last_error, updated_at) \
     SELECT messages.id, CASE WHEN messages.recalled_at IS NULL \
-        AND trim(messages.content) <> '' AND rooms.deleted_at IS NULL \
+        AND trim(messages.content) <> '' AND chats.deleted_at IS NULL \
         THEN 'upsert' ELSE 'delete' END, 0, 1, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP \
-    FROM messages JOIN rooms ON rooms.id = messages.room_id \
+    FROM messages JOIN chats ON chats.id = messages.room_id \
     ON CONFLICT (message_id) DO UPDATE SET operation = excluded.operation, attempt_count = 0, \
         generation = message_index_outbox.generation + 1, next_attempt_at = CURRENT_TIMESTAMP, \
         last_error = NULL, updated_at = CURRENT_TIMESTAMP";

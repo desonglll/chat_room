@@ -169,10 +169,10 @@ fn render_html(report: &RunReport) -> String {
     };
     let template = r#"<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chat Room 压力测试报告</title><style>
+<title>Echo Gate 压力测试报告</title><style>
 :root{color:#1e2927;background:#f5f8f7;font:14px/1.5 system-ui,sans-serif}body{margin:0}main{max-width:1120px;margin:auto;padding:32px 20px 56px}h1{margin:0;font-size:28px;letter-spacing:0}.meta{color:#667572;margin:6px 0 24px}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.card,.panel{border:1px solid #dce5e2;border-radius:6px;background:#fff}.card{padding:16px}.card span{display:block;color:#667572;font-size:12px}.card strong{display:block;margin-top:7px;font-size:22px}.panel{margin-top:16px;padding:18px;overflow:auto}h2{margin:0 0 14px;font-size:16px}table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{padding:9px 12px;border-bottom:1px solid #edf1f0;text-align:right}th:first-child{text-align:left}thead th{color:#667572;font-size:12px}svg{display:block;width:100%;min-width:680px;height:auto}.legend{display:flex;gap:18px;margin-bottom:8px;color:#667572;font-size:12px}.legend i{display:inline-block;width:10px;height:3px;margin-right:6px;vertical-align:middle}.pass{color:#08765f}.fail{color:#b52e2e}@media(max-width:720px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}main{padding:20px 12px}}
 </style></head><body><main>
-<h1>Chat Room 压力测试报告</h1><p class="meta">{{TARGET}} · {{STARTED}} · 持续 {{DURATION}} 秒 · HTTP/WS/上传线程 {{WORKERS}}</p>
+<h1>Echo Gate 压力测试报告</h1><p class="meta">{{TARGET}} · {{STARTED}} · 持续 {{DURATION}} 秒 · HTTP/WS/上传线程 {{WORKERS}}</p>
 <section class="cards"><div class="card"><span>测试结论</span><strong class="{{STATUS_CLASS}}">{{STATUS}}</strong></div><div class="card"><span>总操作数</span><strong>{{TOTAL}}</strong></div><div class="card"><span>总吞吐量</span><strong>{{THROUGHPUT}}</strong></div><div class="card"><span>总错误率 / 阈值</span><strong>{{ERROR_RATE}}</strong></div></section>
 <section class="panel"><h2>场景汇总</h2><table><thead><tr><th>场景</th><th>成功</th><th>失败</th><th>ops/s</th><th>平均 ms</th><th>P50 ms</th><th>P95 ms</th><th>P99 ms</th><th>最大 ms</th></tr></thead><tbody>{{ROWS}}</tbody></table></section>
 <section class="panel">{{THROUGHPUT_CHART}}</section><section class="panel">{{LATENCY_CHART}}</section><section class="panel">{{ERROR_CHART}}</section>

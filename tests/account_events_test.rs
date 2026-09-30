@@ -52,7 +52,7 @@ async fn account_socket(base: &str, token: &str) -> Socket {
     socket
 }
 
-async fn room_socket(base: &str, room_id: &str, token: &str) -> Socket {
+async fn chat_socket(base: &str, room_id: &str, token: &str) -> Socket {
     let (mut socket, _) = connect_async(format!(
         "{}/ws/{room_id}",
         base.replacen("http://", "ws://", 1)
@@ -70,26 +70,26 @@ async fn room_socket(base: &str, room_id: &str, token: &str) -> Socket {
 }
 
 #[tokio::test]
-async fn account_socket_pushes_cross_room_messages_but_never_self_messages() {
+async fn account_socket_pushes_cross_chat_messages_but_never_self_messages() {
     let state = Arc::new(AppState::new().await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let task = tokio::spawn(async move { axum::serve(listener, build_app(state)).await.unwrap() });
     let alice = session_token(&base, "account-event-alice").await;
     let bob = session_token(&base, "account-event-bob").await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&alice)
-        .json(&serde_json::json!({ "name": "background-room", "password": "" }))
+        .json(&serde_json::json!({ "name": "background-chat", "password": "" }))
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     assert!(reqwest::Client::new()
-        .post(format!("{base}/api/rooms/{room_id}/join-requests"))
+        .post(format!("{base}/api/chats/{room_id}/join-requests"))
         .bearer_auth(&bob)
         .json(&serde_json::json!({}))
         .send()
@@ -100,8 +100,8 @@ async fn account_socket_pushes_cross_room_messages_but_never_self_messages() {
 
     let mut alice_account = account_socket(&base, &alice).await;
     let mut bob_account = account_socket(&base, &bob).await;
-    let mut room = room_socket(&base, room_id, &alice).await;
-    room.send(Message::Text(
+    let mut chat = chat_socket(&base, room_id, &alice).await;
+    chat.send(Message::Text(
         serde_json::json!({ "type": "message", "content": "background hello" }).to_string(),
     ))
     .await
@@ -109,7 +109,7 @@ async fn account_socket_pushes_cross_room_messages_but_never_self_messages() {
 
     let event = next_type(&mut bob_account, "new_message").await;
     assert_eq!(event["room_id"], room_id);
-    assert_eq!(event["room_name"], "background-room");
+    assert_eq!(event["room_name"], "background-chat");
     assert_eq!(event["content"], "background hello");
     assert_eq!(event["sender"], "account-event-alice");
 

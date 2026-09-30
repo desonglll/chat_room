@@ -2,18 +2,18 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use super::models::{
-    valid_status, valid_title, CreateRoomTaskRequest, RoomTask, TaskMutation, UpdateRoomTaskRequest,
+    valid_status, valid_title, ChatTask, CreateChatTaskRequest, TaskMutation, UpdateChatTaskRequest,
 };
 use crate::state::{with_pool, AppState};
 
 impl AppState {
-    pub(super) async fn create_room_task(
+    pub(super) async fn create_chat_task(
         &self,
         room_id: Uuid,
         actor_id: Uuid,
         actor_name: &str,
-        request: CreateRoomTaskRequest,
-    ) -> Result<TaskMutation<RoomTask>, sqlx::Error> {
+        request: CreateChatTaskRequest,
+    ) -> Result<TaskMutation<ChatTask>, sqlx::Error> {
         let title = request.title.trim();
         if !valid_title(title) {
             return Ok(TaskMutation::InvalidValue);
@@ -22,13 +22,13 @@ impl AppState {
         let now = Utc::now();
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
-                "INSERT INTO room_tasks \
+                "INSERT INTO chat_tasks \
                  (id, room_id, title, status, assignee_id, created_by_id, created_by_name, \
                   source_message_id, due_at, version, created_at, updated_at) \
                  SELECT $1, $2, $3, 'open', $4, $5, $6, $7, $8, 1, $9, $9 \
-                 WHERE EXISTS (SELECT 1 FROM room_memberships actor \
+                 WHERE EXISTS (SELECT 1 FROM chat_members actor \
                    WHERE actor.room_id = $2 AND actor.user_id = $5 AND actor.status = 'active') \
-                 AND ($4 IS NULL OR EXISTS (SELECT 1 FROM room_memberships assignee \
+                 AND ($4 IS NULL OR EXISTS (SELECT 1 FROM chat_members assignee \
                    WHERE assignee.room_id = $2 AND assignee.user_id = $4 AND assignee.status = 'active')) \
                  AND ($7 IS NULL OR EXISTS (SELECT 1 FROM messages source \
                    WHERE source.id = $7 AND source.room_id = $2 AND source.recalled_at IS NULL))",
@@ -58,19 +58,19 @@ impl AppState {
             return Ok(TaskMutation::InvalidSource);
         }
         Ok(self
-            .room_task(room_id, task_id, actor_id)
+            .chat_task(room_id, task_id, actor_id)
             .await?
             .map(TaskMutation::Applied)
             .unwrap_or(TaskMutation::NotFound))
     }
 
-    pub(super) async fn update_room_task(
+    pub(super) async fn update_chat_task(
         &self,
         room_id: Uuid,
         task_id: Uuid,
         actor_id: Uuid,
-        request: UpdateRoomTaskRequest,
-    ) -> Result<TaskMutation<RoomTask>, sqlx::Error> {
+        request: UpdateChatTaskRequest,
+    ) -> Result<TaskMutation<ChatTask>, sqlx::Error> {
         let title = request.title.trim();
         if !valid_title(title) || !valid_status(&request.status) || request.version < 1 {
             return Ok(TaskMutation::InvalidValue);
@@ -78,15 +78,15 @@ impl AppState {
         let now = Utc::now();
         let updated = with_pool!(self, |pool| {
             sqlx::query(
-                "UPDATE room_tasks SET title = $1, status = $2, assignee_id = $3, due_at = $4, \
+                "UPDATE chat_tasks SET title = $1, status = $2, assignee_id = $3, due_at = $4, \
                  version = version + 1, updated_at = $5 \
                  WHERE id = $6 AND room_id = $7 AND version = $8 \
-                 AND ($3 IS NULL OR EXISTS (SELECT 1 FROM room_memberships target \
+                 AND ($3 IS NULL OR EXISTS (SELECT 1 FROM chat_members target \
                    WHERE target.room_id = $7 AND target.user_id = $3 AND target.status = 'active')) \
-                 AND EXISTS (SELECT 1 FROM room_memberships actor \
-                   JOIN room_roles role ON role.id = actor.role_id \
+                 AND EXISTS (SELECT 1 FROM chat_members actor \
+                   JOIN chat_roles role ON role.id = actor.role_id \
                    WHERE actor.room_id = $7 AND actor.user_id = $9 AND actor.status = 'active' \
-                   AND (room_tasks.created_by_id = $9 OR room_tasks.assignee_id = $9 \
+                   AND (chat_tasks.created_by_id = $9 OR chat_tasks.assignee_id = $9 \
                      OR role.name IN ('owner', 'admin')))",
             )
             .bind(title)
@@ -114,7 +114,7 @@ impl AppState {
                 .await;
         }
         Ok(self
-            .room_task(room_id, task_id, actor_id)
+            .chat_task(room_id, task_id, actor_id)
             .await?
             .map(TaskMutation::Applied)
             .unwrap_or(TaskMutation::NotFound))
@@ -127,7 +127,7 @@ impl AppState {
         actor_id: Uuid,
         assignee_id: Option<Uuid>,
         expected_version: i64,
-    ) -> Result<TaskMutation<RoomTask>, sqlx::Error> {
+    ) -> Result<TaskMutation<ChatTask>, sqlx::Error> {
         let Some(role) = self.active_task_role(room_id, actor_id).await? else {
             return Ok(TaskMutation::Forbidden);
         };
@@ -154,7 +154,7 @@ impl AppState {
         })
     }
 
-    pub(super) async fn delete_room_task(
+    pub(super) async fn delete_chat_task(
         &self,
         room_id: Uuid,
         task_id: Uuid,
@@ -162,9 +162,9 @@ impl AppState {
     ) -> Result<TaskMutation<()>, sqlx::Error> {
         let deleted = with_pool!(self, |pool| {
             sqlx::query(
-                "DELETE FROM room_tasks WHERE id = $1 AND room_id = $2 \
-                 AND EXISTS (SELECT 1 FROM room_memberships actor \
-                   JOIN room_roles role ON role.id = actor.role_id \
+                "DELETE FROM chat_tasks WHERE id = $1 AND room_id = $2 \
+                 AND EXISTS (SELECT 1 FROM chat_members actor \
+                   JOIN chat_roles role ON role.id = actor.role_id \
                    WHERE actor.room_id = $2 AND actor.user_id = $3 AND actor.status = 'active' \
                      AND role.name IN ('owner', 'admin'))",
             )
@@ -195,7 +195,7 @@ impl AppState {
     ) -> Result<Option<(Option<Uuid>, Option<Uuid>, i64)>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT created_by_id, assignee_id, version FROM room_tasks \
+                "SELECT created_by_id, assignee_id, version FROM chat_tasks \
                  WHERE room_id = $1 AND id = $2",
             )
             .bind(room_id)

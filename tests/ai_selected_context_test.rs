@@ -123,9 +123,9 @@ async fn register(client: &Client, server: &TestServer) -> (Uuid, String) {
     )
 }
 
-async fn create_room(client: &Client, server: &TestServer, token: &str, name: &str) -> Uuid {
-    let room: Value = client
-        .post(format!("{}/api/rooms", server.base))
+async fn create_chat(client: &Client, server: &TestServer, token: &str, name: &str) -> Uuid {
+    let chat: Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(token)
         .json(&json!({ "name": name, "join_policy": "open" }))
         .send()
@@ -134,7 +134,7 @@ async fn create_room(client: &Client, server: &TestServer, token: &str, name: &s
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 async fn create_thread(
@@ -207,8 +207,8 @@ async fn selected_message_runs_are_exact_ordered_and_validated() {
     let server = start_server().await;
     let client = Client::new();
     let (user_id, token) = register(&client, &server).await;
-    let room_id = create_room(&client, &server, &token, "Selected context").await;
-    let other_room_id = create_room(&client, &server, &token, "Other room").await;
+    let room_id = create_chat(&client, &server, &token, "Selected context").await;
+    let other_room_id = create_chat(&client, &server, &token, "Other chat").await;
     let first = insert_message(&server, room_id, user_id, "selected-first", 1, false).await;
     let ignored = insert_message(&server, room_id, user_id, "must-not-be-used", 2, false).await;
     let last = insert_message(&server, room_id, user_id, "selected-last", 3, false).await;
@@ -217,7 +217,7 @@ async fn selected_message_runs_are_exact_ordered_and_validated() {
         &server,
         other_room_id,
         user_id,
-        "other-room-secret",
+        "other-chat-secret",
         5,
         false,
     )

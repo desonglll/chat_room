@@ -1,7 +1,7 @@
 use chat_room::{
     ai_governance::{UpdateAiGovernanceModel, UpdateAiGovernanceSettings},
     config::AppConfig,
-    models::Room,
+    models::Chat,
     state::AppState,
 };
 use chrono::{Duration, Utc};
@@ -48,34 +48,29 @@ async fn postgres_governance_policy_settings_and_usage_match_sqlite_contract() {
         .await
         .unwrap();
     let now = Utc::now();
-    let room = Room {
+    let chat = Chat {
         id: Uuid::new_v4(),
-        name: "Postgres governance".into(),
-        password_hash: String::new(),
-        has_password: false,
+        title: "Postgres governance".into(),
         creator_user_id: Some(owner.id),
-        join_policy: "open".into(),
-        avatar_emoji: String::new(),
-        description: String::new(),
         membership_status: Some("active".into()),
         membership_role: Some("owner".into()),
-        unread_count: 0,
         created_at: now,
+        ..Chat::default()
     };
     state
-        .create_room_with_owner(room.clone(), owner.id)
+        .create_chat_with_owner(chat.clone(), owner.id)
         .await
         .unwrap();
-    assert_eq!(state.room_ai_policy(room.id).await.unwrap().version, 0);
+    assert_eq!(state.chat_ai_policy(chat.id).await.unwrap().version, 0);
     let policy = state
-        .update_room_ai_policy(room.id, owner.id, "admins", 0)
+        .update_chat_ai_policy(chat.id, owner.id, "admins", 0)
         .await
         .unwrap()
         .unwrap();
     assert_eq!(policy.mode, "admins");
     assert_eq!(policy.version, 1);
     assert!(state
-        .update_room_ai_policy(room.id, owner.id, "disabled", 0)
+        .update_chat_ai_policy(chat.id, owner.id, "disabled", 0)
         .await
         .unwrap()
         .is_none());
@@ -117,7 +112,7 @@ async fn postgres_governance_policy_settings_and_usage_match_sqlite_contract() {
     )
     .bind(admission_id)
     .bind(owner.id)
-    .bind(room.id)
+    .bind(chat.id)
     .bind(model_id)
     .bind(now + Duration::hours(1))
     .bind(now - Duration::seconds(1))
@@ -128,12 +123,12 @@ async fn postgres_governance_policy_settings_and_usage_match_sqlite_contract() {
         .finish_ai_admission(admission_id, "completed", Some(1_000), 500)
         .await
         .unwrap();
-    let room_usage = state
+    let chat_usage = state
         .ai_usage_report("room", now - Duration::days(1), now + Duration::minutes(1))
         .await
         .unwrap();
-    assert_eq!(room_usage.items[0].key, room.id.to_string());
-    assert_eq!(room_usage.items[0].estimated_cost_micros, 6_000);
+    assert_eq!(chat_usage.items[0].key, chat.id.to_string());
+    assert_eq!(chat_usage.items[0].estimated_cost_micros, 6_000);
     assert_eq!(
         state
             .ai_usage_report("model", now - Duration::days(1), now + Duration::minutes(1))
@@ -143,8 +138,8 @@ async fn postgres_governance_policy_settings_and_usage_match_sqlite_contract() {
             .key,
         model_id.to_string()
     );
-    sqlx::query("DELETE FROM rooms WHERE id = $1")
-        .bind(room.id)
+    sqlx::query("DELETE FROM chats WHERE id = $1")
+        .bind(chat.id)
         .execute(state.postgres_pool().unwrap())
         .await
         .unwrap();
@@ -152,8 +147,8 @@ async fn postgres_governance_policy_settings_and_usage_match_sqlite_contract() {
         .ai_usage_report("room", now - Duration::days(1), now + Duration::minutes(1))
         .await
         .unwrap();
-    assert_eq!(retained.items[0].key, room.id.to_string());
-    assert_eq!(retained.items[0].label, room.id.to_string());
+    assert_eq!(retained.items[0].key, chat.id.to_string());
+    assert_eq!(retained.items[0].label, chat.id.to_string());
 
     state.postgres_pool().unwrap().close().await;
     drop(state);

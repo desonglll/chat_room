@@ -43,7 +43,7 @@ impl AuditEventDraft {
         Self::new("system", None, actor, event_type)
     }
 
-    pub fn room(actor: &User, room_id: Uuid, event_type: &'static str) -> Self {
+    pub fn chat(actor: &User, room_id: Uuid, event_type: &'static str) -> Self {
         Self::new("room", Some(room_id), actor, event_type)
     }
 

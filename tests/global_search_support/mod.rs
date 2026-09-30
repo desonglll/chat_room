@@ -54,9 +54,9 @@ pub async fn register(client: &Client, base: &str, username: &str) -> Account {
     }
 }
 
-pub async fn create_room(client: &Client, base: &str, account: &Account, name: &str) -> Uuid {
-    let room: serde_json::Value = client
-        .post(format!("{base}/api/rooms"))
+pub async fn create_chat(client: &Client, base: &str, account: &Account, name: &str) -> Uuid {
+    let chat: serde_json::Value = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&account.token)
         .json(&serde_json::json!({ "name": name, "join_policy": "open" }))
         .send()
@@ -65,7 +65,7 @@ pub async fn create_room(client: &Client, base: &str, account: &Account, name: &
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 pub async fn create_direct_chat(

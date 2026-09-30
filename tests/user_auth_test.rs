@@ -123,8 +123,8 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
         .unwrap();
     assert_eq!(verified.status(), 204);
 
-    let room: serde_json::Value = client
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(login_token)
         .json(&serde_json::json!({ "name": "identity-test", "password": "" }))
         .send()
@@ -133,7 +133,7 @@ async fn registration_login_and_logout_manage_uuid_sessions() {
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     let ws_url = format!("{}/ws/{room_id}", base.replace("http://", "ws://"));
 
     let (mut legacy_socket, _) = connect_async(&ws_url).await.unwrap();

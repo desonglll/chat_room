@@ -45,8 +45,8 @@ impl AppState {
                  (id, user_id, room_id, client_request_id, from_at, to_at, model_option_id, \
                   provider, model, base_url, api_key_env, admission_id, status, created_at, updated_at) \
                  SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'queued', $13, $13 \
-                 WHERE EXISTS (SELECT 1 FROM room_memberships memberships \
-                   JOIN rooms ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
+                 WHERE EXISTS (SELECT 1 FROM chat_members memberships \
+                   JOIN chats ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
                    WHERE memberships.room_id = $3 AND memberships.user_id = $2 \
                      AND memberships.status = 'active') \
                  ON CONFLICT (user_id, client_request_id) DO NOTHING",
@@ -86,8 +86,8 @@ impl AppState {
         let query = format!(
             "SELECT {RUN_COLUMNS} FROM ai_extraction_runs runs \
              WHERE runs.id = $1 AND runs.user_id = $2 AND EXISTS \
-             (SELECT 1 FROM room_memberships memberships JOIN rooms \
-                ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
+             (SELECT 1 FROM chat_members memberships JOIN chats \
+                ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
               WHERE memberships.room_id = runs.room_id AND memberships.user_id = $2 \
                 AND memberships.status = 'active')"
         );
@@ -153,7 +153,7 @@ impl AppState {
                    ON sources.candidate_id = links.candidate_id \
                  JOIN messages ON messages.id = sources.message_id \
                    AND messages.room_id = $2 AND messages.recalled_at IS NULL \
-                 JOIN room_memberships memberships ON memberships.room_id = messages.room_id \
+                 JOIN chat_members memberships ON memberships.room_id = messages.room_id \
                    AND memberships.user_id = $3 AND memberships.status = 'active' \
                  WHERE links.run_id = $1 ORDER BY links.ordinal, sources.ordinal",
             )
@@ -207,8 +207,8 @@ impl AppState {
                  candidates.result_id, candidates.version, candidates.created_at, \
                  candidates.updated_at FROM ai_extraction_candidates candidates \
                  WHERE candidates.id = $1 AND candidates.user_id = $2 AND EXISTS \
-                 (SELECT 1 FROM room_memberships memberships JOIN rooms \
-                    ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
+                 (SELECT 1 FROM chat_members memberships JOIN chats \
+                    ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
                   WHERE memberships.room_id = candidates.room_id \
                     AND memberships.user_id = $2 AND memberships.status = 'active')",
             )
@@ -229,7 +229,7 @@ impl AppState {
                  JOIN messages ON messages.id = sources.message_id \
                    AND messages.room_id = candidates.room_id AND messages.recalled_at IS NULL \
                  WHERE candidates.id = $1 AND candidates.user_id = $2 \
-                   AND EXISTS (SELECT 1 FROM room_memberships WHERE room_id = candidates.room_id \
+                   AND EXISTS (SELECT 1 FROM chat_members WHERE room_id = candidates.room_id \
                      AND user_id = $2 AND status = 'active') ORDER BY sources.ordinal",
             )
             .bind(candidate_id)
@@ -247,7 +247,7 @@ impl AppState {
         Ok(Some(candidate.into_view(sources)))
     }
 
-    pub(super) async fn extraction_run_room(
+    pub(super) async fn extraction_run_chat(
         &self,
         user_id: Uuid,
         run_id: Uuid,
@@ -263,7 +263,7 @@ impl AppState {
         })
     }
 
-    pub(super) async fn extraction_candidate_room(
+    pub(super) async fn extraction_candidate_chat(
         &self,
         user_id: Uuid,
         candidate_id: Uuid,

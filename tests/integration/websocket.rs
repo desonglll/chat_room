@@ -3,7 +3,7 @@ use super::*;
 #[tokio::test]
 async fn ws_auth_wrong_password() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "secret-room", Some("correct")).await;
+    let (id, _) = create_chat(&base, "secret-chat", Some("correct")).await;
     let url = format!("{}/ws/{}", base.replace("http://", "ws://"), id);
     let (ws, _) = connect_async(&url).await.unwrap();
     let (mut sink, mut stream) = ws.split();
@@ -23,7 +23,7 @@ async fn ws_auth_wrong_password() {
 #[tokio::test]
 async fn ws_private_join_and_chat() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "private-chat", Some("pw")).await;
+    let (id, _) = create_chat(&base, "private-chat", Some("pw")).await;
     let (mut sink_a, mut stream_a) = ws_connect(&base, &id, "alice", Some("pw")).await;
     let (_sink_b, mut stream_b) = ws_connect(&base, &id, "bob", Some("pw")).await;
 
@@ -55,7 +55,7 @@ async fn ws_private_join_and_chat() {
 #[tokio::test]
 async fn ws_client_message_id_is_idempotent_and_acknowledged() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "idempotent-chat", None).await;
+    let (id, _) = create_chat(&base, "idempotent-chat", None).await;
     let (mut sink, mut stream) = ws_connect(&base, &id, "idempotent-user", None).await;
     let client_message_id = uuid::Uuid::new_v4();
     let payload = serde_json::json!({
@@ -75,7 +75,7 @@ async fn ws_client_message_id_is_idempotent_and_acknowledged() {
 
     let token = session_token(&base, "idempotent-user").await;
     let history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{base}/api/rooms/{id}/messages"))
+        .get(format!("{base}/api/chats/{id}/messages"))
         .bearer_auth(token)
         .send()
         .await
@@ -93,7 +93,7 @@ async fn ws_client_message_id_is_idempotent_and_acknowledged() {
 #[tokio::test]
 async fn ws_leave_notifies_others() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "room", Some("pw")).await;
+    let (id, _) = create_chat(&base, "chat", Some("pw")).await;
     let (_sink_a, mut stream_a) = ws_connect(&base, &id, "alice", Some("pw")).await;
     let (sink_b, stream_b) = ws_connect(&base, &id, "bob", Some("pw")).await;
     assert!(read_json(&mut stream_a).await["content"]
@@ -111,7 +111,7 @@ async fn ws_leave_notifies_others() {
 }
 
 #[tokio::test]
-async fn ws_nonexistent_room() {
+async fn ws_nonexistent_chat() {
     let base = start_server().await;
     let url = format!(
         "{}/ws/00000000-0000-0000-0000-000000000000",
@@ -130,7 +130,7 @@ async fn ws_nonexistent_room() {
 #[tokio::test]
 async fn ws_public_join_no_password() {
     let base = start_server().await;
-    let (id, has_password) = create_room(&base, "public-lounge", None).await;
+    let (id, has_password) = create_chat(&base, "public-lounge", None).await;
     assert!(!has_password);
     let (_sink, _stream) = ws_connect(&base, &id, "guest", None).await;
 }
@@ -138,14 +138,14 @@ async fn ws_public_join_no_password() {
 #[tokio::test]
 async fn ws_public_join_with_auth_also_works() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "open", None).await;
+    let (id, _) = create_chat(&base, "open", None).await;
     let (_sink, _stream) = ws_connect(&base, &id, "alice", Some("anything")).await;
 }
 
 #[tokio::test]
 async fn ws_public_join_rejects_if_private() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "vip-room", Some("secret")).await;
+    let (id, _) = create_chat(&base, "vip-chat", Some("secret")).await;
     let url = format!("{}/ws/{}", base.replace("http://", "ws://"), id);
     let (ws, _) = connect_async(&url).await.unwrap();
     let (mut sink, mut stream) = ws.split();

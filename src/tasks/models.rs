@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct RoomTaskSource {
+pub struct ChatTaskSource {
     pub message_id: Uuid,
     pub sender: String,
     pub excerpt: String,
@@ -13,7 +13,7 @@ pub struct RoomTaskSource {
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct RoomTask {
+pub struct ChatTask {
     pub id: Uuid,
     pub room_id: Uuid,
     pub title: String,
@@ -23,7 +23,7 @@ pub struct RoomTask {
     pub assignee_active: bool,
     pub created_by_id: Option<Uuid>,
     pub created_by_name: String,
-    pub source: Option<RoomTaskSource>,
+    pub source: Option<ChatTaskSource>,
     pub due_at: Option<DateTime<Utc>>,
     pub version: i64,
     pub can_update: bool,
@@ -33,7 +33,7 @@ pub struct RoomTask {
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct CreateRoomTaskRequest {
+pub struct CreateChatTaskRequest {
     pub title: String,
     pub assignee_id: Option<Uuid>,
     pub due_at: Option<DateTime<Utc>>,
@@ -41,7 +41,7 @@ pub struct CreateRoomTaskRequest {
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdateRoomTaskRequest {
+pub struct UpdateChatTaskRequest {
     pub title: String,
     pub status: String,
     pub assignee_id: Option<Uuid>,

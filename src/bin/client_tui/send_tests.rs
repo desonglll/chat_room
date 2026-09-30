@@ -23,7 +23,7 @@ fn conversation(room_id: Uuid, has_password: bool) -> Conversation {
     Conversation {
         room_id,
         kind: "group".into(),
-        title: "Project room".into(),
+        title: "Project chat".into(),
         unread_count: 0,
         group: Some(ConversationGroup { has_password }),
         preferences: ConversationPreferences::default(),
@@ -38,7 +38,7 @@ fn key(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
 #[test]
 fn disconnected_send_keeps_the_draft() {
     let mut app = app();
-    app.active_room = Some(Uuid::new_v4());
+    app.active_chat = Some(Uuid::new_v4());
     app.focus = Focus::Input;
     app.compose.set("do not lose this");
 
@@ -55,8 +55,8 @@ fn connected_send_appears_immediately_and_reaches_the_chat_channel() {
     let (chat, mut commands) = mpsc::unbounded_channel();
     let (events, _event_receiver) = mpsc::unbounded_channel();
     let mut app = app();
-    app.active_room = Some(room_id);
-    app.active_room_name = "Project room".into();
+    app.active_chat = Some(room_id);
+    app.active_room_name = "Project chat".into();
     app.chat = Some(chat);
     app.focus = Focus::Input;
     app.compose.set("ship it");
@@ -112,7 +112,7 @@ fn an_existing_private_conversation_opens_without_a_password_prompt() {
     assert!(app.dialog.is_none());
     assert!(matches!(
         actions.as_slice(),
-        [Action::ConnectRoom { room_id: selected, password: None, .. }] if *selected == room_id
+        [Action::ConnectChat { room_id: selected, password: None, .. }] if *selected == room_id
     ));
 }
 
@@ -136,7 +136,7 @@ fn closed_chat_channel_marks_the_pending_message_as_failed() {
     drop(commands);
     let (events, _event_receiver) = mpsc::unbounded_channel();
     let mut app = app();
-    app.active_room = Some(room_id);
+    app.active_chat = Some(room_id);
     app.chat = Some(chat);
     app.focus = Focus::Input;
     app.compose.set("keep failure visible");

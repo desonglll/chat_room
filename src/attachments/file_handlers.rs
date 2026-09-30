@@ -1,4 +1,4 @@
-//! Authenticated, independently paginated room attachment listing.
+//! Authenticated, independently paginated chat attachment listing.
 
 use axum::{
     extract::{Path, Query, State},
@@ -61,20 +61,20 @@ impl FileRow {
 
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}/files",
+    path = "/api/chats/{id}/files",
     params(
-        ("id" = Uuid, description = "Room id"),
+        ("id" = Uuid, description = "Chat id"),
         ("before" = Option<Uuid>, Query, description = "Exclusive message cursor"),
         ("limit" = Option<i64>, Query, description = "Page size (1-100)"),
         ("kind" = Option<String>, Query, description = "all, image, video, or file")
     ),
     responses(
-        (status = 200, description = "Paginated room files", body = ChatFilePage),
+        (status = 200, description = "Paginated chat files", body = ChatFilePage),
         (status = 401, description = "Invalid credentials"),
-        (status = 403, description = "Not an active room member")
+        (status = 403, description = "Not an active chat member")
     )
 )]
-pub async fn list_room_files(
+pub async fn list_chat_files(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     Query(query): Query<FilePageQuery>,
@@ -170,7 +170,7 @@ async fn authorize(
     room_id: Uuid,
     headers: &HeaderMap,
 ) -> Result<(), StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     let token = headers
         .get(AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
@@ -183,19 +183,19 @@ async fn authorize(
         .map_err(database_error)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
     let allowed = state
-        .has_room_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send")
         .await
         .map_err(database_error)?;
     if !allowed {
         return Err(StatusCode::FORBIDDEN);
     }
-    if room.has_password {
+    if chat.has_password {
         let supplied = headers
             .get("x-room-password")
             .and_then(|value| value.to_str().ok())
             .ok_or(StatusCode::UNAUTHORIZED)?;
         let digest = Sha256::digest(supplied.as_bytes());
-        if hex::encode(digest) != room.password_hash {
+        if hex::encode(digest) != chat.password_hash {
             return Err(StatusCode::UNAUTHORIZED);
         }
     }
@@ -203,6 +203,6 @@ async fn authorize(
 }
 
 fn database_error(error: sqlx::Error) -> StatusCode {
-    tracing::error!("list room files failed: {error}");
+    tracing::error!("list chat files failed: {error}");
     StatusCode::INTERNAL_SERVER_ERROR
 }

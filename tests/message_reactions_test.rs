@@ -34,9 +34,9 @@ async fn start_server() -> TestServer {
     }
 }
 
-async fn create_room(base: &str, token: &str) -> String {
+async fn create_chat(base: &str, token: &str) -> String {
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": "reactions", "password": "", "join_policy": "open" }))
         .send()
@@ -65,7 +65,7 @@ async fn next_type(socket: &mut Socket, expected: &str) -> serde_json::Value {
     }
 }
 
-async fn open_room(base: &str, room_id: &str, token: &str) -> Socket {
+async fn open_chat(base: &str, room_id: &str, token: &str) -> Socket {
     let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
     let (mut socket, _) = connect_async(url).await.unwrap();
     socket
@@ -98,9 +98,9 @@ async fn reactions_are_shared_idempotent_and_restored_with_history() {
     let server = start_server().await;
     let alice_token = session_token(&server.base, "reaction-alice").await;
     let bob_token = session_token(&server.base, "reaction-bob").await;
-    let room_id = create_room(&server.base, &alice_token).await;
-    let mut alice = open_room(&server.base, &room_id, &alice_token).await;
-    let mut bob = open_room(&server.base, &room_id, &bob_token).await;
+    let room_id = create_chat(&server.base, &alice_token).await;
+    let mut alice = open_chat(&server.base, &room_id, &alice_token).await;
+    let mut bob = open_chat(&server.base, &room_id, &bob_token).await;
 
     alice
         .send(Message::Text(
@@ -134,7 +134,7 @@ async fn reactions_are_shared_idempotent_and_restored_with_history() {
     let _ = next_type(&mut bob, "reaction_changed").await;
 
     let history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&alice_token)
         .send()
         .await
@@ -148,7 +148,7 @@ async fn reactions_are_shared_idempotent_and_restored_with_history() {
     assert!(users.iter().any(|id| id == &bob_id));
 
     drop(alice);
-    let mut reconnected = open_room(&server.base, &room_id, &alice_token).await;
+    let mut reconnected = open_chat(&server.base, &room_id, &alice_token).await;
     let replayed = next_type(&mut reconnected, "broadcast").await;
     assert_eq!(replayed["message_id"], message_id);
     assert_eq!(
@@ -170,7 +170,7 @@ async fn reactions_are_shared_idempotent_and_restored_with_history() {
     );
 
     let history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&alice_token)
         .send()
         .await

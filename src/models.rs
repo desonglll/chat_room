@@ -5,48 +5,24 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+/// The chat-domain types live in `crate::chats::models`, beside the module that owns them
+/// (`AGENTS.md`), and are re-exported here so existing `crate::models::…` imports keep working.
+pub use crate::chats::models::{
+    Chat, ChatCompatView, ChatMember, ChatMembership, CreateChatRequest, InviteMemberRequest,
+    JoinChatRequest, UpdateChatRequest, UpdateMembershipRequest, UpdateNicknameRequest,
+};
+
 // ── REST models ──────────────────────────────────────────────────────────────
 
-/// Public-facing room descriptor (password hash is never serialised).
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, sqlx::FromRow)]
-pub struct Room {
-    pub id: Uuid,
-    pub name: String,
-    /// SHA-256 hex digest — empty string means the room is public.
-    #[serde(skip_serializing, default)]
-    #[schema(value_type = String)]
-    pub password_hash: String,
-    /// Whether a password is required to join.
-    pub has_password: bool,
-    pub creator_user_id: Option<Uuid>,
-    pub join_policy: String,
-    #[serde(default)]
-    #[sqlx(default)]
-    pub avatar_emoji: String,
-    #[serde(default)]
-    #[sqlx(default)]
-    pub description: String,
-    #[serde(skip_deserializing, default, skip_serializing_if = "Option::is_none")]
-    #[sqlx(default)]
-    pub membership_status: Option<String>,
-    #[serde(skip_deserializing, default, skip_serializing_if = "Option::is_none")]
-    #[sqlx(default)]
-    pub membership_role: Option<String>,
-    #[serde(default)]
-    #[sqlx(default)]
-    pub unread_count: i64,
-    pub created_at: DateTime<Utc>,
-}
-
-/// Point-in-time snapshot of a message's original sender/room, kept even if the
-/// source message or room is later recalled, edited, or soft-deleted.
+/// Point-in-time snapshot of a message's original sender/chat, kept even if the
+/// source message or chat is later recalled, edited, or soft-deleted.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ForwardedFrom {
     pub sender: String,
     pub room_name: String,
 }
 
-/// A chat message persisted as part of a room session.
+/// A chat message persisted as part of a chat session.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StoredMessage {
     pub id: Uuid,
@@ -86,7 +62,7 @@ pub struct Attachment {
     pub is_sensitive: bool,
 }
 
-/// One attachment-bearing message returned by the paginated room file browser.
+/// One attachment-bearing message returned by the paginated chat file browser.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatFileItem {
     pub message_id: Uuid,
@@ -113,15 +89,7 @@ pub struct ReplyPreview {
     pub recalled: bool,
 }
 
-/// A unique signed-in account currently connected to a room.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoomMember {
-    pub user_id: Uuid,
-    pub username: String,
-    pub avatar_emoji: String,
-}
-
-/// The newest message a room participant has viewed.
+/// The newest message a chat participant has viewed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReadReceipt {
     pub user_id: Uuid,
@@ -190,61 +158,6 @@ pub struct AuthSession {
     pub expires_at: DateTime<Utc>,
 }
 
-/// Payload for POST /api/rooms.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct CreateRoomRequest {
-    pub name: String,
-    /// Plain-text password — omit or set to "" for a public room.
-    #[serde(default)]
-    pub password: Option<String>,
-    #[serde(default)]
-    pub join_policy: Option<String>,
-    #[serde(default)]
-    pub avatar_emoji: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-}
-
-/// Payload for PATCH /api/rooms/{id}. Missing fields remain unchanged.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdateRoomRequest {
-    pub name: Option<String>,
-    /// Required for every change to a private room.
-    #[serde(default)]
-    pub current_password: Option<String>,
-    /// Set to an empty string to make the room public.
-    pub new_password: Option<String>,
-    pub join_policy: Option<String>,
-    #[serde(default)]
-    pub avatar_emoji: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-}
-
-/// Payload for PATCH /api/rooms/{id}/members/me (self-service nickname).
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdateNicknameRequest {
-    pub nickname: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct JoinRoomRequest {
-    #[serde(default)]
-    pub password: Option<String>,
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct InviteMemberRequest {
-    pub username: String,
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdateMembershipRequest {
-    pub action: String,
-    #[serde(default)]
-    pub role: Option<String>,
-}
-
 /// Payload for POST /api/messages/forward.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ForwardMessagesRequest {
@@ -252,25 +165,13 @@ pub struct ForwardMessagesRequest {
     pub target_room_ids: Vec<Uuid>,
 }
 
-/// One (source message, target room) forward outcome.
+/// One (source message, target chat) forward outcome.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ForwardResult {
     pub message_id: Uuid,
     pub target_room_id: Uuid,
     pub forwarded_message_id: Option<Uuid>,
     pub skipped_reason: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, sqlx::FromRow)]
-pub struct RoomMembership {
-    pub user_id: Uuid,
-    pub username: String,
-    pub avatar_emoji: String,
-    pub nickname: String,
-    pub role: String,
-    pub status: String,
-    pub requested_at: DateTime<Utc>,
-    pub joined_at: Option<DateTime<Utc>>,
 }
 
 // ── WebSocket message envelope ───────────────────────────────────────────────
@@ -281,11 +182,11 @@ pub struct RoomMembership {
 // This transport enum intentionally mirrors the JSON protocol without boxed wire fields.
 #[allow(clippy::large_enum_variant)]
 pub enum ChatMessage {
-    /// Client → Server: join a public room (no password needed).
+    /// Client → Server: join a public chat (no password needed).
     #[serde(rename = "join")]
     Join { token: Uuid },
 
-    /// Client → Server: authenticate with room password.
+    /// Client → Server: authenticate with chat password.
     #[serde(rename = "auth")]
     Auth { token: Uuid, password: String },
 
@@ -293,8 +194,8 @@ pub enum ChatMessage {
     #[serde(rename = "auth_ok")]
     AuthOk {
         room_name: String,
-        members: Vec<RoomMember>,
-        participants: Vec<RoomMember>,
+        members: Vec<ChatMember>,
+        participants: Vec<ChatMember>,
         read_receipts: Vec<ReadReceipt>,
     },
 
@@ -330,7 +231,7 @@ pub enum ChatMessage {
         username: Option<String>,
     },
 
-    /// Client -> Server: advance this account's read position in the room.
+    /// Client -> Server: advance this account's read position in the chat.
     #[serde(rename = "read")]
     Read { message_id: Uuid },
 
@@ -346,7 +247,7 @@ pub enum ChatMessage {
         active: bool,
     },
 
-    /// Client -> Server: nudge another connected member in this room.
+    /// Client -> Server: nudge another connected member in this chat.
     #[serde(rename = "poke")]
     Poke { target_user_id: Uuid },
 
@@ -396,11 +297,11 @@ pub enum ChatMessage {
         recalled_at: DateTime<Utc>,
     },
 
-    /// Server -> Client: the room's current unique member snapshot changed.
+    /// Server -> Client: the chat's current unique member snapshot changed.
     #[serde(rename = "presence")]
     Presence {
-        members: Vec<RoomMember>,
-        participants: Vec<RoomMember>,
+        members: Vec<ChatMember>,
+        participants: Vec<ChatMember>,
     },
 
     /// Server -> Client: a participant advanced their read position.
@@ -416,8 +317,8 @@ pub enum ChatMessage {
     System {
         content: String,
         #[serde(skip_serializing_if = "Option::is_none")]
-        members: Option<Vec<RoomMember>>,
+        members: Option<Vec<ChatMember>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        participants: Option<Vec<RoomMember>>,
+        participants: Option<Vec<ChatMember>>,
     },
 }

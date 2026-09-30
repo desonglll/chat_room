@@ -42,13 +42,13 @@ async fn account(base: &str, username: &str) -> (String, String) {
     (token, user["id"].as_str().unwrap().to_string())
 }
 
-async fn create_room(base: &str, token: &str, name: &str) -> String {
-    create_room_with_password(base, token, name, "").await
+async fn create_chat(base: &str, token: &str, name: &str) -> String {
+    create_chat_with_password(base, token, name, "").await
 }
 
-async fn create_room_with_password(base: &str, token: &str, name: &str, password: &str) -> String {
+async fn create_chat_with_password(base: &str, token: &str, name: &str, password: &str) -> String {
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({
             "name": name,
@@ -67,15 +67,15 @@ async fn create_room_with_password(base: &str, token: &str, name: &str, password
 }
 
 #[tokio::test]
-async fn owner_leave_transfers_room_and_removes_the_old_conversation() {
+async fn owner_leave_transfers_chat_and_removes_the_old_conversation() {
     let server = start_server().await;
     let client = reqwest::Client::new();
     let (owner_token, _) = account(&server.base, "leaving-owner").await;
     let (member_token, member_id) = account(&server.base, "leaving-successor").await;
-    let room_id = create_room(&server.base, &owner_token, "owner-leave-room").await;
+    let room_id = create_chat(&server.base, &owner_token, "owner-leave-chat").await;
 
     let join = client
-        .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+        .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
         .bearer_auth(&member_token)
         .json(&serde_json::json!({}))
         .send()
@@ -84,7 +84,7 @@ async fn owner_leave_transfers_room_and_removes_the_old_conversation() {
     assert_eq!(join.status(), StatusCode::OK);
 
     let leave = client
-        .delete(format!("{}/api/rooms/{room_id}/members/me", server.base))
+        .delete(format!("{}/api/chats/{room_id}/members/me", server.base))
         .bearer_auth(&owner_token)
         .send()
         .await
@@ -104,8 +104,8 @@ async fn owner_leave_transfers_room_and_removes_the_old_conversation() {
         .iter()
         .all(|conversation| conversation["room_id"] != room_id));
 
-    let room: serde_json::Value = client
-        .get(format!("{}/api/rooms/{room_id}", server.base))
+    let chat: serde_json::Value = client
+        .get(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&member_token)
         .send()
         .await
@@ -113,19 +113,19 @@ async fn owner_leave_transfers_room_and_removes_the_old_conversation() {
         .json()
         .await
         .unwrap();
-    assert_eq!(room["creator_user_id"], member_id);
-    assert_eq!(room["membership_role"], "owner");
+    assert_eq!(chat["creator_user_id"], member_id);
+    assert_eq!(chat["membership_role"], "owner");
 }
 
 #[tokio::test]
-async fn sole_owner_can_leave_a_public_room_without_deleting_it() {
+async fn sole_owner_can_leave_a_public_chat_without_deleting_it() {
     let server = start_server().await;
     let client = reqwest::Client::new();
     let (owner_token, _) = account(&server.base, "sole-owner").await;
-    let room_id = create_room(&server.base, &owner_token, "sole-owner-room").await;
+    let room_id = create_chat(&server.base, &owner_token, "sole-owner-chat").await;
 
     let leave = client
-        .delete(format!("{}/api/rooms/{room_id}/members/me", server.base))
+        .delete(format!("{}/api/chats/{room_id}/members/me", server.base))
         .bearer_auth(&owner_token)
         .send()
         .await
@@ -145,8 +145,8 @@ async fn sole_owner_can_leave_a_public_room_without_deleting_it() {
         .iter()
         .all(|conversation| conversation["room_id"] != room_id));
 
-    let room: serde_json::Value = client
-        .get(format!("{}/api/rooms/{room_id}", server.base))
+    let chat: serde_json::Value = client
+        .get(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&owner_token)
         .send()
         .await
@@ -154,20 +154,20 @@ async fn sole_owner_can_leave_a_public_room_without_deleting_it() {
         .json()
         .await
         .unwrap();
-    assert!(room["creator_user_id"].is_null());
-    assert!(room["membership_role"].is_null());
+    assert!(chat["creator_user_id"].is_null());
+    assert!(chat["membership_role"].is_null());
 
     let (new_owner_token, new_owner_id) = account(&server.base, "replacement-owner").await;
     let join = client
-        .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+        .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
         .bearer_auth(&new_owner_token)
         .json(&serde_json::json!({}))
         .send()
         .await
         .unwrap();
     assert_eq!(join.status(), StatusCode::OK);
-    let adopted_room: serde_json::Value = client
-        .get(format!("{}/api/rooms/{room_id}", server.base))
+    let adopted_chat: serde_json::Value = client
+        .get(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&new_owner_token)
         .send()
         .await
@@ -175,41 +175,41 @@ async fn sole_owner_can_leave_a_public_room_without_deleting_it() {
         .json()
         .await
         .unwrap();
-    assert_eq!(adopted_room["creator_user_id"], new_owner_id);
-    assert_eq!(adopted_room["membership_role"], "owner");
+    assert_eq!(adopted_chat["creator_user_id"], new_owner_id);
+    assert_eq!(adopted_chat["membership_role"], "owner");
 }
 
 #[tokio::test]
-async fn sole_owner_cannot_leave_a_private_room() {
+async fn sole_owner_cannot_leave_a_private_chat() {
     let server = start_server().await;
     let client = reqwest::Client::new();
     let (owner_token, owner_id) = account(&server.base, "private-sole-owner").await;
-    let room_id = create_room_with_password(
+    let room_id = create_chat_with_password(
         &server.base,
         &owner_token,
-        "private-sole-owner-room",
-        "room-secret",
+        "private-sole-owner-chat",
+        "chat-secret",
     )
     .await;
 
     let leave = client
-        .delete(format!("{}/api/rooms/{room_id}/members/me", server.base))
+        .delete(format!("{}/api/chats/{room_id}/members/me", server.base))
         .bearer_auth(&owner_token)
         .send()
         .await
         .unwrap();
     assert_eq!(leave.status(), StatusCode::CONFLICT);
 
-    let room: serde_json::Value = client
-        .get(format!("{}/api/rooms/{room_id}", server.base))
+    let chat: serde_json::Value = client
+        .get(format!("{}/api/chats/{room_id}", server.base))
         .bearer_auth(&owner_token)
-        .header("x-room-password", "room-secret")
+        .header("x-room-password", "chat-secret")
         .send()
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    assert_eq!(room["creator_user_id"], owner_id);
-    assert_eq!(room["membership_role"], "owner");
+    assert_eq!(chat["creator_user_id"], owner_id);
+    assert_eq!(chat["membership_role"], "owner");
 }

@@ -54,7 +54,7 @@ async fn chunked_upload_uses_local_mirror_when_oss_write_fails() {
         ..OssConfig::default()
     };
     let server = start_with_config(&config).await;
-    let (room_id, token) = room_for(&server.base, "mirror-owner", "mirror-room").await;
+    let (room_id, token) = chat_for(&server.base, "mirror-owner", "mirror-chat").await;
     let bytes = b"durable local mirror";
     let session = create_session(
         &server.base,
@@ -97,7 +97,7 @@ async fn hashed_upload_session_returns_a_short_lived_direct_oss_target() {
         ..OssConfig::default()
     };
     let server = start_with_config(&config).await;
-    let (room_id, token) = room_for(&server.base, "direct-owner", "direct-room").await;
+    let (room_id, token) = chat_for(&server.base, "direct-owner", "direct-chat").await;
     let bytes = b"browser to OSS";
     let first = create_session(
         &server.base,
@@ -134,10 +134,10 @@ async fn hashed_upload_session_returns_a_short_lived_direct_oss_target() {
     assert!(!signed.to_string().contains("must-not-leak"));
 }
 
-async fn room_for(base: &str, username: &str, room_name: &str) -> (String, String) {
+async fn chat_for(base: &str, username: &str, room_name: &str) -> (String, String) {
     let token = session_token(base, username).await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "name": room_name, "password": "" }))
         .send()
@@ -146,7 +146,7 @@ async fn room_for(base: &str, username: &str, room_name: &str) -> (String, Strin
         .json()
         .await
         .unwrap();
-    (room["id"].as_str().unwrap().to_string(), token)
+    (chat["id"].as_str().unwrap().to_string(), token)
 }
 
 async fn create_session(
@@ -159,7 +159,7 @@ async fn create_session(
     content_hash: Option<&str>,
 ) -> serde_json::Value {
     let response = reqwest::Client::new()
-        .post(format!("{base}/api/rooms/{room_id}/attachments/uploads"))
+        .post(format!("{base}/api/chats/{room_id}/attachments/uploads"))
         .bearer_auth(token)
         .json(&serde_json::json!({
             "file_name": name,
@@ -210,7 +210,7 @@ async fn complete(base: &str, token: &str, upload_id: &str) -> serde_json::Value
 #[tokio::test]
 async fn interrupted_upload_is_listed_and_resumes_from_confirmed_offset() {
     let server = start().await;
-    let (room_id, token) = room_for(&server.base, "resume-owner", "resume-room").await;
+    let (room_id, token) = chat_for(&server.base, "resume-owner", "resume-chat").await;
     let bytes = b"resumable-content-across-a-browser-refresh";
     let hash = hex::encode(Sha256::digest(bytes));
     let fingerprint = "resume.bin:41:123";
@@ -249,7 +249,7 @@ async fn interrupted_upload_is_listed_and_resumes_from_confirmed_offset() {
     let wrong_hash = "0".repeat(64);
     let mismatch = reqwest::Client::new()
         .post(format!(
-            "{}/api/rooms/{room_id}/attachments/uploads",
+            "{}/api/chats/{room_id}/attachments/uploads",
             server.base
         ))
         .bearer_auth(&token)
@@ -267,7 +267,7 @@ async fn interrupted_upload_is_listed_and_resumes_from_confirmed_offset() {
 
     let listed: serde_json::Value = reqwest::Client::new()
         .get(format!(
-            "{}/api/rooms/{room_id}/attachments/uploads",
+            "{}/api/chats/{room_id}/attachments/uploads",
             server.base
         ))
         .bearer_auth(&token)
@@ -298,7 +298,7 @@ async fn interrupted_upload_is_listed_and_resumes_from_confirmed_offset() {
 #[tokio::test]
 async fn repeat_upload_by_same_user_reuses_content_without_receiving_chunks() {
     let server = start().await;
-    let (room_id, token) = room_for(&server.base, "dedupe-owner", "dedupe-room").await;
+    let (room_id, token) = chat_for(&server.base, "dedupe-owner", "dedupe-chat").await;
     let bytes = b"already-uploaded-content";
     let hash = hex::encode(Sha256::digest(bytes));
     let first = create_session(
@@ -353,10 +353,10 @@ async fn repeat_upload_by_same_user_reuses_content_without_receiving_chunks() {
     .unwrap();
     assert_eq!(counts, (2, 1));
 
-    let (other_room, other_token) = room_for(&server.base, "other-owner", "other-room").await;
+    let (other_chat, other_token) = chat_for(&server.base, "other-owner", "other-chat").await;
     let foreign = create_session(
         &server.base,
-        &other_room,
+        &other_chat,
         &other_token,
         "guessed.bin",
         bytes.len(),

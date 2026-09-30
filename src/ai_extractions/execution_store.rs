@@ -67,8 +67,8 @@ impl AppState {
                  FROM messages LEFT JOIN attachments ON attachments.id = messages.attachment_id \
                  WHERE messages.room_id = $1 AND messages.recalled_at IS NULL \
                    AND messages.created_at >= $2 AND messages.created_at <= $3 \
-                   AND EXISTS (SELECT 1 FROM room_memberships memberships JOIN rooms \
-                     ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
+                   AND EXISTS (SELECT 1 FROM chat_members memberships JOIN chats \
+                     ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
                      WHERE memberships.room_id = $1 AND memberships.user_id = $4 \
                        AND memberships.status = 'active') \
                  ORDER BY messages.created_at DESC, messages.id DESC LIMIT 500) bounded \
@@ -118,11 +118,11 @@ impl AppState {
     ) -> Result<Option<ExtractionExecution>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT runs.id, runs.user_id, runs.room_id, rooms.name AS room_name, \
+                "SELECT runs.id, runs.user_id, runs.room_id, chats.title AS room_name, \
                  runs.from_at, runs.to_at, runs.provider, runs.model, runs.base_url, runs.api_key_env, \
                  runs.admission_id \
-                 FROM ai_extraction_runs runs JOIN rooms ON rooms.id = runs.room_id \
-                 WHERE runs.id = $1 AND rooms.deleted_at IS NULL",
+                 FROM ai_extraction_runs runs JOIN chats ON chats.id = runs.room_id \
+                 WHERE runs.id = $1 AND chats.deleted_at IS NULL",
             )
             .bind(run_id)
             .fetch_optional(pool)
@@ -142,7 +142,7 @@ impl AppState {
         with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             let active: Option<i64> = sqlx::query_scalar(
-                "SELECT 1 FROM room_memberships WHERE room_id = $1 AND user_id = $2 \
+                "SELECT 1 FROM chat_members WHERE room_id = $1 AND user_id = $2 \
                  AND status = 'active'",
             )
             .bind(execution.room_id)
@@ -186,7 +186,7 @@ impl AppState {
                          (candidate_id, message_id, ordinal) \
                          SELECT $1, messages.id, $2 FROM messages WHERE messages.id = $3 \
                            AND messages.room_id = $4 AND messages.recalled_at IS NULL \
-                           AND EXISTS (SELECT 1 FROM room_memberships WHERE room_id = $4 \
+                           AND EXISTS (SELECT 1 FROM chat_members WHERE room_id = $4 \
                              AND user_id = $5 AND status = 'active') ON CONFLICT DO NOTHING",
                     )
                     .bind(stored_id)
@@ -202,7 +202,7 @@ impl AppState {
                              JOIN messages ON messages.id = sources.message_id \
                                AND messages.room_id = $3 AND messages.recalled_at IS NULL \
                              WHERE sources.candidate_id = $1 AND sources.message_id = $2 \
-                               AND EXISTS (SELECT 1 FROM room_memberships WHERE room_id = $3 \
+                               AND EXISTS (SELECT 1 FROM chat_members WHERE room_id = $3 \
                                  AND user_id = $4 AND status = 'active')",
                         )
                         .bind(stored_id)

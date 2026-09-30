@@ -252,11 +252,11 @@ impl AppState {
             async {
                 let mut transaction = pool.begin().await?;
                 let allowed: bool = sqlx::query_scalar(
-                    "SELECT EXISTS(SELECT 1 FROM room_memberships \
-                     JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
-                     WHERE room_memberships.room_id = $1 AND room_memberships.user_id = $2 \
-                       AND room_memberships.status = 'active' \
-                       AND room_role_permissions.permission_key = 'message.send')",
+                    "SELECT EXISTS(SELECT 1 FROM chat_members \
+                     JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
+                     WHERE chat_members.room_id = $1 AND chat_members.user_id = $2 \
+                       AND chat_members.status = 'active' \
+                       AND chat_role_permissions.permission_key = 'message.send')",
                 )
                 .bind(room_id)
                 .bind(sender.id)

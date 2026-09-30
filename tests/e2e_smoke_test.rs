@@ -47,7 +47,7 @@ async fn auth(client: &Client, base: &str, action: &str, username: &str) -> (Sta
     (status, body)
 }
 
-async fn connect_room(base: &str, room_id: &str, token: &str) -> Socket {
+async fn connect_chat(base: &str, room_id: &str, token: &str) -> Socket {
     let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
     let (mut socket, _) = connect_async(url).await.unwrap();
     socket
@@ -77,7 +77,7 @@ async fn next_event(socket: &mut Socket, expected_type: &str) -> Value {
 }
 
 #[tokio::test]
-async fn release_smoke_covers_account_room_message_upload_and_search() {
+async fn release_smoke_covers_account_chat_message_upload_and_search() {
     let server = start_server(AppConfig::default()).await;
     let client = Client::new();
 
@@ -92,10 +92,10 @@ async fn release_smoke_covers_account_room_message_upload_and_search() {
     let bob_token = bob["token"].as_str().unwrap();
 
     let response = client
-        .post(format!("{}/api/rooms", server.base))
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(alice_token)
         .json(&json!({
-            "name": "FND-004 release room",
+            "name": "FND-004 release chat",
             "password": "",
             "join_policy": "open"
         }))
@@ -103,11 +103,11 @@ async fn release_smoke_covers_account_room_message_upload_and_search() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
-    let room: Value = response.json().await.unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let chat: Value = response.json().await.unwrap();
+    let room_id = chat["id"].as_str().unwrap();
 
-    let mut alice_socket = connect_room(&server.base, room_id, alice_token).await;
-    let mut bob_socket = connect_room(&server.base, room_id, bob_token).await;
+    let mut alice_socket = connect_chat(&server.base, room_id, alice_token).await;
+    let mut bob_socket = connect_chat(&server.base, room_id, bob_token).await;
     alice_socket
         .send(Message::Text(
             json!({
@@ -128,7 +128,7 @@ async fn release_smoke_covers_account_room_message_upload_and_search() {
         .mime_str("text/plain")
         .unwrap();
     let upload = client
-        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .post(format!("{}/api/chats/{room_id}/attachments", server.base))
         .bearer_auth(bob_token)
         .multipart(
             multipart::Form::new()
@@ -144,7 +144,7 @@ async fn release_smoke_covers_account_room_message_upload_and_search() {
 
     let search = client
         .get(format!(
-            "{}/api/rooms/{room_id}/messages/search",
+            "{}/api/chats/{room_id}/messages/search",
             server.base
         ))
         .bearer_auth(bob_token)

@@ -1,4 +1,4 @@
-//! Account-scoped unread counters and cross-room message events.
+//! Account-scoped unread counters and cross-chat message events.
 
 use std::time::Duration;
 
@@ -20,7 +20,7 @@ struct AccountAuth {
 }
 
 #[derive(Clone, Eq, PartialEq, Serialize)]
-struct RoomAccountState {
+struct ChatAccountState {
     room_id: Uuid,
     unread_count: i64,
     membership_status: String,
@@ -33,7 +33,7 @@ struct RoomAccountState {
 struct UnreadSnapshot {
     #[serde(rename = "type")]
     kind: &'static str,
-    rooms: Vec<RoomAccountState>,
+    chats: Vec<ChatAccountState>,
 }
 
 #[derive(Serialize)]
@@ -116,7 +116,7 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                         return;
                     }
                 }
-                let unread = match state.room_unread_counts(user.id).await {
+                let unread = match state.chat_unread_counts(user.id).await {
                     Ok(rows) => rows.into_iter().collect::<std::collections::HashMap<_, _>>(),
                     Err(error) => {
                         tracing::warn!("load live unread counts failed: {}", error);
@@ -124,7 +124,7 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                     }
                 };
                 let counts = match state.account_membership_states(user.id).await {
-                    Ok(rows) => rows.into_iter().map(|(room_id, membership_status, membership_role, pending_join_requests, pending_join_requested_at)| RoomAccountState {
+                    Ok(rows) => rows.into_iter().map(|(room_id, membership_status, membership_role, pending_join_requests, pending_join_requested_at)| ChatAccountState {
                         room_id,
                         unread_count: unread.get(&room_id).copied().unwrap_or(0),
                         membership_status,
@@ -139,7 +139,7 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                 };
                 if previous.as_ref() != Some(&counts) {
                     previous = Some(counts.clone());
-                    let payload = UnreadSnapshot { kind: "unread_counts", rooms: counts };
+                    let payload = UnreadSnapshot { kind: "unread_counts", chats: counts };
                     let Ok(json) = serde_json::to_string(&payload) else { continue };
                     if socket.send(Message::Text(json)).await.is_err() {
                         break;

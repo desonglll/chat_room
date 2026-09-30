@@ -1,26 +1,32 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::chats::ChatType;
 use crate::conversations::models::{
     ConversationPreferences, ConversationSummary, MessagePreview, NotificationLevel,
 };
-use crate::models::{Room, UserSummary};
+use crate::models::{Chat, ChatCompatView, UserSummary};
 use crate::state::{with_pool, AppState};
 
 #[derive(sqlx::FromRow)]
 struct ConversationRow {
     room_id: Uuid,
     kind: String,
+    #[sqlx(try_from = "String")]
+    chat_type: ChatType,
     title: String,
     conversation_alias: String,
     display_avatar: String,
     display_description: String,
     room_name: String,
+    chat_username: Option<String>,
+    is_forum: bool,
+    member_count: i64,
     has_password: bool,
     creator_user_id: Option<Uuid>,
     join_policy: String,
-    room_avatar: String,
-    room_description: String,
+    chat_avatar: String,
+    chat_description: String,
     membership_status: String,
     membership_role: String,
     unread_count: i64,
@@ -57,19 +63,27 @@ impl ConversationRow {
             .map_or(self.last_activity_at, |requested_at| {
                 requested_at.max(self.last_activity_at)
             });
-        let group = (self.kind == "group").then(|| Room {
-            id: self.room_id,
-            name: self.room_name,
-            password_hash: String::new(),
-            has_password: self.has_password,
-            creator_user_id: self.creator_user_id,
-            join_policy: self.join_policy,
-            avatar_emoji: self.room_avatar,
-            description: self.room_description,
-            membership_status: Some(self.membership_status),
-            membership_role: Some(self.membership_role),
-            unread_count: self.unread_count,
-            created_at: self.created_at,
+        // The sidebar's shape depends on chat_type (docs/tg/architecture.md §4.3), so the
+        // conversation list carries it rather than making the client fetch each chat.
+        let group = (self.kind == "group").then(|| {
+            ChatCompatView::from(Chat {
+                id: self.room_id,
+                chat_type: self.chat_type,
+                title: self.room_name,
+                has_password: self.has_password,
+                creator_user_id: self.creator_user_id,
+                join_policy: self.join_policy,
+                avatar_emoji: self.chat_avatar,
+                description: self.chat_description,
+                username: self.chat_username,
+                is_forum: self.is_forum,
+                member_count: self.member_count,
+                membership_status: Some(self.membership_status),
+                membership_role: Some(self.membership_role),
+                unread_count: self.unread_count,
+                created_at: self.created_at,
+                ..Chat::default()
+            })
         });
         let peer = self.peer_id.map(|id| UserSummary {
             id,
@@ -120,39 +134,41 @@ impl AppState {
     ) -> Result<Vec<ConversationRow>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT rooms.id AS room_id, \
+                "SELECT chats.id AS room_id, \
                  CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END AS kind, \
-                 CASE WHEN direct.room_id IS NULL THEN rooms.name \
+                 CASE WHEN direct.room_id IS NULL THEN chats.title \
                    ELSE COALESCE(NULLIF(remarks.remark, ''), NULLIF(peer.display_name, ''), peer.username) END AS title, \
                  memberships.conversation_alias, \
-                 CASE WHEN direct.room_id IS NULL THEN rooms.avatar_emoji \
+                 CASE WHEN direct.room_id IS NULL THEN chats.avatar_emoji \
                    ELSE COALESCE(peer.avatar_emoji, '') END AS display_avatar, \
-                 CASE WHEN direct.room_id IS NULL THEN rooms.description \
+                 CASE WHEN direct.room_id IS NULL THEN chats.description \
                    ELSE COALESCE(peer.signature, '') END AS display_description, \
-                 rooms.name AS room_name, rooms.password_hash <> '' AS has_password, \
-                 rooms.creator_user_id, rooms.join_policy, rooms.avatar_emoji AS room_avatar, \
-                 rooms.description AS room_description, memberships.status AS membership_status, \
+                 chats.title AS room_name, chats.chat_type, chats.username AS chat_username, \
+                 chats.is_forum, CAST(chats.member_count AS BIGINT) AS member_count, \
+                 chats.password_hash <> '' AS has_password, \
+                 chats.creator_user_id, chats.join_policy, chats.avatar_emoji AS chat_avatar, \
+                 chats.description AS chat_description, memberships.status AS membership_status, \
                  roles.name AS membership_role, \
                  CAST((SELECT COUNT(unread.id) FROM messages AS unread \
-                   LEFT JOIN room_reads AS reads ON reads.room_id = rooms.id AND reads.user_id = $1 \
+                   LEFT JOIN chat_reads AS reads ON reads.room_id = chats.id AND reads.user_id = $1 \
                    LEFT JOIN messages AS read_message ON read_message.id = reads.message_id \
-                   WHERE unread.room_id = rooms.id AND unread.recalled_at IS NULL \
+                   WHERE unread.room_id = chats.id AND unread.recalled_at IS NULL \
                      AND (unread.sender_id IS NULL OR unread.sender_id <> $1) \
                      AND (read_message.id IS NULL OR unread.created_at > read_message.created_at \
                        OR (unread.created_at = read_message.created_at AND unread.id > read_message.id))) \
-                   AS BIGINT) AS unread_count, rooms.created_at, \
+                   AS BIGINT) AS unread_count, chats.created_at, \
                  CAST(CASE WHEN review.role_id IS NULL THEN 0 \
-                   ELSE (SELECT COUNT(*) FROM room_memberships AS requests \
-                     WHERE requests.room_id = rooms.id AND requests.status = 'pending') \
+                   ELSE (SELECT COUNT(*) FROM chat_members AS requests \
+                     WHERE requests.room_id = chats.id AND requests.status = 'pending') \
                    END AS BIGINT) AS pending_join_requests, \
                  CASE WHEN review.role_id IS NULL THEN NULL ELSE \
-                   (SELECT MAX(requests.requested_at) FROM room_memberships AS requests \
-                     WHERE requests.room_id = rooms.id AND requests.status = 'pending') \
+                   (SELECT MAX(requests.requested_at) FROM chat_members AS requests \
+                     WHERE requests.room_id = chats.id AND requests.status = 'pending') \
                    END AS pending_join_requested_at, \
                  memberships.is_pinned, memberships.is_archived, \
                  memberships.notification_level, memberships.muted_until, \
-                 memberships.preferences_updated_at, rooms.created_at, \
-                 COALESCE(last_message.created_at, rooms.created_at) AS last_activity_at, \
+                 memberships.preferences_updated_at, chats.created_at, \
+                 COALESCE(last_message.created_at, chats.created_at) AS last_activity_at, \
                  peer.id AS peer_id, peer.username AS peer_username, \
                  peer.avatar_emoji AS peer_avatar, peer.display_name AS peer_display_name, \
                  last_message.id AS last_message_id, last_message.sender_id AS last_sender_id, \
@@ -160,12 +176,12 @@ impl AppState {
                  attachments.file_name AS last_attachment_file_name, \
                  last_message.recalled_at AS last_recalled_at, \
                  last_message.created_at AS last_created_at \
-                 FROM room_memberships AS memberships \
-                 JOIN rooms ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
-                 JOIN room_roles AS roles ON roles.id = memberships.role_id \
-                 LEFT JOIN room_role_permissions AS review ON review.role_id = roles.id \
+                 FROM chat_members AS memberships \
+                 JOIN chats ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
+                 JOIN chat_roles AS roles ON roles.id = memberships.role_id \
+                 LEFT JOIN chat_role_permissions AS review ON review.role_id = roles.id \
                    AND review.permission_key = 'members.review' \
-                 LEFT JOIN direct_conversations AS direct ON direct.room_id = rooms.id \
+                 LEFT JOIN direct_conversations AS direct ON direct.room_id = chats.id \
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $1 THEN direct.user_high_id \
                    WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \
@@ -173,14 +189,14 @@ impl AppState {
                    AND remarks.friend_id = peer.id \
                  LEFT JOIN messages AS last_message ON last_message.id = ( \
                    SELECT candidate.id FROM messages AS candidate \
-                   WHERE candidate.room_id = rooms.id \
+                   WHERE candidate.room_id = chats.id \
                    ORDER BY candidate.created_at DESC, candidate.id DESC LIMIT 1) \
                  LEFT JOIN attachments ON attachments.id = last_message.attachment_id \
                  WHERE memberships.user_id = $1 AND memberships.status = 'active' \
-                   AND ($2 IS NULL OR rooms.id = $2) \
+                   AND ($2 IS NULL OR chats.id = $2) \
                  ORDER BY memberships.is_archived ASC, \
                    CASE WHEN memberships.is_archived THEN FALSE ELSE memberships.is_pinned END DESC, \
-                   last_activity_at DESC, rooms.id",
+                   last_activity_at DESC, chats.id",
             )
             .bind(user_id)
             .bind(room_id)
@@ -218,7 +234,7 @@ impl AppState {
     ) -> Result<bool, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query(
-                "UPDATE room_memberships SET conversation_alias = $1 \
+                "UPDATE chat_members SET conversation_alias = $1 \
                  WHERE user_id = $2 AND room_id = $3 AND status = 'active'",
             )
             .bind(alias)

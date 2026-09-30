@@ -1,53 +1,34 @@
-//! Upgrade-path coverage for the paired FND migrations on SQLite and PostgreSQL.
+//! Upgrade-path coverage for the paired migrations on SQLite and PostgreSQL: the FND wave, and
+//! TG-004's rename of the Room domain to Chat.
+//!
+//! The scratch-database plumbing and the TG-004 assertions live in `migration_support` so that
+//! both adapters assert the same thing and neither file grows two responsibilities.
 
-use std::{borrow::Cow, path::Path};
+mod migration_support;
 
 use chat_room::{config::AppConfig, state::AppState};
-use sqlx::{
-    migrate::Migrator,
-    postgres::PgPoolOptions,
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+use migration_support::{
+    chat_data::{
+        assert_postgres_backfill, assert_postgres_cascade, assert_sqlite_backfill,
+        assert_sqlite_cascade,
+    },
+    chat_schema::{
+        assert_postgres_chat_schema, assert_postgres_foreign_keys_resolve,
+        assert_sqlite_chat_schema, assert_sqlite_foreign_keys_resolve, seed_postgres_pre_rename,
+        seed_sqlite_pre_rename,
+    },
+    create_postgres_scratch, drop_postgres_scratch, migration_count, migrations_path,
+    migrations_through, postgres_admin_pool, postgres_pool, remove_sqlite_files, sqlite_pool,
+    sqlite_scratch_path, PRE_TG_004_VERSION,
 };
+use sqlx::migrate::Migrator;
 
 const PRE_FND_002_VERSION: i64 = 20260826000003;
 
-async fn migrations_through(directory: &Path, version: i64) -> Migrator {
-    let all = Migrator::new(directory).await.unwrap();
-    let migrations = all
-        .iter()
-        .filter(|migration| migration.version <= version)
-        .cloned()
-        .collect();
-    Migrator {
-        migrations: Cow::Owned(migrations),
-        ..Migrator::DEFAULT
-    }
-}
-
-fn migrations_path(name: &str) -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join(name)
-}
-
-fn remove_sqlite_files(path: &Path) {
-    let _ = std::fs::remove_file(path);
-    let _ = std::fs::remove_file(format!("{}-wal", path.display()));
-    let _ = std::fs::remove_file(format!("{}-shm", path.display()));
-}
-
 #[tokio::test]
 async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
-    let database = std::env::temp_dir().join(format!(
-        "chat-room-sqlite-upgrade-{}.db",
-        uuid::Uuid::new_v4()
-    ));
-    let options = SqliteConnectOptions::new()
-        .filename(&database)
-        .create_if_missing(true);
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .unwrap();
+    let database = sqlite_scratch_path("sqlite-upgrade");
+    let pool = sqlite_pool(&database).await;
     let directory = migrations_path("migrations");
     let old = migrations_through(&directory, PRE_FND_002_VERSION).await;
     old.run(&pool).await.unwrap();
@@ -82,20 +63,20 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(catch_up_columns, 4);
-    let room_pins: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'room_pins'",
+    let chat_pins: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'chat_pins'",
     )
     .fetch_one(state.pool())
     .await
     .unwrap();
-    assert_eq!(room_pins, 1);
-    let room_tasks: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'room_tasks'",
+    assert_eq!(chat_pins, 1);
+    let chat_tasks: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'chat_tasks'",
     )
     .fetch_one(state.pool())
     .await
     .unwrap();
-    assert_eq!(room_tasks, 1);
+    assert_eq!(chat_tasks, 1);
     let extraction_tables: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN \
          ('ai_extraction_runs', 'ai_extraction_candidates', \
@@ -107,7 +88,7 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     assert_eq!(extraction_tables, 4);
     let governance_tables: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN \
-         ('room_ai_policies', 'ai_governance_settings', 'ai_governance_models', \
+         ('chat_ai_policies', 'ai_governance_settings', 'ai_governance_models', \
           'ai_admissions', 'ai_usage_records')",
     )
     .fetch_one(state.pool())
@@ -132,7 +113,7 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     assert_eq!(session_columns, 4);
     let audit_tables: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' \
-         AND name IN ('audit_events', 'room_bans')",
+         AND name IN ('audit_events', 'chat_bans')",
     )
     .fetch_one(state.pool())
     .await
@@ -151,45 +132,14 @@ async fn sqlite_upgrades_from_the_pre_fnd_002_schema() {
     remove_sqlite_files(&database);
 }
 
-fn postgres_admin_url() -> (String, bool) {
-    match std::env::var("TEST_POSTGRES_ADMIN_URL") {
-        Ok(url) => (url, true),
-        Err(_) => (
-            "postgresql://postgres:postgres@localhost:52735/postgres".into(),
-            false,
-        ),
-    }
-}
-
-async fn postgres_admin_pool() -> Option<(String, sqlx::PgPool)> {
-    let (url, required) = postgres_admin_url();
-    match PgPoolOptions::new().max_connections(1).connect(&url).await {
-        Ok(pool) => Some((url, pool)),
-        Err(error) if required => panic!("required PostgreSQL at {url} is unavailable: {error}"),
-        Err(error) => {
-            eprintln!("skipping PostgreSQL upgrade test: {error}");
-            None
-        }
-    }
-}
-
 #[tokio::test]
 async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     let Some((admin_url, admin_pool)) = postgres_admin_pool().await else {
         return;
     };
-    let database_name = format!("chat_room_upgrade_{}", uuid::Uuid::new_v4().simple());
-    sqlx::query(&format!(r#"CREATE DATABASE "{database_name}""#))
-        .execute(&admin_pool)
-        .await
-        .unwrap();
-    let base = admin_url.rsplit_once('/').unwrap().0;
-    let database_url = format!("{base}/{database_name}");
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&database_url)
-        .await
-        .unwrap();
+    let scratch = create_postgres_scratch(&admin_url, &admin_pool, "upgrade").await;
+    let database_url = scratch.url.clone();
+    let pool = postgres_pool(&database_url).await;
     let directory = migrations_path("migrations-postgres");
     let old = migrations_through(&directory, PRE_FND_002_VERSION).await;
     old.run(&pool).await.unwrap();
@@ -229,18 +179,18 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     .await
     .unwrap();
     assert_eq!(catch_up_columns, 4);
-    let room_pins: Option<String> =
-        sqlx::query_scalar("SELECT to_regclass('public.room_pins')::text")
+    let chat_pins: Option<String> =
+        sqlx::query_scalar("SELECT to_regclass('public.chat_pins')::text")
             .fetch_one(postgres)
             .await
             .unwrap();
-    assert_eq!(room_pins.as_deref(), Some("room_pins"));
-    let room_tasks: Option<String> =
-        sqlx::query_scalar("SELECT to_regclass('public.room_tasks')::text")
+    assert_eq!(chat_pins.as_deref(), Some("chat_pins"));
+    let chat_tasks: Option<String> =
+        sqlx::query_scalar("SELECT to_regclass('public.chat_tasks')::text")
             .fetch_one(postgres)
             .await
             .unwrap();
-    assert_eq!(room_tasks.as_deref(), Some("room_tasks"));
+    assert_eq!(chat_tasks.as_deref(), Some("chat_tasks"));
     let extraction_tables: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' \
          AND table_name IN ('ai_extraction_runs', 'ai_extraction_candidates', \
@@ -252,7 +202,7 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     assert_eq!(extraction_tables, 4);
     let governance_tables: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' \
-         AND table_name IN ('room_ai_policies', 'ai_governance_settings', \
+         AND table_name IN ('chat_ai_policies', 'ai_governance_settings', \
           'ai_governance_models', 'ai_admissions', 'ai_usage_records')",
     )
     .fetch_one(postgres)
@@ -279,7 +229,7 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
     assert_eq!(session_columns, 4);
     let audit_tables: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' \
-         AND table_name IN ('audit_events', 'room_bans')",
+         AND table_name IN ('audit_events', 'chat_bans')",
     )
     .fetch_one(postgres)
     .await
@@ -296,13 +246,75 @@ async fn postgres_upgrades_from_the_pre_fnd_002_schema() {
 
     postgres.close().await;
     drop(state);
-    sqlx::query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1")
-        .bind(&database_name)
-        .execute(&admin_pool)
+    drop_postgres_scratch(&admin_pool, &scratch).await;
+}
+
+/// The upgrade every existing deployment actually performs: the schema as it stood at
+/// `a16f422` — the last commit before the Telegram-parity programme — carried forward through
+/// TG-004's three migrations, with real rows in it.
+#[tokio::test]
+async fn sqlite_upgrades_from_the_pre_tg_004_schema() {
+    let database = sqlite_scratch_path("sqlite-chat-rename");
+    let pool = sqlite_pool(&database).await;
+    let directory = migrations_path("migrations");
+    migrations_through(&directory, PRE_TG_004_VERSION)
         .await
-        .ok();
-    sqlx::query(&format!(r#"DROP DATABASE "{database_name}""#))
-        .execute(&admin_pool)
+        .run(&pool)
         .await
         .unwrap();
+    let seeded = seed_sqlite_pre_rename(&pool).await;
+    pool.close().await;
+
+    // AppState::open runs the remaining migrations through the production pool, which is the
+    // only configuration where SQLite's rename semantics matter (foreign_keys = ON).
+    let state = AppState::open(&database).await.unwrap();
+    let applied: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
+        .fetch_one(state.pool())
+        .await
+        .unwrap();
+    assert_eq!(applied, migration_count(&directory).await);
+
+    assert_sqlite_chat_schema(state.pool()).await;
+    assert_sqlite_foreign_keys_resolve(state.pool()).await;
+    assert_sqlite_backfill(state.pool(), &seeded).await;
+    assert_sqlite_cascade(state.pool(), &seeded).await;
+
+    state.pool().close().await;
+    remove_sqlite_files(&database);
+}
+
+#[tokio::test]
+async fn postgres_upgrades_from_the_pre_tg_004_schema() {
+    let Some((admin_url, admin_pool)) = postgres_admin_pool().await else {
+        return;
+    };
+    let scratch = create_postgres_scratch(&admin_url, &admin_pool, "chat_rename").await;
+    let pool = postgres_pool(&scratch.url).await;
+    let directory = migrations_path("migrations-postgres");
+    migrations_through(&directory, PRE_TG_004_VERSION)
+        .await
+        .run(&pool)
+        .await
+        .unwrap();
+    let seeded = seed_postgres_pre_rename(&pool).await;
+    pool.close().await;
+
+    let state = AppState::open_postgres(&scratch.url, &AppConfig::default())
+        .await
+        .unwrap();
+    let postgres = state.postgres_pool().unwrap();
+    let applied: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
+        .fetch_one(postgres)
+        .await
+        .unwrap();
+    assert_eq!(applied, migration_count(&directory).await);
+
+    assert_postgres_chat_schema(postgres).await;
+    assert_postgres_foreign_keys_resolve(postgres).await;
+    assert_postgres_backfill(postgres, &seeded).await;
+    assert_postgres_cascade(postgres, &seeded).await;
+
+    postgres.close().await;
+    drop(state);
+    drop_postgres_scratch(&admin_pool, &scratch).await;
 }

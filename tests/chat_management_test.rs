@@ -26,10 +26,10 @@ fn remove_sqlite_files(path: &Path) {
     let _ = std::fs::remove_file(format!("{}-shm", path.display()));
 }
 
-async fn create_room(base: &str, name: &str, password: &str) -> serde_json::Value {
+async fn create_chat(base: &str, name: &str, password: &str) -> serde_json::Value {
     let owner_token = session_token(base, &format!("owner-{name}")).await;
     let response = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&owner_token)
         .json(&serde_json::json!({
             "name": name,
@@ -40,20 +40,20 @@ async fn create_room(base: &str, name: &str, password: &str) -> serde_json::Valu
         .await
         .unwrap();
     assert_eq!(response.status(), 201);
-    let mut room: serde_json::Value = response.json().await.unwrap();
-    room["_test_owner_token"] = owner_token.into();
-    room
+    let mut chat: serde_json::Value = response.json().await.unwrap();
+    chat["_test_owner_token"] = owner_token.into();
+    chat
 }
 
-async fn connect_room(
+async fn connect_chat(
     base: &str,
     room_id: &str,
     password: Option<&str>,
 ) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
-    connect_room_as(base, room_id, password, "tester").await
+    connect_chat_as(base, room_id, password, "tester").await
 }
 
-async fn connect_room_as(
+async fn connect_chat_as(
     base: &str,
     room_id: &str,
     password: Option<&str>,
@@ -111,16 +111,16 @@ async fn next_content(
 }
 
 #[tokio::test]
-async fn public_room_can_be_renamed_and_deleted() {
+async fn public_chat_can_be_renamed_and_deleted() {
     let (base, _state, task) = start_server().await;
-    let first = create_room(&base, "first", "").await;
+    let first = create_chat(&base, "first", "").await;
     let owner_token = first["_test_owner_token"].as_str().unwrap();
-    create_room(&base, "taken", "").await;
-    let room_url = format!("{}/api/rooms/{}", base, first["id"].as_str().unwrap());
+    create_chat(&base, "taken", "").await;
+    let chat_url = format!("{}/api/chats/{}", base, first["id"].as_str().unwrap());
     let client = reqwest::Client::new();
 
     let conflict = client
-        .patch(&room_url)
+        .patch(&chat_url)
         .bearer_auth(owner_token)
         .json(&serde_json::json!({ "name": "taken" }))
         .send()
@@ -129,7 +129,7 @@ async fn public_room_can_be_renamed_and_deleted() {
     assert_eq!(conflict.status(), 409);
 
     let updated: serde_json::Value = client
-        .patch(&room_url)
+        .patch(&chat_url)
         .bearer_auth(owner_token)
         .json(&serde_json::json!({ "name": "renamed" }))
         .send()
@@ -138,10 +138,10 @@ async fn public_room_can_be_renamed_and_deleted() {
         .json()
         .await
         .unwrap();
-    assert_eq!(updated["name"], "renamed");
+    assert_eq!(updated["title"], "renamed");
     assert_eq!(
         client
-            .delete(&room_url)
+            .delete(&chat_url)
             .bearer_auth(owner_token)
             .send()
             .await
@@ -149,21 +149,21 @@ async fn public_room_can_be_renamed_and_deleted() {
             .status(),
         204
     );
-    assert_eq!(client.get(&room_url).send().await.unwrap().status(), 404);
+    assert_eq!(client.get(&chat_url).send().await.unwrap().status(), 404);
     task.abort();
 }
 
 #[tokio::test]
-async fn private_room_management_requires_current_password() {
+async fn private_chat_management_requires_current_password() {
     let (base, _state, task) = start_server().await;
-    let room = create_room(&base, "private", "old-secret").await;
-    let room_id = room["id"].as_str().unwrap();
-    let owner_token = room["_test_owner_token"].as_str().unwrap();
-    let room_url = format!("{base}/api/rooms/{room_id}");
+    let chat = create_chat(&base, "private", "old-secret").await;
+    let room_id = chat["id"].as_str().unwrap();
+    let owner_token = chat["_test_owner_token"].as_str().unwrap();
+    let chat_url = format!("{base}/api/chats/{room_id}");
     let client = reqwest::Client::new();
 
     let unauthorized = client
-        .patch(&room_url)
+        .patch(&chat_url)
         .json(&serde_json::json!({
             "name": "not-renamed",
             "current_password": "wrong"
@@ -173,10 +173,10 @@ async fn private_room_management_requires_current_password() {
         .unwrap();
     assert_eq!(unauthorized.status(), 401);
 
-    let mut old_session = connect_room(&base, room_id, Some("old-secret")).await;
+    let mut old_session = connect_chat(&base, room_id, Some("old-secret")).await;
     assert_eq!(next_json(&mut old_session).await["type"], "auth_ok");
     let updated = client
-        .patch(&room_url)
+        .patch(&chat_url)
         .bearer_auth(owner_token)
         .json(&serde_json::json!({
             "name": "renamed-private",
@@ -191,7 +191,7 @@ async fn private_room_management_requires_current_password() {
     let mut saw_disconnect_reason = false;
     for _ in 0..3 {
         let message = next_json(&mut old_session).await;
-        if message["content"] == "room password changed" {
+        if message["content"] == "chat password changed" {
             saw_disconnect_reason = true;
             break;
         }
@@ -199,14 +199,14 @@ async fn private_room_management_requires_current_password() {
     assert!(saw_disconnect_reason);
 
     let mut rejected =
-        connect_room_as(&base, room_id, Some("old-secret"), "stale-password-user").await;
+        connect_chat_as(&base, room_id, Some("old-secret"), "stale-password-user").await;
     assert_eq!(next_json(&mut rejected).await["type"], "auth_fail");
     let mut accepted =
-        connect_room_as(&base, room_id, Some("new-secret"), "new-password-user").await;
+        connect_chat_as(&base, room_id, Some("new-secret"), "new-password-user").await;
     assert_eq!(next_json(&mut accepted).await["type"], "auth_ok");
 
     let made_public: serde_json::Value = client
-        .patch(&room_url)
+        .patch(&chat_url)
         .bearer_auth(owner_token)
         .json(&serde_json::json!({
             "current_password": "new-secret",
@@ -219,19 +219,19 @@ async fn private_room_management_requires_current_password() {
         .await
         .unwrap();
     assert_eq!(made_public["has_password"], false);
-    let mut public_session = connect_room(&base, room_id, None).await;
+    let mut public_session = connect_chat(&base, room_id, None).await;
     assert_eq!(next_json(&mut public_session).await["type"], "auth_ok");
     task.abort();
 }
 
 #[tokio::test]
-async fn deleting_private_room_cascades_messages_and_disconnects_members() {
+async fn deleting_private_chat_cascades_messages_and_disconnects_members() {
     let (base, state, task) = start_server().await;
-    let room = create_room(&base, "temporary", "secret").await;
-    let room_id = room["id"].as_str().unwrap();
-    let owner_token = room["_test_owner_token"].as_str().unwrap();
-    let room_url = format!("{base}/api/rooms/{room_id}");
-    let mut socket = connect_room(&base, room_id, Some("secret")).await;
+    let chat = create_chat(&base, "temporary", "secret").await;
+    let room_id = chat["id"].as_str().unwrap();
+    let owner_token = chat["_test_owner_token"].as_str().unwrap();
+    let chat_url = format!("{base}/api/chats/{room_id}");
+    let mut socket = connect_chat(&base, room_id, Some("secret")).await;
     assert_eq!(next_json(&mut socket).await["type"], "auth_ok");
     assert_eq!(next_json(&mut socket).await["type"], "system");
     socket
@@ -246,10 +246,10 @@ async fn deleting_private_room_cascades_messages_and_disconnects_members() {
     );
 
     let client = reqwest::Client::new();
-    assert_eq!(client.delete(&room_url).send().await.unwrap().status(), 401);
+    assert_eq!(client.delete(&chat_url).send().await.unwrap().status(), 401);
     assert_eq!(
         client
-            .delete(&room_url)
+            .delete(&chat_url)
             .bearer_auth(owner_token)
             .send()
             .await
@@ -258,8 +258,8 @@ async fn deleting_private_room_cascades_messages_and_disconnects_members() {
         204
     );
     assert_eq!(
-        next_content(&mut socket, "room deleted").await["content"],
-        "room deleted"
+        next_content(&mut socket, "chat deleted").await["content"],
+        "chat deleted"
     );
 
     let stored: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE room_id = ?")
@@ -268,7 +268,7 @@ async fn deleting_private_room_cascades_messages_and_disconnects_members() {
         .await
         .unwrap();
     assert_eq!(stored, 0);
-    assert_eq!(client.get(&room_url).send().await.unwrap().status(), 404);
+    assert_eq!(client.get(&chat_url).send().await.unwrap().status(), 404);
     task.abort();
 }
 
@@ -280,14 +280,14 @@ async fn messages_reach_websockets_connected_to_different_server_processes() {
     ));
     let state_a = Arc::new(AppState::open(&database).await.unwrap());
     let (base_a, state_a, task_a) = start_server_with_state(state_a).await;
-    let room = create_room(&base_a, "shared-room", "").await;
-    let room_id = room["id"].as_str().unwrap();
+    let chat = create_chat(&base_a, "shared-chat", "").await;
+    let room_id = chat["id"].as_str().unwrap();
 
     // A second AppState models another Rust process sharing the same SQLite file.
     let state_b = Arc::new(AppState::open(&database).await.unwrap());
     let (base_b, state_b, task_b) = start_server_with_state(state_b).await;
-    let mut socket_a = connect_room(&base_a, room_id, None).await;
-    let mut socket_b = connect_room(&base_b, room_id, None).await;
+    let mut socket_a = connect_chat(&base_a, room_id, None).await;
+    let mut socket_b = connect_chat(&base_b, room_id, None).await;
     assert_eq!(next_json(&mut socket_a).await["type"], "auth_ok");
     assert_eq!(next_json(&mut socket_b).await["type"], "auth_ok");
     assert_eq!(next_json(&mut socket_a).await["type"], "system");

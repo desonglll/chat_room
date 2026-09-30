@@ -2,9 +2,9 @@ use super::*;
 use chat_room::config::{AdminConfig, AppConfig};
 
 #[tokio::test]
-async fn postgres_audit_and_room_bans_match_the_sqlite_contract() {
+async fn postgres_audit_and_chat_bans_match_the_sqlite_contract() {
     let Some((admin_url, admin_pool)) =
-        connect_postgres_admin("postgres_audit_and_room_bans_match_the_sqlite_contract").await
+        connect_postgres_admin("postgres_audit_and_chat_bans_match_the_sqlite_contract").await
     else {
         return;
     };
@@ -62,8 +62,8 @@ async fn postgres_audit_and_room_bans_match_the_sqlite_contract() {
         .await
         .is_err());
 
-    let room_name = "pg-audit-room";
-    let (room_id, _) = create_room(&server, room_name, None).await;
+    let room_name = "pg-audit-chat";
+    let (room_id, _) = create_chat(&server, room_name, None).await;
     let owner = session_token(&server, &format!("owner-{room_name}")).await;
     let member = session_token(&server, "pg-banned-member").await;
     let member_user = state
@@ -73,7 +73,7 @@ async fn postgres_audit_and_room_bans_match_the_sqlite_contract() {
         .unwrap();
     assert_eq!(
         client
-            .post(format!("{server}/api/rooms/{room_id}/invitations"))
+            .post(format!("{server}/api/chats/{room_id}/invitations"))
             .bearer_auth(&owner)
             .json(&serde_json::json!({ "username": member_user.username }))
             .send()
@@ -82,7 +82,7 @@ async fn postgres_audit_and_room_bans_match_the_sqlite_contract() {
             .status(),
         200
     );
-    let member_url = format!("{server}/api/rooms/{room_id}/members/{}", member_user.id);
+    let member_url = format!("{server}/api/chats/{room_id}/members/{}", member_user.id);
     for action in ["ban", "unban"] {
         assert_eq!(
             client
@@ -96,9 +96,9 @@ async fn postgres_audit_and_room_bans_match_the_sqlite_contract() {
             200
         );
     }
-    let room_page: serde_json::Value = client
+    let chat_page: serde_json::Value = client
         .get(format!(
-            "{server}/api/rooms/{room_id}/audit-events?limit=20"
+            "{server}/api/chats/{room_id}/audit-events?limit=20"
         ))
         .bearer_auth(&owner)
         .send()
@@ -107,7 +107,7 @@ async fn postgres_audit_and_room_bans_match_the_sqlite_contract() {
         .json()
         .await
         .unwrap();
-    let serialized = serde_json::to_string(&room_page).unwrap();
+    let serialized = serde_json::to_string(&chat_page).unwrap();
     assert!(serialized.contains("room.member.ban_requested"));
     assert!(serialized.contains("room.member.unban_requested"));
 

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::{models::Room, state::AppState};
+use crate::{models::Chat, state::AppState};
 
 #[tokio::test]
 async fn sqlite_index_jobs_accept_text_and_blob_uuid_storage() {
@@ -45,27 +45,21 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
     let state = AppState::new().await.unwrap();
     let owner = state.insert_user("index-owner", "unused").await.unwrap();
     let outsider = state.insert_user("index-outsider", "unused").await.unwrap();
-    let room = Room {
+    let chat = Chat {
         id: Uuid::new_v4(),
-        name: "indexed room".into(),
-        password_hash: String::new(),
-        has_password: false,
+        title: "indexed chat".into(),
         creator_user_id: Some(owner.id),
         join_policy: "open".into(),
-        avatar_emoji: String::new(),
-        description: String::new(),
-        membership_status: None,
-        membership_role: None,
-        unread_count: 0,
         created_at: Utc::now(),
+        ..Chat::default()
     };
     state
-        .create_room_with_owner(room.clone(), owner.id)
+        .create_chat_with_owner(chat.clone(), owner.id)
         .await
         .unwrap();
     let stored = state
         .store_message(
-            room.id,
+            chat.id,
             owner.id,
             &owner.username,
             "",
@@ -78,7 +72,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
         .message;
     let newer = state
         .store_message(
-            room.id,
+            chat.id,
             owner.id,
             &owner.username,
             "",
@@ -91,7 +85,7 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
         .message;
 
     let visible = state
-        .authorized_retrieved_messages(owner.id, room.id, &[newer.id, stored.id])
+        .authorized_retrieved_messages(owner.id, chat.id, &[newer.id, stored.id])
         .await
         .unwrap();
     assert_eq!(
@@ -99,17 +93,17 @@ async fn retrieved_messages_are_rechecked_against_membership_and_recall_state() 
         [newer.id, stored.id]
     );
     assert!(state
-        .authorized_retrieved_messages(outsider.id, room.id, &[stored.id])
+        .authorized_retrieved_messages(outsider.id, chat.id, &[stored.id])
         .await
         .unwrap()
         .is_empty());
 
     state
-        .recall_message(room.id, owner.id, stored.id)
+        .recall_message(chat.id, owner.id, stored.id)
         .await
         .unwrap();
     assert!(state
-        .authorized_retrieved_messages(owner.id, room.id, &[stored.id])
+        .authorized_retrieved_messages(owner.id, chat.id, &[stored.id])
         .await
         .unwrap()
         .is_empty());
@@ -122,22 +116,16 @@ async fn indexed_image_message_uses_only_non_sensitive_visual_projection_text() 
         .insert_user("visual-index-owner", "unused")
         .await
         .unwrap();
-    let room = Room {
+    let chat = Chat {
         id: Uuid::new_v4(),
-        name: "visual index room".into(),
-        password_hash: String::new(),
-        has_password: false,
+        title: "visual index chat".into(),
         creator_user_id: Some(owner.id),
         join_policy: "open".into(),
-        avatar_emoji: String::new(),
-        description: String::new(),
-        membership_status: None,
-        membership_role: None,
-        unread_count: 0,
         created_at: Utc::now(),
+        ..Chat::default()
     };
     state
-        .create_room_with_owner(room.clone(), owner.id)
+        .create_chat_with_owner(chat.clone(), owner.id)
         .await
         .unwrap();
     let attachment_id = Uuid::new_v4();
@@ -149,7 +137,7 @@ async fn indexed_image_message_uses_only_non_sensitive_visual_projection_text() 
     )
     .bind(attachment_id)
     .bind(Uuid::new_v4())
-    .bind(room.id)
+    .bind(chat.id)
     .bind(owner.id)
     .bind(Utc::now())
     .execute(state.pool())
@@ -161,7 +149,7 @@ async fn indexed_image_message_uses_only_non_sensitive_visual_projection_text() 
          VALUES (?, ?, ?, 'visual-index-owner', '', ?, ?)",
     )
     .bind(message_id)
-    .bind(room.id)
+    .bind(chat.id)
     .bind(owner.id)
     .bind(attachment_id)
     .bind(Utc::now())
@@ -175,7 +163,7 @@ async fn indexed_image_message_uses_only_non_sensitive_visual_projection_text() 
           'Revenue increased to 42 percent', ?, ?)",
     )
     .bind(attachment_id)
-    .bind(room.id)
+    .bind(chat.id)
     .bind(Utc::now())
     .bind(Utc::now())
     .execute(state.pool())

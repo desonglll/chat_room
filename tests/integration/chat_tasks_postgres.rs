@@ -1,9 +1,9 @@
 use super::*;
 
 #[tokio::test]
-async fn postgres_room_tasks_complete_the_http_lifecycle() {
+async fn postgres_chat_tasks_complete_the_http_lifecycle() {
     let Some((admin_url, admin_pool)) =
-        connect_postgres_admin("postgres_room_tasks_complete_the_http_lifecycle").await
+        connect_postgres_admin("postgres_chat_tasks_complete_the_http_lifecycle").await
     else {
         return;
     };
@@ -15,11 +15,11 @@ async fn postgres_room_tasks_complete_the_http_lifecycle() {
     );
     let server = start_server_with_state(state.clone()).await;
     let client = reqwest::Client::new();
-    let (room_id, _) = create_room(&server, "pg-room-tasks", None).await;
-    let token = session_token(&server, "owner-pg-room-tasks").await;
+    let (room_id, _) = create_chat(&server, "pg-chat-tasks", None).await;
+    let token = session_token(&server, "owner-pg-chat-tasks").await;
 
     let created = client
-        .post(format!("{server}/api/rooms/{room_id}/tasks"))
+        .post(format!("{server}/api/chats/{room_id}/tasks"))
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "title": "Verify PostgreSQL task lifecycle",
@@ -36,7 +36,7 @@ async fn postgres_room_tasks_complete_the_http_lifecycle() {
     assert_eq!(created["version"], 1);
 
     let listed: Vec<serde_json::Value> = client
-        .get(format!("{server}/api/rooms/{room_id}/tasks"))
+        .get(format!("{server}/api/chats/{room_id}/tasks"))
         .bearer_auth(&token)
         .send()
         .await
@@ -48,7 +48,7 @@ async fn postgres_room_tasks_complete_the_http_lifecycle() {
     assert_eq!(listed[0]["can_delete"], true);
 
     let updated = client
-        .patch(format!("{server}/api/rooms/{room_id}/tasks/{task_id}"))
+        .patch(format!("{server}/api/chats/{room_id}/tasks/{task_id}"))
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "title": "PostgreSQL task verified",
@@ -67,7 +67,7 @@ async fn postgres_room_tasks_complete_the_http_lifecycle() {
 
     assert_eq!(
         client
-            .delete(format!("{server}/api/rooms/{room_id}/tasks/{task_id}"))
+            .delete(format!("{server}/api/chats/{room_id}/tasks/{task_id}"))
             .bearer_auth(&token)
             .send()
             .await

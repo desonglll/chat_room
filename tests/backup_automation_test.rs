@@ -33,9 +33,9 @@ async fn start(state: Arc<AppState>) -> Server {
     Server { base, task }
 }
 
-async fn create_room(client: &Client, base: &str, token: &str, name: &str) -> serde_json::Value {
+async fn create_chat(client: &Client, base: &str, token: &str, name: &str) -> serde_json::Value {
     let response = client
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": name, "password": "" }))
         .send()
@@ -100,12 +100,12 @@ async fn sqlite_backup_is_consistent_retained_and_requires_confirmed_restore() {
     let server = start(state.clone()).await;
     let client = Client::new();
     let admin = system_admin_token(&state, &server.base, "backup-admin").await;
-    let room = create_room(&client, &server.base, &admin, "snapshot-room").await;
+    let chat = create_chat(&client, &server.base, &admin, "snapshot-chat").await;
     let upload = client
         .post(format!(
-            "{}/api/rooms/{}/attachments",
+            "{}/api/chats/{}/attachments",
             server.base,
-            room["id"].as_str().unwrap()
+            chat["id"].as_str().unwrap()
         ))
         .bearer_auth(&admin)
         .multipart(
@@ -122,7 +122,7 @@ async fn sqlite_backup_is_consistent_retained_and_requires_confirmed_restore() {
         .unwrap();
     assert_eq!(upload.status(), StatusCode::CREATED);
     let mut expected_counts = Vec::new();
-    for table in ["users", "rooms", "messages", "attachments"] {
+    for table in ["users", "chats", "messages", "attachments"] {
         let count: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
             .fetch_one(state.pool())
             .await
@@ -160,7 +160,7 @@ async fn sqlite_backup_is_consistent_retained_and_requires_confirmed_restore() {
     }
     restored_pool.close().await;
 
-    create_room(&client, &server.base, &admin, "after-snapshot").await;
+    create_chat(&client, &server.base, &admin, "after-snapshot").await;
     let validated = client
         .post(format!("{}/api/admin/backups/restore", server.base))
         .bearer_auth(&admin)
@@ -192,7 +192,7 @@ async fn sqlite_backup_is_consistent_retained_and_requires_confirmed_restore() {
     let status = restored.status();
     let body = restored.text().await.unwrap();
     assert_eq!(status, StatusCode::OK, "restore response: {body}");
-    assert_eq!(state.list_rooms(None).await.len(), 1);
+    assert_eq!(state.list_chats(None).await.len(), 1);
     assert!(state.chat_rooms_locked().await.unwrap());
 
     let second = run_backup(&client, &server.base, &admin).await;

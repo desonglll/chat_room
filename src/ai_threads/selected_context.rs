@@ -67,11 +67,11 @@ pub(super) async fn prepare_selected_context(
 ) -> anyhow::Result<GenerationContext> {
     let room_id = execution
         .room_id
-        .ok_or_else(|| anyhow::anyhow!("selected-message run has no room"))?;
+        .ok_or_else(|| anyhow::anyhow!("selected-message run has no chat"))?;
     let conversation = state
         .conversation_summary(execution.user_id, room_id)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("active room membership is required"))?;
+        .ok_or_else(|| anyhow::anyhow!("active chat membership is required"))?;
     let mut messages = Vec::<StoredMessage>::with_capacity(message_ids.len());
     for message_id in message_ids {
         let Some(message) = state

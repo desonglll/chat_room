@@ -16,10 +16,10 @@ use crate::attachments::upload_hashes::UploadHashTracker;
 use crate::cache::RedisCache;
 use crate::config::AppConfig;
 use crate::knowledge::MessageIndex;
-use crate::models::Room;
+use crate::models::Chat;
 use crate::security::AuthRateLimits;
 use crate::social::rate_limits::SocialRateLimits;
-use crate::state::{AppState, RoomChannel, SELECT_ROOMS};
+use crate::state::{AppState, ChatChannel, SELECT_CHATS};
 use crate::storage;
 use crate::work_queue::WorkQueue;
 
@@ -99,15 +99,15 @@ impl AppState {
         ai_assistant: Option<AiAssistant>,
         config: AppConfig,
     ) -> Result<Self> {
-        let loaded: Vec<Room> = match &pool {
+        let loaded: Vec<Chat> = match &pool {
             storage::DatabasePool::Sqlite(database) => {
-                sqlx::query_as(SELECT_ROOMS).fetch_all(database).await
+                sqlx::query_as(SELECT_CHATS).fetch_all(database).await
             }
             storage::DatabasePool::Postgres(database) => {
-                sqlx::query_as(SELECT_ROOMS).fetch_all(database).await
+                sqlx::query_as(SELECT_CHATS).fetch_all(database).await
             }
         }
-        .context("load rooms from database")?;
+        .context("load chats from database")?;
         let redis_cache = if config.redis.enabled {
             match RedisCache::connect(&config.redis).await {
                 Ok(cache) => {
@@ -132,17 +132,17 @@ impl AppState {
                 None
             }
         };
-        let mut rooms = HashMap::with_capacity(loaded.len());
+        let mut chats = HashMap::with_capacity(loaded.len());
         let mut channels = HashMap::with_capacity(loaded.len());
-        for room in loaded {
-            channels.insert(room.id, RoomChannel::new());
-            rooms.insert(room.id, room);
+        for chat in loaded {
+            channels.insert(chat.id, ChatChannel::new());
+            chats.insert(chat.id, chat);
         }
 
         let work_queue = WorkQueue::new(&config.work_queue);
         let state = Self {
             pool,
-            rooms: RwLock::new(rooms),
+            chats: RwLock::new(chats),
             channels: RwLock::new(channels),
             members: RwLock::new(HashMap::new()),
             max_upload_bytes,

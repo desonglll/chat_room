@@ -33,9 +33,9 @@ async fn start(state: Arc<AppState>) -> Server {
     Server { base, task }
 }
 
-async fn create_room(client: &Client, base: &str, token: &str, name: &str) -> serde_json::Value {
+async fn create_chat(client: &Client, base: &str, token: &str, name: &str) -> serde_json::Value {
     client
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(token)
         .json(&serde_json::json!({ "name": name, "password": "" }))
         .send()
@@ -149,11 +149,11 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     )
     .await;
     assert_eq!(invalid_restore.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    let room = create_room(&client, &server.base, &admin, "before-backup").await;
-    let room_id = room["id"].as_str().unwrap();
+    let chat = create_chat(&client, &server.base, &admin, "before-backup").await;
+    let room_id = chat["id"].as_str().unwrap();
     let attachment_bytes = b"file preserved by complete backup";
     let upload = client
-        .post(format!("{}/api/rooms/{room_id}/attachments", server.base))
+        .post(format!("{}/api/chats/{room_id}/attachments", server.base))
         .bearer_auth(&admin)
         .multipart(
             multipart::Form::new().part(
@@ -193,7 +193,7 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
         .unwrap();
     assert_eq!(data_export.status(), StatusCode::OK);
     let data_archive = data_export.bytes().await.unwrap();
-    create_room(&client, &server.base, &admin, "after-data-backup").await;
+    create_chat(&client, &server.base, &admin, "after-data-backup").await;
     let retained_file = attachment_root.join("retained-during-data-restore.txt");
     std::fs::write(&retained_file, b"current file stays").unwrap();
 
@@ -205,7 +205,7 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     assert_eq!(result["included_files"], false);
     assert_eq!(result["vector_messages_queued"], 0);
     assert!(retained_file.exists());
-    assert_eq!(state.list_rooms(None).await.len(), 1);
+    assert_eq!(state.list_chats(None).await.len(), 1);
     let unlocked = client
         .put(format!("{}/api/admin/chat-lock", server.base))
         .bearer_auth(&admin)
@@ -227,7 +227,7 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     let archive = full_export.bytes().await.unwrap();
     assert!(!archive.is_empty());
 
-    create_room(&client, &server.base, &admin, "after-backup").await;
+    create_chat(&client, &server.base, &admin, "after-backup").await;
     remove_visible_entries(&attachment_root);
     assert!(find_file_with_bytes(&attachment_root, attachment_bytes).is_none());
 
@@ -242,10 +242,10 @@ async fn postgres_admin_can_export_and_restore_database_with_local_files() {
     assert_eq!(result["vector_messages_queued"], 0);
     assert_eq!(
         state
-            .list_rooms(None)
+            .list_chats(None)
             .await
             .into_iter()
-            .map(|room| room.name)
+            .map(|chat| chat.title)
             .collect::<Vec<_>>(),
         vec!["before-backup"]
     );

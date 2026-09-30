@@ -1,4 +1,4 @@
-//! Persistent, room-scoped emoji responses for chat messages.
+//! Persistent, chat-scoped emoji responses for chat messages.
 
 use std::collections::HashMap;
 
@@ -33,10 +33,10 @@ impl AppState {
         let allowed: bool = with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM messages \
-                 JOIN room_memberships ON room_memberships.room_id = messages.room_id \
-                   AND room_memberships.user_id = $3 AND room_memberships.status = 'active' \
-                 JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
-                   AND room_role_permissions.permission_key = 'message.send' \
+                 JOIN chat_members ON chat_members.room_id = messages.room_id \
+                   AND chat_members.user_id = $3 AND chat_members.status = 'active' \
+                 JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
+                   AND chat_role_permissions.permission_key = 'message.send' \
                  WHERE messages.id = $1 AND messages.room_id = $2 AND messages.recalled_at IS NULL)",
             )
             .bind(message_id)

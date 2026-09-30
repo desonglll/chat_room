@@ -163,7 +163,7 @@ pub(super) fn ai(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     format!(
                         "{}{}",
                         short_time(&thread.updated_at),
-                        thread.room_id.map(|_| "  room").unwrap_or_default()
+                        thread.room_id.map(|_| "  chat").unwrap_or_default()
                     ),
                     Style::default().fg(MUTED),
                 ),

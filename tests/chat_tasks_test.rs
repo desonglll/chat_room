@@ -56,9 +56,9 @@ async fn register(client: &Client, server: &TestServer, username: &str) -> Accou
     }
 }
 
-async fn create_room(client: &Client, server: &TestServer, owner: &Account) -> Uuid {
-    let room: Value = client
-        .post(format!("{}/api/rooms", server.base))
+async fn create_chat(client: &Client, server: &TestServer, owner: &Account) -> Uuid {
+    let chat: Value = client
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&owner.token)
         .json(&json!({
             "name": format!("Tasks {}", Uuid::new_v4().simple()),
@@ -70,12 +70,12 @@ async fn create_room(client: &Client, server: &TestServer, owner: &Account) -> U
         .json()
         .await
         .unwrap();
-    Uuid::parse_str(room["id"].as_str().unwrap()).unwrap()
+    Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap()
 }
 
 async fn join(client: &Client, server: &TestServer, room_id: Uuid, member: &Account) {
     let response = client
-        .post(format!("{}/api/rooms/{room_id}/join-requests", server.base))
+        .post(format!("{}/api/chats/{room_id}/join-requests", server.base))
         .bearer_auth(&member.token)
         .json(&json!({}))
         .send()
@@ -109,7 +109,7 @@ async fn create_task(
     source_message_id: Option<Uuid>,
 ) -> Value {
     let response = client
-        .post(format!("{}/api/rooms/{room_id}/tasks", server.base))
+        .post(format!("{}/api/chats/{room_id}/tasks", server.base))
         .bearer_auth(&creator.token)
         .json(&json!({
             "title": "Prepare release notes",
@@ -133,7 +133,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
     let assignee = register(&client, &server, "task-assignee").await;
     let viewer = register(&client, &server, "task-viewer").await;
     let outsider = register(&client, &server, "task-outsider").await;
-    let room_id = create_room(&client, &server, &owner).await;
+    let room_id = create_chat(&client, &server, &owner).await;
     join(&client, &server, room_id, &creator).await;
     join(&client, &server, room_id, &assignee).await;
     join(&client, &server, room_id, &viewer).await;
@@ -160,7 +160,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
     });
     let updated: Value = client
         .patch(format!(
-            "{}/api/rooms/{room_id}/tasks/{task_id}",
+            "{}/api/chats/{room_id}/tasks/{task_id}",
             server.base
         ))
         .bearer_auth(&assignee.token)
@@ -182,7 +182,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
         assert_eq!(
             client
                 .patch(format!(
-                    "{}/api/rooms/{room_id}/tasks/{task_id}",
+                    "{}/api/chats/{room_id}/tasks/{task_id}",
                     server.base
                 ))
                 .bearer_auth(&account.token)
@@ -196,7 +196,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
     }
     assert_eq!(
         client
-            .get(format!("{}/api/rooms/{room_id}/tasks", server.base))
+            .get(format!("{}/api/chats/{room_id}/tasks", server.base))
             .bearer_auth(&outsider.token)
             .send()
             .await
@@ -207,7 +207,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
     assert_eq!(
         client
             .delete(format!(
-                "{}/api/rooms/{room_id}/tasks/{task_id}",
+                "{}/api/chats/{room_id}/tasks/{task_id}",
                 server.base
             ))
             .bearer_auth(&outsider.token)
@@ -226,7 +226,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
         .unwrap();
     client
         .patch(format!(
-            "{}/api/rooms/{room_id}/members/{}",
+            "{}/api/chats/{room_id}/members/{}",
             server.base, assignee.id
         ))
         .bearer_auth(&owner.token)
@@ -237,7 +237,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
         .error_for_status()
         .unwrap();
     let tasks: Vec<Value> = client
-        .get(format!("{}/api/rooms/{room_id}/tasks", server.base))
+        .get(format!("{}/api/chats/{room_id}/tasks", server.base))
         .bearer_auth(&owner.token)
         .send()
         .await
@@ -251,7 +251,7 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
     assert_eq!(
         client
             .patch(format!(
-                "{}/api/rooms/{room_id}/tasks/{task_id}",
+                "{}/api/chats/{room_id}/tasks/{task_id}",
                 server.base
             ))
             .bearer_auth(&assignee.token)
@@ -271,16 +271,16 @@ async fn task_permissions_concurrency_and_source_redaction_are_enforced() {
 }
 
 #[tokio::test]
-async fn admins_manage_tasks_and_room_retention_hides_then_purges_them() {
+async fn admins_manage_tasks_and_chat_retention_hides_then_purges_them() {
     let server = start_server().await;
     let client = Client::new();
     let owner = register(&client, &server, "task-delete-owner").await;
     let admin = register(&client, &server, "task-delete-admin").await;
-    let room_id = create_room(&client, &server, &owner).await;
+    let room_id = create_chat(&client, &server, &owner).await;
     join(&client, &server, room_id, &admin).await;
     client
         .patch(format!(
-            "{}/api/rooms/{room_id}/members/{}",
+            "{}/api/chats/{room_id}/members/{}",
             server.base, admin.id
         ))
         .bearer_auth(&owner.token)
@@ -294,7 +294,7 @@ async fn admins_manage_tasks_and_room_retention_hides_then_purges_them() {
     assert_eq!(
         client
             .delete(format!(
-                "{}/api/rooms/{room_id}/tasks/{}",
+                "{}/api/chats/{room_id}/tasks/{}",
                 server.base,
                 disposable["id"].as_str().unwrap()
             ))
@@ -308,7 +308,7 @@ async fn admins_manage_tasks_and_room_retention_hides_then_purges_them() {
     create_task(&client, &server, room_id, &owner, Some(admin.id), None).await;
     assert_eq!(
         client
-            .delete(format!("{}/api/rooms/{room_id}", server.base))
+            .delete(format!("{}/api/chats/{room_id}", server.base))
             .bearer_auth(&owner.token)
             .send()
             .await
@@ -318,7 +318,7 @@ async fn admins_manage_tasks_and_room_retention_hides_then_purges_them() {
     );
     assert_eq!(
         client
-            .get(format!("{}/api/rooms/{room_id}/tasks", server.base))
+            .get(format!("{}/api/chats/{room_id}/tasks", server.base))
             .bearer_auth(&owner.token)
             .send()
             .await
@@ -326,21 +326,21 @@ async fn admins_manage_tasks_and_room_retention_hides_then_purges_them() {
             .status(),
         StatusCode::NOT_FOUND
     );
-    let retained: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM room_tasks WHERE room_id = ?")
+    let retained: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chat_tasks WHERE room_id = ?")
         .bind(room_id)
         .fetch_one(server.state.pool())
         .await
         .unwrap();
-    assert_eq!(retained, 1, "soft-deleted rooms retain tasks until purge");
-    sqlx::query("DELETE FROM rooms WHERE id = ?")
+    assert_eq!(retained, 1, "soft-deleted chats retain tasks until purge");
+    sqlx::query("DELETE FROM chats WHERE id = ?")
         .bind(room_id)
         .execute(server.state.pool())
         .await
         .unwrap();
-    let purged: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM room_tasks WHERE room_id = ?")
+    let purged: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chat_tasks WHERE room_id = ?")
         .bind(room_id)
         .fetch_one(server.state.pool())
         .await
         .unwrap();
-    assert_eq!(purged, 0, "hard room purge cascades to tasks");
+    assert_eq!(purged, 0, "hard chat purge cascades to tasks");
 }

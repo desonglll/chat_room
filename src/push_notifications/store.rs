@@ -147,7 +147,7 @@ impl AppState {
         })
     }
 
-    pub(crate) async fn room_allows_push(
+    pub(crate) async fn chat_allows_push(
         &self,
         recipient_id: Uuid,
         room_id: Uuid,
@@ -155,7 +155,7 @@ impl AppState {
     ) -> Result<bool, sqlx::Error> {
         let preference: Option<(String, Option<DateTime<Utc>>)> = with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT notification_level, muted_until FROM room_memberships \
+                "SELECT notification_level, muted_until FROM chat_members \
                  WHERE user_id = $1 AND room_id = $2 AND status = 'active'",
             )
             .bind(recipient_id)

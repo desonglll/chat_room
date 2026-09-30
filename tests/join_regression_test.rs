@@ -19,11 +19,11 @@ async fn join_request_accepts_legacy_non_utf8_role_ids() {
         async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
     let owner_token = session_token(&base, "legacy-role-owner").await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(owner_token)
         .json(&serde_json::json!({
-            "name": "legacy-role-room",
+            "name": "legacy-role-chat",
             "password": "secret",
             "join_policy": "approval"
         }))
@@ -33,10 +33,10 @@ async fn join_request_accepts_legacy_non_utf8_role_ids() {
         .json()
         .await
         .unwrap();
-    let room_id = Uuid::parse_str(room["id"].as_str().unwrap()).unwrap();
+    let room_id = Uuid::parse_str(chat["id"].as_str().unwrap()).unwrap();
 
     let current_id: String =
-        sqlx::query_scalar("SELECT id FROM room_roles WHERE room_id = ? AND name = 'member'")
+        sqlx::query_scalar("SELECT id FROM chat_roles WHERE room_id = ? AND name = 'member'")
             .bind(room_id)
             .fetch_one(state.pool())
             .await
@@ -48,13 +48,13 @@ async fn join_request_accepts_legacy_non_utf8_role_ids() {
         .execute(&mut *transaction)
         .await
         .unwrap();
-    sqlx::query("UPDATE room_role_permissions SET role_id = CAST(? AS TEXT) WHERE role_id = ?")
+    sqlx::query("UPDATE chat_role_permissions SET role_id = CAST(? AS TEXT) WHERE role_id = ?")
         .bind(&legacy_id)
         .bind(&current_id)
         .execute(&mut *transaction)
         .await
         .unwrap();
-    sqlx::query("UPDATE room_roles SET id = CAST(? AS TEXT) WHERE id = ?")
+    sqlx::query("UPDATE chat_roles SET id = CAST(? AS TEXT) WHERE id = ?")
         .bind(&legacy_id)
         .bind(&current_id)
         .execute(&mut *transaction)
@@ -64,7 +64,7 @@ async fn join_request_accepts_legacy_non_utf8_role_ids() {
 
     let member_token = session_token(&base, "legacy-role-member").await;
     let response = reqwest::Client::new()
-        .post(format!("{base}/api/rooms/{room_id}/join-requests"))
+        .post(format!("{base}/api/chats/{room_id}/join-requests"))
         .bearer_auth(member_token)
         .json(&serde_json::json!({ "password": "secret" }))
         .send()
@@ -75,7 +75,7 @@ async fn join_request_accepts_legacy_non_utf8_role_ids() {
 }
 
 #[tokio::test]
-async fn room_lookup_does_not_inherit_the_creators_membership() {
+async fn chat_lookup_does_not_inherit_the_creators_membership() {
     let state = Arc::new(AppState::new().await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -84,12 +84,12 @@ async fn room_lookup_does_not_inherit_the_creators_membership() {
         async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
     let owner_token = session_token(&base, "lookup-owner").await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(owner_token)
         .json(&serde_json::json!({
-            "name": "lookup-membership-room",
-            "password": "room-secret",
+            "name": "lookup-membership-chat",
+            "password": "chat-secret",
             "join_policy": "open"
         }))
         .send()
@@ -101,7 +101,7 @@ async fn room_lookup_does_not_inherit_the_creators_membership() {
     let viewer_token = session_token(&base, "lookup-viewer").await;
 
     let lookup: serde_json::Value = reqwest::Client::new()
-        .get(format!("{base}/api/rooms/{}", room["id"].as_str().unwrap()))
+        .get(format!("{base}/api/chats/{}", chat["id"].as_str().unwrap()))
         .bearer_auth(viewer_token)
         .send()
         .await
@@ -116,7 +116,7 @@ async fn room_lookup_does_not_inherit_the_creators_membership() {
 }
 
 #[tokio::test]
-async fn active_member_reconnects_to_password_room_and_sends_without_password() {
+async fn active_member_reconnects_to_password_chat_and_sends_without_password() {
     let state = Arc::new(AppState::new().await.unwrap());
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -124,12 +124,12 @@ async fn active_member_reconnects_to_password_room_and_sends_without_password() 
         let state = state.clone();
         async move { axum::serve(listener, build_app(state)).await.unwrap() }
     });
-    let owner_token = session_token(&base, "password-room-owner").await;
-    let room: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+    let owner_token = session_token(&base, "password-chat-owner").await;
+    let chat: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&owner_token)
         .json(&serde_json::json!({
-            "name": "password-room-reconnect",
+            "name": "password-chat-reconnect",
             "password": "secret",
             "join_policy": "approval"
         }))
@@ -139,9 +139,9 @@ async fn active_member_reconnects_to_password_room_and_sends_without_password() 
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     let websocket_base = base.replacen("http://", "ws://", 1);
-    let outsider_token = session_token(&base, "password-room-outsider").await;
+    let outsider_token = session_token(&base, "password-chat-outsider").await;
     let (mut outsider, _) = connect_async(format!("{websocket_base}/ws/{room_id}"))
         .await
         .unwrap();

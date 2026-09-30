@@ -1,4 +1,4 @@
-//! WebSocket authentication and room message forwarding.
+//! WebSocket authentication and chat message forwarding.
 
 use std::time::Duration;
 
@@ -12,7 +12,7 @@ use tokio::time::timeout;
 use uuid::Uuid;
 
 use crate::models::ChatMessage;
-use crate::realtime::outbound::{spawn_room_forwarder, OutboundCursors};
+use crate::realtime::outbound::{spawn_chat_forwarder, OutboundCursors};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::realtime::system_lock::reject_locked_auth;
 use crate::state::SharedState;
@@ -30,13 +30,13 @@ pub async fn ws_handler(
 async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
     let (mut sink, mut stream) = socket.split();
 
-    let room = match state.room(room_id).await {
-        Some(room) => room,
+    let chat = match state.chat(room_id).await {
+        Some(chat) => chat,
         None => {
             let _ = send_json(
                 &mut sink,
                 &ChatMessage::AuthFail {
-                    reason: "room not found".into(),
+                    reason: "chat not found".into(),
                 },
             )
             .await;
@@ -74,7 +74,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     };
 
-    let authenticated = match authenticate(&state, &room, first_message).await {
+    let authenticated = match authenticate(&state, &chat, first_message).await {
         Ok(authenticated) => authenticated,
         Err(reason) => {
             let _ = send_json(&mut sink, &ChatMessage::AuthFail { reason }).await;
@@ -88,11 +88,11 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
     let username = user.username.clone();
     let membership = match state.membership_identity(room_id, user.id).await {
         Ok(Some((status, _))) if status == "active" => None,
-        Ok(_) if room.join_policy == "open" => {
-            match state.request_room_membership(room_id, user.id, true).await {
+        Ok(_) if chat.join_policy == "open" => {
+            match state.request_chat_membership(room_id, user.id, true).await {
                 Ok(membership) => Some(membership),
                 Err(error) => {
-                    tracing::error!("activate open room membership failed: {}", error);
+                    tracing::error!("activate open chat membership failed: {}", error);
                     let _ = send_json(
                         &mut sink,
                         &ChatMessage::AuthFail {
@@ -125,15 +125,15 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             return;
         }
         Err(error) => {
-            tracing::error!("load room membership failed: {}", error);
+            tracing::error!("load chat membership failed: {}", error);
             return;
         }
     };
     let (members, first_connection) = state.member_connected(room_id, &user).await;
-    let participants = match state.room_participants(room_id).await {
+    let participants = match state.chat_participants(room_id).await {
         Ok(participants) => participants,
         Err(error) => {
-            tracing::error!("record room participant failed: {}", error);
+            tracing::error!("record chat participant failed: {}", error);
             state.member_disconnected(room_id, user.id).await;
             let _ = send_json(
                 &mut sink,
@@ -145,20 +145,20 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             return;
         }
     };
-    let read_receipts = match state.room_read_receipts(room_id).await {
+    let read_receipts = match state.chat_read_receipts(room_id).await {
         Ok(receipts) => receipts,
         Err(error) => {
-            tracing::warn!("load room read receipts failed: {}", error);
+            tracing::warn!("load chat read receipts failed: {}", error);
             Vec::new()
         }
     };
 
     let display_room_name = match state.conversation_summary(user.id, room_id).await {
         Ok(Some(conversation)) => conversation.title,
-        Ok(None) => room.name.clone(),
+        Ok(None) => chat.title.clone(),
         Err(error) => {
-            tracing::warn!("load viewer room title failed: {error}");
-            room.name.clone()
+            tracing::warn!("load viewer chat title failed: {error}");
+            chat.title.clone()
         }
     };
     if send_json(
@@ -177,7 +177,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         return;
     }
 
-    let Some(room_messages) = state.subscribe(room_id).await else {
+    let Some(chat_messages) = state.subscribe(room_id).await else {
         state.member_disconnected(room_id, user.id).await;
         return;
     };
@@ -263,7 +263,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             .broadcast(
                 room_id,
                 ChatMessage::System {
-                    content: format!("{} joined the room", username),
+                    content: format!("{} joined the chat", username),
                     members: Some(members.clone()),
                     participants: Some(participants.clone()),
                 },
@@ -281,13 +281,13 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             .await;
     }
 
-    let forwarder = spawn_room_forwarder(
+    let forwarder = spawn_chat_forwarder(
         state.clone(),
         room_id,
         user.id,
         authenticated.session_id,
         sink,
-        room_messages,
+        chat_messages,
         OutboundCursors {
             messages: history_boundary,
             recalls: recall_boundary,
@@ -323,7 +323,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                 },
             )
             .await;
-        let participants = state.room_participants(room_id).await.unwrap_or_default();
+        let participants = state.chat_participants(room_id).await.unwrap_or_default();
         state
             .broadcast(
                 room_id,

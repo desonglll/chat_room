@@ -60,7 +60,7 @@ async fn next_disconnect(socket: &mut Socket) -> serde_json::Value {
         }
     })
     .await
-    .expect("timed out waiting for room event")
+    .expect("timed out waiting for chat event")
 }
 
 async fn account_socket(base: &str, token: &str) -> Socket {
@@ -79,7 +79,7 @@ async fn account_socket(base: &str, token: &str) -> Socket {
     socket
 }
 
-async fn room_socket(base: &str, room_id: &str, token: &str) -> Socket {
+async fn chat_socket(base: &str, room_id: &str, token: &str) -> Socket {
     let (mut socket, _) = connect_async(format!(
         "{}/ws/{room_id}",
         base.replacen("http://", "ws://", 1)
@@ -109,7 +109,7 @@ async fn account_socket_reports_friend_changes_and_direct_message_titles() {
     let bob = register(&client, &base, "realtime-bob").await;
     let mut bob_account = account_socket(&base, &bob.token).await;
 
-    assert!(next_type(&mut bob_account, "unread_counts").await["rooms"]
+    assert!(next_type(&mut bob_account, "unread_counts").await["chats"]
         .as_array()
         .unwrap()
         .is_empty());
@@ -152,14 +152,14 @@ async fn account_socket_reports_friend_changes_and_direct_message_titles() {
         .await
         .unwrap();
     let room_id = conversation["room_id"].as_str().unwrap();
-    let mut alice_room = room_socket(&base, room_id, &alice.token).await;
-    alice_room
+    let mut alice_chat = chat_socket(&base, room_id, &alice.token).await;
+    alice_chat
         .send(Message::Text(
             serde_json::json!({ "type": "message", "content": "account direct" }).to_string(),
         ))
         .await
         .unwrap();
-    next_type(&mut alice_room, "broadcast").await;
+    next_type(&mut alice_chat, "broadcast").await;
 
     let event = next_type(&mut bob_account, "new_message").await;
     assert_eq!(event["conversation_kind"], "direct");
@@ -167,7 +167,7 @@ async fn account_socket_reports_friend_changes_and_direct_message_titles() {
     assert_eq!(event["room_id"], room_id);
     assert_eq!(event["content"], "account direct");
 
-    let mut bob_room = room_socket(&base, room_id, &bob.token).await;
+    let mut bob_chat = chat_socket(&base, room_id, &bob.token).await;
     assert_eq!(
         client
             .delete(format!("{base}/api/friends/{}", bob.id))
@@ -178,7 +178,7 @@ async fn account_socket_reports_friend_changes_and_direct_message_titles() {
             .status(),
         reqwest::StatusCode::NO_CONTENT
     );
-    assert_eq!(next_disconnect(&mut alice_room).await["type"], "system");
-    assert_eq!(next_disconnect(&mut bob_room).await["type"], "system");
+    assert_eq!(next_disconnect(&mut alice_chat).await["type"], "system");
+    assert_eq!(next_disconnect(&mut bob_chat).await["type"], "system");
     task.abort();
 }

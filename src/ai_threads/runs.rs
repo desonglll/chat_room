@@ -9,13 +9,13 @@ use axum::{
 use uuid::Uuid;
 
 use super::create_run::{CreateRunOutcome, NewAiRun};
-use super::handlers::{current_user, internal_error, validate_room_access, DEFAULT_TITLE};
+use super::handlers::{current_user, internal_error, validate_chat_access, DEFAULT_TITLE};
 use super::models::{AiRun, AiRunTraceStep, CreateAiRunRequest};
 use super::pipeline::generate_answer;
 use super::run_store::{AiRunExecution, FailedAiRun};
 use super::selected_context::validate_selected_messages;
 use crate::ai_governance::{estimate_tokens, AiAdmissionRequest};
-use crate::ai_handlers::room_context_for_user;
+use crate::ai_handlers::chat_context_for_user;
 use crate::cache::CachedAiAnswer;
 use crate::state::SharedState;
 
@@ -30,7 +30,7 @@ const DISPATCH_INTERVAL: Duration = Duration::from_secs(5);
     responses(
         (status = 202, description = "Durable AI run accepted", body = AiRun),
         (status = 400, description = "Invalid question"),
-        (status = 403, description = "Room AI policy or active membership denied the run"),
+        (status = 403, description = "Chat AI policy or active membership denied the run"),
         (status = 404, description = "AI session not found"),
         (status = 409, description = "The session already has an active run"),
         (status = 429, description = "Concurrency or usage limit reached"),
@@ -67,7 +67,7 @@ pub async fn create_run(
         .map_err(internal_error)?
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     if let Some(room_id) = payload.room_id {
-        validate_room_access(&state, user.id, Some(room_id)).await?;
+        validate_chat_access(&state, user.id, Some(room_id)).await?;
         thread = state
             .update_ai_thread(
                 user.id,
@@ -82,7 +82,7 @@ pub async fn create_run(
     }
     let room_id = payload.room_id.or(thread.room_id);
     if let Some(room_id) = room_id {
-        room_context_for_user(&state, user.id, room_id, &headers).await?;
+        chat_context_for_user(&state, user.id, room_id, &headers).await?;
     }
     validate_selected_messages(&state, user.id, room_id, &payload.message_ids).await?;
     if !state

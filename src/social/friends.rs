@@ -86,7 +86,7 @@ impl AppState {
             .await?;
             if let Some(room_id) = room_id {
                 sqlx::query(
-                    "DELETE FROM room_memberships WHERE room_id = $1 \
+                    "DELETE FROM chat_members WHERE room_id = $1 \
                      AND (user_id = $2 OR user_id = $3)",
                 )
                 .bind(room_id)

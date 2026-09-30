@@ -24,7 +24,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
             frame.render_widget(Clear, area);
             render_input(frame, area, title, input, true);
         }
-        Dialog::CreateRoom {
+        Dialog::CreateChat {
             name,
             password,
             field,
@@ -33,7 +33,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
             frame.render_widget(Clear, area);
             frame.render_widget(
                 Block::bordered()
-                    .title("Create room")
+                    .title("Create chat")
                     .border_style(Style::default().fg(Color::Cyan)),
                 area,
             );
@@ -47,7 +47,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
                 Constraint::Length(1),
             ])
             .split(inner);
-            render_input(frame, rows[0], "Room name", name, *field == 0);
+            render_input(frame, rows[0], "Chat name", name, *field == 0);
             render_input(frame, rows[1], "Password (optional)", password, *field == 1);
             frame.render_widget(
                 Paragraph::new("Enter advances/submits  Esc cancels")
@@ -55,22 +55,22 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
                 rows[2],
             );
         }
-        Dialog::Rooms { items, selected } => {
+        Dialog::Chats { items, selected } => {
             let area = centered(frame.area(), 66, 18);
             frame.render_widget(Clear, area);
             let rows = Layout::vertical([Constraint::Min(4), Constraint::Length(1)]).split(area);
             let list_items = items
                 .iter()
-                .map(|room| {
-                    let access = if room.has_password {
+                .map(|chat| {
+                    let access = if chat.has_password {
                         "private"
                     } else {
                         "public"
                     };
-                    let membership = room.membership_status.as_deref().unwrap_or("not joined");
+                    let membership = chat.membership_status.as_deref().unwrap_or("not joined");
                     ListItem::new(Line::from(format!(
                         "{}  [{}]  {}",
-                        room.name, access, membership
+                        chat.name, access, membership
                     )))
                 })
                 .collect::<Vec<_>>();
@@ -78,7 +78,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
                 ListState::default().with_selected((!list_items.is_empty()).then_some(*selected));
             frame.render_stateful_widget(
                 List::new(list_items)
-                    .block(Block::bordered().title("Discover rooms"))
+                    .block(Block::bordered().title("Discover chats"))
                     .highlight_symbol("> ")
                     .highlight_style(Style::default().bg(Color::DarkGray)),
                 rows[0],
@@ -178,13 +178,13 @@ fn render_help(frame: &mut Frame<'_>, app: &App) {
 fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
     match (app.view, app.focus) {
         (View::Chats, Focus::List) => &[
-            ("C-n / C-p", "Select room"),
+            ("C-n / C-p", "Select chat"),
             ("C-v / M-v", "Move by page"),
             ("M-< / M->", "First / last"),
-            ("Enter", "Open room"),
+            ("Enter", "Open chat"),
             ("C-f / Right", "Messages"),
             ("n / g", "New / discover"),
-            ("p a m t", "Room preferences"),
+            ("p a m t", "Chat preferences"),
         ],
         (View::Chats, Focus::Content) => &[
             ("C-n / C-p", "Select message"),

@@ -76,7 +76,7 @@ pub(crate) async fn dispatch_batch(
                 NotificationKind::Mention | NotificationKind::Reply
             );
             if !state
-                .room_allows_push(job.recipient_id, room_id, mention_or_reply)
+                .chat_allows_push(job.recipient_id, room_id, mention_or_reply)
                 .await?
             {
                 state.complete_push_job(&job.id, &claim_token).await?;
@@ -114,8 +114,8 @@ fn payload_for(
             .map(|room_id| {
                 notification
                     .message_id
-                    .map(|message_id| format!("/rooms/{room_id}?message={message_id}"))
-                    .unwrap_or_else(|| format!("/rooms/{room_id}"))
+                    .map(|message_id| format!("/chats/{room_id}?message={message_id}"))
+                    .unwrap_or_else(|| format!("/chats/{room_id}"))
             })
             .unwrap_or_else(|| "/notifications".into()),
     };
@@ -135,7 +135,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        models::Room,
+        models::Chat,
         notifications::{NotificationEvent, NotificationKind},
         push_notifications::{PushSubscriptionKeys, SavePushSubscriptionRequest},
     };
@@ -245,25 +245,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn room_preferences_gate_delivery_at_send_time() {
+    async fn chat_preferences_gate_delivery_at_send_time() {
         let (state, recipient_id, _) = fixture().await;
         let room_id = uuid::Uuid::new_v4();
         let created_at = Utc::now();
         state
-            .create_room_with_owner(
-                Room {
+            .create_chat_with_owner(
+                Chat {
                     id: room_id,
-                    name: "push-room".into(),
-                    password_hash: String::new(),
-                    has_password: false,
+                    title: "push-chat".into(),
                     creator_user_id: Some(recipient_id),
                     join_policy: "open".into(),
-                    avatar_emoji: String::new(),
-                    description: String::new(),
-                    membership_status: None,
-                    membership_role: None,
-                    unread_count: 0,
                     created_at,
+                    ..Chat::default()
                 },
                 recipient_id,
             )
@@ -271,11 +265,11 @@ mod tests {
             .unwrap();
 
         assert!(state
-            .room_allows_push(recipient_id, room_id, false)
+            .chat_allows_push(recipient_id, room_id, false)
             .await
             .unwrap());
         sqlx::query(
-            "UPDATE room_memberships SET notification_level = 'mentions' \
+            "UPDATE chat_members SET notification_level = 'mentions' \
              WHERE room_id = $1 AND user_id = $2",
         )
         .bind(room_id)
@@ -284,36 +278,34 @@ mod tests {
         .await
         .unwrap();
         assert!(!state
-            .room_allows_push(recipient_id, room_id, false)
+            .chat_allows_push(recipient_id, room_id, false)
             .await
             .unwrap());
         assert!(state
-            .room_allows_push(recipient_id, room_id, true)
+            .chat_allows_push(recipient_id, room_id, true)
             .await
             .unwrap());
 
-        sqlx::query(
-            "UPDATE room_memberships SET muted_until = $1 WHERE room_id = $2 AND user_id = $3",
-        )
-        .bind(created_at + chrono::Duration::hours(1))
-        .bind(room_id)
-        .bind(recipient_id)
-        .execute(state.pool())
-        .await
-        .unwrap();
-        assert!(!state
-            .room_allows_push(recipient_id, room_id, true)
-            .await
-            .unwrap());
-
-        sqlx::query("DELETE FROM room_memberships WHERE room_id = $1 AND user_id = $2")
+        sqlx::query("UPDATE chat_members SET muted_until = $1 WHERE room_id = $2 AND user_id = $3")
+            .bind(created_at + chrono::Duration::hours(1))
             .bind(room_id)
             .bind(recipient_id)
             .execute(state.pool())
             .await
             .unwrap();
         assert!(!state
-            .room_allows_push(recipient_id, room_id, true)
+            .chat_allows_push(recipient_id, room_id, true)
+            .await
+            .unwrap());
+
+        sqlx::query("DELETE FROM chat_members WHERE room_id = $1 AND user_id = $2")
+            .bind(room_id)
+            .bind(recipient_id)
+            .execute(state.pool())
+            .await
+            .unwrap();
+        assert!(!state
+            .chat_allows_push(recipient_id, room_id, true)
             .await
             .unwrap());
     }

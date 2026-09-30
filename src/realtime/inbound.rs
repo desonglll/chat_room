@@ -2,15 +2,15 @@
 
 use uuid::Uuid;
 
-use crate::models::{ChatMessage, RoomMember, User};
+use crate::models::{ChatMember, ChatMessage, User};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::ws_auth::{normalize_message, normalize_typing};
 
-/// Match `@username` tokens in `content` against the room's active participants.
+/// Match `@username` tokens in `content` against the chat's active participants.
 /// A match requires a non-alphanumeric (or end-of-string) boundary right after the
 /// username so `@bob` doesn't spuriously match a message that says `@bobby`.
-fn extract_mentions(content: &str, participants: &[RoomMember], exclude: Uuid) -> Vec<Uuid> {
+fn extract_mentions(content: &str, participants: &[ChatMember], exclude: Uuid) -> Vec<Uuid> {
     participants
         .iter()
         .filter(|member| member.user_id != exclude && !member.username.is_empty())
@@ -34,7 +34,7 @@ pub async fn handle_client_message(
     message: ChatMessage,
 ) {
     let active = state
-        .has_room_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send")
         .await
         .unwrap_or(false);
     if !active {
@@ -79,7 +79,7 @@ pub async fn handle_client_message(
             {
                 Ok(result) => {
                     let stored = result.message;
-                    let participants = state.room_participants(room_id).await.unwrap_or_default();
+                    let participants = state.chat_participants(room_id).await.unwrap_or_default();
                     let mentions = extract_mentions(&stored.content, &participants, user.id);
                     if result.inserted && !mentions.is_empty() {
                         if let Err(error) =

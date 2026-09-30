@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::models::{RoomTask, RoomTaskSource};
+use super::models::{ChatTask, ChatTaskSource};
 use crate::state::{with_pool, AppState};
 
 #[derive(FromRow)]
@@ -28,12 +28,12 @@ struct TaskRow {
 }
 
 impl TaskRow {
-    fn into_task(self, viewer_id: Uuid, viewer_role: &str) -> RoomTask {
+    fn into_task(self, viewer_id: Uuid, viewer_role: &str) -> ChatTask {
         let manages = matches!(viewer_role, "owner" | "admin");
         let can_update =
             manages || self.created_by_id == Some(viewer_id) || self.assignee_id == Some(viewer_id);
         let source = self.source_message_id.and_then(|message_id| {
-            Some(RoomTaskSource {
+            Some(ChatTaskSource {
                 message_id,
                 sender: self.source_sender?,
                 excerpt: if self.source_recalled_at.is_none() {
@@ -45,7 +45,7 @@ impl TaskRow {
                 sent_at: self.source_created_at?,
             })
         });
-        RoomTask {
+        ChatTask {
             id: self.id,
             room_id: self.room_id,
             title: self.title,
@@ -74,9 +74,9 @@ impl AppState {
     ) -> Result<Option<String>, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_scalar(
-                "SELECT roles.name FROM room_memberships memberships \
-                 JOIN room_roles roles ON roles.id = memberships.role_id \
-                 JOIN rooms ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
+                "SELECT roles.name FROM chat_members memberships \
+                 JOIN chat_roles roles ON roles.id = memberships.role_id \
+                 JOIN chats ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
                  WHERE memberships.room_id = $1 AND memberships.user_id = $2 \
                    AND memberships.status = 'active'",
             )
@@ -95,15 +95,15 @@ impl AppState {
         Ok(self.active_task_role(room_id, user_id).await?.is_some())
     }
 
-    pub async fn room_tasks(
+    pub async fn chat_tasks(
         &self,
         room_id: Uuid,
         viewer_id: Uuid,
-    ) -> Result<Option<Vec<RoomTask>>, sqlx::Error> {
+    ) -> Result<Option<Vec<ChatTask>>, sqlx::Error> {
         let Some(role) = self.active_task_role(room_id, viewer_id).await? else {
             return Ok(None);
         };
-        let rows = self.load_room_tasks(room_id, None).await?;
+        let rows = self.load_chat_tasks(room_id, None).await?;
         Ok(Some(
             rows.into_iter()
                 .map(|row| row.into_task(viewer_id, &role))
@@ -111,24 +111,24 @@ impl AppState {
         ))
     }
 
-    pub(super) async fn room_task(
+    pub(super) async fn chat_task(
         &self,
         room_id: Uuid,
         task_id: Uuid,
         viewer_id: Uuid,
-    ) -> Result<Option<RoomTask>, sqlx::Error> {
+    ) -> Result<Option<ChatTask>, sqlx::Error> {
         let Some(role) = self.active_task_role(room_id, viewer_id).await? else {
             return Ok(None);
         };
         Ok(self
-            .load_room_tasks(room_id, Some(task_id))
+            .load_chat_tasks(room_id, Some(task_id))
             .await?
             .into_iter()
             .next()
             .map(|row| row.into_task(viewer_id, &role)))
     }
 
-    async fn load_room_tasks(
+    async fn load_chat_tasks(
         &self,
         room_id: Uuid,
         task_id: Option<Uuid>,
@@ -144,9 +144,9 @@ impl AppState {
              messages.sender AS source_sender, messages.content AS source_content, \
              messages.recalled_at AS source_recalled_at, messages.created_at AS source_created_at, \
              tasks.due_at, tasks.version, tasks.created_at, tasks.updated_at \
-             FROM room_tasks tasks \
+             FROM chat_tasks tasks \
              LEFT JOIN users assignees ON assignees.id = tasks.assignee_id \
-             LEFT JOIN room_memberships active_assignees ON active_assignees.room_id = tasks.room_id \
+             LEFT JOIN chat_members active_assignees ON active_assignees.room_id = tasks.room_id \
                AND active_assignees.user_id = tasks.assignee_id AND active_assignees.status = 'active' \
              LEFT JOIN users creators ON creators.id = tasks.created_by_id \
              LEFT JOIN messages ON messages.id = tasks.source_message_id \

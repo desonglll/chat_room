@@ -107,20 +107,20 @@ impl ApiClient {
         .await
     }
 
-    pub async fn rooms(&self) -> ApiResult<Vec<RoomSummary>> {
-        self.json(self.auth(Method::GET, "/api/rooms")?, "load rooms")
+    pub async fn chats(&self) -> ApiResult<Vec<ChatSummary>> {
+        self.json(self.auth(Method::GET, "/api/rooms")?, "load chats")
             .await
     }
 
-    pub async fn discover_rooms(&self) -> ApiResult<Vec<RoomSummary>> {
+    pub async fn discover_chats(&self) -> ApiResult<Vec<ChatSummary>> {
         self.json(
             self.auth(Method::GET, "/api/rooms/discover")?,
-            "discover rooms",
+            "discover chats",
         )
         .await
     }
 
-    pub async fn create_room(&self, name: &str, password: Option<&str>) -> ApiResult<RoomSummary> {
+    pub async fn create_chat(&self, name: &str, password: Option<&str>) -> ApiResult<ChatSummary> {
         self.json(
             self.auth(Method::POST, "/api/rooms")?
                 .json(&serde_json::json!({
@@ -130,20 +130,20 @@ impl ApiClient {
                     "avatar_emoji": "",
                     "description": ""
                 })),
-            "create room",
+            "create chat",
         )
         .await
     }
 
-    pub async fn join_room(
+    pub async fn join_chat(
         &self,
         room_id: Uuid,
         password: Option<&str>,
-    ) -> ApiResult<RoomMembership> {
+    ) -> ApiResult<ChatMembership> {
         self.json(
             self.auth(Method::POST, &format!("/api/rooms/{room_id}/join-requests"))?
                 .json(&serde_json::json!({ "password": password })),
-            "join room",
+            "join chat",
         )
         .await
     }

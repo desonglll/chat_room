@@ -344,10 +344,10 @@ pub async fn delete_account(
         return Err(StatusCode::CONFLICT);
     }
 
-    for room in state.list_rooms(None).await {
-        if room.creator_user_id == Some(current.id) {
+    for chat in state.list_chats(None).await {
+        if chat.creator_user_id == Some(current.id) {
             state
-                .delete_room(room.id, &room.password_hash)
+                .delete_chat(chat.id, &chat.password_hash)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
@@ -385,7 +385,7 @@ pub async fn delete_account(
     }
     for room_id in direct_room_ids {
         state
-            .remove_cached_room(room_id, "direct conversation closed")
+            .remove_cached_chat(room_id, "direct conversation closed")
             .await;
     }
     Ok(StatusCode::NO_CONTENT)

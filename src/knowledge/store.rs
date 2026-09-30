@@ -233,12 +233,12 @@ where
     query
         .push_bind(room_id)
         .push(
-            " AND messages.recalled_at IS NULL AND EXISTS (SELECT 1 FROM room_memberships \
-               WHERE room_memberships.room_id = messages.room_id \
-                 AND room_memberships.user_id = ",
+            " AND messages.recalled_at IS NULL AND EXISTS (SELECT 1 FROM chat_members \
+               WHERE chat_members.room_id = messages.room_id \
+                 AND chat_members.user_id = ",
         )
         .push_bind(user_id)
-        .push(" AND room_memberships.status = 'active') AND messages.id IN (");
+        .push(" AND chat_members.status = 'active') AND messages.id IN (");
     {
         let mut values = query.separated(", ");
         for message_id in message_ids {

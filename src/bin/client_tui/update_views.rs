@@ -35,7 +35,7 @@ impl App {
             }
             KeyCode::Enter => {
                 if let Some(result) = self.search_results.get(self.search_index) {
-                    return self.connect_room(result.room_id, Some(result.message_id));
+                    return self.connect_chat(result.room_id, Some(result.message_id));
                 }
             }
             _ => {}
@@ -62,7 +62,7 @@ impl App {
                 let mut actions = vec![Action::ReadNotification(item.id)];
                 if item.source_available {
                     if let Some(room_id) = item.room_id {
-                        actions.extend(self.connect_room(room_id, item.message_id));
+                        actions.extend(self.connect_chat(room_id, item.message_id));
                     }
                 }
                 return actions;
@@ -108,7 +108,7 @@ impl App {
             KeyCode::Enter => {
                 if let Some(item) = self.selected_favorite() {
                     if let Some(room_id) = item.source_room_id {
-                        return self.connect_room(room_id, item.source_message_id);
+                        return self.connect_chat(room_id, item.source_message_id);
                     }
                 }
             }
@@ -128,10 +128,10 @@ impl App {
                         return vec![Action::AskAi {
                             thread_id: self.selected_ai_thread().map(|thread| thread.id),
                             question,
-                            room_id: self.active_room,
-                            room_password: self
-                                .active_room
-                                .and_then(|room_id| self.room_passwords.get(&room_id).cloned()),
+                            room_id: self.active_chat,
+                            chat_password: self
+                                .active_chat
+                                .and_then(|room_id| self.chat_passwords.get(&room_id).cloned()),
                         }];
                     }
                 }

@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn broad_visual_selection_keeps_the_full_room_chronology_for_batched_processing() {
+    fn broad_visual_selection_keeps_the_full_chat_chronology_for_batched_processing() {
         let sources = (0..9)
             .map(|index| source(index, "聊天截图"))
             .collect::<Vec<_>>();

@@ -132,8 +132,8 @@ async fn visual_pipeline_reuses_cache_binds_context_and_reports_partial_failures
     let base = format!("http://{app_address}");
     let client = Client::new();
     let token = session_token(&base, "vision-pipeline-owner").await;
-    let room: Value = client
-        .post(format!("{base}/api/rooms"))
+    let chat: Value = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&token)
         .json(&json!({"name": "Vision pipeline", "join_policy": "open"}))
         .send()
@@ -142,7 +142,7 @@ async fn visual_pipeline_reuses_cache_binds_context_and_reports_partial_failures
         .json()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     upload_image(
         &client,
         &base,
@@ -200,7 +200,7 @@ async fn upload_image(
         .mime_str("image/png")
         .unwrap();
     let response = client
-        .post(format!("{base}/api/rooms/{room_id}/attachments"))
+        .post(format!("{base}/api/chats/{room_id}/attachments"))
         .bearer_auth(token)
         .multipart(
             multipart::Form::new()

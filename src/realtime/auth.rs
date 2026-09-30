@@ -1,8 +1,8 @@
-//! WebSocket room and account authentication rules.
+//! WebSocket chat and account authentication rules.
 
 use sha2::{Digest, Sha256};
 
-use crate::models::{ChatMessage, Room, User};
+use crate::models::{Chat, ChatMessage, User};
 use crate::state::SharedState;
 
 const MAX_MESSAGE_CHARS: usize = 4096;
@@ -15,7 +15,7 @@ pub(crate) struct AuthenticatedUser {
 
 pub(crate) async fn authenticate(
     state: &SharedState,
-    room: &Room,
+    chat: &Chat,
     message: ChatMessage,
 ) -> Result<AuthenticatedUser, String> {
     let (token, supplied_password) = match message {
@@ -32,9 +32,9 @@ pub(crate) async fn authenticate(
             "authentication unavailable".to_string()
         })?
         .ok_or_else(|| "login required".to_string())?;
-    if room.has_password {
+    if chat.has_password {
         let is_active_member = state
-            .membership_identity(room.id, user.id)
+            .membership_identity(chat.id, user.id)
             .await
             .map_err(|error| {
                 tracing::error!("load WebSocket membership failed: {}", error);
@@ -43,13 +43,13 @@ pub(crate) async fn authenticate(
             .is_some_and(|(status, _)| status == "active");
         if !is_active_member {
             let password = supplied_password
-                .ok_or_else(|| "this room requires a password - send auth, not join".to_string())?;
+                .ok_or_else(|| "this chat requires a password - send auth, not join".to_string())?;
             if password.chars().count() > MAX_PASSWORD_CHARS {
                 return Err("password too long".into());
             }
             let mut hasher = Sha256::new();
             hasher.update(password.as_bytes());
-            if hex::encode(hasher.finalize()) != room.password_hash {
+            if hex::encode(hasher.finalize()) != chat.password_hash {
                 return Err("wrong password".into());
             }
         }

@@ -234,10 +234,10 @@ pub async fn delete_friend(
         })?
     {
         state
-            .disconnect_room_member(room_id, user_id, "friendship removed")
+            .disconnect_chat_member(room_id, user_id, "friendship removed")
             .await;
         state
-            .disconnect_room_member(room_id, target_id, "friendship removed")
+            .disconnect_chat_member(room_id, target_id, "friendship removed")
             .await;
     }
     Ok(StatusCode::NO_CONTENT)
@@ -326,10 +326,10 @@ pub async fn block_user(
         })?;
     if let Some(room_id) = room_id {
         state
-            .disconnect_room_member(room_id, user_id, "user blocked")
+            .disconnect_chat_member(room_id, user_id, "user blocked")
             .await;
         state
-            .disconnect_room_member(room_id, target_id, "user blocked")
+            .disconnect_chat_member(room_id, target_id, "user blocked")
             .await;
     }
     Ok(StatusCode::NO_CONTENT)

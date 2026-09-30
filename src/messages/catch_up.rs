@@ -21,7 +21,7 @@ impl AppState {
     ) -> Result<Option<CatchUpWindow>, sqlx::Error> {
         let after_message_id = with_pool!(self, |pool| {
             sqlx::query_scalar(
-                "SELECT message_id FROM room_reads WHERE room_id = $1 AND user_id = $2",
+                "SELECT message_id FROM chat_reads WHERE room_id = $1 AND user_id = $2",
             )
             .bind(room_id)
             .bind(user_id)
@@ -102,7 +102,7 @@ impl AppState {
         limit: usize,
     ) -> Result<Vec<StoredMessage>, sqlx::Error> {
         let limit = i64::try_from(limit.min(500)).unwrap_or(500).max(1);
-        let membership = "EXISTS (SELECT 1 FROM room_memberships membership \
+        let membership = "EXISTS (SELECT 1 FROM chat_members membership \
             WHERE membership.room_id = $1 AND membership.user_id = $2 \
             AND membership.status = 'active')";
         let query = match after_message_id {

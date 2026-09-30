@@ -1,4 +1,4 @@
-//! Shared room state backed by SQLite with in-memory broadcast channels.
+//! Shared chat state backed by SQLite with in-memory broadcast channels.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicBool;
@@ -16,17 +16,21 @@ use crate::attachments::upload_hashes::UploadHashTracker;
 use crate::cache::RedisCache;
 use crate::config::AppConfig;
 use crate::knowledge::MessageIndex;
-use crate::models::{ChatMessage, Room, RoomMember, User};
+use crate::models::{Chat, ChatMember, ChatMessage, User};
 use crate::security::AuthRateLimits;
 use crate::social::rate_limits::SocialRateLimits;
 use crate::storage;
 use crate::work_queue::WorkQueue;
 
-pub(crate) const SELECT_ROOMS: &str = "SELECT id, name, password_hash, \
+pub(crate) const SELECT_CHATS: &str = "SELECT id, chat_type, title, password_hash, \
      password_hash <> '' AS has_password, creator_user_id, join_policy, \
-     avatar_emoji, description, \
+     avatar_emoji, description, username, access_hash, is_forum, linked_chat_id, \
+     CAST(slow_mode_seconds AS BIGINT) AS slow_mode_seconds, \
+     CAST(auto_delete_seconds AS BIGINT) AS auto_delete_seconds, \
+     signatures_enabled, history_visible_to_new_members, \
+     CAST(member_count AS BIGINT) AS member_count, \
      CAST(NULL AS TEXT) AS membership_status, CAST(NULL AS TEXT) AS membership_role, \
-     CAST(0 AS BIGINT) AS unread_count, created_at FROM rooms WHERE deleted_at IS NULL";
+     CAST(0 AS BIGINT) AS unread_count, created_at FROM chats WHERE deleted_at IS NULL";
 
 macro_rules! with_pool {
     ($state:expr, |$pool:ident| $body:block) => {
@@ -39,40 +43,40 @@ macro_rules! with_pool {
 pub(crate) use with_pool;
 
 #[derive(Clone)]
-pub(crate) enum RoomEvent {
+pub(crate) enum ChatEvent {
     Message(Box<ChatMessage>),
     Disconnect { reason: String },
     DisconnectUser { user_id: Uuid, reason: String },
 }
 
-pub(crate) struct RoomChannel {
-    tx: broadcast::Sender<RoomEvent>,
+pub(crate) struct ChatChannel {
+    tx: broadcast::Sender<ChatEvent>,
 }
 
 pub(crate) struct ConnectedMember {
-    member: RoomMember,
+    member: ChatMember,
     connections: usize,
 }
 
-impl RoomChannel {
+impl ChatChannel {
     pub(crate) fn new() -> Self {
         let (tx, _) = broadcast::channel(256);
         Self { tx }
     }
 }
 
-/// Application state. SQLite is durable storage; the room map is a read cache.
+/// Application state. SQLite is durable storage; the chat map is a read cache.
 pub struct AppState {
     pub(crate) pool: storage::DatabasePool,
-    pub(crate) rooms: RwLock<HashMap<Uuid, Room>>,
-    pub(crate) channels: RwLock<HashMap<Uuid, RoomChannel>>,
+    pub(crate) chats: RwLock<HashMap<Uuid, Chat>>,
+    pub(crate) channels: RwLock<HashMap<Uuid, ChatChannel>>,
     pub(crate) members: RwLock<HashMap<Uuid, HashMap<Uuid, ConnectedMember>>>,
     pub(crate) max_upload_bytes: usize,
     pub(crate) attachment_store: AttachmentStore,
     pub(crate) content_hash_locks: ContentHashLocks,
     pub(crate) upload_hashes: UploadHashTracker,
     pub(crate) runtime_metrics: RuntimeMetrics,
-    /// Per-(room, from, target) cooldown timestamps for rate-limited, ephemeral
+    /// Per-(chat, from, target) cooldown timestamps for rate-limited, ephemeral
     /// actions (poke, AI suggestions) that don't need database persistence.
     pub(crate) action_cooldowns: RwLock<HashMap<(Uuid, Uuid, Uuid), Instant>>,
     pub(crate) social_rate_limits: SocialRateLimits,
@@ -91,7 +95,7 @@ pub struct AppState {
 
 impl AppState {
     /// Returns true (and starts a new cooldown window) if enough time has passed
-    /// since the last time this exact (room, from, target) action fired.
+    /// since the last time this exact (chat, from, target) action fired.
     pub(crate) async fn check_action_cooldown(
         &self,
         room_id: Uuid,
@@ -111,27 +115,27 @@ impl AppState {
         true
     }
 
-    pub(crate) async fn cache_inserted_room(&self, room: Room) {
-        let id = room.id;
-        self.rooms.write().await.insert(id, room);
-        self.channels.write().await.insert(id, RoomChannel::new());
+    pub(crate) async fn cache_inserted_chat(&self, chat: Chat) {
+        let id = chat.id;
+        self.chats.write().await.insert(id, chat);
+        self.channels.write().await.insert(id, ChatChannel::new());
     }
 
-    pub(crate) async fn cache_updated_room(&self, room: Room) {
-        self.rooms.write().await.insert(room.id, room);
+    pub(crate) async fn cache_updated_chat(&self, chat: Chat) {
+        self.chats.write().await.insert(chat.id, chat);
     }
 
-    pub(crate) async fn remove_cached_room(&self, id: Uuid, reason: &str) {
-        self.rooms.write().await.remove(&id);
-        self.disconnect_room(id, reason).await;
+    pub(crate) async fn remove_cached_chat(&self, id: Uuid, reason: &str) {
+        self.chats.write().await.remove(&id);
+        self.disconnect_chat(id, reason).await;
     }
 
-    /// Return rooms in stable creation order, optionally filtered by exact name.
-    pub async fn list_rooms(&self, name: Option<&str>) -> Vec<Room> {
-        let rooms = self.rooms.read().await;
-        let mut list: Vec<Room> = rooms
+    /// Return chats in stable creation order, optionally filtered by exact name.
+    pub async fn list_chats(&self, name: Option<&str>) -> Vec<Chat> {
+        let chats = self.chats.read().await;
+        let mut list: Vec<Chat> = chats
             .values()
-            .filter(|room| name.is_none_or(|wanted| room.name == wanted))
+            .filter(|chat| name.is_none_or(|wanted| chat.title == wanted))
             .cloned()
             .collect();
         list.sort_by(|left, right| {
@@ -142,31 +146,31 @@ impl AppState {
         list
     }
 
-    pub async fn room(&self, id: Uuid) -> Option<Room> {
-        self.rooms.read().await.get(&id).cloned()
+    pub async fn chat(&self, id: Uuid) -> Option<Chat> {
+        self.chats.read().await.get(&id).cloned()
     }
 
-    pub(crate) async fn subscribe(&self, id: Uuid) -> Option<broadcast::Receiver<RoomEvent>> {
+    pub(crate) async fn subscribe(&self, id: Uuid) -> Option<broadcast::Receiver<ChatEvent>> {
         self.channels
             .read()
             .await
             .get(&id)
-            .map(|room| room.tx.subscribe())
+            .map(|chat| chat.tx.subscribe())
     }
 
     pub async fn broadcast(&self, id: Uuid, message: ChatMessage) {
-        if let Some(room) = self.channels.read().await.get(&id) {
-            let _ = room.tx.send(RoomEvent::Message(Box::new(message)));
+        if let Some(chat) = self.channels.read().await.get(&id) {
+            let _ = chat.tx.send(ChatEvent::Message(Box::new(message)));
         }
     }
 
     /// Track unique accounts while allowing the same account to use multiple tabs.
-    pub async fn member_connected(&self, room_id: Uuid, user: &User) -> (Vec<RoomMember>, bool) {
-        let mut rooms = self.members.write().await;
-        let room = rooms.entry(room_id).or_default();
-        let first_connection = !room.contains_key(&user.id);
-        let connected = room.entry(user.id).or_insert_with(|| ConnectedMember {
-            member: RoomMember {
+    pub async fn member_connected(&self, room_id: Uuid, user: &User) -> (Vec<ChatMember>, bool) {
+        let mut chats = self.members.write().await;
+        let chat = chats.entry(room_id).or_default();
+        let first_connection = !chat.contains_key(&user.id);
+        let connected = chat.entry(user.id).or_insert_with(|| ConnectedMember {
+            member: ChatMember {
                 user_id: user.id,
                 username: user.username.clone(),
                 avatar_emoji: user.avatar_emoji.clone(),
@@ -174,51 +178,51 @@ impl AppState {
             connections: 0,
         });
         connected.connections += 1;
-        (sorted_members(room), first_connection)
+        (sorted_members(chat), first_connection)
     }
 
-    /// Remove one socket and report whether the account fully left the room.
+    /// Remove one socket and report whether the account fully left the chat.
     pub async fn member_disconnected(
         &self,
         room_id: Uuid,
         user_id: Uuid,
-    ) -> (Vec<RoomMember>, bool) {
-        let mut rooms = self.members.write().await;
-        let Some(room) = rooms.get_mut(&room_id) else {
+    ) -> (Vec<ChatMember>, bool) {
+        let mut chats = self.members.write().await;
+        let Some(chat) = chats.get_mut(&room_id) else {
             return (Vec::new(), false);
         };
-        let fully_disconnected = match room.get_mut(&user_id) {
+        let fully_disconnected = match chat.get_mut(&user_id) {
             Some(connected) if connected.connections > 1 => {
                 connected.connections -= 1;
                 false
             }
             Some(_) => {
-                room.remove(&user_id);
+                chat.remove(&user_id);
                 true
             }
             None => false,
         };
-        let members = sorted_members(room);
-        if room.is_empty() {
-            rooms.remove(&room_id);
+        let members = sorted_members(chat);
+        if chat.is_empty() {
+            chats.remove(&room_id);
         }
         (members, fully_disconnected)
     }
 
-    pub async fn remove_connected_member(&self, room_id: Uuid, user_id: Uuid) -> Vec<RoomMember> {
-        let mut rooms = self.members.write().await;
-        let Some(room) = rooms.get_mut(&room_id) else {
+    pub async fn remove_connected_member(&self, room_id: Uuid, user_id: Uuid) -> Vec<ChatMember> {
+        let mut chats = self.members.write().await;
+        let Some(chat) = chats.get_mut(&room_id) else {
             return Vec::new();
         };
-        room.remove(&user_id);
-        let members = sorted_members(room);
-        if room.is_empty() {
-            rooms.remove(&room_id);
+        chat.remove(&user_id);
+        let members = sorted_members(chat);
+        if chat.is_empty() {
+            chats.remove(&room_id);
         }
         members
     }
 
-    pub async fn connected_members(&self, room_id: Uuid) -> Vec<RoomMember> {
+    pub async fn connected_members(&self, room_id: Uuid) -> Vec<ChatMember> {
         self.members
             .read()
             .await
@@ -227,9 +231,9 @@ impl AppState {
             .unwrap_or_default()
     }
 
-    pub async fn disconnect_room_member(&self, id: Uuid, user_id: Uuid, reason: &str) {
-        if let Some(room) = self.channels.read().await.get(&id) {
-            let _ = room.tx.send(RoomEvent::DisconnectUser {
+    pub async fn disconnect_chat_member(&self, id: Uuid, user_id: Uuid, reason: &str) {
+        if let Some(chat) = self.channels.read().await.get(&id) {
+            let _ = chat.tx.send(ChatEvent::DisconnectUser {
                 user_id,
                 reason: reason.to_string(),
             });
@@ -237,19 +241,19 @@ impl AppState {
     }
 
     pub async fn disconnect_all_chat_rooms(&self, reason: &str) {
-        for room in self.channels.read().await.values() {
-            let _ = room.tx.send(RoomEvent::Disconnect {
+        for chat in self.channels.read().await.values() {
+            let _ = chat.tx.send(ChatEvent::Disconnect {
                 reason: reason.to_string(),
             });
         }
     }
 
-    /// Refresh a connected account in every room and publish the new member snapshots.
+    /// Refresh a connected account in every chat and publish the new member snapshots.
     pub async fn publish_member_profile(&self, user: &User) {
         let snapshots = {
-            let mut rooms = self.members.write().await;
+            let mut chats = self.members.write().await;
             let mut snapshots = Vec::new();
-            for (room_id, members) in rooms.iter_mut() {
+            for (room_id, members) in chats.iter_mut() {
                 let Some(connected) = members.get_mut(&user.id) else {
                     continue;
                 };
@@ -261,11 +265,11 @@ impl AppState {
         };
 
         for (room_id, members) in snapshots {
-            let participants = match self.room_participants(room_id).await {
+            let participants = match self.chat_participants(room_id).await {
                 Ok(participants) => participants,
                 Err(error) => {
                     tracing::warn!(
-                        "load room participants for profile update failed: {}",
+                        "load chat participants for profile update failed: {}",
                         error
                     );
                     Vec::new()
@@ -282,29 +286,29 @@ impl AppState {
         }
     }
 
-    /// Close current room sessions and install a fresh channel for future joins.
-    pub async fn restart_room_connections(&self, id: Uuid, reason: &str) {
-        let previous = self.channels.write().await.insert(id, RoomChannel::new());
+    /// Close current chat sessions and install a fresh channel for future joins.
+    pub async fn restart_chat_connections(&self, id: Uuid, reason: &str) {
+        let previous = self.channels.write().await.insert(id, ChatChannel::new());
         if let Some(previous) = previous {
-            let _ = previous.tx.send(RoomEvent::Disconnect {
+            let _ = previous.tx.send(ChatEvent::Disconnect {
                 reason: reason.to_string(),
             });
         }
     }
 
-    async fn disconnect_room(&self, id: Uuid, reason: &str) {
-        if let Some(room) = self.channels.write().await.remove(&id) {
-            let _ = room.tx.send(RoomEvent::Disconnect {
+    async fn disconnect_chat(&self, id: Uuid, reason: &str) {
+        if let Some(chat) = self.channels.write().await.remove(&id) {
+            let _ = chat.tx.send(ChatEvent::Disconnect {
                 reason: reason.to_string(),
             });
         }
     }
 
     pub(crate) async fn online_counts(&self) -> (u64, u64) {
-        let rooms = self.members.read().await;
+        let chats = self.members.read().await;
         let mut users = HashSet::new();
         let mut connections = 0u64;
-        for members in rooms.values() {
+        for members in chats.values() {
             for (user_id, connected) in members {
                 users.insert(*user_id);
                 connections += connected.connections as u64;
@@ -317,7 +321,7 @@ impl AppState {
 /// Convenience alias used by axum handlers.
 pub type SharedState = Arc<AppState>;
 
-fn sorted_members(members: &HashMap<Uuid, ConnectedMember>) -> Vec<RoomMember> {
+fn sorted_members(members: &HashMap<Uuid, ConnectedMember>) -> Vec<ChatMember> {
     let mut result: Vec<_> = members
         .values()
         .map(|connected| connected.member.clone())

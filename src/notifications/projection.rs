@@ -89,36 +89,36 @@ pub(crate) const NOTIFICATION_SELECT: &str = "SELECT notifications.id, notificat
       WHERE (blocker_id = notifications.recipient_id AND blocked_id = notifications.actor_id) \
          OR (blocker_id = notifications.actor_id AND blocked_id = notifications.recipient_id)) \
       THEN actor.avatar_emoji ELSE NULL END AS actor_avatar_emoji, \
-    notifications.room_id, rooms.name AS room_name, notifications.message_id, \
+    notifications.room_id, chats.title AS room_name, notifications.message_id, \
     messages.content AS message_content, notifications.run_id, \
     notifications.summary AS stored_summary, \
     CASE WHEN notifications.kind IN ('mention', 'reply') THEN \
-      messages.id IS NOT NULL AND messages.recalled_at IS NULL AND rooms.deleted_at IS NULL \
+      messages.id IS NOT NULL AND messages.recalled_at IS NULL AND chats.deleted_at IS NULL \
       AND viewer.status = 'active' \
       AND messages.created_at >= COALESCE(viewer.joined_at, viewer.requested_at) \
       AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE \
         (blocker_id = notifications.recipient_id AND blocked_id = notifications.actor_id) OR \
         (blocker_id = notifications.actor_id AND blocked_id = notifications.recipient_id)) \
     WHEN notifications.kind = 'room_join_request' THEN \
-      rooms.deleted_at IS NULL AND viewer.status = 'active' AND EXISTS ( \
-        SELECT 1 FROM room_role_permissions WHERE role_id = viewer.role_id \
+      chats.deleted_at IS NULL AND viewer.status = 'active' AND EXISTS ( \
+        SELECT 1 FROM chat_role_permissions WHERE role_id = viewer.role_id \
           AND permission_key = 'members.review') \
       AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE \
         (blocker_id = notifications.recipient_id AND blocked_id = notifications.actor_id) OR \
         (blocker_id = notifications.actor_id AND blocked_id = notifications.recipient_id)) \
     WHEN notifications.kind = 'ai_run_completed' THEN \
       ai_runs.id IS NOT NULL AND (notifications.room_id IS NULL OR \
-        (rooms.deleted_at IS NULL AND viewer.status = 'active')) \
+        (chats.deleted_at IS NULL AND viewer.status = 'active')) \
     WHEN notifications.kind = 'friend_request' THEN notifications.actor_id IS NOT NULL \
       AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE \
         (blocker_id = notifications.recipient_id AND blocked_id = notifications.actor_id) OR \
         (blocker_id = notifications.actor_id AND blocked_id = notifications.recipient_id)) \
     ELSE FALSE END AS source_available, notifications.created_at, notifications.read_at \
     FROM notifications LEFT JOIN users AS actor ON actor.id = notifications.actor_id \
-    LEFT JOIN rooms ON rooms.id = notifications.room_id \
+    LEFT JOIN chats ON chats.id = notifications.room_id \
     LEFT JOIN messages ON messages.id = notifications.message_id \
     LEFT JOIN ai_runs ON ai_runs.id = notifications.run_id \
-    LEFT JOIN room_memberships AS viewer ON viewer.room_id = notifications.room_id \
+    LEFT JOIN chat_members AS viewer ON viewer.room_id = notifications.room_id \
       AND viewer.user_id = notifications.recipient_id";
 
 fn summary(
@@ -147,10 +147,10 @@ fn summary(
             )
         }
         (NotificationKind::FriendRequest, false) => "Friend request activity".into(),
-        (NotificationKind::RoomJoinRequest, true) => format!(
+        (NotificationKind::ChatJoinRequest, true) => format!(
             "{} requested to join {}",
             actor_name.unwrap_or("Someone"),
-            room_name.unwrap_or("a room")
+            room_name.unwrap_or("a chat")
         ),
         (NotificationKind::Mention, true) => message_summary(message_content, "Mentioned you"),
         (NotificationKind::Reply, true) => message_summary(message_content, "Replied to you"),

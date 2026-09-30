@@ -2,7 +2,8 @@ use chrono::Utc;
 use std::collections::HashSet;
 use uuid::Uuid;
 
-use crate::models::Room;
+use crate::chats::ChatType;
+use crate::models::Chat;
 use crate::social::canonical_pair;
 use crate::state::{with_pool, AppState};
 
@@ -16,7 +17,7 @@ impl AppState {
     ) -> Result<Uuid, sqlx::Error> {
         let (low, high) = canonical_pair(user_id, peer_id);
         let now = Utc::now();
-        let mut created_room = None;
+        let mut created_chat = None;
         let room_id = with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             let friendship_locked = sqlx::query(
@@ -45,8 +46,8 @@ impl AppState {
             }
             let existing: Option<Uuid> = sqlx::query_scalar(
                 "SELECT direct_conversations.room_id FROM direct_conversations \
-                 JOIN rooms ON rooms.id = direct_conversations.room_id \
-                 WHERE user_low_id = $1 AND user_high_id = $2 AND rooms.deleted_at IS NULL",
+                 JOIN chats ON chats.id = direct_conversations.room_id \
+                 WHERE user_low_id = $1 AND user_high_id = $2 AND chats.deleted_at IS NULL",
             )
             .bind(low)
             .bind(high)
@@ -57,19 +58,30 @@ impl AppState {
                 None => {
                     let room_id = Uuid::new_v4();
                     let internal_name = format!("direct-{}", room_id.simple());
+                    let access_hash: String = Uuid::new_v4()
+                        .simple()
+                        .to_string()
+                        .chars()
+                        .take(16)
+                        .collect();
                     sqlx::query(
-                        "INSERT INTO rooms (id, name, password_hash, creator_user_id, \
-                         join_policy, avatar_emoji, description, created_at) \
-                         VALUES ($1, $2, '', NULL, 'approval', '', '', $3)",
+                        // A one-to-one conversation is a `private` chat with exactly the two
+                        // participants that direct_conversations records; member_count is
+                        // seeded to 2 in this same transaction.
+                        "INSERT INTO chats (id, chat_type, title, password_hash, \
+                         creator_user_id, join_policy, avatar_emoji, description, \
+                         access_hash, member_count, created_at) \
+                         VALUES ($1, 'private', $2, '', NULL, 'approval', '', '', $3, 2, $4)",
                     )
                     .bind(room_id)
                     .bind(&internal_name)
+                    .bind(&access_hash)
                     .bind(now)
                     .execute(&mut *transaction)
                     .await?;
                     let role_id = format!("{}:member", room_id.simple());
                     sqlx::query(
-                        "INSERT INTO room_roles (id, room_id, name, is_system, created_at) \
+                        "INSERT INTO chat_roles (id, room_id, name, is_system, created_at) \
                          VALUES ($1, $2, 'member', TRUE, $3)",
                     )
                     .bind(&role_id)
@@ -79,7 +91,7 @@ impl AppState {
                     .await?;
                     for permission in MEMBER_PERMISSIONS {
                         sqlx::query(
-                            "INSERT INTO room_role_permissions (role_id, permission_key) \
+                            "INSERT INTO chat_role_permissions (role_id, permission_key) \
                              VALUES ($1, $2)",
                         )
                         .bind(&role_id)
@@ -98,19 +110,15 @@ impl AppState {
                     .bind(now)
                     .execute(&mut *transaction)
                     .await?;
-                    created_room = Some(Room {
+                    created_chat = Some(Chat {
                         id: room_id,
-                        name: internal_name,
-                        password_hash: String::new(),
-                        has_password: false,
-                        creator_user_id: None,
+                        chat_type: ChatType::Private,
+                        title: internal_name,
                         join_policy: "approval".into(),
-                        avatar_emoji: String::new(),
-                        description: String::new(),
-                        membership_status: None,
-                        membership_role: None,
-                        unread_count: 0,
+                        access_hash,
+                        member_count: 2,
                         created_at: now,
+                        ..Chat::default()
                     });
                     room_id
                 }
@@ -118,12 +126,12 @@ impl AppState {
             let role_id = format!("{}:member", room_id.simple());
             for member_id in [low, high] {
                 sqlx::query(
-                    "INSERT INTO room_memberships \
+                    "INSERT INTO chat_members \
                      (room_id, user_id, role_id, status, requested_at, joined_at) \
                      VALUES ($1, $2, $3, 'active', $4, $5) \
                      ON CONFLICT(room_id, user_id) DO UPDATE SET status = 'active', \
                        role_id = excluded.role_id, \
-                       joined_at = COALESCE(room_memberships.joined_at, excluded.joined_at)",
+                       joined_at = COALESCE(chat_members.joined_at, excluded.joined_at)",
                 )
                 .bind(room_id)
                 .bind(member_id)
@@ -136,13 +144,13 @@ impl AppState {
             transaction.commit().await?;
             Ok::<_, sqlx::Error>(room_id)
         })?;
-        if let Some(room) = created_room {
-            self.cache_inserted_room(room).await;
+        if let Some(chat) = created_chat {
+            self.cache_inserted_chat(chat).await;
         }
         Ok(room_id)
     }
 
-    pub async fn is_direct_room(&self, room_id: Uuid) -> Result<bool, sqlx::Error> {
+    pub async fn is_direct_chat(&self, room_id: Uuid) -> Result<bool, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM direct_conversations WHERE room_id = $1)",

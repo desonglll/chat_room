@@ -9,12 +9,11 @@ use axum::{
 
 use crate::{
     account_ws, admin, admin_ai_models, admin_backups, admin_metrics, admin_services,
-    admin_system_admins, admin_system_lock, ai, ai_extractions, ai_governance, ai_suggestions,
-    ai_threads, attachment_handlers, attachment_upload_handlers, audit, avatar_handlers, config,
-    conversations, direct_conversations, favorites, file_handlers, forward_handlers, handlers,
-    membership_handlers, message_global_search, message_pins, message_search, notifications,
-    observability, push_notifications, registration, room_query_handlers, sessions, social,
-    state::AppState, tasks, user_handlers, ws,
+    admin_system_admins, admin_system_lock, ai, ai_extractions, ai_governance, ai_threads,
+    attachment_handlers, attachment_upload_handlers, audit, avatar_handlers, chats, config,
+    conversations, direct_conversations, favorites, forward_handlers, message_global_search,
+    notifications, observability, push_notifications, registration, sessions, social,
+    state::AppState, user_handlers, ws,
 };
 
 pub(crate) fn api_routes(
@@ -23,55 +22,12 @@ pub(crate) fn api_routes(
 ) -> Router<Arc<AppState>> {
     Router::new()
         .merge(observability::routes())
+        .merge(chats::routes::canonical(multipart_body_limit))
+        .merge(chats::routes::deprecated_alias(multipart_body_limit))
         .route("/api/config", get(config::public_config))
-        .route(
-            "/api/rooms",
-            get(room_query_handlers::list_rooms).post(handlers::create_room),
-        )
-        .route(
-            "/api/rooms/discover",
-            get(room_query_handlers::discover_rooms),
-        )
-        .route(
-            "/api/rooms/:id",
-            get(room_query_handlers::get_room)
-                .patch(handlers::update_room)
-                .delete(handlers::delete_room),
-        )
-        .route("/api/rooms/:id/messages", get(handlers::list_messages))
-        .route(
-            "/api/rooms/:id/tasks",
-            get(tasks::handlers::list).post(tasks::handlers::create),
-        )
-        .route(
-            "/api/rooms/:id/tasks/:task_id",
-            axum::routing::patch(tasks::handlers::update).delete(tasks::handlers::delete),
-        )
-        .route("/api/rooms/:id/pins", get(message_pins::list_pins))
-        .route(
-            "/api/rooms/:id/pins/:message_id",
-            axum::routing::post(message_pins::pin_message).delete(message_pins::unpin_message),
-        )
-        .route(
-            "/api/rooms/:id/messages/search",
-            get(message_search::search_messages),
-        )
         .route(
             "/api/messages/search",
             get(message_global_search::handlers::search_visible_messages),
-        )
-        .route(
-            "/api/rooms/:id/messages/:message_id/context",
-            get(message_search::message_context),
-        )
-        .route("/api/rooms/:id/files", get(file_handlers::list_room_files))
-        .route(
-            "/api/rooms/:id/ai/suggest",
-            axum::routing::post(ai_suggestions::suggest),
-        )
-        .route(
-            "/api/rooms/:id/ai/suggest/events",
-            axum::routing::post(ai_suggestions::suggest_events),
         )
         .route(
             "/api/ai/threads",
@@ -97,15 +53,6 @@ pub(crate) fn api_routes(
         )
         .route("/api/ai/runs/:id", get(ai_threads::runs::get_run))
         .route(
-            "/api/rooms/:id/ai/extractions",
-            axum::routing::post(ai_extractions::handlers::create),
-        )
-        .route(
-            "/api/rooms/:id/ai-policy",
-            get(ai_governance::handlers::room_policy)
-                .patch(ai_governance::handlers::update_room_policy),
-        )
-        .route(
             "/api/ai/extractions/:id",
             get(ai_extractions::handlers::get),
         )
@@ -118,39 +65,8 @@ pub(crate) fn api_routes(
             get(ai_threads::events::stream_run_events),
         )
         .route(
-            "/api/rooms/:id/members/me",
-            axum::routing::delete(membership_handlers::leave_room)
-                .patch(membership_handlers::update_own_nickname),
-        )
-        .route(
-            "/api/rooms/:id/join-requests",
-            axum::routing::post(membership_handlers::request_join),
-        )
-        .route(
-            "/api/rooms/:id/members",
-            get(membership_handlers::list_members),
-        )
-        .route(
-            "/api/rooms/:id/invitations",
-            axum::routing::post(membership_handlers::invite_member),
-        )
-        .route(
-            "/api/rooms/:id/members/:user_id",
-            axum::routing::patch(membership_handlers::update_member),
-        )
-        .route(
-            "/api/rooms/:id/attachments",
-            axum::routing::post(attachment_handlers::upload_attachment)
-                .layer(axum::extract::DefaultBodyLimit::max(multipart_body_limit)),
-        )
-        .route(
             "/api/attachments/:id",
             get(attachment_handlers::download_attachment),
-        )
-        .route(
-            "/api/rooms/:id/attachments/uploads",
-            axum::routing::post(attachment_upload_handlers::create_upload)
-                .get(attachment_upload_handlers::list_uploads),
         )
         .route(
             "/api/attachments/uploads/:id/chunks",
@@ -342,7 +258,7 @@ pub(crate) fn api_routes(
         )
         .route(
             "/api/admin/room-locks/:room_id",
-            get(admin_system_lock::room_status).put(admin_system_lock::update_room),
+            get(admin_system_lock::chat_status).put(admin_system_lock::update_chat),
         )
         .route("/ws/account", get(account_ws::account_ws_handler))
         .route("/ws/:room_id", get(ws::ws_handler))

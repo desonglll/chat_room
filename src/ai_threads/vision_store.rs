@@ -29,9 +29,9 @@ pub(super) async fn load_cached_projection(
                AND projections.model = $3 AND projections.prompt_version = $4 \
                AND attachments.room_id = $2 AND messages.id = $5 AND messages.room_id = $2 \
                AND messages.recalled_at IS NULL AND attachments.is_sensitive = FALSE \
-               AND EXISTS (SELECT 1 FROM room_memberships \
-                 WHERE room_memberships.room_id = $2 AND room_memberships.user_id = $6 \
-                   AND room_memberships.status = 'active') LIMIT 1",
+               AND EXISTS (SELECT 1 FROM chat_members \
+                 WHERE chat_members.room_id = $2 AND chat_members.user_id = $6 \
+                   AND chat_members.status = 'active') LIMIT 1",
         )
         .bind(attachment.id)
         .bind(room_id)
@@ -75,9 +75,9 @@ pub(super) async fn store_visual_projection(
              WHERE attachments.id = $6 AND attachments.room_id = $7 \
                AND messages.id = $8 AND messages.room_id = $7 \
                AND messages.recalled_at IS NULL AND attachments.is_sensitive = FALSE \
-               AND EXISTS (SELECT 1 FROM room_memberships \
-                 WHERE room_memberships.room_id = $7 AND room_memberships.user_id = $9 \
-                   AND room_memberships.status = 'active') \
+               AND EXISTS (SELECT 1 FROM chat_members \
+                 WHERE chat_members.room_id = $7 AND chat_members.user_id = $9 \
+                   AND chat_members.status = 'active') \
              ON CONFLICT (attachment_id, model, prompt_version) DO UPDATE SET \
                projection = excluded.projection, search_text = excluded.search_text, \
                updated_at = excluded.updated_at",
@@ -135,9 +135,9 @@ pub(super) async fn read_authorized_image(
              WHERE attachments.id = $1 AND messages.id = $2 AND messages.room_id = $3 \
                AND attachments.room_id = $3 \
                AND messages.recalled_at IS NULL AND attachments.is_sensitive = FALSE \
-               AND EXISTS (SELECT 1 FROM room_memberships \
-                 WHERE room_memberships.room_id = $3 AND room_memberships.user_id = $4 \
-                   AND room_memberships.status = 'active') LIMIT 1",
+               AND EXISTS (SELECT 1 FROM chat_members \
+                 WHERE chat_members.room_id = $3 AND chat_members.user_id = $4 \
+                   AND chat_members.status = 'active') LIMIT 1",
         )
         .bind(attachment.id)
         .bind(source.message_id)

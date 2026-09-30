@@ -23,8 +23,8 @@ pub(super) const FAVORITE_SELECT: &str = "SELECT favorites.id, favorites.user_id
     JOIN users AS owner ON owner.id = favorites.user_id \
     LEFT JOIN attachments ON attachments.id = favorites.attachment_id \
     LEFT JOIN messages AS source_message ON source_message.id = favorites.source_message_id \
-    LEFT JOIN rooms AS source_room ON source_room.id = source_message.room_id AND source_room.deleted_at IS NULL \
-    LEFT JOIN room_memberships AS source_membership ON source_membership.room_id = source_room.id \
+    LEFT JOIN chats AS source_chat ON source_chat.id = source_message.room_id AND source_chat.deleted_at IS NULL \
+    LEFT JOIN chat_members AS source_membership ON source_membership.room_id = source_chat.id \
       AND source_membership.user_id = $1 AND source_membership.status = 'active'";
 
 #[derive(FromRow)]
@@ -109,9 +109,9 @@ impl AppState {
              (SELECT 1 FROM favorite_collaborators AS visible_collaborator \
               WHERE visible_collaborator.favorite_id = favorites.id \
                 AND visible_collaborator.user_id = $1) OR EXISTS \
-             (SELECT 1 FROM room_pins \
-              JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
-              JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+             (SELECT 1 FROM chat_pins \
+              JOIN messages AS pinned_message ON pinned_message.id = chat_pins.message_id \
+              JOIN chat_members AS pinned_membership ON pinned_membership.room_id = chat_pins.room_id \
                 AND pinned_membership.user_id = $1 AND pinned_membership.status = 'active' \
               WHERE pinned_message.favorite_id = favorites.id) \
              ORDER BY favorites.created_at DESC, favorites.id DESC LIMIT 500"
@@ -133,9 +133,9 @@ impl AppState {
               (SELECT 1 FROM favorite_collaborators AS visible_collaborator \
                WHERE visible_collaborator.favorite_id = favorites.id \
                  AND visible_collaborator.user_id = $1) OR EXISTS \
-              (SELECT 1 FROM room_pins \
-               JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
-               JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+              (SELECT 1 FROM chat_pins \
+               JOIN messages AS pinned_message ON pinned_message.id = chat_pins.message_id \
+               JOIN chat_members AS pinned_membership ON pinned_membership.room_id = chat_pins.room_id \
                  AND pinned_membership.user_id = $1 AND pinned_membership.status = 'active' \
                WHERE pinned_message.favorite_id = favorites.id))"
         );
@@ -194,19 +194,19 @@ impl AppState {
                    CASE WHEN attachments.mime_type LIKE 'video/%' THEN 'video' ELSE 'message' END, \
                    CASE WHEN attachments.mime_type LIKE 'video/%' THEN attachments.file_name ELSE '' END, \
                    messages.content, messages.sender, \
-                   CASE WHEN direct.room_id IS NULL THEN rooms.name \
+                   CASE WHEN direct.room_id IS NULL THEN chats.title \
                      ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END, \
                    messages.attachment_id, $4, $4 \
-                 FROM messages JOIN rooms ON rooms.id = messages.room_id \
+                 FROM messages JOIN chats ON chats.id = messages.room_id \
                  LEFT JOIN attachments ON attachments.id = messages.attachment_id \
-                 LEFT JOIN direct_conversations AS direct ON direct.room_id = rooms.id \
+                 LEFT JOIN direct_conversations AS direct ON direct.room_id = chats.id \
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $2 THEN direct.user_high_id \
                    WHEN direct.user_high_id = $2 THEN direct.user_low_id ELSE NULL END \
                  WHERE messages.id = $3 AND messages.recalled_at IS NULL \
-                   AND EXISTS (SELECT 1 FROM room_memberships \
-                     WHERE room_memberships.room_id = messages.room_id \
-                       AND room_memberships.user_id = $2 AND room_memberships.status = 'active') \
+                   AND EXISTS (SELECT 1 FROM chat_members \
+                     WHERE chat_members.room_id = messages.room_id \
+                       AND chat_members.user_id = $2 AND chat_members.status = 'active') \
                  ON CONFLICT DO NOTHING",
             )
             .bind(id)
@@ -300,17 +300,17 @@ impl AppState {
                      (SELECT 1 FROM favorite_collaborators \
                      WHERE favorite_collaborators.favorite_id = favorites.id \
                         AND favorite_collaborators.user_id = $3) OR EXISTS \
-                     (SELECT 1 FROM room_pins \
-                      JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
-                      JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+                     (SELECT 1 FROM chat_pins \
+                      JOIN messages AS pinned_message ON pinned_message.id = chat_pins.message_id \
+                      JOIN chat_members AS pinned_membership ON pinned_membership.room_id = chat_pins.room_id \
                         AND pinned_membership.user_id = $3 AND pinned_membership.status = 'active' \
                       WHERE pinned_message.favorite_id = favorites.id)) \
-                   AND EXISTS (SELECT 1 FROM room_memberships \
-                     JOIN room_role_permissions ON room_role_permissions.role_id = room_memberships.role_id \
-                     JOIN rooms ON rooms.id = room_memberships.room_id AND rooms.deleted_at IS NULL \
-                     WHERE room_memberships.room_id = $2 AND room_memberships.user_id = $3 \
-                       AND room_memberships.status = 'active' \
-                       AND room_role_permissions.permission_key = 'message.send')",
+                   AND EXISTS (SELECT 1 FROM chat_members \
+                     JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
+                     JOIN chats ON chats.id = chat_members.room_id AND chats.deleted_at IS NULL \
+                     WHERE chat_members.room_id = $2 AND chat_members.user_id = $3 \
+                       AND chat_members.status = 'active' \
+                       AND chat_role_permissions.permission_key = 'message.send')",
             )
             .bind(id)
             .bind(target_room_id)

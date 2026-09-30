@@ -3,7 +3,7 @@ mod rag;
 mod store;
 mod worker;
 
-pub(crate) use rag::retrieve_room_context;
+pub(crate) use rag::retrieve_chat_context;
 pub use worker::ensure_worker;
 
 use anyhow::Result;
@@ -132,7 +132,7 @@ mod tests {
     type FakeServiceCalls = Arc<Mutex<Vec<(Method, String, serde_json::Value)>>>;
 
     #[tokio::test]
-    async fn openai_compatible_embeddings_drive_room_filtered_qdrant_search() {
+    async fn openai_compatible_embeddings_drive_chat_filtered_qdrant_search() {
         async fn fake_services(
             State(calls): State<FakeServiceCalls>,
             method: Method,

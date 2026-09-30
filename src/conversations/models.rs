@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::models::{Room, UserSummary};
+use crate::models::{ChatCompatView, UserSummary};
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct MessagePreview {
@@ -87,7 +87,11 @@ pub struct ConversationSummary {
     pub alias: String,
     pub avatar_emoji: String,
     pub description: String,
-    pub group: Option<Room>,
+    /// Serialised as `ChatCompatView`, i.e. with the deprecated `name` beside `title`:
+    /// `/api/conversations` has no `/api/rooms` alias of its own, so this is the only way the
+    /// frozen Vue, PySide6 and ratatui clients keep reading a chat's display name. M6 drops the
+    /// duplicate together with those clients.
+    pub group: Option<ChatCompatView>,
     pub peer: Option<UserSummary>,
     pub unread_count: i64,
     pub pending_join_requests: i64,

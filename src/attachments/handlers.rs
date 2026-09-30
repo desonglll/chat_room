@@ -18,7 +18,7 @@ use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::message_store::NewAttachment;
-use crate::models::{Room, StoredMessage, User};
+use crate::models::{Chat, StoredMessage, User};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 
@@ -33,16 +33,16 @@ pub struct AttachmentAccess {
 
 #[utoipa::path(
     post,
-    path = "/api/rooms/{id}/attachments",
+    path = "/api/chats/{id}/attachments",
     params(
-        ("id" = Uuid, description = "Room id"),
+        ("id" = Uuid, description = "Chat id"),
         ("authorization" = String, Header, description = "Bearer session token"),
-        ("x-room-password" = Option<String>, Header, description = "Required for private rooms")
+        ("x-room-password" = Option<String>, Header, description = "Required for private chats")
     ),
     responses(
         (status = 201, description = "Attachment message created", body = StoredMessage),
         (status = 400, description = "Missing, empty, or invalid file"),
-        (status = 401, description = "Invalid account or room credentials"),
+        (status = 401, description = "Invalid account or chat credentials"),
         (status = 413, description = "File exceeds the configured upload limit")
     )
 )]
@@ -52,7 +52,7 @@ pub async fn upload_attachment(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<(StatusCode, Json<StoredMessage>), StatusCode> {
-    let (room, user) = authorize_upload(&state, room_id, &headers).await?;
+    let (chat, user) = authorize_upload(&state, room_id, &headers).await?;
     let mut file_name = None;
     let mut mime_type = None;
     let mut staged = None;
@@ -103,17 +103,17 @@ pub async fn upload_attachment(
         .upload()
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let display_name = state.resolve_display_name(room.id, &user).await;
+    let display_name = state.resolve_display_name(chat.id, &user).await;
     let message = state
-        .store_attachment_message(room.id, &user, &display_name, upload, &content, reply_to)
+        .store_attachment_message(chat.id, &user, &display_name, upload, &content, reply_to)
         .await
         .map_err(|error| {
             tracing::error!("persist attachment message failed: {}", error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    state.invalidate_message_cache(room.id).await;
+    state.invalidate_message_cache(chat.id).await;
     state
-        .broadcast(room.id, stored_message_to_chat(message.clone()))
+        .broadcast(chat.id, stored_message_to_chat(message.clone()))
         .await;
     Ok((StatusCode::CREATED, Json(message)))
 }
@@ -253,16 +253,16 @@ async fn authorize_upload(
     state: &SharedState,
     room_id: Uuid,
     headers: &HeaderMap,
-) -> Result<(Room, User), StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
-    if room.has_password {
+) -> Result<(Chat, User), StatusCode> {
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    if chat.has_password {
         let password = headers
             .get("x-room-password")
             .and_then(|value| value.to_str().ok())
             .ok_or(StatusCode::UNAUTHORIZED)?;
         let mut hasher = Sha256::new();
         hasher.update(password.as_bytes());
-        if hex::encode(hasher.finalize()) != room.password_hash {
+        if hex::encode(hasher.finalize()) != chat.password_hash {
             return Err(StatusCode::UNAUTHORIZED);
         }
     }
@@ -281,7 +281,7 @@ async fn authorize_upload(
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
     if !state
-        .has_room_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send")
         .await
         .map_err(|error| {
             tracing::error!("check attachment permission failed: {}", error);
@@ -290,7 +290,7 @@ async fn authorize_upload(
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    Ok((room, user))
+    Ok((chat, user))
 }
 
 pub(crate) fn normalize_file_name(value: &str) -> Result<String, StatusCode> {

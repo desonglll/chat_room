@@ -41,10 +41,10 @@ async fn revoked_device_websockets_disconnect_promptly() {
     let (base, task) = start_server().await;
     let client = reqwest::Client::new();
     let revoked_token = authenticate(&client, &base, "register").await;
-    let room = client
-        .post(format!("{base}/api/rooms"))
+    let chat = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&revoked_token)
-        .json(&serde_json::json!({ "name": "session-room", "password": "" }))
+        .json(&serde_json::json!({ "name": "session-chat", "password": "" }))
         .send()
         .await
         .unwrap()
@@ -52,19 +52,19 @@ async fn revoked_device_websockets_disconnect_promptly() {
         .await
         .unwrap();
     let websocket_base = base.replace("http://", "ws://");
-    let (mut room_socket, _) = connect_async(format!(
+    let (mut chat_socket, _) = connect_async(format!(
         "{websocket_base}/ws/{}",
-        room["id"].as_str().unwrap()
+        chat["id"].as_str().unwrap()
     ))
     .await
     .unwrap();
-    room_socket
+    chat_socket
         .send(Message::Text(
             serde_json::json!({ "type": "join", "token": revoked_token }).to_string(),
         ))
         .await
         .unwrap();
-    while let Some(Ok(Message::Text(text))) = room_socket.next().await {
+    while let Some(Ok(Message::Text(text))) = chat_socket.next().await {
         if serde_json::from_str::<serde_json::Value>(&text).unwrap()["type"] == "history_complete" {
             break;
         }
@@ -111,7 +111,7 @@ async fn revoked_device_websockets_disconnect_promptly() {
             .status(),
         204
     );
-    assert_socket_closes(&mut room_socket).await;
+    assert_socket_closes(&mut chat_socket).await;
     assert_socket_closes(&mut account_socket).await;
     task.abort();
 }

@@ -96,7 +96,7 @@ async fn aliases_are_private_per_user_for_group_and_direct_conversations() {
     let outsider = register(&client, &server.base, "alias-outsider").await;
 
     let group: serde_json::Value = client
-        .post(format!("{}/api/rooms", server.base))
+        .post(format!("{}/api/chats", server.base))
         .bearer_auth(&alice.token)
         .json(&serde_json::json!({
             "name": "Original group",
@@ -113,7 +113,7 @@ async fn aliases_are_private_per_user_for_group_and_direct_conversations() {
     assert_eq!(
         client
             .post(format!(
-                "{}/api/rooms/{group_id}/join-requests",
+                "{}/api/chats/{group_id}/join-requests",
                 server.base
             ))
             .bearer_auth(&bob.token)

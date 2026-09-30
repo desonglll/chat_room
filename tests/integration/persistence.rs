@@ -3,7 +3,7 @@ use super::*;
 #[tokio::test]
 async fn ws_public_chat_works() {
     let base = start_server().await;
-    let (id, _) = create_room(&base, "open-chat", None).await;
+    let (id, _) = create_chat(&base, "open-chat", None).await;
 
     let (mut sink_a, mut stream_a) = ws_connect(&base, &id, "alice", None).await;
     let (_sink_b, mut stream_b) = ws_connect(&base, &id, "bob", None).await;
@@ -17,18 +17,18 @@ async fn ws_public_chat_works() {
 
     sink_a
         .send(Message::Text(
-            serde_json::json!({ "type": "message", "content": "Hi from public room!" }).to_string(),
+            serde_json::json!({ "type": "message", "content": "Hi from public chat!" }).to_string(),
         ))
         .await
         .unwrap();
 
     let msg = read_until_type(&mut stream_b, "broadcast").await;
     assert_eq!(msg["sender"], "alice");
-    assert_eq!(msg["content"], "Hi from public room!");
+    assert_eq!(msg["content"], "Hi from public chat!");
 }
 
 #[tokio::test]
-async fn rooms_survive_sqlite_restart() {
+async fn chats_survive_sqlite_restart() {
     let database = temp_path("chat-rooms-restart", "db");
     assert!(!database.exists());
 
@@ -39,10 +39,10 @@ async fn rooms_survive_sqlite_restart() {
     );
     let server1 = start_server_with_state(state1.clone()).await;
 
-    let (private_id, _) = create_room(&server1, "persistent-private", Some("pw")).await;
-    let (public_id, _) = create_room(&server1, "persistent-public", None).await;
+    let (private_id, _) = create_chat(&server1, "persistent-private", Some("pw")).await;
+    let (public_id, _) = create_chat(&server1, "persistent-public", None).await;
 
-    let stored: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rooms")
+    let stored: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chats")
         .fetch_one(state1.pool())
         .await
         .unwrap();
@@ -61,9 +61,9 @@ async fn rooms_survive_sqlite_restart() {
     let state2 = Arc::new(AppState::open(&database).await.unwrap());
     let server2 = start_server_with_state(state2.clone()).await;
 
-    // Discovery still surfaces the public room after restart. The private room's
-    // owner sees their membership below, proving both room rows survived.
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms/discover", server2))
+    // Discovery still surfaces the public chat after restart. The private chat's
+    // owner sees their membership below, proving both chat rows survived.
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/chats/discover", server2))
         .await
         .unwrap()
         .json()
@@ -74,7 +74,7 @@ async fn rooms_survive_sqlite_restart() {
 
     let owner_token = session_token(&server2, "owner-persistent-private").await;
     let authed_list: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms", server2))
+        .get(format!("{}/api/chats", server2))
         .bearer_auth(owner_token)
         .send()
         .await
@@ -84,7 +84,7 @@ async fn rooms_survive_sqlite_restart() {
         .unwrap();
     let ids: Vec<&str> = authed_list
         .iter()
-        .filter_map(|room| room["id"].as_str())
+        .filter_map(|chat| chat["id"].as_str())
         .collect();
     assert!(ids.contains(&private_id.as_str()));
     assert!(!ids.contains(&public_id.as_str()));
@@ -103,7 +103,7 @@ async fn messages_survive_restart_and_replay_in_order() {
     let database = temp_path("chat-messages-restart", "db");
     let state1 = Arc::new(AppState::open(&database).await.unwrap());
     let server1 = start_server_with_state(state1.clone()).await;
-    let (room_id, _) = create_room(&server1, "message-session", None).await;
+    let (room_id, _) = create_chat(&server1, "message-session", None).await;
     let alice_token = session_token(&server1, "alice").await;
 
     let (mut sink, mut stream) = ws_connect(&server1, &room_id, "alice", None).await;
@@ -133,7 +133,7 @@ async fn messages_survive_restart_and_replay_in_order() {
 
     let history: Vec<serde_json::Value> = reqwest::Client::new()
         .get(format!(
-            "{}/api/rooms/{}/messages?limit=2",
+            "{}/api/chats/{}/messages?limit=2",
             server1, room_id
         ))
         .bearer_auth(&alice_token)
@@ -181,9 +181,9 @@ async fn messages_survive_restart_and_replay_in_order() {
 }
 
 #[tokio::test]
-async fn private_message_history_requires_room_password() {
+async fn private_message_history_requires_chat_password() {
     let server = start_server().await;
-    let (room_id, _) = create_room(&server, "private-history", Some("secret")).await;
+    let (room_id, _) = create_chat(&server, "private-history", Some("secret")).await;
     let alice_token = session_token(&server, "alice").await;
     let (mut sink, mut stream) = ws_connect(&server, &room_id, "alice", Some("secret")).await;
     assert_eq!(read_json(&mut stream).await["type"], "system");
@@ -198,7 +198,7 @@ async fn private_message_history_requires_room_password() {
         "private text"
     );
 
-    let url = format!("{}/api/rooms/{}/messages", server, room_id);
+    let url = format!("{}/api/chats/{}/messages", server, room_id);
     let client = reqwest::Client::new();
     assert_eq!(client.get(&url).send().await.unwrap().status(), 401);
     assert_eq!(
@@ -228,9 +228,9 @@ async fn private_message_history_requires_room_password() {
 }
 
 #[tokio::test]
-async fn concurrent_duplicate_room_creation_returns_conflict() {
+async fn concurrent_duplicate_chat_creation_returns_conflict() {
     let server = start_server().await;
-    let url = format!("{}/api/rooms", server);
+    let url = format!("{}/api/chats", server);
     let token = session_token(&server, "concurrent-owner").await;
     let request = || {
         reqwest::Client::new()
@@ -248,24 +248,24 @@ async fn concurrent_duplicate_room_creation_returns_conflict() {
     statuses.sort_unstable();
     assert_eq!(statuses, vec![201, 409]);
 
-    let rooms: Vec<serde_json::Value> = reqwest::get(format!("{url}/discover"))
+    let chats: Vec<serde_json::Value> = reqwest::get(format!("{url}/discover"))
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
-    assert_eq!(rooms.len(), 1);
+    assert_eq!(chats.len(), 1);
 }
 
 #[tokio::test]
-async fn list_rooms_filter_by_name() {
+async fn list_chats_filter_by_name() {
     let base = start_server().await;
-    create_room(&base, "alpha", None).await;
-    create_room(&base, "beta", Some("pw")).await;
-    create_room(&base, "gamma", None).await;
+    create_chat(&base, "alpha", None).await;
+    create_chat(&base, "beta", Some("pw")).await;
+    create_chat(&base, "gamma", None).await;
 
-    // Anonymous discovery excludes the private "beta" room entirely.
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms/discover", base))
+    // Anonymous discovery excludes the private "beta" chat entirely.
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/chats/discover", base))
         .await
         .unwrap()
         .json()
@@ -276,7 +276,7 @@ async fn list_rooms_filter_by_name() {
     // "beta"'s owner can still find it in their chat list; discovery cannot.
     let beta_owner_token = session_token(&base, "owner-beta").await;
     let list: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms?name=beta", base))
+        .get(format!("{}/api/chats?name=beta", base))
         .bearer_auth(beta_owner_token)
         .send()
         .await
@@ -285,10 +285,10 @@ async fn list_rooms_filter_by_name() {
         .await
         .unwrap();
     assert_eq!(list.len(), 1);
-    assert_eq!(list[0]["name"], "beta");
+    assert_eq!(list[0]["title"], "beta");
 
     let anonymous_beta: Vec<serde_json::Value> =
-        reqwest::get(format!("{}/api/rooms/discover?name=beta", base))
+        reqwest::get(format!("{}/api/chats/discover?name=beta", base))
             .await
             .unwrap()
             .json()
@@ -297,7 +297,7 @@ async fn list_rooms_filter_by_name() {
     assert!(anonymous_beta.is_empty());
 
     let list: Vec<serde_json::Value> =
-        reqwest::get(format!("{}/api/rooms/discover?name=nobody", base))
+        reqwest::get(format!("{}/api/chats/discover?name=nobody", base))
             .await
             .unwrap()
             .json()
@@ -305,16 +305,16 @@ async fn list_rooms_filter_by_name() {
             .unwrap();
     assert!(list.is_empty());
 
-    create_room(&base, "my room", None).await;
+    create_chat(&base, "my chat", None).await;
     let list: Vec<serde_json::Value> =
-        reqwest::get(format!("{}/api/rooms/discover?name=my%20room", base))
+        reqwest::get(format!("{}/api/chats/discover?name=my%20chat", base))
             .await
             .unwrap()
             .json()
             .await
             .unwrap();
     assert_eq!(list.len(), 1);
-    assert_eq!(list[0]["name"], "my room");
+    assert_eq!(list[0]["title"], "my chat");
 }
 
 #[tokio::test]
@@ -351,7 +351,7 @@ async fn fresh_start_creates_database_and_runs_migrations() {
     assert_eq!(legacy_table, 0);
 
     let server = start_server_with_state(state.clone()).await;
-    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/rooms", server))
+    let list: Vec<serde_json::Value> = reqwest::get(format!("{}/api/chats", server))
         .await
         .unwrap()
         .json()

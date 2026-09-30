@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Parser)]
-#[command(name = "server", about = "SQLite/PostgreSQL chat room server")]
+#[command(name = "server", about = "SQLite/PostgreSQL chat server")]
 struct Args {
     /// Compatibility flag; the browser client is enabled by default.
     #[arg(long)]
@@ -162,7 +162,7 @@ async fn main() -> Result<()> {
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await
-    .context("serve chat room")
+    .context("serve chat")
 }
 
 fn init_tracing(json_logs: bool) {
@@ -253,7 +253,7 @@ mod tests {
             "--listen",
             "127.0.0.1:4321",
             "--database",
-            "rooms.sqlite",
+            "chats.sqlite",
             "--database-type",
             "sqlite",
             "--config",
@@ -264,7 +264,7 @@ mod tests {
         assert!(args.web);
         assert!(!args.no_web);
         assert_eq!(args.listen_addr(), "127.0.0.1:4321".parse().unwrap());
-        assert_eq!(args.database.as_deref(), Some("rooms.sqlite"));
+        assert_eq!(args.database.as_deref(), Some("chats.sqlite"));
         assert!(matches!(args.database_type, Some(DatabaseType::Sqlite)));
         assert_eq!(args.config, PathBuf::from("custom.toml"));
     }
@@ -310,7 +310,7 @@ mod tests {
             "--username",
             "ops-admin",
             "--database",
-            "rooms.sqlite",
+            "chats.sqlite",
         ])
         .unwrap();
         assert!(matches!(

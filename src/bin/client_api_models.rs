@@ -15,7 +15,7 @@ pub struct UserIdentity {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct RoomSummary {
+pub struct ChatSummary {
     pub id: Uuid,
     pub name: String,
     #[serde(default)]
@@ -25,7 +25,7 @@ pub struct RoomSummary {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct RoomMembership {
+pub struct ChatMembership {
     pub status: String,
 }
 

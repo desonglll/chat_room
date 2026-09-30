@@ -37,10 +37,10 @@ async fn start_server() -> TestServer {
     }
 }
 
-async fn create_room(base: &str, name: &str, owner: &str) -> String {
+async fn create_chat(base: &str, name: &str, owner: &str) -> String {
     let owner_token = session_token(base, owner).await;
     reqwest::Client::new()
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(owner_token)
         .json(&serde_json::json!({ "name": name, "password": "", "join_policy": "open" }))
         .send()
@@ -54,7 +54,7 @@ async fn create_room(base: &str, name: &str, owner: &str) -> String {
         .to_string()
 }
 
-async fn open_room(base: &str, room_id: &str, token: &str) -> (Socket, serde_json::Value) {
+async fn open_chat(base: &str, room_id: &str, token: &str) -> (Socket, serde_json::Value) {
     let url = format!("{}/ws/{room_id}", base.replacen("http://", "ws://", 1));
     let (mut socket, _) = connect_async(url).await.unwrap();
     socket
@@ -109,19 +109,19 @@ async fn send_message(socket: &mut Socket, content: &str, reply_to: Option<&str>
 #[tokio::test]
 async fn replies_are_broadcast_and_replayed_with_a_stable_preview() {
     let server = start_server().await;
-    let room_id = create_room(&server.base, "replies", "reply-alice").await;
+    let room_id = create_chat(&server.base, "replies", "reply-alice").await;
     let alice_token = session_token(&server.base, "reply-alice").await;
     let bob_token = session_token(&server.base, "reply-bob").await;
-    let (mut alice, alice_auth) = open_room(&server.base, &room_id, &alice_token).await;
+    let (mut alice, alice_auth) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(alice_auth["members"].as_array().unwrap().len(), 1);
     assert_eq!(next_json(&mut alice).await["type"], "presence");
 
-    let (mut bob, bob_auth) = open_room(&server.base, &room_id, &bob_token).await;
+    let (mut bob, bob_auth) = open_chat(&server.base, &room_id, &bob_token).await;
     assert_eq!(bob_auth["members"].as_array().unwrap().len(), 2);
     assert_eq!(next_json(&mut bob).await["type"], "system");
     assert_eq!(
         next_json(&mut alice).await["content"],
-        "reply-bob joined the room"
+        "reply-bob joined the chat"
     );
 
     send_message(&mut alice, "original message", None).await;
@@ -142,7 +142,7 @@ async fn replies_are_broadcast_and_replayed_with_a_stable_preview() {
     );
 
     let history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&alice_token)
         .send()
         .await
@@ -157,12 +157,12 @@ async fn replies_are_broadcast_and_replayed_with_a_stable_preview() {
 #[tokio::test]
 async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
     let server = start_server().await;
-    let room_id = create_room(&server.base, "recall", "recall-alice").await;
+    let room_id = create_chat(&server.base, "recall", "recall-alice").await;
     let alice_token = session_token(&server.base, "recall-alice").await;
     let bob_token = session_token(&server.base, "recall-bob").await;
-    let (mut alice, _) = open_room(&server.base, &room_id, &alice_token).await;
+    let (mut alice, _) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(next_json(&mut alice).await["type"], "presence");
-    let (mut bob, _) = open_room(&server.base, &room_id, &bob_token).await;
+    let (mut bob, _) = open_chat(&server.base, &room_id, &bob_token).await;
     assert_eq!(next_json(&mut bob).await["type"], "system");
     assert_eq!(next_json(&mut alice).await["type"], "system");
 
@@ -215,7 +215,7 @@ async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
 
     // A viewer who is not the sender still sees the recalled message redacted.
     let bob_history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&bob_token)
         .send()
         .await
@@ -229,7 +229,7 @@ async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
 
     // The sender keeps seeing their own recalled draft so they can re-edit it.
     let alice_history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&alice_token)
         .send()
         .await
@@ -259,7 +259,7 @@ async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
     assert_eq!(bob_edited["content"], "revived after recall");
 
     let bob_history_after_edit: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(&bob_token)
         .send()
         .await
@@ -274,18 +274,18 @@ async fn recall_is_sender_only_and_redacts_without_deleting_the_record() {
 #[tokio::test]
 async fn presence_lists_unique_accounts_and_updates_when_the_last_tab_leaves() {
     let server = start_server().await;
-    let room_id = create_room(&server.base, "presence", "presence-alice").await;
+    let room_id = create_chat(&server.base, "presence", "presence-alice").await;
     let alice_token = session_token(&server.base, "presence-alice").await;
     let bob_token = session_token(&server.base, "presence-bob").await;
 
-    let (mut alice_first, first_auth) = open_room(&server.base, &room_id, &alice_token).await;
+    let (mut alice_first, first_auth) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(first_auth["members"].as_array().unwrap().len(), 1);
     assert_eq!(next_json(&mut alice_first).await["type"], "presence");
 
-    let (mut alice_second, second_auth) = open_room(&server.base, &room_id, &alice_token).await;
+    let (mut alice_second, second_auth) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(second_auth["members"].as_array().unwrap().len(), 1);
 
-    let (bob, bob_auth) = open_room(&server.base, &room_id, &bob_token).await;
+    let (bob, bob_auth) = open_chat(&server.base, &room_id, &bob_token).await;
     assert_eq!(bob_auth["members"].as_array().unwrap().len(), 2);
     let joined_first = next_json(&mut alice_first).await;
     let joined_second = next_json(&mut alice_second).await;
@@ -298,7 +298,7 @@ async fn presence_lists_unique_accounts_and_updates_when_the_last_tab_leaves() {
     assert_eq!(left_first["members"].as_array().unwrap().len(), 1);
     assert_eq!(left_second["members"].as_array().unwrap().len(), 1);
 
-    let (mut bob_reconnected, _) = open_room(&server.base, &room_id, &bob_token).await;
+    let (mut bob_reconnected, _) = open_chat(&server.base, &room_id, &bob_token).await;
     assert_eq!(next_json(&mut bob_reconnected).await["type"], "presence");
     assert_eq!(next_json(&mut alice_first).await["type"], "presence");
     assert_eq!(next_json(&mut alice_second).await["type"], "presence");
@@ -317,12 +317,12 @@ async fn presence_lists_unique_accounts_and_updates_when_the_last_tab_leaves() {
 #[tokio::test]
 async fn read_receipts_advance_monotonically_and_restore_on_reconnect() {
     let server = start_server().await;
-    let room_id = create_room(&server.base, "read-receipts", "read-alice").await;
+    let room_id = create_chat(&server.base, "read-receipts", "read-alice").await;
     let alice_token = session_token(&server.base, "read-alice").await;
     let bob_token = session_token(&server.base, "read-bob").await;
-    let (mut alice, _) = open_room(&server.base, &room_id, &alice_token).await;
+    let (mut alice, _) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(next_json(&mut alice).await["type"], "presence");
-    let (mut bob, _) = open_room(&server.base, &room_id, &bob_token).await;
+    let (mut bob, _) = open_chat(&server.base, &room_id, &bob_token).await;
     assert_eq!(next_json(&mut bob).await["type"], "system");
     assert_eq!(next_json(&mut alice).await["type"], "system");
 
@@ -364,13 +364,13 @@ async fn read_receipts_advance_monotonically_and_restore_on_reconnect() {
     .await
     .unwrap();
 
-    let stored: uuid::Uuid = sqlx::query_scalar("SELECT message_id FROM room_reads")
+    let stored: uuid::Uuid = sqlx::query_scalar("SELECT message_id FROM chat_reads")
         .fetch_one(server.state.pool())
         .await
         .unwrap();
     assert_eq!(stored.to_string(), second_id);
 
-    let (_alice_second, auth) = open_room(&server.base, &room_id, &alice_token).await;
+    let (_alice_second, auth) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(auth["participants"].as_array().unwrap().len(), 2);
     let bob_receipt = auth["read_receipts"]
         .as_array()
@@ -384,12 +384,12 @@ async fn read_receipts_advance_monotonically_and_restore_on_reconnect() {
 #[tokio::test]
 async fn editing_is_sender_only_and_typing_carries_the_live_draft() {
     let server = start_server().await;
-    let room_id = create_room(&server.base, "editing", "editing-alice").await;
+    let room_id = create_chat(&server.base, "editing", "editing-alice").await;
     let alice_token = session_token(&server.base, "editing-alice").await;
     let bob_token = session_token(&server.base, "editing-bob").await;
-    let (mut alice, _) = open_room(&server.base, &room_id, &alice_token).await;
+    let (mut alice, _) = open_chat(&server.base, &room_id, &alice_token).await;
     assert_eq!(next_json(&mut alice).await["type"], "presence");
-    let (mut bob, _) = open_room(&server.base, &room_id, &bob_token).await;
+    let (mut bob, _) = open_chat(&server.base, &room_id, &bob_token).await;
     assert_eq!(next_json(&mut bob).await["type"], "system");
     assert_eq!(next_json(&mut alice).await["type"], "system");
 
@@ -444,7 +444,7 @@ async fn editing_is_sender_only_and_typing_carries_the_live_draft() {
     assert_eq!(typing["content"], "正在写的实时内容");
 
     let history: Vec<serde_json::Value> = reqwest::Client::new()
-        .get(format!("{}/api/rooms/{room_id}/messages", server.base))
+        .get(format!("{}/api/chats/{room_id}/messages", server.base))
         .bearer_auth(alice_token)
         .send()
         .await

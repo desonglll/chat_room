@@ -13,7 +13,7 @@ use super::AiSuggestions;
 /// The planning agent's contract: decide how much context to gather before
 /// answering. Kept next to its prompt because the field set and the prompt text
 /// have to change together.
-pub(super) const PLAN_ROOM_TASK_PROMPT: &str = "You are the planning agent for a private chat analysis assistant. Decide how the server should gather context before answering. Return ONLY one JSON object with: intent (overview, todos, decisions, search, or general), context_scope (recent or full), semantic_search (boolean), and research_questions (zero to three concise search queries). Use full only when the user asks for exhaustive room-wide analysis. Use semantic search for facts or topics that may be outside recent context. Split genuinely multi-topic research into independent research_questions; otherwise return an empty array.";
+pub(super) const PLAN_CHAT_TASK_PROMPT: &str = "You are the planning agent for a private chat analysis assistant. Decide how the server should gather context before answering. Return ONLY one JSON object with: intent (overview, todos, decisions, search, or general), context_scope (recent or full), semantic_search (boolean), and research_questions (zero to three concise search queries). Use full only when the user asks for exhaustive chat-wide analysis. Use semantic search for facts or topics that may be outside recent context. Split genuinely multi-topic research into independent research_questions; otherwise return an empty array.";
 
 pub(super) fn suggestion_request(
     room_name: &str,
@@ -41,7 +41,7 @@ pub(super) fn suggestion_request(
         "Respond with ONLY one JSON object, no markdown fences or extra text, exactly: {\"summary\":\"...\",\"suggestions\":[\"...\",\"...\",\"...\"]}."
     };
     let system_prompt = format!(
-        "You are a helpful assistant embedded in the chat room \"{room_name}\". Write in the conversation's main language. Suggest 3 short, natural next messages the current user might send and a one-sentence summary. {output_rules}"
+        "You are a helpful assistant embedded in the chat \"{room_name}\". Write in the conversation's main language. Suggest 3 short, natural next messages the current user might send and a one-sentence summary. {output_rules}"
     );
     ChatRequest::new(vec![
         ChatMessage::system(system_prompt),

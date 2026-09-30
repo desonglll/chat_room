@@ -243,7 +243,7 @@ fn shortcuts(app: &App) -> &'static [(&'static str, &'static str)] {
         (View::Chats, Focus::Content) => &[
             ("C-n/p", "Move"),
             ("i", "Write"),
-            ("C-b", "Rooms"),
+            ("C-b", "Chats"),
             ("R", "Reply"),
         ],
         (View::Chats, Focus::Input) => &[("Enter", "Send"), ("C-g", "Messages")],
@@ -273,7 +273,7 @@ fn shortcut_line(bindings: &[(&str, &str)]) -> Line<'static> {
 
 fn focus_label(app: &App) -> &'static str {
     match (app.view, app.focus) {
-        (View::Chats, Focus::List) => "ROOMS",
+        (View::Chats, Focus::List) => "CHATS",
         (View::Chats, Focus::Content) => "MESSAGES",
         (View::Chats, Focus::Input) => "COMPOSE",
         (View::Search, Focus::Input) => "SEARCH",

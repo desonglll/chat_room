@@ -21,14 +21,14 @@ pub(super) async fn prepare_catch_up_context(
 ) -> anyhow::Result<GenerationContext> {
     let room_id = execution
         .room_id
-        .ok_or_else(|| anyhow::anyhow!("catch-up run has no room"))?;
+        .ok_or_else(|| anyhow::anyhow!("catch-up run has no chat"))?;
     let through = execution
         .source_through_message_id
         .ok_or_else(|| anyhow::anyhow!("catch-up run has no end boundary"))?;
     let conversation = state
         .conversation_summary(execution.user_id, room_id)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("active room membership is required"))?;
+        .ok_or_else(|| anyhow::anyhow!("active chat membership is required"))?;
     let messages = state
         .catch_up_messages(
             room_id,
@@ -43,7 +43,7 @@ pub(super) async fn prepare_catch_up_context(
 
 pub(super) fn build_message_context(
     room_id: uuid::Uuid,
-    room_title: &str,
+    chat_title: &str,
     messages: Vec<StoredMessage>,
 ) -> anyhow::Result<GenerationContext> {
     let mut sources = Vec::with_capacity(messages.len());
@@ -73,7 +73,7 @@ pub(super) fn build_message_context(
         })
         .collect::<Vec<_>>();
     let toon_context =
-        bounded_conversation_context_to_toon(room_title, &mut context, MAX_CONTEXT_TOON_BYTES)?;
+        bounded_conversation_context_to_toon(chat_title, &mut context, MAX_CONTEXT_TOON_BYTES)?;
     let active_labels = context
         .iter()
         .map(|message| message.source.as_str())

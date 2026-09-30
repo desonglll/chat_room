@@ -1,4 +1,4 @@
-//! Audited Room membership governance actions.
+//! Audited Chat membership governance actions.
 
 use axum::{
     extract::{Path, State},
@@ -9,12 +9,12 @@ use uuid::Uuid;
 
 use crate::{
     audit::AuditEventDraft,
-    models::{ChatMessage, RoomMembership, UpdateMembershipRequest},
+    models::{ChatMembership, ChatMessage, UpdateMembershipRequest},
     state::SharedState,
 };
 
 use super::membership_handlers::{
-    publish_membership_joined, reject_direct_room, require_permission, session_user,
+    publish_membership_joined, reject_direct_chat, require_permission, session_user,
 };
 
 pub async fn update_member(
@@ -22,8 +22,8 @@ pub async fn update_member(
     Path((room_id, target_id)): Path<(Uuid, Uuid)>,
     headers: HeaderMap,
     Json(request): Json<UpdateMembershipRequest>,
-) -> Result<Json<RoomMembership>, StatusCode> {
-    reject_direct_room(&state, room_id).await?;
+) -> Result<Json<ChatMembership>, StatusCode> {
+    reject_direct_chat(&state, room_id).await?;
     let actor = session_user(&state, &headers).await?;
     let permission = match request.action.as_str() {
         "approve" | "reject" => "members.review",
@@ -33,9 +33,9 @@ pub async fn update_member(
     };
     require_permission(&state, room_id, actor.id, permission).await?;
     let previous = if request.action == "unban" {
-        state.room_ban_membership(room_id, target_id).await
+        state.chat_ban_membership(room_id, target_id).await
     } else {
-        state.room_membership(room_id, target_id).await
+        state.chat_membership(room_id, target_id).await
     }
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::NOT_FOUND)?;
@@ -46,7 +46,7 @@ pub async fn update_member(
     }
 
     let event_type = event_type(&request.action)?;
-    let mut audit = AuditEventDraft::room(&actor, room_id, event_type)
+    let mut audit = AuditEventDraft::chat(&actor, room_id, event_type)
         .target("user", target_id)
         .detail("previous_status", &previous.status)
         .detail("previous_role", &previous.role);
@@ -54,7 +54,7 @@ pub async fn update_member(
         audit = audit.detail("role", role);
     }
     state.record_audit_event(audit).await.map_err(|error| {
-        tracing::error!("required Room governance audit failed: {error}");
+        tracing::error!("required Chat governance audit failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -87,24 +87,24 @@ async fn mutate(
     target_id: Uuid,
     actor_id: Uuid,
     request: &UpdateMembershipRequest,
-) -> Result<Option<RoomMembership>, StatusCode> {
+) -> Result<Option<ChatMembership>, StatusCode> {
     let result = match request.action.as_str() {
-        "approve" => state.activate_room_member(room_id, target_id).await,
+        "approve" => state.activate_chat_member(room_id, target_id).await,
         "set_role" => {
             let role = request.role.as_deref().ok_or(StatusCode::BAD_REQUEST)?;
-            state.set_room_member_role(room_id, target_id, role).await
+            state.set_chat_member_role(room_id, target_id, role).await
         }
         "reject" | "remove" => {
             state
-                .delete_room_membership(room_id, target_id, false)
+                .delete_chat_membership(room_id, target_id, false)
                 .await
         }
-        "ban" => state.ban_room_member(room_id, target_id, actor_id).await,
-        "unban" => state.unban_room_member(room_id, target_id).await,
+        "ban" => state.ban_chat_member(room_id, target_id, actor_id).await,
+        "unban" => state.unban_chat_member(room_id, target_id).await,
         _ => unreachable!(),
     };
     result.map_err(|error| {
-        tracing::error!("update room membership failed: {error}");
+        tracing::error!("update chat membership failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })
 }
@@ -113,13 +113,13 @@ async fn disconnect_removed(
     state: &SharedState,
     room_id: Uuid,
     target_id: Uuid,
-    updated: &RoomMembership,
+    updated: &ChatMembership,
     action: &str,
 ) -> Result<(), StatusCode> {
     let banned = action == "ban";
     let members = state.remove_connected_member(room_id, target_id).await;
     let participants = state
-        .room_participants(room_id)
+        .chat_participants(room_id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     state
@@ -127,7 +127,7 @@ async fn disconnect_removed(
             room_id,
             ChatMessage::System {
                 content: format!(
-                    "{} was {} from the room",
+                    "{} was {} from the chat",
                     updated.username,
                     if banned { "banned" } else { "removed" }
                 ),
@@ -137,7 +137,7 @@ async fn disconnect_removed(
         )
         .await;
     state
-        .disconnect_room_member(
+        .disconnect_chat_member(
             room_id,
             target_id,
             if banned {

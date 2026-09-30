@@ -132,7 +132,7 @@ pub struct StorageMetrics {
 }
 
 #[derive(Debug, Serialize, ToSchema, FromRow)]
-pub struct TopRoom {
+pub struct TopChat {
     id: Uuid,
     name: String,
     messages: i64,
@@ -155,7 +155,7 @@ pub struct AdminOverview {
     totals: AdminTotals,
     storage: StorageMetrics,
     services: ServiceOverview,
-    top_rooms: Vec<TopRoom>,
+    top_rooms: Vec<TopChat>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -207,8 +207,8 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
             "SELECT \
              (SELECT COUNT(*) FROM users) AS users, \
              (SELECT COUNT(*) FROM sessions WHERE expires_at > $1) AS active_sessions, \
-             (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NULL) AS active_rooms, \
-             (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NOT NULL) AS soft_deleted_rooms, \
+             (SELECT COUNT(*) FROM chats WHERE deleted_at IS NULL) AS active_rooms, \
+             (SELECT COUNT(*) FROM chats WHERE deleted_at IS NOT NULL) AS soft_deleted_rooms, \
              (SELECT COUNT(*) FROM messages) AS messages, \
              (SELECT COUNT(*) FROM messages WHERE created_at >= $2) AS messages_24h, \
              (SELECT COUNT(*) FROM attachments) AS attachments, \
@@ -242,15 +242,17 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
         .fetch_one(pool)
         .await
     })?;
-    let top_rooms: Vec<TopRoom> = with_pool!(state, |pool| {
+    let top_rooms: Vec<TopChat> = with_pool!(state, |pool| {
         sqlx::query_as(
-            "SELECT rooms.id, rooms.name, \
-             (SELECT COUNT(*) FROM messages WHERE messages.room_id = rooms.id) AS messages, \
-             (SELECT COUNT(*) FROM room_memberships WHERE room_id = rooms.id AND status = 'active') \
+            // `AS name` keeps the admin overview's wire field spelled the way
+            // web/src/adminTypes.ts reads it; only the column behind it was renamed.
+            "SELECT chats.id, chats.title AS name, \
+             (SELECT COUNT(*) FROM messages WHERE messages.room_id = chats.id) AS messages, \
+             (SELECT COUNT(*) FROM chat_members WHERE room_id = chats.id AND status = 'active') \
                AS active_members, \
-             (SELECT MAX(created_at) FROM messages WHERE messages.room_id = rooms.id) \
+             (SELECT MAX(created_at) FROM messages WHERE messages.room_id = chats.id) \
                AS last_message_at \
-             FROM rooms WHERE deleted_at IS NULL ORDER BY messages DESC, rooms.created_at DESC LIMIT 8",
+             FROM chats WHERE deleted_at IS NULL ORDER BY messages DESC, chats.created_at DESC LIMIT 8",
         )
         .fetch_all(pool)
         .await
@@ -400,7 +402,7 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
         deleted_bytes += group.size_bytes;
     }
 
-    let rooms_deleted = purge_deleted_rooms(state).await?;
+    let rooms_deleted = purge_deleted_chats(state).await?;
     Ok(PurgeResult {
         attachment_objects_deleted: deleted_objects,
         attachment_bytes_deleted: deleted_bytes,
@@ -408,14 +410,14 @@ async fn purge_retained_data(state: &AppState) -> anyhow::Result<PurgeResult> {
     })
 }
 
-async fn purge_deleted_rooms(state: &AppState) -> anyhow::Result<u64> {
+async fn purge_deleted_chats(state: &AppState) -> anyhow::Result<u64> {
     let cutoff = Utc::now() - Duration::days(state.deleted_room_retention_days());
     let room_ids: Vec<Uuid> = with_pool!(state, |pool| {
         sqlx::query_scalar(
-            "SELECT id FROM rooms WHERE deleted_at IS NOT NULL AND deleted_at <= $1 \
+            "SELECT id FROM chats WHERE deleted_at IS NOT NULL AND deleted_at <= $1 \
              AND NOT EXISTS (SELECT 1 FROM attachments \
                JOIN favorites ON favorites.attachment_id = attachments.id \
-               WHERE attachments.room_id = rooms.id)",
+               WHERE attachments.room_id = chats.id)",
         )
         .bind(cutoff)
         .fetch_all(pool)
@@ -430,7 +432,7 @@ async fn purge_deleted_rooms(state: &AppState) -> anyhow::Result<u64> {
                 .await
         })?;
         let changed = with_pool!(state, |pool| {
-            sqlx::query("DELETE FROM rooms WHERE id = $1 AND deleted_at <= $2")
+            sqlx::query("DELETE FROM chats WHERE id = $1 AND deleted_at <= $2")
                 .bind(room_id)
                 .bind(cutoff)
                 .execute(pool)

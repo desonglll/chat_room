@@ -1,4 +1,4 @@
-//! Exercises the Postgres backend end to end (create room, WS chat, restart
+//! Exercises the Postgres backend end to end (create chat, WS chat, restart
 //! persistence) against a real Postgres server. There is no fake/embedded
 //! Postgres to fall back to, so the test creates and drops a throwaway
 //! database on a real server rather than touching the app's own database —
@@ -12,6 +12,8 @@ use chat_room::config::{AdminConfig, AppConfig};
 mod ai_extraction_postgres;
 #[path = "audit_postgres.rs"]
 mod audit_postgres;
+#[path = "chat_tasks_postgres.rs"]
+mod chat_tasks_postgres;
 #[path = "device_sessions_postgres.rs"]
 mod device_sessions_postgres;
 #[path = "global_search_postgres.rs"]
@@ -20,14 +22,12 @@ mod global_search_postgres;
 mod observability_postgres;
 #[path = "postgres_database.rs"]
 mod postgres_database;
-#[path = "room_tasks_postgres.rs"]
-mod room_tasks_postgres;
 use postgres_database::{connect_postgres_admin, create_scratch_database, drop_scratch_database};
 
 #[tokio::test]
-async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
+async fn postgres_backend_creates_chats_and_serves_websocket_chat() {
     let Some((admin_url, admin_pool)) =
-        connect_postgres_admin("postgres_backend_creates_rooms_and_serves_websocket_chat").await
+        connect_postgres_admin("postgres_backend_creates_chats_and_serves_websocket_chat").await
     else {
         return;
     };
@@ -67,9 +67,9 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
     );
     assert_eq!(overview["storage"]["logical_bytes"], 0);
 
-    let (room_id, has_password) = create_room(&server, "pg-integration-room", None).await;
+    let (room_id, has_password) = create_chat(&server, "pg-integration-chat", None).await;
     assert!(!has_password);
-    let owner_token = session_token(&server, "owner-pg-integration-room").await;
+    let owner_token = session_token(&server, "owner-pg-integration-chat").await;
     let preferences: serde_json::Value = reqwest::Client::new()
         .patch(format!("{server}/api/conversations/{room_id}/preferences"))
         .bearer_auth(&owner_token)
@@ -114,11 +114,11 @@ async fn postgres_backend_creates_rooms_and_serves_websocket_chat() {
     assert_eq!(broadcast["sender"], "alice");
     assert_eq!(broadcast["content"], "hello over postgres");
 
-    let stored_rooms: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rooms")
+    let stored_chats: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chats")
         .fetch_one(state.postgres_pool().expect("postgres-backed state"))
         .await
         .unwrap();
-    assert_eq!(stored_rooms, 1);
+    assert_eq!(stored_chats, 1);
     let stored_messages: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages")
         .fetch_one(state.postgres_pool().expect("postgres-backed state"))
         .await
@@ -305,8 +305,8 @@ async fn postgres_friendship_creates_one_private_direct_conversation() {
         .await
         .unwrap();
     let source_message = read_until_type(&mut direct_stream, "broadcast").await;
-    let target_room: serde_json::Value = client
-        .post(format!("{server}/api/rooms"))
+    let target_chat: serde_json::Value = client
+        .post(format!("{server}/api/chats"))
         .bearer_auth(&alice_token)
         .json(&serde_json::json!({ "name": "pg-forward-target" }))
         .send()
@@ -320,7 +320,7 @@ async fn postgres_friendship_creates_one_private_direct_conversation() {
         .bearer_auth(&alice_token)
         .json(&serde_json::json!({
             "message_ids": [source_message["message_id"]],
-            "target_room_ids": [target_room["id"]]
+            "target_room_ids": [target_chat["id"]]
         }))
         .send()
         .await
@@ -331,8 +331,8 @@ async fn postgres_friendship_creates_one_private_direct_conversation() {
     assert!(forwarded[0]["forwarded_message_id"].is_string());
     let target_messages: Vec<serde_json::Value> = client
         .get(format!(
-            "{server}/api/rooms/{}/messages",
-            target_room["id"].as_str().unwrap()
+            "{server}/api/chats/{}/messages",
+            target_chat["id"].as_str().unwrap()
         ))
         .bearer_auth(&alice_token)
         .send()
@@ -351,7 +351,7 @@ async fn postgres_friendship_creates_one_private_direct_conversation() {
         .await
         .unwrap();
     let member_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM room_memberships WHERE room_id = $1")
+        sqlx::query_scalar("SELECT COUNT(*) FROM chat_members WHERE room_id = $1")
             .bind(room_id.parse::<uuid::Uuid>().unwrap())
             .fetch_one(state.postgres_pool().unwrap())
             .await

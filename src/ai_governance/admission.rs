@@ -24,12 +24,12 @@ pub(crate) struct AiAdmissionRequest<'a> {
 
 #[derive(Debug)]
 pub(crate) enum AiGovernanceRejection {
-    RoomDisabled,
+    ChatDisabled,
     AdminsOnly,
     ModelBlocked,
     ConcurrencyLimit,
     UserTokenLimit,
-    RoomTokenLimit,
+    ChatTokenLimit,
     Database(sqlx::Error),
 }
 
@@ -37,9 +37,9 @@ impl AiGovernanceRejection {
     pub(crate) fn status(&self) -> axum::http::StatusCode {
         use axum::http::StatusCode;
         match self {
-            Self::RoomDisabled | Self::AdminsOnly => StatusCode::FORBIDDEN,
+            Self::ChatDisabled | Self::AdminsOnly => StatusCode::FORBIDDEN,
             Self::ModelBlocked => StatusCode::SERVICE_UNAVAILABLE,
-            Self::ConcurrencyLimit | Self::UserTokenLimit | Self::RoomTokenLimit => {
+            Self::ConcurrencyLimit | Self::UserTokenLimit | Self::ChatTokenLimit => {
                 StatusCode::TOO_MANY_REQUESTS
             }
             Self::Database(error) => {
@@ -62,7 +62,7 @@ impl AppState {
         request: AiAdmissionRequest<'_>,
     ) -> Result<AiAdmission, AiGovernanceRejection> {
         if let Some(room_id) = request.room_id {
-            self.check_room_ai_access(room_id, request.user_id).await?;
+            self.check_chat_ai_access(room_id, request.user_id).await?;
         }
         let now = Utc::now();
         let day_start = now
@@ -133,7 +133,7 @@ impl AppState {
             }
             if let (Some(room_id), Some(limit)) = (request.room_id, settings.daily_room_token_limit)
             {
-                let room_used: i64 = sqlx::query_scalar(
+                let chat_used: i64 = sqlx::query_scalar(
                     "SELECT CAST(COALESCE(SUM(total_tokens), 0) AS BIGINT) FROM ai_usage_records \
                      WHERE room_id = $1 AND created_at >= $2",
                 )
@@ -141,7 +141,7 @@ impl AppState {
                 .bind(day_start)
                 .fetch_one(&mut *transaction)
                 .await?;
-                let room_reserved: i64 = sqlx::query_scalar(
+                let chat_reserved: i64 = sqlx::query_scalar(
                     "SELECT CAST(COALESCE(SUM(reserved_tokens), 0) AS BIGINT) FROM ai_admissions \
                      WHERE room_id = $1 AND expires_at > $2",
                 )
@@ -149,10 +149,10 @@ impl AppState {
                 .bind(now)
                 .fetch_one(&mut *transaction)
                 .await?;
-                let room_tokens = room_used.saturating_add(room_reserved);
-                if room_tokens.saturating_add(request.reserved_tokens) > limit {
+                let chat_tokens = chat_used.saturating_add(chat_reserved);
+                if chat_tokens.saturating_add(request.reserved_tokens) > limit {
                     transaction.rollback().await?;
-                    return Err(AiGovernanceRejection::RoomTokenLimit);
+                    return Err(AiGovernanceRejection::ChatTokenLimit);
                 }
             }
             let (input_price, output_price) = rule.map_or((0, 0), |rule| {
@@ -186,7 +186,7 @@ impl AppState {
         })
     }
 
-    async fn check_room_ai_access(
+    async fn check_chat_ai_access(
         &self,
         room_id: Uuid,
         user_id: Uuid,
@@ -198,8 +198,8 @@ impl AppState {
         if status != "active" {
             return Err(AiGovernanceRejection::AdminsOnly);
         }
-        match self.room_ai_policy(room_id).await?.mode.as_str() {
-            "disabled" => Err(AiGovernanceRejection::RoomDisabled),
+        match self.chat_ai_policy(room_id).await?.mode.as_str() {
+            "disabled" => Err(AiGovernanceRejection::ChatDisabled),
             "admins" if !matches!(role.as_str(), "owner" | "admin") => {
                 Err(AiGovernanceRejection::AdminsOnly)
             }

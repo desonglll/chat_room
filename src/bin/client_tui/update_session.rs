@@ -56,8 +56,8 @@ impl App {
             Ok(()) => {
                 self.status = format!("Signed in as {}", self.username);
                 let mut actions = vec![Action::LoadConversations];
-                if let Some((room_id, password)) = self.initial_room.take() {
-                    actions.push(Action::ConnectRoom {
+                if let Some((room_id, password)) = self.initial_chat.take() {
+                    actions.push(Action::ConnectChat {
                         room_id,
                         password,
                         target_message: None,
@@ -94,8 +94,8 @@ impl App {
                     self.status = format!("Signed in as {}", self.username);
                 }
                 let mut actions = vec![Action::LoadConversations];
-                if let Some((room_id, password)) = self.initial_room.take() {
-                    actions.push(Action::ConnectRoom {
+                if let Some((room_id, password)) = self.initial_chat.take() {
+                    actions.push(Action::ConnectChat {
                         room_id,
                         password,
                         target_message: None,
@@ -115,7 +115,7 @@ impl App {
         room_id: uuid::Uuid,
         event: ChatEvent,
     ) -> Vec<Action> {
-        if self.active_room != Some(room_id) {
+        if self.active_chat != Some(room_id) {
             return Vec::new();
         }
         match event {
@@ -205,7 +205,7 @@ impl App {
         if let Some(conversation) = self
             .conversations
             .iter_mut()
-            .find(|conversation| Some(conversation.room_id) == self.active_room)
+            .find(|conversation| Some(conversation.room_id) == self.active_chat)
         {
             conversation.last_message = Some(MessagePreview {
                 sender: message.sender.clone(),

@@ -69,7 +69,7 @@ impl AppState {
                 "SELECT messages.id AS message_id, messages.room_id, \
                  CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END AS conversation_kind, \
                  COALESCE(NULLIF(memberships.conversation_alias, ''), \
-                   CASE WHEN direct.room_id IS NULL THEN rooms.name \
+                   CASE WHEN direct.room_id IS NULL THEN chats.title \
                      ELSE COALESCE(NULLIF(remarks.remark, ''), NULLIF(peer.display_name, ''), peer.username) END \
                  ) AS conversation_title, messages.sender_id, messages.sender, messages.content, \
                  attachments.file_name AS attachment_file_name, \
@@ -85,11 +85,11 @@ impl AppState {
                        (following.created_at = messages.created_at AND following.id > messages.id)) \
                    ORDER BY following.created_at ASC, following.id ASC LIMIT 1) AS context_after, \
                  messages.created_at \
-                 FROM room_memberships AS memberships \
-                 JOIN rooms ON rooms.id = memberships.room_id AND rooms.deleted_at IS NULL \
-                 JOIN messages ON messages.room_id = rooms.id AND messages.recalled_at IS NULL \
+                 FROM chat_members AS memberships \
+                 JOIN chats ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
+                 JOIN messages ON messages.room_id = chats.id AND messages.recalled_at IS NULL \
                  LEFT JOIN attachments ON attachments.id = messages.attachment_id \
-                 LEFT JOIN direct_conversations AS direct ON direct.room_id = rooms.id \
+                 LEFT JOIN direct_conversations AS direct ON direct.room_id = chats.id \
                  LEFT JOIN users AS peer ON peer.id = CASE \
                    WHEN direct.user_low_id = $1 THEN direct.user_high_id \
                    WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \

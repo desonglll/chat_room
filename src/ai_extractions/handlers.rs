@@ -16,7 +16,7 @@ use super::{
     store::NewExtractionRun,
 };
 use crate::{
-    ai_governance::AiAdmissionRequest, ai_handlers::require_room_password, models::User,
+    ai_governance::AiAdmissionRequest, ai_handlers::require_chat_password, models::User,
     state::SharedState, user_handlers::bearer_token,
 };
 
@@ -28,16 +28,16 @@ async fn actor(state: &SharedState, headers: &HeaderMap) -> Result<User, StatusC
         .ok_or(StatusCode::UNAUTHORIZED)
 }
 
-async fn authorize_room(
+async fn authorize_chat(
     state: &SharedState,
     user_id: Uuid,
     room_id: Uuid,
     headers: &HeaderMap,
 ) -> Result<(), StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
-    require_room_password(&room, headers)?;
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    require_chat_password(&chat, headers)?;
     let membership = state
-        .room_membership(room_id, user_id)
+        .chat_membership(room_id, user_id)
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::FORBIDDEN)?;
@@ -48,16 +48,16 @@ async fn authorize_room(
 
 #[utoipa::path(
     post,
-    path = "/api/rooms/{room_id}/ai/extractions",
-    params(("room_id" = Uuid, Path, description = "Room identifier")),
+    path = "/api/chats/{room_id}/ai/extractions",
+    params(("room_id" = Uuid, Path, description = "Chat identifier")),
     request_body = CreateAiExtractionRequest,
     responses(
         (status = 202, description = "Durable extraction accepted", body = AiExtractionRun),
         (status = 400, description = "Invalid time range"),
-        (status = 401, description = "Missing session or incorrect room password"),
-        (status = 403, description = "Account is not an active room member"),
-        (status = 404, description = "Room not found"),
-        (status = 409, description = "Idempotency key belongs to another room"),
+        (status = 401, description = "Missing session or incorrect chat password"),
+        (status = 403, description = "Account is not an active chat member"),
+        (status = 404, description = "Chat not found"),
+        (status = 409, description = "Idempotency key belongs to another chat"),
         (status = 429, description = "Concurrency or usage limit reached"),
         (status = 503, description = "AI model unavailable")
     )
@@ -69,7 +69,7 @@ pub async fn create(
     Json(payload): Json<CreateAiExtractionRequest>,
 ) -> Result<(StatusCode, Json<AiExtractionRun>), StatusCode> {
     let user = actor(&state, &headers).await?;
-    authorize_room(&state, user.id, room_id, &headers).await?;
+    authorize_chat(&state, user.id, room_id, &headers).await?;
     if payload.client_request_id.is_nil()
         || payload.from_at >= payload.to_at
         || payload.to_at - payload.from_at > Duration::days(365)
@@ -141,8 +141,8 @@ pub async fn create(
     params(("id" = Uuid, Path, description = "Extraction run identifier")),
     responses(
         (status = 200, description = "Extraction run and candidates", body = AiExtractionRun),
-        (status = 401, description = "Missing session or incorrect room password"),
-        (status = 403, description = "Account is not an active room member"),
+        (status = 401, description = "Missing session or incorrect chat password"),
+        (status = 403, description = "Account is not an active chat member"),
         (status = 404, description = "Extraction run not found")
     )
 )]
@@ -153,11 +153,11 @@ pub async fn get(
 ) -> Result<Json<AiExtractionRun>, StatusCode> {
     let user = actor(&state, &headers).await?;
     let room_id = state
-        .extraction_run_room(user.id, run_id)
+        .extraction_run_chat(user.id, run_id)
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::NOT_FOUND)?;
-    authorize_room(&state, user.id, room_id, &headers).await?;
+    authorize_chat(&state, user.id, room_id, &headers).await?;
     state
         .ai_extraction_run(user.id, run_id)
         .await
@@ -174,8 +174,8 @@ pub async fn get(
     responses(
         (status = 200, description = "Candidate status and persisted result", body = AiExtractionCandidate),
         (status = 400, description = "Invalid action or version"),
-        (status = 401, description = "Missing session or incorrect room password"),
-        (status = 403, description = "Account is not an active room member"),
+        (status = 401, description = "Missing session or incorrect chat password"),
+        (status = 403, description = "Account is not an active chat member"),
         (status = 404, description = "Candidate not found"),
         (status = 409, description = "Candidate changed concurrently")
     )
@@ -191,11 +191,11 @@ pub async fn update_candidate(
     }
     let user = actor(&state, &headers).await?;
     let room_id = state
-        .extraction_candidate_room(user.id, candidate_id)
+        .extraction_candidate_chat(user.id, candidate_id)
         .await
         .map_err(internal_error)?
         .ok_or(StatusCode::NOT_FOUND)?;
-    authorize_room(&state, user.id, room_id, &headers).await?;
+    authorize_chat(&state, user.id, room_id, &headers).await?;
     match state
         .update_extraction_candidate(user.id, candidate_id, &payload.action, payload.version)
         .await

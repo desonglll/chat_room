@@ -170,9 +170,9 @@ fn conversation_messages(
     task_label: Option<&str>,
 ) -> Vec<ChatMessage> {
     let context_rules = match (toon_context, retrieval_used) {
-        (Some(_), true) => "You have authorized conversation context and retrieved_evidence selected from the full room history. Retrieved rows are candidates, not automatically relevant: use and cite only evidence that directly supports the answer. Cite a relevant retrieved text source with its exact label such as [S1]. Never cite an unrelated source merely because it shares a word with the question.",
-        (Some(_), false) => "You have authorized conversation context that may contain the full available room history. Base conversation-specific claims on that context and state clearly when it does not contain enough information.",
-        (None, _) => "No room transcript is attached. Answer from reliable general knowledge and clearly identify uncertainty.",
+        (Some(_), true) => "You have authorized conversation context and retrieved_evidence selected from the full chat history. Retrieved rows are candidates, not automatically relevant: use and cite only evidence that directly supports the answer. Cite a relevant retrieved text source with its exact label such as [S1]. Never cite an unrelated source merely because it shares a word with the question.",
+        (Some(_), false) => "You have authorized conversation context that may contain the full available chat history. Base conversation-specific claims on that context and state clearly when it does not contain enough information.",
+        (None, _) => "No chat transcript is attached. Answer from reliable general knowledge and clearly identify uncertainty.",
     };
     let planned_task = task_label.unwrap_or("general assistance");
     let system = format!(

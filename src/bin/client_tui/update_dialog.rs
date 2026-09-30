@@ -42,7 +42,7 @@ impl App {
                     (true, Vec::new())
                 }
             }
-            Dialog::CreateRoom {
+            Dialog::CreateChat {
                 name,
                 password,
                 field,
@@ -58,13 +58,13 @@ impl App {
                 KeyCode::Enter => {
                     let name = name.value().trim().to_string();
                     if name.is_empty() {
-                        self.status = "Room name cannot be empty".into();
+                        self.status = "Chat name cannot be empty".into();
                         (true, Vec::new())
                     } else {
                         let password = password.value().to_string();
                         self.busy = true;
-                        self.status = "Creating room...".into();
-                        (false, vec![Action::CreateRoom { name, password }])
+                        self.status = "Creating chat...".into();
+                        (false, vec![Action::CreateChat { name, password }])
                     }
                 }
                 _ => {
@@ -76,42 +76,42 @@ impl App {
                     (true, Vec::new())
                 }
             },
-            Dialog::Rooms { items, selected } => {
+            Dialog::Chats { items, selected } => {
                 if super::navigation::move_selection(selected, items.len(), key) {
                     (true, Vec::new())
                 } else {
                     match key.code {
                         KeyCode::Enter => {
-                            let Some(room) = items.get(*selected) else {
+                            let Some(chat) = items.get(*selected) else {
                                 return Vec::new();
                             };
-                            if room.membership_status.as_deref() == Some("active") {
+                            if chat.membership_status.as_deref() == Some("active") {
                                 self.busy = true;
-                                self.status = format!("Connecting to {}...", room.name);
-                                return vec![Action::ConnectRoom {
-                                    room_id: room.id,
-                                    password: self.room_passwords.get(&room.id).cloned(),
+                                self.status = format!("Connecting to {}...", chat.name);
+                                return vec![Action::ConnectChat {
+                                    room_id: chat.id,
+                                    password: self.chat_passwords.get(&chat.id).cloned(),
                                     target_message: None,
                                 }];
                             }
-                            if room.membership_status.as_deref() == Some("pending") {
+                            if chat.membership_status.as_deref() == Some("pending") {
                                 self.status = "Join request is still waiting for approval".into();
                                 return Vec::new();
                             }
-                            if room.has_password {
+                            if chat.has_password {
                                 self.dialog = Some(Dialog::Prompt {
-                                    title: format!("Password for {}", room.name),
-                                    kind: PromptKind::RoomJoinPassword(room.id),
+                                    title: format!("Password for {}", chat.name),
+                                    kind: PromptKind::ChatJoinPassword(chat.id),
                                     input: super::input::TextField::password(),
                                 });
                                 return Vec::new();
                             }
                             self.busy = true;
-                            self.status = format!("Joining {}...", room.name);
+                            self.status = format!("Joining {}...", chat.name);
                             (
                                 false,
-                                vec![Action::JoinRoom {
-                                    room_id: room.id,
+                                vec![Action::JoinChat {
+                                    room_id: chat.id,
                                     password: None,
                                 }],
                             )
@@ -183,17 +183,17 @@ impl App {
 
     fn submit_prompt(&mut self, kind: PromptKind, value: String) -> Vec<Action> {
         match kind {
-            PromptKind::RoomJoinPassword(room_id) => {
-                self.room_passwords.insert(room_id, value.clone());
-                vec![Action::JoinRoom {
+            PromptKind::ChatJoinPassword(room_id) => {
+                self.chat_passwords.insert(room_id, value.clone());
+                vec![Action::JoinChat {
                     room_id,
                     password: Some(value),
                 }]
             }
-            PromptKind::Upload => self.active_room.map_or_else(Vec::new, |room_id| {
+            PromptKind::Upload => self.active_chat.map_or_else(Vec::new, |room_id| {
                 vec![Action::Upload {
                     room_id,
-                    password: self.room_passwords.get(&room_id).cloned(),
+                    password: self.chat_passwords.get(&room_id).cloned(),
                     path: PathBuf::from(value),
                 }]
             }),

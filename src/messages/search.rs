@@ -1,4 +1,4 @@
-//! Authorized room-message search and targeted context loading.
+//! Authorized chat-message search and targeted context loading.
 
 use axum::{
     extract::{Path, Query, State},
@@ -12,8 +12,8 @@ use uuid::Uuid;
 use super::search_pattern::like_pattern;
 use super::store::{MessageCursor, MessageRow, MESSAGE_SELECT};
 use crate::{
+    chats::handlers::authorize_chat,
     models::{StoredMessage, User},
-    rooms::handlers::authorize_room,
     state::{with_pool, AppState, SharedState},
     user_handlers::bearer_token,
 };
@@ -35,20 +35,20 @@ pub struct MessageContextQuery {
 
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}/messages/search",
+    path = "/api/chats/{id}/messages/search",
     params(
-        ("id" = Uuid, Path, description = "Room id"),
+        ("id" = Uuid, Path, description = "Chat id"),
         ("q" = String, Query, description = "Text to find in message content"),
         ("before" = Option<Uuid>, Query, description = "Exclusive result cursor"),
         ("limit" = Option<i64>, Query, description = "Results to return (1-100)"),
-        ("x-room-password" = Option<String>, Header, description = "Required for private rooms")
+        ("x-room-password" = Option<String>, Header, description = "Required for private chats")
     ),
     responses(
-        (status = 200, description = "Matching room messages, newest first", body = Vec<StoredMessage>),
+        (status = 200, description = "Matching chat messages, newest first", body = Vec<StoredMessage>),
         (status = 400, description = "Invalid query or cursor"),
-        (status = 401, description = "Missing session or room password"),
-        (status = 403, description = "Not an active room member"),
-        (status = 404, description = "Room not found")
+        (status = 401, description = "Missing session or chat password"),
+        (status = 403, description = "Not an active chat member"),
+        (status = 404, description = "Chat not found")
     )
 )]
 pub async fn search_messages(
@@ -64,7 +64,7 @@ pub async fn search_messages(
     }
     let before = resolve_cursor(&state, room_id, query.before).await?;
     state
-        .search_room_messages(
+        .search_chat_messages(
             room_id,
             text,
             query.limit.unwrap_or(DEFAULT_SEARCH_LIMIT),
@@ -78,18 +78,18 @@ pub async fn search_messages(
 
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}/messages/{message_id}/context",
+    path = "/api/chats/{id}/messages/{message_id}/context",
     params(
-        ("id" = Uuid, Path, description = "Room id"),
+        ("id" = Uuid, Path, description = "Chat id"),
         ("message_id" = Uuid, Path, description = "Target message id"),
         ("limit" = Option<i64>, Query, description = "Context messages to return (1-100)"),
-        ("x-room-password" = Option<String>, Header, description = "Required for private rooms")
+        ("x-room-password" = Option<String>, Header, description = "Required for private chats")
     ),
     responses(
         (status = 200, description = "Messages surrounding the target", body = Vec<StoredMessage>),
-        (status = 401, description = "Missing session or room password"),
-        (status = 403, description = "Not an active room member"),
-        (status = 404, description = "Room or target message not found")
+        (status = 401, description = "Missing session or chat password"),
+        (status = 403, description = "Not an active chat member"),
+        (status = 404, description = "Chat or target message not found")
     )
 )]
 pub async fn message_context(
@@ -113,7 +113,7 @@ pub async fn message_context(
 }
 
 impl AppState {
-    async fn search_room_messages(
+    async fn search_chat_messages(
         &self,
         room_id: Uuid,
         text: &str,
@@ -226,14 +226,14 @@ async fn authorized_viewer(
     room_id: Uuid,
     headers: &HeaderMap,
 ) -> Result<User, StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
     let user = state
         .session_user(bearer_token(headers)?)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
     if !state
-        .has_room_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send")
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
@@ -242,7 +242,7 @@ async fn authorized_viewer(
     let supplied = headers
         .get("x-room-password")
         .and_then(|value| value.to_str().ok());
-    authorize_room(&room, supplied)
+    authorize_chat(&chat, supplied)
         .then_some(user)
         .ok_or(StatusCode::UNAUTHORIZED)
 }
@@ -281,6 +281,6 @@ async fn message_cursor(
 }
 
 fn internal_error(error: sqlx::Error) -> StatusCode {
-    tracing::error!("room message search failed: {error}");
+    tracing::error!("chat message search failed: {error}");
     StatusCode::INTERNAL_SERVER_ERROR
 }

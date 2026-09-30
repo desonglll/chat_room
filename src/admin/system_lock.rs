@@ -1,4 +1,4 @@
-//! Persistent administrator-controlled lock for every chat room.
+//! Persistent administrator-controlled lock for every chat.
 
 use axum::{
     extract::{Path, State},
@@ -15,7 +15,7 @@ use crate::audit::AuditEventDraft;
 use crate::state::{with_pool, AppState, SharedState};
 
 pub const SYSTEM_LOCK_REASON: &str = "system locked";
-pub const ROOM_LOCK_REASON: &str = "room locked";
+pub const CHAT_LOCK_REASON: &str = "chat locked";
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateSystemLockRequest {
@@ -28,7 +28,7 @@ pub struct SystemLockStatus {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct RoomLockStatus {
+pub struct ChatLockStatus {
     pub room_id: Uuid,
     pub locked: bool,
 }
@@ -55,10 +55,10 @@ impl AppState {
         })
     }
 
-    pub async fn room_locked(&self, room_id: Uuid) -> Result<bool, sqlx::Error> {
+    pub async fn chat_locked(&self, room_id: Uuid) -> Result<bool, sqlx::Error> {
         with_pool!(self, |pool| {
             sqlx::query_scalar::<_, bool>(
-                "SELECT EXISTS(SELECT 1 FROM rooms \
+                "SELECT EXISTS(SELECT 1 FROM chats \
                  WHERE id = $1 AND deleted_at IS NULL AND locked_at IS NOT NULL)",
             )
             .bind(room_id)
@@ -67,10 +67,10 @@ impl AppState {
         })
     }
 
-    async fn set_room_locked(&self, room_id: Uuid, locked: bool) -> Result<bool, sqlx::Error> {
+    async fn set_chat_locked(&self, room_id: Uuid, locked: bool) -> Result<bool, sqlx::Error> {
         let locked_at = locked.then(Utc::now);
         with_pool!(self, |pool| {
-            sqlx::query("UPDATE rooms SET locked_at = $1 WHERE id = $2 AND deleted_at IS NULL")
+            sqlx::query("UPDATE chats SET locked_at = $1 WHERE id = $2 AND deleted_at IS NULL")
                 .bind(locked_at)
                 .bind(room_id)
                 .execute(pool)
@@ -80,7 +80,7 @@ impl AppState {
     }
 }
 
-pub(crate) async fn room_lock_reason(
+pub(crate) async fn chat_lock_reason(
     state: &AppState,
     room_id: Uuid,
 ) -> Result<Option<&'static str>, sqlx::Error> {
@@ -88,9 +88,9 @@ pub(crate) async fn room_lock_reason(
         return Ok(Some(SYSTEM_LOCK_REASON));
     }
     Ok(state
-        .room_locked(room_id)
+        .chat_locked(room_id)
         .await?
-        .then_some(ROOM_LOCK_REASON))
+        .then_some(CHAT_LOCK_REASON))
 }
 
 pub(crate) async fn require_chat_rooms_unlocked(state: &AppState) -> Result<(), StatusCode> {
@@ -104,15 +104,15 @@ pub(crate) async fn require_chat_rooms_unlocked(state: &AppState) -> Result<(), 
     }
 }
 
-pub(crate) async fn require_room_unlocked(
+pub(crate) async fn require_chat_unlocked(
     state: &AppState,
     room_id: Uuid,
 ) -> Result<(), StatusCode> {
-    match room_lock_reason(state, room_id).await {
+    match chat_lock_reason(state, room_id).await {
         Ok(None) => Ok(()),
         Ok(Some(_)) => Err(StatusCode::LOCKED),
         Err(error) => {
-            tracing::error!("read room chat lock failed: {error}");
+            tracing::error!("read chat lock failed: {error}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -121,63 +121,64 @@ pub(crate) async fn require_room_unlocked(
 #[utoipa::path(
     get,
     path = "/api/admin/room-locks/{room_id}",
-    params(("room_id" = Uuid, Path, description = "Room identifier")),
+    params(("room_id" = Uuid, Path, description = "Chat identifier")),
     responses(
-        (status = 200, description = "Current room lock", body = RoomLockStatus),
+        (status = 200, description = "Current chat lock", body = ChatLockStatus),
         (status = 401, description = "Missing or expired session"),
         (status = 403, description = "Account is not a system administrator"),
-        (status = 404, description = "Room does not exist")
+        (status = 404, description = "Chat does not exist")
     )
 )]
-pub async fn room_status(
+pub async fn chat_status(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
-) -> Result<Json<RoomLockStatus>, StatusCode> {
+) -> Result<Json<ChatLockStatus>, StatusCode> {
     require_admin(&state, &headers).await?;
-    state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
-    let locked = state.room_locked(room_id).await.map_err(|error| {
-        tracing::error!("read room chat lock failed: {error}");
+    state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    let locked = state.chat_locked(room_id).await.map_err(|error| {
+        tracing::error!("read chat lock failed: {error}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok(Json(RoomLockStatus { room_id, locked }))
+    Ok(Json(ChatLockStatus { room_id, locked }))
 }
 
 #[utoipa::path(
     put,
     path = "/api/admin/room-locks/{room_id}",
-    params(("room_id" = Uuid, Path, description = "Room identifier")),
+    params(("room_id" = Uuid, Path, description = "Chat identifier")),
     request_body = UpdateSystemLockRequest,
     responses(
-        (status = 200, description = "Updated room lock", body = RoomLockStatus),
+        (status = 200, description = "Updated chat lock", body = ChatLockStatus),
         (status = 401, description = "Missing or expired session"),
         (status = 403, description = "Account is not a system administrator"),
-        (status = 404, description = "Room does not exist")
+        (status = 404, description = "Chat does not exist")
     )
 )]
-pub async fn update_room(
+pub async fn update_chat(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
     Json(request): Json<UpdateSystemLockRequest>,
-) -> Result<Json<RoomLockStatus>, StatusCode> {
+) -> Result<Json<ChatLockStatus>, StatusCode> {
     let actor = require_admin(&state, &headers).await?;
     state
         .record_audit_event(
             AuditEventDraft::system(&actor, "room.lock.update_requested")
+                // `room` is the frozen audit `target_type` value; web/src/auditApi.ts types it.
                 .target("room", room_id)
                 .detail("locked", request.locked),
         )
         .await
         .map_err(|error| {
-            tracing::error!("required Room lock audit failed: {error}");
+            tracing::error!("required Chat lock audit failed: {error}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     let updated = state
-        .set_room_locked(room_id, request.locked)
+        .set_chat_locked(room_id, request.locked)
         .await
         .map_err(|error| {
-            tracing::error!("update room chat lock failed: {error}");
+            tracing::error!("update chat lock failed: {error}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     if !updated {
@@ -185,10 +186,10 @@ pub async fn update_room(
     }
     if request.locked {
         state
-            .restart_room_connections(room_id, ROOM_LOCK_REASON)
+            .restart_chat_connections(room_id, CHAT_LOCK_REASON)
             .await;
     }
-    Ok(Json(RoomLockStatus {
+    Ok(Json(ChatLockStatus {
         room_id,
         locked: request.locked,
     }))
@@ -199,7 +200,7 @@ pub async fn update_room(
     path = "/api/admin/chat-lock",
     request_body = UpdateSystemLockRequest,
     responses(
-        (status = 200, description = "Updated global chat room lock", body = SystemLockStatus),
+        (status = 200, description = "Updated global chat lock", body = SystemLockStatus),
         (status = 401, description = "Missing or expired session"),
         (status = 403, description = "Account is not a system administrator")
     )

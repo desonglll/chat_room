@@ -97,16 +97,16 @@ async fn account(client: &reqwest::Client, base: &str, username: &str) -> (Strin
 }
 
 #[tokio::test]
-async fn room_governance_is_audited_filtered_and_manager_only() {
+async fn chat_governance_is_audited_filtered_and_manager_only() {
     let (base, _state, task) = start_server().await;
     let client = reqwest::Client::new();
-    let (owner_token, _) = account(&client, &base, "room-audit-owner").await;
-    let (member_token, member_id) = account(&client, &base, "room-audit-member").await;
-    let room = client
-        .post(format!("{base}/api/rooms"))
+    let (owner_token, _) = account(&client, &base, "chat-audit-owner").await;
+    let (member_token, member_id) = account(&client, &base, "chat-audit-member").await;
+    let chat = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&owner_token)
         .json(&serde_json::json!({
-            "name": "audited-room",
+            "name": "audited-chat",
             "password": "",
             "join_policy": "approval"
         }))
@@ -116,15 +116,15 @@ async fn room_governance_is_audited_filtered_and_manager_only() {
         .json::<serde_json::Value>()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
-    let join_url = format!("{base}/api/rooms/{room_id}/join-requests");
-    let member_url = format!("{base}/api/rooms/{room_id}/members/{member_id}");
+    let room_id = chat["id"].as_str().unwrap();
+    let join_url = format!("{base}/api/chats/{room_id}/join-requests");
+    let member_url = format!("{base}/api/chats/{room_id}/members/{member_id}");
 
     assert_eq!(
         client
-            .post(format!("{base}/api/rooms/{room_id}/invitations"))
+            .post(format!("{base}/api/chats/{room_id}/invitations"))
             .bearer_auth(&owner_token)
-            .json(&serde_json::json!({ "username": "room-audit-member" }))
+            .json(&serde_json::json!({ "username": "chat-audit-member" }))
             .send()
             .await
             .unwrap()
@@ -144,7 +144,7 @@ async fn room_governance_is_audited_filtered_and_manager_only() {
     );
     assert_eq!(
         client
-            .get(format!("{base}/api/rooms/{room_id}/audit-events"))
+            .get(format!("{base}/api/chats/{room_id}/audit-events"))
             .bearer_auth(&member_token)
             .send()
             .await
@@ -169,7 +169,7 @@ async fn room_governance_is_audited_filtered_and_manager_only() {
         );
     }
     let members = client
-        .get(format!("{base}/api/rooms/{room_id}/members"))
+        .get(format!("{base}/api/chats/{room_id}/members"))
         .bearer_auth(&owner_token)
         .send()
         .await
@@ -241,9 +241,9 @@ async fn room_governance_is_audited_filtered_and_manager_only() {
         );
     }
 
-    let audit_url = format!("{base}/api/rooms/{room_id}/audit-events");
+    let audit_url = format!("{base}/api/chats/{room_id}/audit-events");
     let page = client
-        .get(format!("{audit_url}?actor=room-audit-owner&limit=2"))
+        .get(format!("{audit_url}?actor=chat-audit-owner&limit=2"))
         .bearer_auth(&owner_token)
         .send()
         .await

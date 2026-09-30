@@ -16,7 +16,7 @@ use crate::messages::actions::{EditCursor, RecallCursor};
 use crate::models::ChatMessage;
 use crate::realtime::protocol::{advance_message_cursor, stored_message_to_chat};
 use crate::realtime::system_lock::close_if_locked;
-use crate::state::{RoomEvent, SharedState};
+use crate::state::{ChatEvent, SharedState};
 
 use super::ws::send_json;
 
@@ -26,13 +26,13 @@ pub(super) struct OutboundCursors {
     pub edits: Option<EditCursor>,
 }
 
-pub(super) fn spawn_room_forwarder(
+pub(super) fn spawn_chat_forwarder(
     state: SharedState,
     room_id: Uuid,
     user_id: Uuid,
     session_id: Uuid,
     mut sink: SplitSink<WebSocket, Message>,
-    mut room_messages: broadcast::Receiver<RoomEvent>,
+    mut chat_messages: broadcast::Receiver<ChatEvent>,
     mut cursors: OutboundCursors,
 ) -> JoinHandle<()> {
     let poll_interval = Duration::from_millis(state.realtime_config().poll_interval_ms);
@@ -47,14 +47,14 @@ pub(super) fn spawn_room_forwarder(
 
         loop {
             tokio::select! {
-                event = room_messages.recv() => match event {
-                    Ok(RoomEvent::Message(message)) => {
+                event = chat_messages.recv() => match event {
+                    Ok(ChatEvent::Message(message)) => {
                         advance_message_cursor(&mut cursors.messages, &message);
                         if send_json(&mut sink, &message).await.is_err() {
                             break;
                         }
                     }
-                    Ok(RoomEvent::Disconnect { reason }) => {
+                    Ok(ChatEvent::Disconnect { reason }) => {
                         let _ = send_json(
                             &mut sink,
                             &ChatMessage::System { content: reason, members: None, participants: None },
@@ -62,7 +62,7 @@ pub(super) fn spawn_room_forwarder(
                         let _ = sink.close().await;
                         break;
                     }
-                    Ok(RoomEvent::DisconnectUser { user_id: target_id, reason }) => {
+                    Ok(ChatEvent::DisconnectUser { user_id: target_id, reason }) => {
                         if target_id == user_id {
                             let _ = send_json(
                                 &mut sink,
@@ -127,10 +127,10 @@ async fn poll_database_updates(
             let _ = sink.close().await;
             return false;
         }
-        Err(error) => tracing::warn!("validate live room session failed: {error}"),
+        Err(error) => tracing::warn!("validate live chat session failed: {error}"),
     }
 
-    match state.is_room_participant(room_id, user_id).await {
+    match state.is_chat_participant(room_id, user_id).await {
         Ok(true) => {}
         Ok(false) => {
             let _ = send_json(
@@ -145,7 +145,7 @@ async fn poll_database_updates(
             let _ = sink.close().await;
             return false;
         }
-        Err(error) => tracing::warn!("check room membership failed: {}", error),
+        Err(error) => tracing::warn!("check chat membership failed: {}", error),
     }
 
     match state
@@ -166,7 +166,7 @@ async fn poll_database_updates(
                 }
             }
         }
-        Err(error) => tracing::warn!("poll room messages failed: {}", error),
+        Err(error) => tracing::warn!("poll chat messages failed: {}", error),
     }
     match state
         .recalls_after(room_id, cursors.recalls.as_ref(), limit)

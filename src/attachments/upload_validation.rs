@@ -15,16 +15,16 @@ pub(super) async fn authorize(
     state: &SharedState,
     room_id: Uuid,
     headers: &HeaderMap,
-) -> Result<(crate::models::Room, crate::models::User), StatusCode> {
-    let room = state.room(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
-    if room.has_password {
+) -> Result<(crate::models::Chat, crate::models::User), StatusCode> {
+    let chat = state.chat(room_id).await.ok_or(StatusCode::NOT_FOUND)?;
+    if chat.has_password {
         let password = headers
             .get("x-room-password")
             .and_then(|value| value.to_str().ok())
             .ok_or(StatusCode::UNAUTHORIZED)?;
         let mut hasher = Sha256::new();
         hasher.update(password.as_bytes());
-        if hex::encode(hasher.finalize()) != room.password_hash {
+        if hex::encode(hasher.finalize()) != chat.password_hash {
             return Err(StatusCode::UNAUTHORIZED);
         }
     }
@@ -35,13 +35,13 @@ pub(super) async fn authorize(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
     if !state
-        .has_room_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send")
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    Ok((room, user))
+    Ok((chat, user))
 }
 
 pub(super) fn normalize_file_name(value: &str) -> Result<String, StatusCode> {

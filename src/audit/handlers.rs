@@ -24,10 +24,11 @@ pub struct AuditEventQuery {
     limit: Option<i64>,
 }
 
+/// The deployment-wide half. The chat-scoped half is registered by
+/// `routes::chat_scoped_routes` so that it gets the deprecated `/api/rooms/*` alias like every
+/// other chat-scoped endpoint.
 pub fn routes() -> Router<SharedState> {
-    Router::new()
-        .route("/api/admin/audit-events", get(list_system))
-        .route("/api/rooms/:id/audit-events", get(list_room))
+    Router::new().route("/api/admin/audit-events", get(list_system))
 }
 
 /// List deployment-wide management audit events.
@@ -49,19 +50,19 @@ pub async fn list_system(
     list(&state, "system", None, query).await
 }
 
-/// List management audit events for one Room.
+/// List management audit events for one Chat.
 #[utoipa::path(
     get,
-    path = "/api/rooms/{id}/audit-events",
-    params(("id" = Uuid, Path, description = "Room identifier")),
+    path = "/api/chats/{id}/audit-events",
+    params(("id" = Uuid, Path, description = "Chat identifier")),
     responses(
-        (status = 200, description = "Room audit events", body = AuditEventPage),
+        (status = 200, description = "Chat audit events", body = AuditEventPage),
         (status = 401, description = "Missing or expired session"),
-        (status = 403, description = "Room management permission required"),
-        (status = 404, description = "Room not found")
+        (status = 403, description = "Chat management permission required"),
+        (status = 404, description = "Chat not found")
     )
 )]
-pub async fn list_room(
+pub async fn list_chat(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
@@ -73,11 +74,11 @@ pub async fn list_room(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    if state.room(room_id).await.is_none() {
+    if state.chat(room_id).await.is_none() {
         return Err(StatusCode::NOT_FOUND);
     }
     state
-        .has_room_permission(room_id, user.id, "members.review")
+        .has_chat_permission(room_id, user.id, "members.review")
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .then_some(())

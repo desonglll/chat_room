@@ -63,17 +63,17 @@ async fn critical_system_mutations_are_audited_and_fail_closed() {
             .status(),
         201
     );
-    let room = client
-        .post(format!("{base}/api/rooms"))
+    let chat = client
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&admin_token)
-        .json(&serde_json::json!({ "name": "audit-lock-room", "password": "" }))
+        .json(&serde_json::json!({ "name": "audit-lock-chat", "password": "" }))
         .send()
         .await
         .unwrap()
         .json::<serde_json::Value>()
         .await
         .unwrap();
-    let room_id = room["id"].as_str().unwrap();
+    let room_id = chat["id"].as_str().unwrap();
     assert_eq!(
         client
             .put(format!("{base}/api/admin/room-locks/{room_id}"))

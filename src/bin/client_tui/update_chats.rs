@@ -46,46 +46,46 @@ impl App {
             KeyCode::Enter if self.focus == Focus::List => return self.connect_selected(None),
             KeyCode::Char('i') if super::navigation::is_plain(key) => self.focus = Focus::Input,
             KeyCode::Char('n') if super::navigation::is_plain(key) => {
-                self.dialog = Some(Dialog::CreateRoom {
+                self.dialog = Some(Dialog::CreateChat {
                     name: TextField::default(),
                     password: TextField::password(),
                     field: 0,
                 });
             }
             KeyCode::Char('g') if super::navigation::is_plain(key) => {
-                return vec![Action::LoadRooms];
+                return vec![Action::LoadChats];
             }
             KeyCode::Char('p') if self.focus == Focus::List && super::navigation::is_plain(key) => {
-                if let Some(room) = self.selected_conversation() {
+                if let Some(chat) = self.selected_conversation() {
                     return vec![Action::UpdatePreferences {
-                        room_id: room.room_id,
+                        room_id: chat.room_id,
                         patch: PreferencePatch {
-                            is_pinned: Some(!room.preferences.is_pinned),
+                            is_pinned: Some(!chat.preferences.is_pinned),
                             ..PreferencePatch::default()
                         },
                     }];
                 }
             }
             KeyCode::Char('a') if self.focus == Focus::List && super::navigation::is_plain(key) => {
-                if let Some(room) = self.selected_conversation() {
+                if let Some(chat) = self.selected_conversation() {
                     return vec![Action::UpdatePreferences {
-                        room_id: room.room_id,
+                        room_id: chat.room_id,
                         patch: PreferencePatch {
-                            is_archived: Some(!room.preferences.is_archived),
+                            is_archived: Some(!chat.preferences.is_archived),
                             ..PreferencePatch::default()
                         },
                     }];
                 }
             }
             KeyCode::Char('m') if self.focus == Focus::List && super::navigation::is_plain(key) => {
-                if let Some(room) = self.selected_conversation() {
-                    let level = match room.preferences.notification_level.as_str() {
+                if let Some(chat) = self.selected_conversation() {
+                    let level = match chat.preferences.notification_level.as_str() {
                         "all" => "mentions",
                         "mentions" => "none",
                         _ => "all",
                     };
                     return vec![Action::UpdatePreferences {
-                        room_id: room.room_id,
+                        room_id: chat.room_id,
                         patch: PreferencePatch {
                             notification_level: Some(level.into()),
                             ..PreferencePatch::default()
@@ -94,14 +94,14 @@ impl App {
                 }
             }
             KeyCode::Char('t') if self.focus == Focus::List && super::navigation::is_plain(key) => {
-                if let Some(room) = self.selected_conversation() {
-                    let muted_until = if room.preferences.muted_until.is_some() {
+                if let Some(chat) = self.selected_conversation() {
+                    let muted_until = if chat.preferences.muted_until.is_some() {
                         None
                     } else {
                         Some((chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339())
                     };
                     return vec![Action::UpdatePreferences {
-                        room_id: room.room_id,
+                        room_id: chat.room_id,
                         patch: PreferencePatch {
                             muted_until: Some(muted_until),
                             ..PreferencePatch::default()
@@ -110,7 +110,7 @@ impl App {
                 }
             }
             KeyCode::Char('u')
-                if self.active_room.is_some() && super::navigation::is_plain(key) =>
+                if self.active_chat.is_some() && super::navigation::is_plain(key) =>
             {
                 self.dialog = Some(Dialog::Prompt {
                     title: "Upload file".into(),

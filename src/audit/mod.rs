@@ -1,4 +1,4 @@
-//! Append-only, privacy-minimized system and Room management audit events.
+//! Append-only, privacy-minimized system and Chat management audit events.
 
 pub mod handlers;
 mod models;

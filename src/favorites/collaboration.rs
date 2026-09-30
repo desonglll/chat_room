@@ -19,7 +19,7 @@ impl AppState {
         title: &str,
         content: &str,
     ) -> Result<FavoriteUpdateOutcome, sqlx::Error> {
-        let (updated, affected_rooms): (bool, Vec<Uuid>) = with_pool!(self, |pool| {
+        let (updated, affected_chats): (bool, Vec<Uuid>) = with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
             let updated = sqlx::query(
                 "UPDATE favorites SET title = $1, content = $2, version = version + 1, \
@@ -27,9 +27,9 @@ impl AppState {
                  (user_id = $6 OR EXISTS (SELECT 1 FROM favorite_collaborators \
                    WHERE favorite_collaborators.favorite_id = favorites.id \
                      AND favorite_collaborators.user_id = $6) OR EXISTS \
-                  (SELECT 1 FROM room_pins \
-                   JOIN messages AS pinned_message ON pinned_message.id = room_pins.message_id \
-                   JOIN room_memberships AS pinned_membership ON pinned_membership.room_id = room_pins.room_id \
+                  (SELECT 1 FROM chat_pins \
+                   JOIN messages AS pinned_message ON pinned_message.id = chat_pins.message_id \
+                   JOIN chat_members AS pinned_membership ON pinned_membership.room_id = chat_pins.room_id \
                      AND pinned_membership.user_id = $6 AND pinned_membership.status = 'active' \
                    WHERE pinned_message.favorite_id = favorites.id))",
             )
@@ -43,7 +43,7 @@ impl AppState {
             .await?
             .rows_affected()
                 > 0;
-            let affected_rooms = if updated {
+            let affected_chats = if updated {
                 sqlx::query(
                     "UPDATE messages SET content = (SELECT CASE \
                        WHEN favorites.kind = 'manual' AND favorites.content = '' THEN favorites.title \
@@ -62,10 +62,10 @@ impl AppState {
                 Vec::new()
             };
             transaction.commit().await?;
-            Ok::<_, sqlx::Error>((updated, affected_rooms))
+            Ok::<_, sqlx::Error>((updated, affected_chats))
         })?;
         if updated {
-            for room_id in &affected_rooms {
+            for room_id in &affected_chats {
                 self.invalidate_message_cache(*room_id).await;
             }
             return self

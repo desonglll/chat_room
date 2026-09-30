@@ -11,6 +11,7 @@ pub mod attachments;
 pub mod audit;
 pub mod backup;
 mod cache;
+pub mod chats;
 pub mod config;
 pub mod conversations;
 pub mod direct_conversations;
@@ -22,7 +23,6 @@ pub mod notifications;
 pub mod observability;
 pub mod push_notifications;
 pub mod realtime;
-pub mod rooms;
 mod routes;
 mod security;
 pub mod social;
@@ -46,7 +46,11 @@ pub use attachments::{
     file_handlers, handlers as attachment_handlers, storage as attachment_storage,
     upload_handlers as attachment_upload_handlers, upload_sessions as attachment_upload_sessions,
 };
-use axum::{routing::get, Json, Router};
+use axum::{routing::get, Router};
+pub use chats::{
+    access as chat_access, handlers, membership_handlers, membership_mutations, participants,
+    query_handlers as chat_query_handlers,
+};
 pub use messages::{
     actions as message_actions, forward_handlers, global_search as message_global_search,
     pins as message_pins, reactions as message_reactions, read_store, search as message_search,
@@ -54,25 +58,21 @@ pub use messages::{
 };
 pub use realtime::ws;
 pub(crate) use realtime::{auth as ws_auth, inbound as ws_inbound};
-pub use rooms::{
-    access as room_access, handlers, membership_handlers, membership_mutations, participants,
-    query_handlers as room_query_handlers,
-};
 use std::sync::Arc;
 use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        handlers::create_room,
-        room_query_handlers::list_rooms,
-        room_query_handlers::discover_rooms,
-        room_query_handlers::get_room,
+        handlers::create_chat,
+        chat_query_handlers::list_chats,
+        chat_query_handlers::discover_chats,
+        chat_query_handlers::get_chat,
         message_pins::list_pins,
         message_pins::pin_message,
         message_pins::unpin_message,
-        handlers::update_room,
-        handlers::delete_room,
-        handlers::list_messages,
+        chats::lifecycle_handlers::update_chat,
+        chats::lifecycle_handlers::delete_chat,
+        chats::message_history::list_messages,
         message_search::search_messages,
         message_search::message_context,
         message_global_search::handlers::search_visible_messages,
@@ -90,7 +90,7 @@ use utoipa::OpenApi;
         attachment_upload_handlers::complete_upload,
         attachment_upload_handlers::list_uploads,
         attachment_upload_handlers::cancel_upload,
-        file_handlers::list_room_files,
+        file_handlers::list_chat_files,
         registration::register,
         user_handlers::login,
         user_handlers::me,
@@ -146,8 +146,8 @@ use utoipa::OpenApi;
         ai_extractions::handlers::create,
         ai_extractions::handlers::get,
         ai_extractions::handlers::update_candidate,
-        ai_governance::handlers::room_policy,
-        ai_governance::handlers::update_room_policy,
+        ai_governance::handlers::chat_policy,
+        ai_governance::handlers::update_chat_policy,
         ai_governance::handlers::admin_settings,
         ai_governance::handlers::update_admin_settings,
         ai_governance::handlers::admin_usage,
@@ -168,14 +168,14 @@ use utoipa::OpenApi;
         admin_ai_models::update,
         admin_ai_models::delete,
         admin_system_lock::update,
-        admin_system_lock::room_status,
-        admin_system_lock::update_room,
+        admin_system_lock::chat_status,
+        admin_system_lock::update_chat,
         admin_system_admins::handlers::list,
         admin_system_admins::handlers::grant,
         admin_system_admins::handlers::revoke,
         admin_system_admins::handlers::create_invite,
         audit::handlers::list_system,
-        audit::handlers::list_room,
+        audit::handlers::list_chat,
     ),
     components(schemas(
         ai::AiSuggestions,
@@ -195,9 +195,11 @@ use utoipa::OpenApi;
         admin_services::VectorProbeRequest,
         admin_services::VectorProbeMatch,
         admin_services::VectorProbeResult,
-        models::Room,
-        models::CreateRoomRequest,
-        models::UpdateRoomRequest,
+        models::Chat,
+        models::ChatCompatView,
+        chats::ChatType,
+        models::CreateChatRequest,
+        models::UpdateChatRequest,
         models::StoredMessage,
         models::Attachment,
         models::ChatFileItem,
@@ -228,7 +230,7 @@ use utoipa::OpenApi;
         favorites::models::FavoriteMessagesRequest,
         favorites::models::ForwardFavoriteRequest,
         favorites::models::FavoriteForwardResult,
-        message_pins::RoomPin,
+        message_pins::ChatPin,
         attachment_upload_handlers::CreateUploadRequest,
         attachment_upload_handlers::CreateUploadResponse,
         attachment_upload_handlers::ChunkResponse,
@@ -245,26 +247,26 @@ use utoipa::OpenApi;
         ai_extractions::AiExtractionRun,
         ai_extractions::CreateAiExtractionRequest,
         ai_extractions::UpdateAiExtractionCandidateRequest,
-        ai_governance::RoomAiPolicy,
-        ai_governance::UpdateRoomAiPolicy,
+        ai_governance::ChatAiPolicy,
+        ai_governance::UpdateChatAiPolicy,
         ai_governance::AiGovernanceSettings,
         ai_governance::UpdateAiGovernanceSettings,
         ai_governance::AiUsageReport,
-        tasks::RoomTask,
-        tasks::RoomTaskSource,
-        tasks::CreateRoomTaskRequest,
-        tasks::UpdateRoomTaskRequest,
+        tasks::ChatTask,
+        tasks::ChatTaskSource,
+        tasks::CreateChatTaskRequest,
+        tasks::UpdateChatTaskRequest,
         models::AuthSession,
         sessions::DeviceSession,
         models::UpdateProfileRequest,
         models::ChangePasswordRequest,
         models::DeleteAccountRequest,
         models::VerifyPasswordRequest,
-        models::JoinRoomRequest,
+        models::JoinChatRequest,
         models::InviteMemberRequest,
         models::UpdateMembershipRequest,
         models::UpdateNicknameRequest,
-        models::RoomMembership,
+        models::ChatMembership,
         social::models::SocialUser,
         social::models::FriendRequestView,
         social::models::FriendRequestPayload,
@@ -285,7 +287,7 @@ use utoipa::OpenApi;
         backup::BackupStatus,
         admin_system_lock::SystemLockStatus,
         admin_system_lock::UpdateSystemLockRequest,
-        admin_system_lock::RoomLockStatus,
+        admin_system_lock::ChatLockStatus,
         admin_system_admins::SystemAdminView,
         admin_system_admins::CreateRegistrationInviteRequest,
         admin_system_admins::RegistrationInviteSecret,
@@ -294,10 +296,7 @@ use utoipa::OpenApi;
     ))
 )]
 pub struct ApiDoc;
-/// Serve the OpenAPI JSON spec at /api-docs/openapi.json.
-async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
-    Json(ApiDoc::openapi())
-}
+
 /// Build the API-only axum router.
 pub fn build_app(state: Arc<AppState>) -> Router {
     build_app_with_web(state, false)
@@ -315,7 +314,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     let chunk_body_limit = state.chunk_body_limit_bytes();
     let cors = security::cors_layer(&state.config.security);
     let mut app = routes::api_routes(multipart_body_limit, chunk_body_limit)
-        .route("/api-docs/openapi.json", get(openapi_json));
+        .route("/api-docs/openapi.json", get(chats::compat::openapi_json));
     if web_enabled {
         app = app
             .route("/", get(web::index))
