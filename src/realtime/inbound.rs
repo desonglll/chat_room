@@ -86,18 +86,10 @@ pub async fn handle_client_message(
             let entities = state
                 .accept_message_entities(&content, leading_trim, entities)
                 .await;
-            // TG-409: validate the quote and, for a cross-chat reply, the sender's access to
-            // the source chat (an unreadable source degrades to a plain message).
-            let (reply_to, reply_extra) = match state
-                .resolve_reply_extra(room_id, user.id, reply_to, reply_to_chat_id, reply_quote)
-                .await
-            {
-                Ok(resolved) => resolved,
-                Err(error) => {
-                    tracing::warn!("resolve reply failed: {error}");
-                    (reply_to, Default::default())
-                }
-            };
+            // TG-409: the quote and cross-chat reply (an unreadable source degrades to plain).
+            let (reply_to, reply_extra) = state
+                .reply_or_plain(room_id, user.id, reply_to, reply_to_chat_id, reply_quote)
+                .await;
             let Ok(_permit) = state.work_queue().message().await else {
                 tracing::warn!(%room_id, user_id = %user.id, "message write queue timed out");
                 return;

@@ -12,7 +12,10 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::chats::chat_type::ChatType;
-use crate::models::ReplyQuote;
+use chrono::{DateTime, Utc};
+use sqlx::FromRow;
+
+use crate::models::{ReplyPreview, ReplyQuote};
 use crate::state::{with_pool, AppState};
 
 /// Longest quote kept (UTF-16 code units), and the snapshot of an unquoted cross-chat reply.
@@ -65,7 +68,91 @@ pub fn locate_quote(original: &str, quote: &str, requested_offset: Option<i64>) 
         .and_then(|start| i64::try_from(start).ok())
 }
 
+/// The reply columns of `MESSAGE_SELECT` (flattened into `MessageRow`): the live same-chat
+/// preview join (`reply.*`, NULL for a cross-chat reply) and the TG-409 quote/snapshot columns.
+#[derive(Debug, FromRow)]
+pub(crate) struct ReplyColumns {
+    reply_message_id: Option<Uuid>,
+    reply_sender: Option<String>,
+    reply_content: Option<String>,
+    reply_recalled_at: Option<DateTime<Utc>>,
+    reply_attachment_file_name: Option<String>,
+    reply_target_id: Option<Uuid>,
+    reply_to_chat_id: Option<Uuid>,
+    reply_quote_text: Option<String>,
+    reply_quote_offset: Option<i64>,
+    reply_source_sender: Option<String>,
+    reply_source_chat_title: Option<String>,
+    reply_source_edited_at: Option<DateTime<Utc>>,
+}
+
+impl ReplyColumns {
+    /// The reply preview of a message created at `created_at`: the live same-chat preview, or
+    /// a cross-chat snapshot. A snapshot without an offset is not a quote.
+    pub(crate) fn into_preview(self, created_at: DateTime<Utc>) -> Option<ReplyPreview> {
+        let quote = self
+            .reply_quote_offset
+            .zip(self.reply_quote_text.clone())
+            .map(|(offset, text)| ReplyQuote { text, offset });
+        let quote_modified = quote.is_some()
+            && self
+                .reply_source_edited_at
+                .is_some_and(|edited| edited > created_at);
+        if let Some(message_id) = self.reply_message_id {
+            let recalled = self.reply_recalled_at.is_some();
+            return Some(ReplyPreview {
+                message_id,
+                sender: self.reply_sender?,
+                content: if recalled {
+                    String::new()
+                } else {
+                    self.reply_content?
+                },
+                attachment_file_name: if recalled {
+                    None
+                } else {
+                    self.reply_attachment_file_name
+                },
+                recalled,
+                quote: if recalled { None } else { quote },
+                quote_modified,
+                ..Default::default()
+            });
+        }
+        let (message_id, chat_id) = self.reply_target_id.zip(self.reply_to_chat_id)?;
+        Some(ReplyPreview {
+            message_id,
+            sender: self.reply_source_sender.unwrap_or_default(),
+            content: self.reply_quote_text.unwrap_or_default(),
+            attachment_file_name: None,
+            recalled: false,
+            quote,
+            quote_modified,
+            chat_id: Some(chat_id),
+            chat_title: self.reply_source_chat_title,
+        })
+    }
+}
+
 impl AppState {
+    /// [`Self::resolve_reply_extra`] for the WebSocket path: a database error degrades to the
+    /// plain same-chat reply (logged) rather than dropping the message.
+    pub async fn reply_or_plain(
+        &self,
+        room_id: Uuid,
+        sender_id: Uuid,
+        reply_to: Option<Uuid>,
+        reply_to_chat_id: Option<Uuid>,
+        quote: Option<ReplyQuoteRequest>,
+    ) -> (Option<Uuid>, ReplyExtra) {
+        self.resolve_reply_extra(room_id, sender_id, reply_to, reply_to_chat_id, quote)
+            .await
+            .unwrap_or_else(|error| {
+                tracing::warn!("resolve reply failed: {error}");
+                (reply_to, ReplyExtra::default())
+            })
+    }
+
     /// Resolve a reply's extras for `sender_id` posting into `room_id`. Returns the same-chat
     /// `reply_to` to validate as before (unchanged for a cross-chat reply: `None`) and the
     /// extras. A cross-chat reply the sender may not read is dropped entirely (a plain message).
