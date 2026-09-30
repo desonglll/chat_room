@@ -230,3 +230,35 @@
   font-size: var(--tg-type-meta-size);
   color: var(--tg-text-secondary);
 }
+
+/* TG-508 per-chat mute durations and sound. */
+.tg-chatinfo__notify {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-chatinfo__notify-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tg-chatinfo__notify-choices button {
+  padding: 4px 10px;
+  border: 1px solid var(--tg-divider);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--tg-text-primary);
+  cursor: pointer;
+}
+
+.tg-chatinfo__notify-sound {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-text-secondary);
+}

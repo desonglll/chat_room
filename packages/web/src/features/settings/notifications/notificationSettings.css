@@ -1,0 +1,58 @@
+/* TG-508 «通知与声音». */
+.tg-notify-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.tg-notify-settings__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-bg);
+}
+
+.tg-notify-settings__title {
+  margin: 0;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-accent);
+}
+
+.tg-notify-settings__sound {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--tg-text-primary);
+}
+
+.tg-notify-settings__hint {
+  margin: 0;
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-notify-settings__exceptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-notify-settings__exceptions li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tg-notify-settings__exceptions button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--tg-text-link);
+  cursor: pointer;
+}

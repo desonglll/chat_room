@@ -50,4 +50,7 @@ pub(crate) struct PushPayload {
     pub body: Option<String>,
     pub url: String,
     pub tag: String,
+    /// TG-508: the chat's sound is «none» — the service worker shows it silently.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub silent: bool,
 }
