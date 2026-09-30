@@ -24,6 +24,9 @@ pub struct ScheduledMessage {
     pub entities: Vec<MessageEntity>,
     pub reply_to: Option<Uuid>,
     pub silent: bool,
+    /// TG-204: the forum topic it will be delivered into; omitted for General.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic_id: Option<Uuid>,
     pub scheduled_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -39,6 +42,9 @@ pub struct CreateScheduledMessageRequest {
     pub scheduled_at: DateTime<Utc>,
     #[serde(default)]
     pub silent: bool,
+    /// TG-204: the forum topic to deliver into; absent = General.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
 }
 
 /// Every field is optional; absent fields keep their value. `entities` replaces the entities
@@ -64,6 +70,19 @@ pub enum ScheduledError {
     /// The message write queue is saturated; retry.
     Busy,
     Database(sqlx::Error),
+}
+
+impl ScheduledError {
+    /// TG-204's topic gate, in this module's wire vocabulary.
+    pub(crate) fn from_topic(error: crate::chats::TopicError) -> Self {
+        use crate::chats::TopicError;
+        match error {
+            TopicError::Database(error) => Self::Database(error),
+            TopicError::NotFound => Self::NotFound,
+            TopicError::Closed | TopicError::Forbidden => Self::Forbidden,
+            _ => Self::Invalid,
+        }
+    }
 }
 
 impl From<sqlx::Error> for ScheduledError {

@@ -24,6 +24,7 @@ import {
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { apiClient } from '../../app/client'
 import { browserFetch } from '../../app/platform'
+import { activeTopicId } from '../forum/activeTopic'
 
 export interface GifState {
   status: 'idle' | 'loading' | 'ready' | 'error'
@@ -122,6 +123,7 @@ export function createGifLibrary({ api, store, messages, uuid = createRandomUuid
       try {
         const stored = await api.send(chatId, source, {
           reply_to: replyTo ?? undefined,
+          topic_id: activeTopicId(chatId) ?? undefined,
           client_message_id: uuid(),
         })
         merge(chatId, stored)
@@ -141,6 +143,7 @@ export function createGifLibrary({ api, store, messages, uuid = createRandomUuid
       try {
         const stored = await api.upload(chatId, file, {
           reply_to: replyTo ?? undefined,
+          topic_id: activeTopicId(chatId) ?? undefined,
           client_message_id: uuid(),
         })
         merge(chatId, stored)

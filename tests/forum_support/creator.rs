@@ -3,8 +3,8 @@
 use reqwest::StatusCode;
 use serde_json::json;
 
-use crate::chat_admin_support::{Account, Server};
 use super::{general, new_topic, patch_topic, poll, topics, BLUE};
+use crate::chat_admin_support::{Account, Server};
 
 pub async fn grant_topic_creation(server: &Server, chat: &str, owner: &Account) {
     let (status, _) = server
@@ -18,9 +18,9 @@ pub async fn grant_topic_creation(server: &Server, chat: &str, owner: &Account) 
     assert_eq!(status, StatusCode::OK);
 }
 
-pub /// A member allowed to create topics edits and closes their own, nobody else's, and never
+/// A member allowed to create topics edits and closes their own, nobody else's, and never
 /// pins or hides.
-async fn creator_rights_checks(
+pub async fn creator_rights_checks(
     server: &Server,
     chat: &str,
     owner: &Account,
@@ -84,4 +84,3 @@ async fn creator_rights_checks(
         (StatusCode::OK, json!(true))
     );
 }
-

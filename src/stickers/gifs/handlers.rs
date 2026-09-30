@@ -11,7 +11,7 @@ use uuid::Uuid;
 use super::models::{
     RecentGif, RecentGifQuery, SaveGifRequest, SavedGif, SendGifRequest, UploadGifQuery,
 };
-use super::send::GifSource;
+use super::send::{GifPlacement, GifSource};
 use crate::attachment_handlers::authorize_upload;
 use crate::models::StoredMessage;
 use crate::realtime::protocol::stored_message_to_chat;
@@ -83,6 +83,7 @@ pub async fn send(
         &headers,
         source,
         request.reply_to,
+        request.topic_id,
         request.client_message_id,
     )
     .await
@@ -105,6 +106,7 @@ pub async fn upload(
         &headers,
         GifSource::Upload(body.to_vec()),
         query.reply_to,
+        query.topic_id,
         query.client_message_id,
     )
     .await
@@ -118,6 +120,7 @@ async fn deliver(
     headers: &HeaderMap,
     source: GifSource,
     reply_to: Option<Uuid>,
+    topic_id: Option<Uuid>,
     client_message_id: Option<Uuid>,
 ) -> Result<(StatusCode, Json<StoredMessage>), StickerError> {
     // Telegram grants stickers and GIFs together ("Send Stickers & GIFs").
@@ -127,6 +130,18 @@ async fn deliver(
         .message()
         .await
         .map_err(|_| StickerError::Unavailable)?;
+    // TG-204: the same topic gate as the sticker path.
+    let topic_id = state
+        .resolve_post_topic(chat.id, user.id, topic_id)
+        .await
+        .map_err(|error| match error {
+            crate::chats::TopicError::NotFound => StickerError::NotFound("topic_not_found"),
+            crate::chats::TopicError::Closed | crate::chats::TopicError::Forbidden => {
+                StickerError::Forbidden
+            }
+            crate::chats::TopicError::Database(error) => StickerError::Database(error),
+            _ => StickerError::Invalid("topic_id"),
+        })?;
     let display_name = state.resolve_display_name(chat.id, &user).await;
     let sent = state
         .send_gif_message(
@@ -134,7 +149,7 @@ async fn deliver(
             &user,
             &display_name,
             source,
-            reply_to,
+            GifPlacement { reply_to, topic_id },
             client_message_id,
         )
         .await?;

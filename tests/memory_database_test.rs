@@ -106,6 +106,14 @@ async fn memory_database_never_touches_the_working_directory() {
     let leaked = std::fs::read_dir(".")
         .unwrap()
         .filter_map(Result::ok)
-        .any(|entry| entry.file_name().to_string_lossy().contains("chat-room-memory"));
-    assert!(!leaked, "in-memory database leaked a file into the working directory");
+        .any(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .contains("chat-room-memory")
+        });
+    assert!(
+        !leaked,
+        "in-memory database leaked a file into the working directory"
+    );
 }

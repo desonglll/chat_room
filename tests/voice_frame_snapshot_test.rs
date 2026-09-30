@@ -63,6 +63,7 @@ fn broadcast_voice_is_omitted_when_absent_and_shaped_when_present() {
         poll: None,
         entities: Vec::new(),
         voice,
+        topic_id: None,
         views: None,
         post_author: None,
         silent: false,

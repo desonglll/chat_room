@@ -57,6 +57,9 @@ pub struct SendGifRequest {
     pub message_id: Option<Uuid>,
     #[serde(default)]
     pub reply_to: Option<Uuid>,
+    /// TG-204: the forum topic to post into; absent = General.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
     #[serde(default)]
     pub client_message_id: Option<Uuid>,
 }
@@ -66,6 +69,9 @@ pub struct SendGifRequest {
 pub struct UploadGifQuery {
     #[serde(default)]
     pub reply_to: Option<Uuid>,
+    /// TG-204: the forum topic to post into; absent = General.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
     #[serde(default)]
     pub client_message_id: Option<Uuid>,
 }

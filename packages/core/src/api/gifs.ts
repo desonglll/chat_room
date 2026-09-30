@@ -38,6 +38,8 @@ export type SendGifSource = { saved_gif_id: string } | { message_id: string }
 
 export interface SendGifOptions {
   reply_to?: string | undefined
+  /** TG-204: the forum topic to post into; absent = General. */
+  topic_id?: string | undefined
   client_message_id?: string | undefined
 }
 
@@ -67,6 +69,7 @@ export function createGifsApi(
   const messagesPath = (chatId: string) => `/api/chats/${encodePathSegment(chatId)}/gif-messages`
   const options = (input: SendGifOptions = {}) => ({
     ...(input.reply_to ? { reply_to: input.reply_to } : {}),
+    ...(input.topic_id ? { topic_id: input.topic_id } : {}),
     ...(input.client_message_id ? { client_message_id: input.client_message_id } : {}),
   })
   return {

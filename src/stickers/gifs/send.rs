@@ -26,6 +26,12 @@ pub enum GifSource {
     Upload(Vec<u8>),
 }
 
+/// Where a GIF message lands: its reply target and (TG-204) its already-resolved topic.
+pub struct GifPlacement {
+    pub reply_to: Option<Uuid>,
+    pub topic_id: Option<Uuid>,
+}
+
 /// What a send did: a replayed `client_message_id` returns the original message.
 pub struct GifSend {
     pub message: StoredMessage,
@@ -47,7 +53,7 @@ impl AppState {
         sender: &User,
         sender_display_name: &str,
         source: GifSource,
-        reply_to: Option<Uuid>,
+        placement: GifPlacement,
         client_message_id: Option<Uuid>,
     ) -> Result<GifSend, StickerError> {
         if let Some(existing) = self
@@ -86,7 +92,7 @@ impl AppState {
                 sender,
                 sender_display_name,
                 &file,
-                reply_to,
+                placement,
                 client_message_id,
             )
             .await;
@@ -124,10 +130,10 @@ impl AppState {
         sender: &User,
         sender_display_name: &str,
         file: &GifFile,
-        reply_to: Option<Uuid>,
+        placement: GifPlacement,
         client_message_id: Option<Uuid>,
     ) -> Result<Uuid, sqlx::Error> {
-        let reply_to = self.reply_preview(room_id, reply_to).await?;
+        let reply_to = self.reply_preview(room_id, placement.reply_to).await?;
         let attachment_id = Uuid::new_v4();
         let message_id = Uuid::new_v4();
         let created_at = Utc::now();
@@ -170,8 +176,8 @@ impl AppState {
                 .await?;
                 sqlx::query(
                     "INSERT INTO messages (id, room_id, sender_id, sender, content, \
-                     attachment_id, reply_to_id, client_message_id, media_kind, created_at) \
-                     VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8, $9)",
+                     attachment_id, reply_to_id, client_message_id, media_kind, created_at, \
+                     topic_id) VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8, $9, $10)",
                 )
                 .bind(message_id)
                 .bind(room_id)
@@ -182,6 +188,7 @@ impl AppState {
                 .bind(client_message_id)
                 .bind(MEDIA_KIND_GIF)
                 .bind(created_at)
+                .bind(placement.topic_id)
                 .execute(&mut *tx)
                 .await?;
                 sqlx::query(
