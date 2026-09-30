@@ -134,3 +134,24 @@ origin/master 有 10 个 main 没有的提交
 钩子刻意不跑 cargo 与 bun 门禁：它们耗时数分钟且共享构建目录锁，放进钩子只会让人养成 `--no-verify` 的习惯。
 
 **未解决** `on: push` 触发的 CI 在提交已经进入分支之后才报告，本质上无法阻挡。唯一的事前门禁是 `pull_request`，而 `a16f422`（以及此前的 `7acf7c3`、`fc25980`、`09ffdb1`，提交信息都是 `update.`）是直接推送。要真正堵住这个洞，需要在 GitHub 上要求 PR 并把 `Quality gates` 设为必需检查 —— 同样是服务端设置。
+
+## D-009 M1–M6 执行期的运行规则（用户 2026-09-30 授权）
+
+用户指示：「把计划的任务全部完成」「AI 功能先 disable，把主线任务先做好」「只看最终成果」。据此：
+
+| 规则 | 内容 | 原因 |
+| --- | --- | --- |
+| AI 关闭 | `chat-room.toml` 的 `[ai] enabled = false`；新 React 客户端不做 AI 入口。TG-410 的翻译入口按卡上规则「无 AI 配置时隐藏」 | 用户指示主线优先 |
+| 共享热点的最小挂载编辑 | 功能 agent 可在自己分支里对 `src/lib.rs`、`src/routes.rs`、`packages/web/src/app/**`、`packages/*/package.json` 做**挂载级**最小编辑（声明模块、挂路由、注册页面），但必须在 devlog 的「Integration patch list」逐条列出。集成负责人合并时按清单审查并解决冲突 | 单人集成负责人逐条手工应用补丁会成为 30+ 任务的瓶颈；清单保留了审查点 |
+| 预装依赖 | 技术栈表里已批准的依赖由集成负责人一次性装入 `packages/web`（`react-virtuoso` `motion` `lottie-web` `pako` `emoji-picker-element(-data)` `dompurify` `marked` `plyr` `leaflet` `qrcode` 及类型） | 避免并行分支在 `bun.lock` 上冲突 |
+| 构建目录 | 本机为 Linux，`.cargo/config.toml` 的 macOS 路径不可用；所有 worktree 以 `CARGO_TARGET_DIR=/home/mike/workspace/chat_room/target` 共享 | D-007 的意图不变，只换路径。本机 14 GB 内存，锁串行化正好防止并行 rustc 抢内存 |
+| 分支不推送 | agent 只在本地提交分支；集成负责人合并进 `main` 后推送，CI 在 `main` 上复验 | 每次分支推送都跑 10 分钟 CI + 镜像构建，排队会拖慢所有人 |
+
+## D-010 四项待用户决策的结论（用户 2026-09-30 选择）
+
+| 决策 | 结论 |
+| --- | --- |
+| TG-407 地图 | Leaflet 渲染，瓦片 URL 可配置（默认 OpenStreetMap，可换自托管） |
+| TG-503 Saved Messages | **投影**：`favorites` 是唯一真相，Saved Messages 是它的聊天形态视图，不迁移数据、不造第二份存储 |
+| TG-506 开启 2FA | **终止当前会话以外的所有设备会话** |
+| TG-603 PySide6 桌面端 | **保留**，在 TG-602 删除 `/api/rooms` 别名之前切到 `/api/chats`，CI 继续测它 |

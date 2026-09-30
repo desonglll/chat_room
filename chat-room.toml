@@ -65,7 +65,8 @@ include_files = false
 # replies. Disabled by default. `api_key_env` should normally be the name of
 # an environment variable holding the key, e.g. export CHAT_ROOM_AI_API_KEY=sk-...
 # The server reports AI as unavailable until this environment variable exists.
-enabled = true
+# Off while the Telegram-parity mainline is built (D-009); flip back to true to re-enable.
+enabled = false
 # Protocol adapter: "openai" for any OpenAI-compatible service, or "anthropic".
 provider = "openai"
 api_key_env = "CHAT_ROOM_AI_API_KEY"
