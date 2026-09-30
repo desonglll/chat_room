@@ -55,6 +55,29 @@ M0 的卡上仍标了组字母，但那只表示依赖分层，**不代表可以
 - **Migration** 无
 - **说明** `.github/workflows/ci-cd.yml:85` 确实在 CI 里执行 `check_file_sizes.py`，而 `a16f422` 已推送到 `origin/main` —— 也就是说 **`main` 的 CI 现在是红的**，只是没人盯。这与旧路线图的 `FND-001 修复当前 CI 阻断` 是同一类问题，说明这道门禁会反复变红。TG-000 除了修复，还要说明为什么红了没被发现（分支保护？通知？），否则同样的事会再发生一次。
 
+## TG-013 修正 PostgreSQL 测试的静默跳过 · S · 组 A
+
+- **Outcome** 本地缺 PostgreSQL 时测试**失败或明确报告跳过**，不再在全绿门禁下悄悄不跑。
+- **已实测的问题**（2026-09-30，`fb818ee`）
+
+  ```
+  tests/migration_upgrade_test.rs:157 的兜底 URL
+    postgresql://postgres:postgres@localhost:52735/postgres
+  docker-compose.local.yaml 实际映射
+    127.0.0.1:52735 凭据 chatroom:chatroom
+  ```
+
+  兜底的凭据是错的，所以永远连不上，所以永远跳过。TG-000 报告的 257 个测试通过里，**PostgreSQL 路径一次都没跑**。设上 `TEST_POSTGRES_ADMIN_URL` 后 `postgres_upgrades_from_the_pre_fnd_002_schema` 确实执行并通过 —— 已验证。
+
+- **Work**
+  - 把错误的兜底凭据改对，或干脆删掉兜底、让缺变量时明确 skip 并在测试输出里显眼地说「PostgreSQL 未验证」。倾向后者：一个连不上的兜底比没有兜底更坏，因为它把「配错了」伪装成「没配」。
+  - 端口是 compose 分配的随机端口，不要硬编码。从 `docker compose port postgres 5432` 读，或在 compose 里固定端口。
+  - 至少有一个 `--all-targets` 级别的提示：跑完后打印有多少个测试因为缺 PostgreSQL 而跳过。静默跳过是这个缺口的本质。
+  - 同一处检查 Redis 与 Qdrant 的测试有没有同样的静默跳过模式。
+- **Allowed paths** `tests/**`、`docker-compose.local.yaml`、`docs/stress-testing.md`
+- **Acceptance** 故意停掉 postgres 容器后跑测试，输出里能一眼看到 PostgreSQL 未被验证；容器在时确实执行。
+- **Migration** 无
+
 ## TG-001 回收构建目录并验证共享配置 · S · 组 A（依赖 TG-000）
 
 - **Outcome** 所有 worktree 共用一个构建目录，磁盘从 194 GB 降到正常量级，CI 与 Docker 不受影响。

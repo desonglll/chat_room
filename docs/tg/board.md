@@ -5,10 +5,24 @@
 任务详情见 `docs/tg/roadmap.md`。每个进行中任务的细节见 `docs/devlog/<TASK-ID>.md`。
 
 - 盘点提交：`a16f422`
-- 计划与协议提交：`5ee18f4`、`2fa8488`
-- **绿色基线提交：尚无 —— `a16f422` 的 `check_file_sizes.py` 是红的，TG-000 正在修**
+- **绿色基线提交：`fb818ee`** —— TG-000 合并后 `main` 首次全绿，pre-push 钩子从拒绝转为通过（闭环验证）
+- 归档 tag：`archive/master-2026-09-30`（见 D-008）
 - 盘点日期：2026-09-30
 - 当前里程碑：**M0**
+
+### ⚠ 已知验证缺口：PostgreSQL 测试静默跳过
+
+`TEST_POSTGRES_ADMIN_URL` 未设置时，所有 PostgreSQL 测试**静默跳过**而非失败。TG-000 报告的「257 个测试通过」因此**完全没有执行过 PostgreSQL 路径**。
+
+`tests/migration_upgrade_test.rs:157` 的兜底 URL 是 `postgres:postgres@localhost:52735`，而本地容器的凭据是 `chatroom:chatroom` —— 兜底永远连不上，所以永远跳过。设了环境变量则会 panic 而非跳过，这是想要的行为。
+
+本地正确的连接串（`docker-compose.local.yaml` 映射的随机端口）：
+
+```sh
+export TEST_POSTGRES_ADMIN_URL="postgresql://chatroom:chatroom@127.0.0.1:52735/postgres"
+```
+
+**任何涉及迁移的任务必须导出它**，否则 PostgreSQL 迁移在全绿的门禁下完全未经验证。CI 里有 postgres service 所以 CI 路径是覆盖的；缺口只在本地。修正那个错误的兜底 URL 应该单独立卡。
 
 ## 当前在飞的任务
 
@@ -16,17 +30,20 @@
 
 | 任务 | worktree | 分支 | 说明 |
 | --- | --- | --- | --- |
-| TG-000 | `.claude/worktrees/tg-000` | `agent/tg-000-green-baseline` | 拆超限 Rust 文件 |
-| TG-003 | `.claude/worktrees/tg-003` | `agent/tg-003-embed-react-bundle` | 改 `build.rs` + `Dockerfile`，也用 cargo |
+| TG-003 | `.claude/worktrees/tg-003` | `agent/tg-003-embed-react-bundle` | 改 `build.rs` + `Dockerfile`；已收到 `archive/master` 的 feature 方案与 `--all-features` landmine |
+| TG-004+005+006 | `.claude/worktrees/tg-004` | `agent/tg-004-chat-model-rename` | Chat 重命名垂直切片，M0 风险最高项 |
 | TG-009 | `.claude/worktrees/tg-009` | `agent/tg-009-design-tokens` | 纯 CSS，不碰 `packages/ui` 的 manifest |
 
-TG-000 与 TG-003 都用 cargo，会在共享构建目录上串行等锁。这是预期行为，不是故障。
+TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这是预期行为。TG-004 已获授权在需要时切到私有 target 目录。
 
 ### 已集成
 
 | 任务 | 提交 | 集成负责人的独立验证 |
 | --- | --- | --- |
 | TG-002 monorepo 骨架 | `296612a` | rebase 到 main 后：`bun install` 无变更，三包 typecheck 全 0，测试 22/0；**自己种入一个含 `react` + `document` + `localStorage` + `navigator` + `window` 的文件，边界检查确实失败并列出全部 5 处违规带行号与证据；删除后恢复 19/0**。没有采信 agent 的自我报告。 |
+| TG-001 构建目录 | `4499a7e` | 见下方实测记录 |
+| TG-000 绿色基线 | `fb818ee` | rebase 到 main 后重跑：`check_file_sizes.py` 通过（33 个基线告警、无增长）、迁移 parity 49 对、`cargo fmt` 干净、`clippy --all-targets --all-features` 零告警、`cargo test --all-targets --all-features` **exit 0**。另外确认 `src/lib.rs` / `src/models.rs` / `src/routes.rs` / `Cargo.toml` 与 main 零差异，即公开接口未变。**合并后 pre-push 钩子从拒绝转为通过** —— 这是「基线变绿」最直接的闭环证据。 |
+| CI 加固 + D-008 | `8b9d178` | 钩子在红树上拒绝、在绿树上通过，两个方向都实测过 |
 
 ## 顺序约束
 
@@ -44,12 +61,13 @@ M0 其余任务串行，**TG-004 合并进 `main` 之前不要再创建 worktree
 | TG-001 回收构建目录并验证共享配置 | S | **review** | 集成负责人 | main | — |
 | TG-002 monorepo 骨架 | M | **merged** `296612a` | agent:TG-002 | — | — |
 | TG-003 `build.rs` 切换嵌入目标 | S | **in-progress** | agent:TG-003 | `tg-003` | TG-002 ✓ |
-| TG-004 Chat 数据模型迁移 | L | not-started | — | — | TG-001 |
-| TG-005 Rust 模块与类型重命名 | L | not-started | — | — | TG-004 |
-| TG-006 API 路径重命名与 alias | M | not-started | — | — | TG-005 |
+| TG-004 Chat 数据模型迁移 | L | **in-progress** | agent:TG-004 | `tg-004` | TG-000 ✓ |
+| TG-005 Rust 模块与类型重命名 | L | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-004 |
+| TG-006 API 路径重命名与 alias | M | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-005 |
 | TG-007 WebSocket 帧扩展 | M | not-started | — | — | TG-005 |
 | TG-008 云端草稿 | M | not-started | — | — | TG-006, TG-007 |
 | TG-009 Design tokens 提取 | M | **in-progress** | agent:TG-009 | `tg-009` | — |
+| TG-013 修正 PostgreSQL 测试静默跳过 | S | not-started | — | — | — |
 | TG-010 `packages/ui` 基础组件 | L | not-started | — | — | TG-002, TG-009 |
 | TG-011 `packages/core` 骨架与逻辑迁移 | L | not-started | — | — | TG-002, TG-006, TG-007 |
 | TG-012 登录与最小可用壳 | M | not-started | — | — | TG-003, TG-010, TG-011 |
