@@ -1,0 +1,241 @@
+/* TG-103 decorations: sender name, forwarded header, reply quote, reactions, hover bar. */
+
+.tg-bubble__sender,
+.tg-bubble__forward {
+  padding-inline: var(--tg-bubble-padding-inline);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tg-msg-accent);
+  font-size: var(--tg-type-message-secondary-size);
+  line-height: var(--tg-type-message-secondary-line);
+}
+
+.tg-bubble__sender,
+.tg-bubble__forward-name {
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-bubble__forward {
+  padding-block-end: var(--tg-space-0-5);
+}
+
+/* ── Reply quote ───────────────────────────────────────────────────────── */
+
+.tg-bubble__reply {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: calc(100% - 2 * var(--tg-bubble-padding-inline));
+  min-inline-size: 0;
+  margin: var(--tg-space-0-5) var(--tg-bubble-padding-inline) var(--tg-space-1);
+  padding: var(--tg-space-0-5) var(--tg-space-2);
+  border: 0;
+  border-inline-start: 3px solid var(--tg-msg-accent);
+  border-radius: var(--tg-radius-sm);
+  overflow: hidden;
+  background: transparent;
+  color: var(--tg-msg-accent);
+  font: inherit;
+  font-size: var(--tg-type-message-secondary-size);
+  line-height: var(--tg-type-message-secondary-line);
+  text-align: start;
+}
+
+/* The tint is the accent itself at low strength, so it follows every theme and accent. */
+.tg-bubble__reply::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0.1;
+  transition: opacity var(--tg-transition-fade);
+}
+
+button.tg-bubble__reply {
+  cursor: pointer;
+}
+
+button.tg-bubble__reply:hover::before {
+  opacity: 0.18;
+}
+
+.tg-bubble__reply:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+}
+
+.tg-bubble__reply-sender,
+.tg-bubble__reply-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-bubble__reply-sender {
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-bubble__reply-text {
+  color: var(--tg-msg-text);
+}
+
+.tg-bubble__reply-text[data-recalled] {
+  font-style: italic;
+  color: var(--tg-msg-meta);
+}
+
+/* ── Reactions ─────────────────────────────────────────────────────────── */
+
+.tg-bubble__reactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-1-5) var(--tg-bubble-padding-inline) 0;
+}
+
+/* The meta spacer rides at the right end of the last chip line, or wraps below. */
+.tg-bubble__reactions > .tg-bubble__meta-spacer {
+  margin-inline-start: auto;
+}
+
+.tg-bubble__reaction {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  block-size: var(--tg-space-7);
+  padding-inline: var(--tg-space-2) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  overflow: hidden;
+  background: transparent;
+  color: var(--tg-msg-accent);
+  font: inherit;
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+  cursor: pointer;
+  transition:
+    transform var(--tg-transition-press),
+    background-color var(--tg-transition-fade);
+}
+
+.tg-bubble__reaction::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0.12;
+}
+
+.tg-bubble__reaction[aria-pressed='true'] {
+  background: var(--tg-msg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-bubble__reaction[aria-pressed='true']::before {
+  opacity: 0;
+}
+
+.tg-bubble__reaction:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.tg-bubble__reaction:disabled {
+  cursor: default;
+}
+
+.tg-bubble__reaction:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-bubble__reaction-emoji {
+  font-size: var(--tg-type-message-size);
+}
+
+/* ── Hover action bar ──────────────────────────────────────────────────── */
+
+.tg-bubble__actions {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  gap: var(--tg-space-0-5);
+  padding: var(--tg-space-0-5);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-surface);
+  box-shadow: var(--tg-shadow-menu);
+  color: var(--tg-text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--tg-transition-fade);
+}
+
+.tg-message[data-side='in'] .tg-bubble__actions {
+  left: calc(100% + var(--tg-space-3));
+}
+
+.tg-message[data-side='out'] .tg-bubble__actions {
+  right: calc(100% + var(--tg-space-3));
+}
+
+.tg-message:hover .tg-bubble__actions,
+.tg-message:focus-within .tg-bubble__actions,
+.tg-bubble__actions[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Touch-only devices use the long-press menu; a hover bar there would never go away. */
+@media (hover: none) {
+  .tg-bubble__actions {
+    display: none;
+  }
+}
+
+.tg-bubble__reaction-picker {
+  display: flex;
+  gap: var(--tg-space-0-5);
+  padding: var(--tg-space-1);
+}
+
+.tg-bubble__reaction-pick {
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-space-10);
+  block-size: var(--tg-space-10);
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: transparent;
+  font-size: var(--tg-type-title-size);
+  cursor: pointer;
+  transition: transform var(--tg-transition-press);
+}
+
+.tg-bubble__reaction-pick:hover,
+.tg-bubble__reaction-pick:focus-visible {
+  background: var(--tg-surface-hover);
+  transform: scale(1.15);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-bubble__reaction,
+  .tg-bubble__reaction-pick,
+  .tg-bubble__actions,
+  .tg-bubble__reply::before {
+    transition: none;
+  }
+
+  .tg-bubble__reaction:active:not(:disabled),
+  .tg-bubble__reaction-pick:hover,
+  .tg-bubble__reaction-pick:focus-visible {
+    transform: none;
+  }
+}

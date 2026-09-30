@@ -1,0 +1,39 @@
+/* Chrome of the TG-103 dev fixture page only. Semantic tokens, like everything else. */
+
+body {
+  margin: 0;
+  background: var(--tg-chat-bg);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+}
+
+.fx-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: var(--tg-space-2);
+  align-items: center;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  background: var(--tg-surface);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.fx-list {
+  max-inline-size: 46rem;
+  margin: 0 auto;
+  padding: var(--tg-space-3) var(--tg-space-6) var(--tg-space-12);
+}
+
+.fx-label {
+  margin: var(--tg-space-3) 0 0;
+  color: var(--tg-text-secondary);
+  font-family: var(--tg-font-mono);
+  font-size: var(--tg-type-meta-size);
+}
+
+.fx-log {
+  margin-inline-start: auto;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}

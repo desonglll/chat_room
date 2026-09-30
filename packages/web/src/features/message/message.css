@@ -1,0 +1,11 @@
+/*
+ * TG-103 message bubbles — the one stylesheet of features/message, imported once from
+ * `src/styles/index.css` (components never import CSS themselves, so `bun test` needs no
+ * CSS loader). Order is irrelevant: every selector is a distinct class.
+ */
+
+@import url('./styles/row.css');
+@import url('./styles/bubble.css');
+@import url('./styles/meta.css');
+@import url('./styles/content.css');
+@import url('./styles/parts.css');

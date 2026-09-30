@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-103 message bubbles</title>
+    <!--
+      Dev-only fixture page for every bubble state; never part of the shipped bundle (vite
+      builds only packages/web/index.html). Serve with Bun's HTML dev server:
+
+        bun packages/web/src/features/message/fixtures/index.html
+    -->
+    <link rel="stylesheet" href="../../../../../ui/src/styles.css" />
+    <link rel="stylesheet" href="../message.css" />
+    <link rel="stylesheet" href="./fixtures.css" />
+  </head>
+  <body>
+    <div id="fixtures"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

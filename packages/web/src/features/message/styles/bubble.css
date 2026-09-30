@@ -1,0 +1,142 @@
+/*
+ * TG-103 bubble frame: palettes, the four-corner grammar, tail, borderless media.
+ * Corner rules are tokens/semantic.css "Bubble geometry"; `bubbleLayout.ts` decides which
+ * corner is which and this file only maps `data-tl/tr/br/bl` to radii.
+ */
+
+.tg-bubble {
+  position: relative;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  --tg-msg-r-tl: var(--tg-bubble-radius);
+  --tg-msg-r-tr: var(--tg-bubble-radius);
+  --tg-msg-r-br: var(--tg-bubble-radius);
+  --tg-msg-r-bl: var(--tg-bubble-radius);
+}
+
+/* ── Palettes: in / out / selected ─────────────────────────────────────── */
+
+.tg-message[data-side='in'] .tg-bubble {
+  --tg-msg-fill: var(--tg-bubble-in);
+  --tg-msg-flat: var(--tg-bubble-in);
+  --tg-msg-text: var(--tg-bubble-in-text);
+  --tg-msg-meta: var(--tg-bubble-in-meta);
+  --tg-msg-accent: var(--tg-bubble-in-accent);
+  --tg-msg-tick: var(--tg-bubble-in-meta);
+}
+
+.tg-message[data-side='out'] .tg-bubble {
+  /* `-fill` may be a gradient (accent themes); the tail always takes the flat colour. */
+  --tg-msg-fill: var(--tg-bubble-out-fill);
+  --tg-msg-flat: var(--tg-bubble-out);
+  --tg-msg-text: var(--tg-bubble-out-text);
+  --tg-msg-meta: var(--tg-bubble-out-meta);
+  --tg-msg-accent: var(--tg-bubble-out-accent);
+  --tg-msg-tick: var(--tg-bubble-tick);
+}
+
+.tg-message[data-side='in'][data-selected] .tg-bubble {
+  --tg-msg-fill: var(--tg-bubble-in-selected);
+  --tg-msg-flat: var(--tg-bubble-in-selected);
+}
+
+.tg-message[data-side='out'][data-selected] .tg-bubble {
+  --tg-msg-fill: var(--tg-bubble-out-selected);
+  --tg-msg-flat: var(--tg-bubble-out-selected);
+}
+
+/* ── Corners ───────────────────────────────────────────────────────────── */
+
+.tg-bubble[data-tl='merged'] {
+  --tg-msg-r-tl: var(--tg-bubble-radius-merged);
+}
+.tg-bubble[data-tr='merged'] {
+  --tg-msg-r-tr: var(--tg-bubble-radius-merged);
+}
+.tg-bubble[data-br='merged'] {
+  --tg-msg-r-br: var(--tg-bubble-radius-merged);
+}
+.tg-bubble[data-bl='merged'] {
+  --tg-msg-r-bl: var(--tg-bubble-radius-merged);
+}
+.tg-bubble[data-tl='none'] {
+  --tg-msg-r-tl: 0;
+}
+.tg-bubble[data-tr='none'] {
+  --tg-msg-r-tr: 0;
+}
+.tg-bubble[data-br='none'] {
+  --tg-msg-r-br: 0;
+}
+.tg-bubble[data-bl='none'] {
+  --tg-msg-r-bl: 0;
+}
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+
+.tg-bubble__body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  /* Clips full-bleed media to the bubble shape; the tail lives outside the body. */
+  overflow: hidden;
+  padding-block: var(--tg-bubble-padding-top) var(--tg-bubble-padding-bottom);
+  border-radius: var(--tg-msg-r-tl) var(--tg-msg-r-tr) var(--tg-msg-r-br) var(--tg-msg-r-bl);
+  background: var(--tg-msg-fill);
+  color: var(--tg-msg-text);
+  box-shadow: var(--tg-bubble-shadow);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-bubble__body[data-flush-top] {
+  padding-block-start: 0;
+}
+
+.tg-bubble__body[data-flush-bottom] {
+  padding-block-end: 0;
+}
+
+/* Borderless media: no fill, no shadow, no tail — the photo IS the bubble. */
+.tg-bubble[data-frame='media'] > .tg-bubble__body {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Bare contents (stickers, round video) draw everything themselves. */
+.tg-bubble[data-frame='bare'] > .tg-bubble__body {
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ── Tail ──────────────────────────────────────────────────────────────── */
+
+.tg-bubble__tail {
+  position: absolute;
+  bottom: 0;
+  inline-size: var(--tg-bubble-tail-width);
+  block-size: var(--tg-bubble-tail-height);
+  color: var(--tg-msg-flat);
+  pointer-events: none;
+  transition: color var(--tg-transition-fade);
+}
+
+.tg-message[data-side='in'] .tg-bubble__tail {
+  left: var(--tg-bubble-tail-offset);
+}
+
+.tg-message[data-side='out'] .tg-bubble__tail {
+  right: var(--tg-bubble-tail-offset);
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-bubble__body,
+  .tg-bubble__tail {
+    transition: none;
+  }
+}

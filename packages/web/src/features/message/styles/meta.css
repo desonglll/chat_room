@@ -1,0 +1,58 @@
+/*
+ * TG-103 meta: timestamp, edited marker, ticks. `.tg-bubble__meta` is the visible copy,
+ * absolutely placed; `.tg-bubble__meta-spacer` is its invisible twin inside the text flow.
+ * Both MUST share every box-affecting property (display, gap, font, padding) or they stop
+ * being the same width — that is the whole no-overlap guarantee.
+ */
+
+.tg-bubble__meta,
+.tg-bubble__meta-spacer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  white-space: nowrap;
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  font-style: normal;
+  font-weight: var(--tg-weight-regular);
+}
+
+.tg-bubble__meta-spacer {
+  visibility: hidden;
+  margin-inline-start: var(--tg-space-2);
+  vertical-align: baseline;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tg-bubble__meta {
+  position: absolute;
+  right: var(--tg-bubble-padding-inline);
+  bottom: var(--tg-bubble-padding-bottom);
+  color: var(--tg-msg-meta);
+  cursor: default;
+}
+
+/* Over media: a dark pill in the corner, white text and ticks. */
+.tg-bubble__meta[data-overlay] {
+  right: var(--tg-space-1-5);
+  bottom: var(--tg-space-1-5);
+  padding-inline: var(--tg-space-1-5);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-service-text);
+  --tg-msg-tick: var(--tg-service-text);
+}
+
+.tg-bubble__delivery {
+  display: inline-flex;
+  color: var(--tg-msg-tick);
+}
+
+.tg-bubble__delivery[data-delivery='failed'] {
+  color: var(--tg-text-danger);
+}
+
+.tg-bubble__tick {
+  display: block;
+}

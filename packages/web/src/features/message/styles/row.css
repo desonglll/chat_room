@@ -1,0 +1,124 @@
+/*
+ * TG-103 message row: side, group spacing, avatar column, selection checkbox, highlight,
+ * service pill. Semantic `--tg-*` tokens only; `--tg-msg-*` are this feature's private
+ * variables, set here and in bubble.css, never read outside features/message.
+ */
+
+.tg-message {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--tg-space-2);
+  padding-block-start: var(--tg-bubble-gap);
+}
+
+/* Telegram's rhythm: 2px inside a group, 6px between groups. The list must not add its own. */
+.tg-message[data-group='first'],
+.tg-message[data-group='single'] {
+  padding-block-start: var(--tg-bubble-gap-group);
+}
+
+.tg-message[data-side='out'] {
+  justify-content: flex-end;
+}
+
+.tg-message__avatar {
+  flex: none;
+  inline-size: var(--tg-avatar-sm);
+  align-self: flex-end;
+}
+
+.tg-message__column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-inline-size: 0;
+  max-inline-size: var(--tg-bubble-max-width);
+}
+
+.tg-message[data-side='out'] .tg-message__column {
+  align-items: flex-end;
+}
+
+/* ── Selection mode ────────────────────────────────────────────────────── */
+
+.tg-message__check {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+}
+
+/* The checkbox stays on the far left for both sides, as in Telegram. */
+.tg-message[data-side='out'] .tg-message__check {
+  margin-inline-end: auto;
+}
+
+.tg-message[data-selection-mode] {
+  cursor: pointer;
+}
+
+/* In selection mode a click anywhere on the row selects; nothing inside the bubble opens. */
+.tg-message[data-selection-mode] .tg-message__column {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Highlight (jump-to) and selected row wash ─────────────────────────── */
+
+.tg-message[data-highlighted]::before,
+.tg-message[data-selected]::before {
+  content: '';
+  position: absolute;
+  inset: var(--tg-bubble-gap) calc(-1 * var(--tg-space-6)) 0;
+  z-index: -1;
+  background: var(--tg-message-highlight);
+  pointer-events: none;
+}
+
+.tg-message[data-selected]::before {
+  opacity: 0.5;
+}
+
+.tg-message[data-highlighted]::before {
+  animation: tg-message-highlight calc(var(--tg-duration-loop) * 2) var(--tg-ease-standard) forwards;
+}
+
+@keyframes tg-message-highlight {
+  0%,
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: the wash appears and disappears at once instead of fading. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-message[data-highlighted]::before {
+    animation-timing-function: steps(1, end);
+  }
+}
+
+/* ── Service message ───────────────────────────────────────────────────── */
+
+.tg-message--service {
+  justify-content: center;
+  padding-block: var(--tg-space-1);
+}
+
+.tg-service-pill {
+  max-inline-size: min(80%, var(--tg-bubble-max-width));
+  padding: var(--tg-space-0-5) var(--tg-space-2-5);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-service-bg);
+  color: var(--tg-service-text);
+  backdrop-filter: blur(var(--tg-blur-glass));
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+  text-align: center;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,100 @@
+/**
+ * The decorations above and below a bubble's content: sender name, forwarded-from header,
+ * reply quote, reaction chips. Each is a small presentational piece with no state.
+ */
+import type { ReactNode } from 'react'
+import type { ForwardedFrom, MessageReaction, ReplyPreview } from '@tg/core'
+
+export function SenderName({ name }: { name: string }) {
+  return <div className="tg-bubble__sender">{name}</div>
+}
+
+export function ForwardHeader({ from }: { from: ForwardedFrom }) {
+  const origin = from.room_name.trim()
+  return (
+    <div className="tg-bubble__forward">
+      <span className="tg-bubble__forward-label">转发自</span>{' '}
+      <span className="tg-bubble__forward-name">{from.sender}</span>
+      {origin === '' ? null : <span className="tg-bubble__forward-origin"> · {origin}</span>}
+    </div>
+  )
+}
+
+/** What a quote shows for its one line of body text. */
+export function replySnippet(reply: ReplyPreview): string {
+  if (reply.recalled) return '消息已撤回'
+  const text = reply.content.trim()
+  if (text !== '') return text
+  if (reply.attachment_file_name) return `[附件] ${reply.attachment_file_name}`
+  return '消息'
+}
+
+export function ReplyQuote({
+  reply,
+  onJumpTo,
+}: {
+  reply: ReplyPreview
+  onJumpTo?: ((id: string) => void) | undefined
+}) {
+  const body = (
+    <>
+      <span className="tg-bubble__reply-sender">{reply.sender}</span>
+      <span className="tg-bubble__reply-text" data-recalled={reply.recalled ? '' : undefined}>
+        {replySnippet(reply)}
+      </span>
+    </>
+  )
+  if (onJumpTo === undefined) return <div className="tg-bubble__reply">{body}</div>
+  return (
+    <button
+      type="button"
+      className="tg-bubble__reply"
+      aria-label={`跳转到 ${reply.sender} 的消息`}
+      onClick={(event) => {
+        event.stopPropagation()
+        onJumpTo(reply.message_id)
+      }}
+    >
+      {body}
+    </button>
+  )
+}
+
+export function ReactionRow({
+  reactions,
+  viewerId,
+  onReact,
+  metaSpacer,
+}: {
+  reactions: readonly MessageReaction[]
+  viewerId: string | undefined
+  onReact?: ((emoji: string) => void) | undefined
+  metaSpacer: ReactNode
+}) {
+  return (
+    <div className="tg-bubble__reactions">
+      {reactions.map((reaction) => {
+        const chosen = viewerId !== undefined && reaction.user_ids.includes(viewerId)
+        const count = reaction.user_ids.length
+        return (
+          <button
+            key={reaction.emoji}
+            type="button"
+            className="tg-bubble__reaction"
+            aria-pressed={chosen}
+            aria-label={`${reaction.emoji} ${count} 人`}
+            disabled={onReact === undefined}
+            onClick={(event) => {
+              event.stopPropagation()
+              onReact?.(reaction.emoji)
+            }}
+          >
+            <span className="tg-bubble__reaction-emoji">{reaction.emoji}</span>
+            <span className="tg-bubble__reaction-count">{count}</span>
+          </button>
+        )
+      })}
+      {metaSpacer}
+    </div>
+  )
+}
