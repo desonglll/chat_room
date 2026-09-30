@@ -74,6 +74,18 @@ export interface VoiceNote {
   listened: boolean
 }
 
+/**
+ * TG-402: a round video message's playback projection. `thumbnail` is base64 of a small JPEG
+ * (the recorder's first frame) or null. `listened` is per viewer, exactly like
+ * `VoiceNote.listened`; a first view reaches the sender as `voice_listened`.
+ * See docs/devlog/TG-402.md.
+ */
+export interface VideoNote {
+  duration_ms: number
+  thumbnail: string | null
+  listened: boolean
+}
+
 export interface MessageReaction {
   emoji: string
   user_ids: string[]
@@ -113,6 +125,8 @@ export interface StoredMessage {
   sticker?: MessageSticker
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
+  /** TG-402: present exactly when the message is a round video message; omitted otherwise. */
+  video_note?: VideoNote
 }
 
 /**

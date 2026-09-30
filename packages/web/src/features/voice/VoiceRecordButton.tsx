@@ -3,12 +3,18 @@
  * press and hold to record, release to send, slide left to cancel, slide up to lock
  * (hands-free). A tap — or Enter/Space — records hands-free straight away. While recording,
  * the panel covers the input with the red dot, timer, live waveform and the cancel hint.
+ *
+ * TG-402: with `onTap`, a pointer tap calls it instead (the mic ↔ camera toggle, Telegram's
+ * mobile behaviour) and recording starts once the press has been held for `TAP_MS`;
+ * Shift+Enter/Space calls it from the keyboard. `overlay` (the round viewfinder) is drawn
+ * while recording, and `waveform={false}` drops the live waveform from the panel.
  */
-import { useEffect, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import type { ClientFrame } from '@tg/core'
 import { IconButton } from '@tg/ui'
 import { ChevronLeftGlyph, LockGlyph } from './glyphs'
 import { LIVE_LEVELS, type RecordController, type RecordState } from './recordController'
+import { TAP_MS } from './recordGesture'
 import { useVoiceRecording } from './useVoiceRecording'
 import { formatRecordingTime } from './waveform'
 
@@ -32,13 +38,31 @@ export function VoiceRecordButton(props: VoiceRecordButtonProps) {
 export interface VoiceRecordViewProps extends VoiceRecordButtonProps {
   state: RecordState
   controller: RecordController
+  /** TG-402: a pointer tap calls this instead of recording hands-free. */
+  onTap?(): void
+  /** Idle / hands-free send labels and `data-kind`; voice's by default. */
+  idleLabel?: string
+  sendLabel?: string
+  kind?: string
+  /** Drawn while recording (TG-402's round viewfinder). */
+  overlay?: ReactNode
+  /** Live waveform in the recording panel (default on). */
+  waveform?: boolean
 }
 
 /** Stateless view over a `RecordController`, rendered by tests with a fake one. */
-export function VoiceRecordView({ state, controller, canSend, micGlyph, sendGlyph }: VoiceRecordViewProps) {
+export function VoiceRecordView(props: VoiceRecordViewProps) {
+  const { state, controller, canSend, micGlyph, sendGlyph, onTap } = props
   const active = state.phase === 'starting' || state.phase === 'recording'
   const locked = active && state.gesture.phase === 'locked'
   const holding = active && state.gesture.phase === 'holding'
+  // A press waiting to become a hold (only with `onTap`).
+  const pending = useRef<number | null>(null)
+  const clearPending = () => {
+    if (pending.current !== null) window.clearTimeout(pending.current)
+    pending.current = null
+  }
+  useEffect(() => clearPending, [])
 
   useEffect(() => {
     if (!active) return
@@ -58,13 +82,33 @@ export function VoiceRecordView({ state, controller, canSend, micGlyph, sendGlyp
   const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0 || locked || !canSend) return
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    controller.press(event.clientX, event.clientY)
+    const { clientX, clientY } = event
+    if (!onTap) {
+      controller.press(clientX, clientY)
+      return
+    }
+    clearPending()
+    pending.current = window.setTimeout(() => {
+      pending.current = null
+      controller.press(clientX, clientY, TAP_MS)
+    }, TAP_MS)
+  }
+  const onPointerUp = () => {
+    if (pending.current !== null) {
+      clearPending()
+      onTap?.()
+      return
+    }
+    if (holding) controller.release()
   }
   const level = state.levels.at(-1) ?? 0
 
   return (
     <>
-      {active ? <RecordingPanel state={state} controller={controller} locked={locked} /> : null}
+      {active ? props.overlay : null}
+      {active ? (
+        <RecordingPanel state={state} controller={controller} locked={locked} waveform={props.waveform ?? true} />
+      ) : null}
       {holding ? (
         <span
           className="tg-voice-lock"
@@ -75,19 +119,33 @@ export function VoiceRecordView({ state, controller, canSend, micGlyph, sendGlyp
         </span>
       ) : null}
       <IconButton
-        label={locked ? '发送语音' : active ? '松开发送，上滑锁定' : '按住录制语音消息'}
+        label={
+          locked
+            ? (props.sendLabel ?? '发送语音')
+            : active
+              ? '松开发送，上滑锁定'
+              : (props.idleLabel ?? '按住录制语音消息')
+        }
         variant="filled"
         size="lg"
         className="tg-compose__send tg-voice-mic"
-        data-kind="voice"
+        data-kind={props.kind ?? 'voice'}
         data-recording={holding || undefined}
         style={{ '--tg-voice-level': level } as CSSProperties}
         disabled={!canSend || state.phase === 'sending'}
         aria-busy={state.phase === 'sending' || undefined}
         onPointerDown={onPointerDown}
         onPointerMove={(event) => holding && controller.move(event.clientX, event.clientY)}
-        onPointerUp={() => holding && controller.release()}
-        onPointerCancel={() => holding && controller.cancel()}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => {
+          clearPending()
+          if (holding) controller.cancel()
+        }}
+        onKeyDown={(event) => {
+          if (!onTap || !event.shiftKey || (event.key !== 'Enter' && event.key !== ' ')) return
+          event.preventDefault()
+          if (state.phase === 'idle') onTap()
+        }}
         onClick={(event) => {
           if (locked) {
             controller.send()
@@ -117,10 +175,12 @@ function RecordingPanel({
   state,
   controller,
   locked,
+  waveform,
 }: {
   state: RecordState
   controller: RecordController
   locked: boolean
+  waveform: boolean
 }) {
   const bars = Array.from({ length: LIVE_LEVELS }, (_, index) => {
     const offset = LIVE_LEVELS - state.levels.length
@@ -130,18 +190,22 @@ function RecordingPanel({
     <div
       className="tg-voice-rec"
       role="group"
-      aria-label="正在录制语音"
+      aria-label={waveform ? '正在录制语音' : '正在录制视频消息'}
       style={{ '--tg-voice-cancel-progress': state.gesture.cancelProgress } as CSSProperties}
     >
       <span className="tg-voice-rec__dot" aria-hidden="true" />
       <span className="tg-voice-rec__time" aria-live="off">
         {formatRecordingTime(state.elapsedMs)}
       </span>
-      <span className="tg-voice-rec__wave" aria-hidden="true">
-        {bars.map((peak, index) => (
-          <span key={index} style={{ blockSize: `${Math.round(10 + Math.min(1, peak * 1.6) * 90)}%` }} />
-        ))}
-      </span>
+      {waveform ? (
+        <span className="tg-voice-rec__wave" aria-hidden="true">
+          {bars.map((peak, index) => (
+            <span key={index} style={{ blockSize: `${Math.round(10 + Math.min(1, peak * 1.6) * 90)}%` }} />
+          ))}
+        </span>
+      ) : (
+        <span className="tg-voice-rec__wave" aria-hidden="true" />
+      )}
       {locked ? (
         <button type="button" className="tg-voice-rec__cancel" onClick={() => controller.cancel()}>
           取消

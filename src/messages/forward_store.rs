@@ -100,6 +100,18 @@ impl AppState {
                     .bind(source_message_id)
                     .execute(&mut *transaction)
                     .await?;
+                // TG-402: a forwarded video note stays a video note (unwatched).
+                sqlx::query(crate::attachments::video_note::FORWARD_COPY_VIDEO_NOTE)
+                    .bind(id)
+                    .bind(source_message_id)
+                    .bind(created_at)
+                    .execute(&mut *transaction)
+                    .await?;
+                sqlx::query(crate::attachments::video_note::FORWARD_MARK_VIDEO_NOTE)
+                    .bind(id)
+                    .bind(source_message_id)
+                    .execute(&mut *transaction)
+                    .await?;
             }
             transaction.commit().await?;
             Ok::<_, sqlx::Error>(inserted)

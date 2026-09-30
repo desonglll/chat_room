@@ -27,7 +27,7 @@ import { usePendingBatch } from './usePendingBatch'
 import { LazyMediaPanel } from '../sticker/LazyMediaPanel'
 import { stickerLibrary } from '../sticker/stickerLibrary'
 import { StickerSuggestions } from '../sticker/suggest/StickerSuggestions'
-import { VoiceRecordButton } from '../voice'
+import { RecordModeButton } from '../videoNote'
 
 export interface ComposerProps {
   chatId: string
@@ -231,8 +231,8 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
           {bar.kind === 'edit' ? <CheckGlyph /> : <SendGlyph />}
         </IconButton>
       ) : (
-        // TG-401: hold to record, slide to cancel, slide up to lock (features/voice).
-        <VoiceRecordButton
+        // TG-401/TG-402: tap toggles mic ↔ camera; hold records, slide cancels, slide up locks.
+        <RecordModeButton
           chatId={chatId}
           replyTo={replyTo}
           canSend={canSend}

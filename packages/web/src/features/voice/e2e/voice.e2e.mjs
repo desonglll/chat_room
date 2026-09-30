@@ -177,8 +177,10 @@ try {
     await voiceBubbles(b).nth(1).waitFor()
   })
 
-  await check('a tap records hands-free; «取消» discards it', async () => {
-    await a.locator('.tg-voice-mic').click()
+  // TG-402: a pointer tap now toggles mic ↔ camera, so hands-free is Enter/Space (and slide up).
+  await check('Enter records hands-free; «取消» discards it', async () => {
+    await a.locator('.tg-voice-mic').focus()
+    await a.keyboard.press('Enter')
     await a.locator('.tg-voice-rec__cancel').waitFor()
     await a.waitForTimeout(900)
     await a.locator('.tg-voice-rec__cancel').click()

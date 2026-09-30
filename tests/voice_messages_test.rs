@@ -232,7 +232,7 @@ async fn postgres_voice_messages_are_stored_validated_and_privacy_gated() {
 }
 
 #[tokio::test]
-async fn the_page_may_open_the_microphone_but_not_the_camera_or_location() {
+async fn the_page_may_open_the_microphone_and_camera_but_not_location() {
     let server = start_server().await;
     let response = server
         .client
@@ -245,6 +245,7 @@ async fn the_page_may_open_the_microphone_but_not_the_camera_or_location() {
         .unwrap()
         .to_string();
     assert!(policy.contains("microphone=(self)"), "{policy}");
-    assert!(policy.contains("camera=()"), "{policy}");
+    // TG-402: round video messages record from the camera.
+    assert!(policy.contains("camera=(self)"), "{policy}");
     assert!(policy.contains("geolocation=()"), "{policy}");
 }

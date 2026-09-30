@@ -105,6 +105,7 @@ fn broadcast_frame_serializes_unchanged() {
         poll: None,
         entities: Vec::new(),
         voice: None,
+        video_note: None,
     };
     assert_wire(
         &full,
@@ -166,6 +167,7 @@ fn broadcast_frame_serializes_unchanged() {
         poll: None,
         entities: Vec::new(),
         voice: None,
+        video_note: None,
     };
     assert_wire(
         &minimal,

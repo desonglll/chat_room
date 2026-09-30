@@ -41,6 +41,7 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         poll: message.poll,
         entities: message.entities,
         voice: message.voice,
+        video_note: message.video_note,
     }
 }
 

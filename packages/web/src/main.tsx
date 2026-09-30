@@ -15,6 +15,8 @@ import './features/poll/register'
 import './features/sticker/register'
 // TG-401: registers the voice bubble body with the message content registry.
 import './features/voice/register'
+// TG-402: registers the round video bubble body with the message content registry.
+import './features/videoNote/register'
 
 // Boot order matters: settings → theme attribute → session → render. The session is
 // restored synchronously so the router's first pass already knows whether `/` or

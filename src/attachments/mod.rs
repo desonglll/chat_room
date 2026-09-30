@@ -8,4 +8,5 @@ pub(crate) mod upload_hashes;
 mod upload_models;
 pub mod upload_sessions;
 mod upload_validation;
+pub mod video_note;
 pub mod voice;

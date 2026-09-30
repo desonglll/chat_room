@@ -80,5 +80,6 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     ...(message.media_kind ? { media_kind: message.media_kind } : {}),
     ...(message.sticker ? { sticker: message.sticker } : {}),
     ...(message.voice ? { voice: message.voice } : {}),
+    ...(message.video_note ? { video_note: message.video_note } : {}),
   }
 }

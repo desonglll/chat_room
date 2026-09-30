@@ -24,6 +24,7 @@ import type {
   ReadReceipt,
   ReplyPreview,
   VoiceNote,
+  VideoNote,
 } from './message'
 
 /** The ten typing actions. Unknown wire strings MUST degrade to `'typing'` (TG-007 §1). */
@@ -84,6 +85,8 @@ export interface BroadcastFrame {
   sticker?: MessageSticker
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
+  /** TG-402: present exactly when the message is a round video message; omitted otherwise. */
+  video_note?: VideoNote
 }
 
 export interface TypingFrame {

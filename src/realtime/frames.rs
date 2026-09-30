@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::attachments::video_note::model::VideoNote;
 use crate::attachments::voice::model::VoiceNote;
 use crate::models::{
     Attachment, Chat, ChatMember, ChatMembership, ForwardedFrom, MessageReaction, ReadReceipt,
@@ -152,6 +153,9 @@ pub enum ChatMessage {
         /// TG-401: optional, omitted unless the message is a voice message (docs/devlog/TG-401.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         voice: Option<VoiceNote>,
+        /// TG-402: optional, omitted unless the message is a video note (docs/devlog/TG-402.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        video_note: Option<VideoNote>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

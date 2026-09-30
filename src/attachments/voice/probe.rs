@@ -63,6 +63,26 @@ pub fn probe(bytes: &[u8]) -> Option<Probe> {
     })
 }
 
+/// TG-402: whether the file declares a video track — a WebM `CodecID` starting `V_`
+/// (`V_VP8`, `V_VP9`, `V_AV1`, `V_MPEG4/…`), or an MP4 `trak` whose handler is `vide`.
+/// Ogg never carries the recorder's video.
+pub fn has_video_track(bytes: &[u8], container: Container) -> bool {
+    match container {
+        Container::Ogg => false,
+        // `Tracks` precede the first `Cluster`: look for a `CodecID` (0x86) element there.
+        Container::WebM => {
+            let head = &bytes[..bytes.len().min(64 * 1024)];
+            (0..head.len()).any(|at| {
+                head[at] == 0x86
+                    && vint(&head[at + 1..], false).is_some_and(|(size, length)| {
+                        size <= 32 && head[at + 1 + length..].starts_with(b"V_")
+                    })
+            })
+        }
+        Container::Mp4 => mp4::mp4_has_video(bytes),
+    }
+}
+
 pub fn sniff(bytes: &[u8]) -> Option<Container> {
     if bytes.starts_with(b"OggS") {
         Some(Container::Ogg)

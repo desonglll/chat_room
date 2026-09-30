@@ -1,0 +1,189 @@
+/*
+ * TG-402 round video messages: the bubble's circle and the composer's round viewfinder.
+ * Semantic tokens only. Motion: the circle grows when it plays with sound and shrinks back,
+ * the viewfinder pops in. Under prefers-reduced-motion both happen instantly (end of file);
+ * the progress rings still move because they carry information.
+ */
+
+/* ── Bubble ─────────────────────────────────────────────────────────────── */
+
+.tg-video-note-host {
+  --tg-video-note-size: min(15rem, 62vw);
+  --tg-video-note-size-active: min(20rem, 80vw);
+  display: flex;
+}
+
+.tg-video-note {
+  position: relative;
+  inline-size: var(--tg-video-note-size);
+  block-size: var(--tg-video-note-size);
+  transition:
+    inline-size var(--tg-duration-panel) var(--tg-ease-standard),
+    block-size var(--tg-duration-panel) var(--tg-ease-standard);
+}
+
+.tg-video-note[data-active] {
+  inline-size: var(--tg-video-note-size-active);
+  block-size: var(--tg-video-note-size-active);
+}
+
+.tg-video-note__disc {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  overflow: hidden;
+  background: var(--tg-surface-active);
+  cursor: pointer;
+}
+
+.tg-video-note__disc:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+/* A non-square file is centre-cropped by the circle, never squashed. */
+.tg-video-note__video {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+.tg-video-note__ring {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  color: var(--tg-text-on-accent);
+  pointer-events: none;
+}
+
+.tg-video-note__play {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-control-height);
+  block-size: var(--tg-control-height);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-text-on-accent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.tg-video-note__play svg {
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+}
+
+.tg-video-note__badge {
+  position: absolute;
+  inset-block-end: var(--tg-space-1);
+  inset-inline-start: var(--tg-space-1);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding: 0 var(--tg-space-1-5);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-text-on-accent);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.tg-video-note__badge svg {
+  inline-size: var(--tg-icon-sm);
+  block-size: var(--tg-icon-sm);
+}
+
+.tg-video-note__unwatched {
+  inline-size: var(--tg-space-1-5);
+  block-size: var(--tg-space-1-5);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-text-on-accent);
+}
+
+/* ── Composer: round viewfinder ─────────────────────────────────────────── */
+
+/* Dims the chat above the composer while the camera records (Telegram blurs it too). */
+.tg-video-note-rec__backdrop {
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  inset-block-end: 100%;
+  block-size: 100vh;
+  background: var(--tg-overlay);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  animation: tg-video-note-fade var(--tg-duration-panel) var(--tg-ease-decelerate);
+}
+
+@keyframes tg-video-note-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.tg-video-note-rec {
+  position: absolute;
+  z-index: 4;
+  inset-block-end: calc(100% + var(--tg-space-3));
+  inset-inline-start: 50%;
+  inline-size: min(15rem, 62vw);
+  block-size: min(15rem, 62vw);
+  transform: translateX(-50%);
+  animation: tg-video-note-pop var(--tg-duration-panel) var(--tg-ease-decelerate);
+}
+
+@keyframes tg-video-note-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+}
+
+.tg-video-note-rec__lens {
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: var(--tg-radius-circle);
+  overflow: hidden;
+  background: var(--tg-surface-active);
+  box-shadow: var(--tg-shadow-menu);
+}
+
+/* The recorder's canvas is already the centred square; the circle only masks it. */
+.tg-video-note-rec__canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.tg-video-note-rec__ring {
+  position: absolute;
+  inset: calc(-1 * var(--tg-space-1));
+  inline-size: calc(100% + var(--tg-space-2));
+  block-size: calc(100% + var(--tg-space-2));
+  color: var(--tg-danger);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-video-note {
+    transition: none;
+  }
+
+  .tg-video-note-rec,
+  .tg-video-note-rec__backdrop {
+    animation: none;
+  }
+}
