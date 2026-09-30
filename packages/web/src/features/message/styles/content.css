@@ -1,0 +1,202 @@
+/* TG-103 built-in contents: text, media (photo / video), file card, deleted, upload. */
+
+.tg-bubble__text {
+  padding-inline: var(--tg-bubble-padding-inline);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tg-bubble__caption {
+  padding-block-start: var(--tg-space-1-5);
+}
+
+.tg-bubble__link {
+  color: var(--tg-text-link);
+  text-decoration: none;
+}
+
+.tg-bubble__link:hover {
+  text-decoration: underline;
+}
+
+.tg-bubble__deleted {
+  color: var(--tg-msg-meta);
+  font-style: italic;
+}
+
+.tg-bubble__deleted-icon {
+  display: inline-block;
+  margin-inline-end: var(--tg-space-1);
+  vertical-align: -0.15em;
+}
+
+/* ── Media ─────────────────────────────────────────────────────────────── */
+
+.tg-bubble__media {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: var(--tg-skeleton);
+  color: inherit;
+  font: inherit;
+  cursor: zoom-in;
+}
+
+/* Media below a name / forward / quote keeps a small gap from it. */
+.tg-bubble__body:not([data-flush-top]) > .tg-bubble__media {
+  margin-block-start: var(--tg-space-1);
+}
+
+.tg-bubble__media:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-bubble__image {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: calc(var(--tg-space-20) * 1.5);
+  min-block-size: var(--tg-space-20);
+  max-block-size: calc(var(--tg-bubble-max-width) * 0.75);
+  object-fit: cover;
+}
+
+/* Borderless: the bubble is exactly the photo, up to the bubble's max width. */
+.tg-bubble[data-frame='media'] .tg-bubble__image {
+  inline-size: auto;
+  max-inline-size: 100%;
+}
+
+.tg-bubble__media[data-veiled] .tg-bubble__image {
+  filter: blur(var(--tg-blur-glass));
+  transform: scale(1.1);
+}
+
+.tg-bubble__media[data-veiled] {
+  cursor: pointer;
+}
+
+.tg-bubble__veil,
+.tg-bubble__play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  inline-size: fit-content;
+  block-size: fit-content;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-service-text);
+}
+
+.tg-bubble__veil {
+  padding: var(--tg-space-1) var(--tg-space-3);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-bubble__play {
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-space-12);
+  block-size: var(--tg-space-12);
+}
+
+/* ── File card ─────────────────────────────────────────────────────────── */
+
+.tg-bubble__file {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2-5);
+  min-inline-size: calc(var(--tg-space-20) * 2.5);
+  padding: var(--tg-space-1) var(--tg-bubble-padding-inline);
+  color: inherit;
+  text-decoration: none;
+}
+
+.tg-bubble__file-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: var(--tg-space-12);
+  block-size: var(--tg-space-12);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-msg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-bubble__file-text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.tg-bubble__file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-bubble__file-size {
+  color: var(--tg-msg-meta);
+  font-size: var(--tg-type-message-secondary-size);
+  line-height: var(--tg-type-message-secondary-line);
+  white-space: nowrap;
+}
+
+/* ── Upload placeholder ────────────────────────────────────────────────── */
+
+.tg-bubble__upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-1) var(--tg-bubble-padding-inline) 0;
+  color: var(--tg-msg-meta);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-bubble__media > .tg-bubble__upload {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: var(--tg-space-1-5);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-service-text);
+}
+
+.tg-bubble__upload[data-failed] {
+  color: var(--tg-text-danger);
+}
+
+.tg-bubble__upload-track {
+  display: block;
+  block-size: var(--tg-space-0-5);
+  border-radius: var(--tg-radius-pill);
+  overflow: hidden;
+  background: var(--tg-divider);
+}
+
+.tg-bubble__upload-bar {
+  display: block;
+  block-size: 100%;
+  background: currentColor;
+  transition: inline-size var(--tg-transition-fade);
+}
+
+.tg-bubble__upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-bubble__upload-bar {
+    transition: none;
+  }
+}
