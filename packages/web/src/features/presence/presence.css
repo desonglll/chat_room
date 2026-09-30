@@ -1,0 +1,81 @@
+/*
+ * TG-107 presence line and typing dots. Semantic tokens only; the dots inherit the
+ * line's colour (accent while typing, like Telegram's header).
+ */
+
+.tg-presence-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  min-width: 0;
+  color: var(--tg-text-secondary);
+}
+
+.tg-presence-status[data-state='typing'],
+.tg-presence-status[data-state='online'] {
+  color: var(--tg-accent);
+}
+
+.tg-presence-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18em;
+  flex: none;
+  height: 1lh;
+}
+
+.tg-typing-dots__dot {
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: tg-typing-dot calc(var(--tg-duration-loop) * 1.2) var(--tg-ease-standard) infinite;
+}
+
+.tg-typing-dots__dot:nth-child(2) {
+  animation-delay: calc(var(--tg-duration-loop) * 0.2);
+}
+
+.tg-typing-dots__dot:nth-child(3) {
+  animation-delay: calc(var(--tg-duration-loop) * 0.4);
+}
+
+@keyframes tg-typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion: no scaling, only a slow opacity breath (fades survive the collapse, per
+   semantic.css). A loop is not collapsed to 1 ms — that would strobe. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-typing-dots__dot {
+    animation-name: tg-typing-dot-fade;
+    animation-duration: calc(var(--tg-duration-loop) * 2.4);
+    transform: none;
+  }
+}
+
+@keyframes tg-typing-dot-fade {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
