@@ -33,7 +33,9 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 ## 当前在飞的任务
 
-波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
+**在飞：无**（agent 基础设施故障期间由负责人在主线程串行推进，见「基础设施事故」）。
+
+历史：波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
 
 提前开工（后端为主、与波次 1 零路径交集，基线 `8ba40e5`）：TG-302 贴纸服务端、TG-506 两步验证。
 
@@ -62,6 +64,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-402 圆形视频消息 | 接管后 → `a79e53a` | 摄像头圆形取景（非正方形居中裁剪）、60 s 上限与进度环、与语音同款手势、录音键 mic↔camera 切换、服务端嗅探容器并要求视频轨、WebM/MP4（含 fragmented）时长解析、可选 JPEG 缩略图、圆形播放气泡、已看状态、`camera=(self)`。原 owner 在写浏览器 E2E 时中断（36 文件未提交）；负责人补话题闸门、修快照字段与一处帧序假设（回复目标自己的广播可能先到）。分支 136 个二进制 571 过（修复后该测试 5/5）。遗留：浏览器 E2E 未完成（真实 Chromium 录制的视频作为测试夹具覆盖了服务端）。 |
 | TG-403 相册 / 媒体组 | 接管后 → `4f8c033` | 原 owner 完成后端（两阶段原子发送、整组撤回、`ForwardPlan` 转发保组）后在未提交状态中断。负责人接管：补话题闸门；双适配器测试（原子有序、说明在首项、任一上传未完成则零残留、单项拒绝、转发换新组 id、整组撤回、他人不能撤回）；**前端全部**——Telegram Desktop `LayoutMediaGroup` 马赛克算法移植为纯 core 函数（9 测试 896 断言：无重叠、不越界、每行满宽、四角标记、2/3/4/5–10 形态与极端比例）、列表把连续同组消息折叠为一行（WeakMap 附带成员、首项 key 稳定、按成员跳转）、相册气泡、Composer 2–10 张媒体走原子相册发送（先传完全部分片再一次 `POST /albums`，失败整组标失败可续传）、删除/转发/选择作用于全组。分支 131 个二进制 557/0。已知：附件无宽高元数据，马赛克随图片加载重排一次。 |
 | TG-204 话题（论坛模式） | 接管后 → `794ac96` | 原 owner 在 58 个文件未提交时中断；负责人 WIP 提交、修补半截编辑的测试辅助、合并 main（与 TG-202/401/404/305/205 冲突：SQL 列表与占位符 `$10` 手工合并、`forward_favorite` 先 TG-202 完整权限判定再 TG-204 话题落点）。**发现并补上缺口**：语音/GIF/定时三条后写的发送路径都绕过了话题闸门且无法指定话题 → 三处加 `topic_id` 与 `resolve_post_topic`、迁移 `20270101000011` 给 `scheduled_messages` 加话题列（投递时复查关闭）、客户端经 `activeTopicId` 传参、新测试钉住定时路径。分支 130 个二进制 555/0；合并前 main 126 个二进制 **543/0（首次零失败）**。 |
 | TG-111 确定性测试基础设施 | 接管后 → `2fb1540` | 源头修复内存 SQLite 被换成空库：具名 shared-cache 内存库 + 独立锚连接（仅测试/开发路径）；Redis 限流测试窗口 2 s → 600 s 并直接断言两实例共享的 Redis 计数器 = 3（证明力不减）；TG-505 的文件库绕行已撤回。原 owner 因 agent 故障中断，负责人接管验证：回归测试 4/4、Redis 测试 4/4、此前抖动的三套件循环 10 次零失败。**已知抖动测试清单由此清空。** |
@@ -163,7 +166,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | TG-401 语音消息 | L | A | **merged** | — | M1 |
-| TG-402 圆形视频消息 | M | A | in-progress | — | TG-401 |
+| TG-402 圆形视频消息 | M | A | **merged** `a79e53a` | — | TG-401 |
 | TG-403 相册 / 媒体组 | M | B | **merged** `4f8c033` | — | M1 |
 | TG-404 定时发送与静默发送 | M | B | **merged** | — | M1 |
 | TG-405 自毁计时器 | M | C | blocked | — | M1 |
