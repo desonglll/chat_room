@@ -24,3 +24,4 @@
 @import url('../features/videoNote/videoNote.css');
 @import url('../features/scheduled/scheduled.css');
 @import url('../features/customEmoji/customEmoji.css');
+@import url('../features/chatAdmin/slowMode/slowMode.css');

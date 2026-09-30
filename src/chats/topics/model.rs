@@ -190,6 +190,8 @@ pub enum TopicError {
     Invalid(&'static str),
     /// General cannot be deleted.
     Conflict(&'static str),
+    /// TG-207: slow mode — the sender must wait this many more seconds.
+    SlowMode(i64),
     Database(sqlx::Error),
 }
 

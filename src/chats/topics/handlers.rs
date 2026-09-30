@@ -25,6 +25,7 @@ impl From<TopicError> for StatusCode {
             TopicError::NotForum | TopicError::Conflict(_) => StatusCode::CONFLICT,
             TopicError::NotFound => StatusCode::NOT_FOUND,
             TopicError::Forbidden | TopicError::Closed => StatusCode::FORBIDDEN,
+            TopicError::SlowMode(_) => StatusCode::TOO_MANY_REQUESTS,
             TopicError::Invalid(_) => StatusCode::BAD_REQUEST,
             TopicError::Database(error) => {
                 tracing::error!("forum topic query failed: {error}");

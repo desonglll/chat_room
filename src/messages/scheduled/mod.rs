@@ -111,7 +111,7 @@ pub async fn schedule(
         return Err(ScheduledError::Limit);
     }
     let topic_id = state
-        .resolve_post_topic(room_id, sender.id, request.topic_id)
+        .resolve_scheduled_post_topic(room_id, sender.id, request.topic_id)
         .await
         .map_err(ScheduledError::from_topic)?;
     let (content, entities) = accept_text(state, request.content, request.entities).await?;
