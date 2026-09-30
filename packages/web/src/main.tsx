@@ -19,6 +19,8 @@ import './features/voice/register'
 import './features/videoNote/register'
 // TG-305: GIF bubble body, the media panel's GIF tab, and the "保存 GIF" menu row.
 import './features/gif/register'
+// TG-511: «头像» and «我的二维码» in settings.
+import './features/profile/register'
 // TG-503: «保存到收藏夹» in the message menu.
 import './features/savedMessages/register'
 // TG-403: the album mosaic body for collapsed album rows.

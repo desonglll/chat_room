@@ -87,11 +87,9 @@ pub async fn upload_avatar(
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
-    if let Some(old_key) = old_key.filter(|old_key| old_key != &storage_key) {
-        if let Err(error) = state.attachment_store().remove(&old_key).await {
-            tracing::warn!("remove replaced avatar failed: {error:#}");
-        }
-    }
+    // TG-511: the replaced photo stays in the history (`user_avatar_history`); only deleting
+    // it there removes the file.
+    let _ = old_key;
     state.publish_member_profile(&updated).await;
     Ok(Json(updated))
 }

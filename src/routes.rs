@@ -112,6 +112,22 @@ pub(crate) fn api_routes(
             ),
         )
         .route(
+            "/api/users/:id/avatars",
+            get(crate::accounts::avatar_history::list_avatars),
+        )
+        .route(
+            "/api/users/:id/avatars/:avatar_id",
+            get(crate::accounts::avatar_history::download_history_avatar),
+        )
+        .route(
+            "/api/users/me/avatars/:avatar_id",
+            axum::routing::delete(crate::accounts::avatar_history::delete_avatar),
+        )
+        .route(
+            "/api/users/me/avatars/:avatar_id/main",
+            axum::routing::put(crate::accounts::avatar_history::set_main),
+        )
+        .route(
             "/api/users/me/verify-password",
             axum::routing::post(user_handlers::verify_password),
         )

@@ -1,0 +1,118 @@
+/* TG-511 profile photos, QR card, add-contact landing page. */
+.tg-avatar-carousel,
+.tg-profile-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+}
+
+.tg-avatar-carousel__frame {
+  position: relative;
+  width: min(320px, 100%);
+  aspect-ratio: 1;
+  border-radius: var(--tg-radius-lg);
+  overflow: hidden;
+  background: var(--tg-bg-secondary);
+}
+
+.tg-avatar-carousel__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tg-avatar-carousel__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tg-avatar-carousel__nav[data-side='prev'] {
+  left: 6px;
+}
+
+.tg-avatar-carousel__nav[data-side='next'] {
+  right: 6px;
+}
+
+.tg-avatar-carousel__count {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-on-accent);
+  background: var(--tg-overlay);
+}
+
+.tg-avatar-carousel__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tg-avatar-carousel__current,
+.tg-avatar-carousel__empty,
+.tg-profile-qr__hint,
+.tg-profile-qr__link,
+.tg-add-contact__hint {
+  margin: 0;
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-profile-qr__link {
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* The card is the scanning background: always light, whatever the theme. */
+.tg-profile-qr__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-scan-surface);
+}
+
+.tg-profile-qr__image {
+  width: 240px;
+  height: 240px;
+}
+
+.tg-profile-qr__name {
+  margin: 8px 0 0;
+  font-weight: 600;
+  color: var(--tg-accent);
+}
+
+.tg-add-contact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  background: var(--tg-bg-secondary);
+}
+
+.tg-add-contact__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(360px, 100%);
+  padding: 28px 24px;
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-bg);
+}
+
+.tg-add-contact__name {
+  margin: 4px 0 0;
+  font-size: var(--tg-type-title-size);
+  font-weight: 600;
+  color: var(--tg-text-primary);
+}
