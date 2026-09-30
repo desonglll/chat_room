@@ -3,6 +3,27 @@
 Use this file for repository-wide coordination. Product scope, task IDs, dependencies,
 and acceptance criteria live in `docs/product-roadmap-and-agent-plan.md`.
 
+## Active Programme: Telegram Parity
+
+All current work belongs to the Telegram-parity programme. **Start at
+`docs/tg/README.md`**, then read `docs/tg/agent-protocol.md` before touching code.
+That protocol supplements this file and wins where it is more specific.
+
+Non-negotiable additions it introduces:
+
+- Every worktree compiles into the shared build directory from `.cargo/config.toml`.
+  Concurrent builds serialize on a file lock; that is expected, not a fault.
+- Every task keeps a development log at `docs/devlog/<TASK-ID>.md`. Its
+  "Handoff snapshot" section is rewritten before any session ends, however short,
+  and the devlog is committed together with the code it describes.
+- A worktree writes only its own devlog. `docs/tg/board.md` is global state and is
+  updated only on `main`, by the integration lead.
+- Use `scripts/tg-worktree.sh` to create, inspect, check, and remove worktrees.
+
+Task IDs are `TG-xxx` in `docs/tg/roadmap.md`. The older
+`docs/product-roadmap-and-agent-plan.md` remains valid history; its still-relevant
+gaps were folded into `docs/tg/gap-analysis.md`.
+
 ## Start A Task
 
 1. Read `CONTEXT.md`, this file, and the assigned task card in the roadmap.

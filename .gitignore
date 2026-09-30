@@ -9,3 +9,10 @@
 /web/node_modules/
 /.env
 /.scratch-shot/
+
+# Telegram-parity worktrees live here; the shared build directory is configured
+# in .cargo/config.toml and sits outside the repository.
+/.claude/worktrees/
+/node_modules/
+/packages/*/node_modules/
+/packages/*/dist/

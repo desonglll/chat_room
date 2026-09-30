@@ -1,0 +1,42 @@
+#  Shared build directory for every git worktree of this repository.
+#
+#  Why this exists
+#  ---------------
+#  Telegram-parity work runs in several worktrees at once. A full `target/` for
+#  this crate reaches ~20 GB after a clean build and grew to 194 GB before it was
+#  first pruned, so one `target/` per worktree does not fit on the volume. Every
+#  worktree therefore compiles into the single directory below and shares the
+#  dependency cache.
+#
+#  The cost you are accepting
+#  --------------------------
+#  Cargo takes an exclusive lock on the build directory. Two worktrees running
+#  `cargo build`, `cargo check`, `cargo clippy`, or `cargo test` at the same time
+#  serialize; the second prints "Blocking waiting for file lock on build
+#  directory" until the first finishes. This is the deliberate trade for the disk
+#  space. Coordinate long builds, or take the escape hatch below.
+#
+#  Escape hatch
+#  ------------
+#  CARGO_TARGET_DIR (environment) overrides this setting. To build one worktree
+#  in parallel with another, export a private directory in that worktree's shell:
+#
+#      export CARGO_TARGET_DIR=/Volumes/Tuo-APFS/workspace/.cargo-target/tg-101
+#
+#  Budget ~20 GB for it and delete it when the worktree is merged.
+#
+#  Absolute path
+#  -------------
+#  `build.target-dir` cannot resolve to the same place from both the main
+#  checkout and a nested worktree when written as a relative path, so this is
+#  absolute and therefore machine-specific. CI and Docker set CARGO_TARGET_DIR
+#  instead and never read this value. If you clone onto another machine, edit
+#  this line — nothing else depends on it.
+#
+#  Pruning
+#  -------
+#  `cargo sweep --time 14 <dir>` (cargo-sweep) removes artifacts untouched for
+#  two weeks. Run it monthly; this directory grows without bound otherwise.
+
+[build]
+target-dir = "/Volumes/Tuo-APFS/workspace/.cargo-target/chat_room"

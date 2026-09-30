@@ -9,9 +9,13 @@ FROM rust:${RUST_VERSION}-bookworm AS source
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
+# CARGO_TARGET_DIR overrides the host-specific build.target-dir in
+# .cargo/config.toml, which points at a macOS path and would bypass the cache
+# mount on /app/target below.
 ENV CARGO_HTTP_TIMEOUT=600 \
     CARGO_NET_RETRY=10 \
-    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse \
+    CARGO_TARGET_DIR=/app/target
 
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY migrations ./migrations
