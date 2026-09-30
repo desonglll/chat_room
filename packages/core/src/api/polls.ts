@@ -32,6 +32,8 @@ export interface CreatePollInput {
   reply_to?: string
   /** Idempotency key; a retry with the same key answers the first message. */
   client_message_id?: string
+  /** TG-204: the forum topic; omitted for General. */
+  topic_id?: string
 }
 
 export interface PollVoter {

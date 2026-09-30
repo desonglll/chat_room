@@ -9,7 +9,8 @@ use axum::{routing::get, Router};
 
 use super::{
     admin_handlers, drafts, handlers, lifecycle_handlers, membership_handlers, message_history,
-    query_handlers as chat_query_handlers, roster_handlers,
+    query_handlers as chat_query_handlers, roster_handlers, topics::handlers as topic_handlers,
+    topics::viewer_handlers as topic_viewer_handlers,
 };
 use crate::{
     ai_extractions, ai_governance, ai_suggestions, attachment_handlers, attachment_upload_handlers,
@@ -134,6 +135,36 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
                 .layer(axum::extract::DefaultBodyLimit::max(multipart_body_limit)),
         )
         .route(
+            &path("/:id/forum"),
+            axum::routing::put(topic_handlers::put_forum),
+        )
+        .route(
+            &path("/:id/topics"),
+            get(topic_handlers::list_topics).post(topic_handlers::create_topic),
+        )
+        .route(
+            &path("/:id/topics/:topic_id"),
+            get(topic_handlers::get_topic)
+                .patch(topic_handlers::update_topic)
+                .delete(topic_handlers::delete_topic),
+        )
+        .route(
+            &path("/:id/topics/:topic_id/messages"),
+            get(topic_viewer_handlers::list_topic_messages),
+        )
+        .route(
+            &path("/:id/topics/:topic_id/messages/:message_id/context"),
+            get(topic_viewer_handlers::topic_message_context),
+        )
+        .route(
+            &path("/:id/topics/:topic_id/read"),
+            axum::routing::post(topic_viewer_handlers::read_topic),
+        )
+        .route(
+            &path("/:id/topics/:topic_id/notifications"),
+            axum::routing::put(topic_viewer_handlers::put_topic_notifications),
+        )
+        .route(
             &path("/:id/attachments/uploads"),
             axum::routing::post(attachment_upload_handlers::create_upload)
                 .get(attachment_upload_handlers::list_uploads),
@@ -143,6 +174,8 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
 /// `/api/chats/*` — the contract.
 pub(crate) fn canonical(multipart_body_limit: usize) -> Router<Arc<AppState>> {
     chat_scoped_routes(CHAT_PREFIX, multipart_body_limit)
+        // TG-202: channels exist only on the canonical prefix.
+        .merge(super::channel_handlers::routes())
 }
 
 /// `/api/rooms/*` — the same tree, plus the one layer that tells the chat-descriptor handlers

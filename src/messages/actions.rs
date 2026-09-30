@@ -37,13 +37,40 @@ impl AppState {
         content: &str,
         entities: &[MessageEntity],
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        self.edit_message_by(room_id, Some(sender_id), message_id, content, entities)
+            .await
+    }
+
+    /// TG-202: a `message.edit_any` holder edits someone else's message. The caller has
+    /// authorized the key; a recalled message stays recalled (only its sender may revive it).
+    pub(crate) async fn edit_any_message(
+        &self,
+        room_id: Uuid,
+        message_id: Uuid,
+        content: &str,
+        entities: &[MessageEntity],
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        self.edit_message_by(room_id, None, message_id, content, entities)
+            .await
+    }
+
+    /// `sender_id: None` = any sender, but only a message that is not recalled.
+    async fn edit_message_by(
+        &self,
+        room_id: Uuid,
+        sender_id: Option<Uuid>,
+        message_id: Uuid,
+        content: &str,
+        entities: &[MessageEntity],
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let edited_at = Utc::now();
         let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| {
             async {
                 let mut tx = pool.begin().await?;
                 let updated: Option<Option<Uuid>> = sqlx::query_scalar(
                     "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
-             WHERE id = $3 AND room_id = $4 AND sender_id = $5 \
+             WHERE id = $3 AND room_id = $4 \
+             AND (sender_id = $5 OR ($6 AND recalled_at IS NULL)) \
              AND NOT EXISTS (SELECT 1 FROM polls WHERE polls.message_id = messages.id) \
              RETURNING attachment_id",
                 )
@@ -52,6 +79,7 @@ impl AppState {
                 .bind(message_id)
                 .bind(room_id)
                 .bind(sender_id)
+                .bind(sender_id.is_none())
                 .fetch_optional(&mut *tx)
                 .await?;
                 if updated.is_some() {
@@ -90,17 +118,38 @@ impl AppState {
         sender_id: Uuid,
         message_id: Uuid,
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        self.recall_message_by(room_id, Some(sender_id), message_id)
+            .await
+    }
+
+    /// TG-202: a `message.delete_any` holder recalls someone else's message. The caller has
+    /// authorized the key.
+    pub(crate) async fn recall_any_message(
+        &self,
+        room_id: Uuid,
+        message_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        self.recall_message_by(room_id, None, message_id).await
+    }
+
+    async fn recall_message_by(
+        &self,
+        room_id: Uuid,
+        sender_id: Option<Uuid>,
+        message_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let recalled_at = Utc::now();
         let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "UPDATE messages SET recalled_at = $1 \
-             WHERE id = $2 AND room_id = $3 AND sender_id = $4 AND recalled_at IS NULL \
+             WHERE id = $2 AND room_id = $3 AND (sender_id = $4 OR $5) AND recalled_at IS NULL \
              RETURNING attachment_id",
             )
             .bind(recalled_at)
             .bind(message_id)
             .bind(room_id)
             .bind(sender_id)
+            .bind(sender_id.is_none())
             .fetch_optional(pool)
             .await
         })?;

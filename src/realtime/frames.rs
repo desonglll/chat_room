@@ -71,6 +71,12 @@ pub enum ChatMessage {
         /// TG-304: optional formatted ranges of `content` (docs/devlog/TG-304.md).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-204: the forum topic to post into; absent = General (docs/devlog/TG-204.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topic_id: Option<Uuid>,
+        /// TG-404: deliver without notifications or Web Push (docs/devlog/TG-404.md).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        silent: bool,
     },
 
     /// Client -> Server: replace the content of a message sent by this account. TG-304: the
@@ -150,12 +156,27 @@ pub enum ChatMessage {
         /// TG-304: omitted unless the message has entities.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-204: the forum topic; omitted for General (and every non-forum chat).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topic_id: Option<Uuid>,
+        /// TG-202: a channel post's view count; omitted for every other message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        views: Option<i64>,
+        /// TG-202: a signed channel post's author; omitted when unsigned.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        post_author: Option<String>,
         /// TG-401: optional, omitted unless the message is a voice message (docs/devlog/TG-401.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         voice: Option<VoiceNote>,
         /// TG-402: optional, omitted unless the message is a video note (docs/devlog/TG-402.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         video_note: Option<VideoNote>,
+        /// TG-404: omitted unless the message was sent silently.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        silent: bool,
+        /// TG-403: the album this message belongs to; omitted for non-album messages.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grouped_id: Option<Uuid>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

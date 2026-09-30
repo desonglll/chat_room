@@ -104,8 +104,13 @@ fn broadcast_frame_serializes_unchanged() {
         sticker: None,
         poll: None,
         entities: Vec::new(),
+        topic_id: None,
+        views: None,
+        post_author: None,
         voice: None,
         video_note: None,
+        silent: false,
+        grouped_id: None,
     };
     assert_wire(
         &full,
@@ -166,8 +171,13 @@ fn broadcast_frame_serializes_unchanged() {
         sticker: None,
         poll: None,
         entities: Vec::new(),
+        topic_id: None,
+        views: None,
+        post_author: None,
         voice: None,
         video_note: None,
+        silent: false,
+        grouped_id: None,
     };
     assert_wire(
         &minimal,

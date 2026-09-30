@@ -93,7 +93,7 @@ impl AppState {
                 sqlx::query(
                     "INSERT INTO messages (id, room_id, sender_id, sender, content, \
                      attachment_id, reply_to_id, client_message_id, media_kind, sticker_id, \
-                     created_at) VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8, $9, $10)",
+                     created_at, topic_id) VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8, $9, $10, $11)",
                 )
                 .bind(message_id)
                 .bind(room_id)
@@ -105,6 +105,7 @@ impl AppState {
                 .bind(MEDIA_KIND_STICKER)
                 .bind(request.sticker_id)
                 .bind(created_at)
+                .bind(request.topic_id)
                 .execute(&mut *tx)
                 .await?;
                 sqlx::query(

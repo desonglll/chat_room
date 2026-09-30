@@ -49,6 +49,8 @@ export interface SendStickerInput {
   sticker_id: string
   reply_to?: string | undefined
   client_message_id?: string | undefined
+  /** TG-204: the forum topic; omitted for General. */
+  topic_id?: string | null | undefined
 }
 
 export interface StickersApi {
@@ -108,6 +110,7 @@ export function createStickersApi(client: ApiClient, token: () => string | null)
           sticker_id: input.sticker_id,
           ...(input.reply_to ? { reply_to: input.reply_to } : {}),
           ...(input.client_message_id ? { client_message_id: input.client_message_id } : {}),
+          ...(input.topic_id ? { topic_id: input.topic_id } : {}),
         },
       }),
   }

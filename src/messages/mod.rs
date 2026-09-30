@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod albums;
 mod catch_up;
 pub mod forward_handlers;
 mod forward_store;
@@ -7,6 +8,7 @@ pub mod pins;
 pub mod polls;
 pub mod reactions;
 pub mod read_store;
+pub mod scheduled;
 pub mod search;
 mod search_pattern;
 pub mod store;

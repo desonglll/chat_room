@@ -69,6 +69,10 @@ pub(crate) async fn publish_membership_joined(
     room_id: Uuid,
     username: &str,
 ) -> Result<(), StatusCode> {
+    // TG-202: a channel subscription is silent; see `chats::channels`.
+    if state.is_channel(room_id).await {
+        return Ok(());
+    }
     let participants = state.chat_participants(room_id).await.map_err(|error| {
         tracing::error!(
             "load participants after membership change failed: {}",
@@ -255,6 +259,13 @@ pub async fn leave_chat(
     };
 
     let members = state.remove_connected_member(room_id, user.id).await;
+    if state.is_channel(room_id).await {
+        // TG-202: unsubscribing is silent, like subscribing.
+        state
+            .disconnect_chat_member(room_id, user.id, "membership left")
+            .await;
+        return Ok(StatusCode::NO_CONTENT);
+    }
     let participants = state.chat_participants(room_id).await.map_err(|error| {
         tracing::error!("reload chat participants after leave failed: {}", error);
         StatusCode::INTERNAL_SERVER_ERROR

@@ -61,16 +61,25 @@ pub async fn create_poll(
     if !state.is_chat_participant(room_id, sender.id).await? {
         return Err(PollError::NotFound);
     }
-    // `message.send`, or `message.post` in a channel — whichever the chat type admits.
-    let may_send = state
-        .has_chat_permission(room_id, sender.id, "message.send")
+    // TG-202: `message.send_poll`, whose prerequisite is `message.send` — decided as
+    // `message.post` in a channel (`ChatType::effective_permission`).
+    if !state
+        .has_chat_permission(room_id, sender.id, "message.send_poll")
         .await?
-        || state
-            .has_chat_permission(room_id, sender.id, "message.post")
-            .await?;
-    if !may_send {
+    {
         return Err(PollError::Forbidden);
     }
+    let placement = state
+        .placement(room_id, sender.id, request.reply_to, request.topic_id)
+        .await
+        .map_err(|error| match error {
+            crate::chats::TopicError::NotFound => PollError::NotFound,
+            crate::chats::TopicError::Closed | crate::chats::TopicError::Forbidden => {
+                PollError::Forbidden
+            }
+            crate::chats::TopicError::Database(error) => PollError::Database(error),
+            _ => PollError::Invalid,
+        })?;
     let display_name = state.resolve_display_name(room_id, sender).await;
     let message_id = state
         .insert_poll_message(
@@ -78,7 +87,7 @@ pub async fn create_poll(
             sender,
             &display_name,
             &poll,
-            request.reply_to,
+            placement,
             request.client_message_id,
         )
         .await?

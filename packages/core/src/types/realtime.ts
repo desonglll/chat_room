@@ -83,10 +83,20 @@ export interface BroadcastFrame {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'`. */
   sticker?: MessageSticker
+  /** TG-204: the forum topic; omitted (or null) for General and non-forum chats. */
+  topic_id?: string | null
+  /** TG-202: a channel post's view count; omitted for every other message. */
+  views?: number
+  /** TG-202: a signed channel post's author; omitted when unsigned. */
+  post_author?: string
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
   /** TG-402: present exactly when the message is a round video message; omitted otherwise. */
   video_note?: VideoNote
+  /** TG-404: true when sent without notifications; omitted otherwise. */
+  silent?: boolean
+  /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
+  grouped_id?: string
 }
 
 export interface TypingFrame {
@@ -103,6 +113,12 @@ export interface TopicSummary {
   icon_emoji: string
   closed: boolean
   pinned: boolean
+  /** TG-204 additions, each omitted at its default. */
+  icon_color?: number
+  icon_custom_emoji_id?: string | null
+  hidden?: boolean
+  is_general?: boolean
+  deleted?: boolean
 }
 
 export interface MessageViewCount {
@@ -202,7 +218,17 @@ export type ServerFrameType = ServerFrame['type']
 export type ClientFrame =
   | { type: 'join'; token: string }
   | { type: 'auth'; token: string; password: string }
-  | { type: 'message'; content: string; reply_to?: string; client_message_id?: string; entities?: MessageEntity[] }
+  | {
+      type: 'message'
+      content: string
+      reply_to?: string
+      client_message_id?: string
+      entities?: MessageEntity[]
+      /** TG-204: the forum topic to post into; omitted for General. */
+      topic_id?: string
+      /** TG-404: deliver without notifications or push. */
+      silent?: boolean
+    }
   | { type: 'edit'; message_id: string; content: string; entities?: MessageEntity[] }
   | { type: 'read'; message_id: string }
   | { type: 'recall'; message_id: string }

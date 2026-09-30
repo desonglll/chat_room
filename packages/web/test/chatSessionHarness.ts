@@ -9,6 +9,7 @@ import type { ApiClient, ChatDraft, CoreClock, CoreSocket, DraftsApi, StoredMess
 import { createChatListStore, createComposerStore, createMessageStore, createPresenceStore } from '@tg/core'
 import { createChatSession } from '../src/features/chat/chatSession'
 import { createPollStore } from '../src/features/poll/pollStore'
+import { createChannelStore } from '../src/features/channel/channelStore'
 
 export const CHAT_ID = 'chat-1'
 export const ME = 'user-me'
@@ -154,6 +155,7 @@ export function harness(
     composer: createComposerStore(),
     chatList: createChatListStore(),
     poll: createPollStore(),
+    channel: createChannelStore(),
   }
   const puts: Array<{ chatId: string; text: string }> = []
   const missedCalls: number[] = []

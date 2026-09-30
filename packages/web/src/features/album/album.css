@@ -1,0 +1,41 @@
+/* TG-403 album mosaic. Tiles are absolutely placed by `layoutAlbum`; the corner radius of the
+   bubble is applied only on tiles that touch the bubble's outer corners. */
+.tg-album {
+  position: relative;
+  max-width: 100%;
+}
+
+.tg-album__tile {
+  position: absolute;
+  overflow: hidden;
+  background: var(--tg-bg-secondary);
+}
+
+.tg-album__tile > .tg-bubble__media {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tg-album__media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tg-album__tile[data-top][data-left] {
+  border-top-left-radius: var(--tg-bubble-radius);
+}
+
+.tg-album__tile[data-top][data-right] {
+  border-top-right-radius: var(--tg-bubble-radius);
+}
+
+.tg-album__tile[data-bottom][data-left] {
+  border-bottom-left-radius: var(--tg-bubble-radius);
+}
+
+.tg-album__tile[data-bottom][data-right] {
+  border-bottom-right-radius: var(--tg-bubble-radius);
+}

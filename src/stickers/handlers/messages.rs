@@ -23,7 +23,7 @@ pub async fn send_sticker(
     State(state): State<SharedState>,
     Path(room_id): Path<Uuid>,
     headers: HeaderMap,
-    Json(request): Json<SendStickerRequest>,
+    Json(mut request): Json<SendStickerRequest>,
 ) -> Result<(StatusCode, Json<StoredMessage>), StickerError> {
     // TG-201: stickers have their own key (`message.send_sticker`, which implies sending).
     let (chat, user) = authorize_upload(&state, room_id, &headers, "message.send_sticker").await?;
@@ -32,6 +32,17 @@ pub async fn send_sticker(
         .message()
         .await
         .map_err(|_| StickerError::Unavailable)?;
+    request.topic_id = state
+        .resolve_post_topic(chat.id, user.id, request.topic_id)
+        .await
+        .map_err(|error| match error {
+            crate::chats::TopicError::NotFound => StickerError::NotFound("topic_not_found"),
+            crate::chats::TopicError::Closed | crate::chats::TopicError::Forbidden => {
+                StickerError::Forbidden
+            }
+            crate::chats::TopicError::Database(error) => StickerError::Database(error),
+            _ => StickerError::Invalid("topic_id"),
+        })?;
     let display_name = state.resolve_display_name(chat.id, &user).await;
     let sent = state
         .send_sticker_message(chat.id, &user, &display_name, &request)

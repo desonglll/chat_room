@@ -41,6 +41,9 @@ pub struct CreatePollRequest {
     /// Idempotency key, same contract as the WebSocket `message` frame.
     #[serde(default)]
     pub client_message_id: Option<Uuid>,
+    /// TG-204: the forum topic to post into; absent = General.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
 }
 
 /// A request that passed [`CreatePollRequest::validate`]: trimmed, bounded, consistent.

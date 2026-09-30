@@ -123,10 +123,20 @@ export interface StoredMessage {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'` (and on recall). */
   sticker?: MessageSticker
+  /** TG-204: the forum topic; omitted (or null) for General and non-forum chats. */
+  topic_id?: string | null
+  /** TG-202: a channel post's view count; omitted for every other message. */
+  views?: number
+  /** TG-202: a signed channel post's author; omitted when unsigned. */
+  post_author?: string
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
   /** TG-402: present exactly when the message is a round video message; omitted otherwise. */
   video_note?: VideoNote
+  /** TG-404: true when sent without notifications; omitted otherwise. */
+  silent?: boolean
+  /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
+  grouped_id?: string
 }
 
 /**

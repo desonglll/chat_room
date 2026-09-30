@@ -3,6 +3,7 @@
 use anyhow::Result;
 use uuid::Uuid;
 
+use crate::message_store::MessagePlacement;
 use crate::models::{StoredMessage, User};
 use crate::state::AppState;
 
@@ -19,7 +20,7 @@ impl AppState {
         size_bytes: i64,
         is_sensitive: bool,
         content: &str,
-        reply_to: Option<Uuid>,
+        placement: MessagePlacement,
         content_hash: String,
     ) -> Result<StoredMessage> {
         let direct_key = self
@@ -45,7 +46,7 @@ impl AppState {
                 size_bytes,
                 is_sensitive,
                 content,
-                reply_to,
+                placement,
                 content_hash,
                 storage_key.clone(),
             )

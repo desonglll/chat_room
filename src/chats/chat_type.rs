@@ -91,6 +91,18 @@ impl ChatType {
         matches!(self, ChatType::Supergroup)
     }
 
+    /// The key a request for `permission_key` is decided on in this chat type. In a channel,
+    /// sending *is* posting (TG-202): every send path asks for `message.send` (and the content
+    /// kinds depend on it), and a channel answers that question with `message.post`. This is
+    /// what lets a channel administrator send media, stickers and polls while a subscriber —
+    /// whose role holds no key at all — can send nothing, on every path at once.
+    pub fn effective_permission(self, permission_key: &str) -> &str {
+        match (self, permission_key) {
+            (ChatType::Channel, "message.send") => "message.post",
+            _ => permission_key,
+        }
+    }
+
     /// The intrinsic-constraint layer of the authorization decision
     /// (`docs/tg/architecture.md` §4.4, step 5). It can only turn an allow into a deny:
     /// no chat type grants a permission that a role withheld.
@@ -236,6 +248,24 @@ mod tests {
         assert!(ChatType::Channel.permits("message.post"));
         assert!(ChatType::Group.permits("message.send"));
         assert!(!ChatType::Group.permits("message.post"));
+    }
+
+    #[test]
+    fn a_channel_decides_sending_on_the_post_key() {
+        assert_eq!(
+            ChatType::Channel.effective_permission("message.send"),
+            "message.post"
+        );
+        assert_eq!(
+            ChatType::Channel.effective_permission("message.send_media"),
+            "message.send_media"
+        );
+        for chat_type in [ChatType::Private, ChatType::Group, ChatType::Supergroup] {
+            assert_eq!(
+                chat_type.effective_permission("message.send"),
+                "message.send"
+            );
+        }
     }
 
     #[test]

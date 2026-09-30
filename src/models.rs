@@ -62,12 +62,27 @@ pub struct StoredMessage {
     /// TG-304: formatted ranges of `content` (custom emoji); omitted when there are none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entities: Vec<crate::stickers::custom_emoji::MessageEntity>,
+    /// TG-204: the forum topic; `None` = General (and every non-forum chat).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic_id: Option<Uuid>,
+    /// TG-202: a channel post's view count; omitted for every other message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub views: Option<i64>,
+    /// TG-202: a signed channel post's author; omitted when unsigned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_author: Option<String>,
     /// TG-401: present exactly when the message is a voice message (`docs/devlog/TG-401.md`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice: Option<crate::attachments::voice::model::VoiceNote>,
     /// TG-402: present exactly when the message is a round video message (`docs/devlog/TG-402.md`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub video_note: Option<crate::attachments::video_note::model::VideoNote>,
+    /// TG-404: sent without notifications; omitted (= false) for ordinary messages.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub silent: bool,
+    /// TG-403: the album this message belongs to; omitted for non-album messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grouped_id: Option<Uuid>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

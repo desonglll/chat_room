@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use super::access::PollAccess;
 use super::model::{PollError, PollVoter, PollVoterPage, ValidPoll};
+use crate::message_store::MessagePlacement;
 use crate::models::User;
 use crate::state::{with_pool, AppState};
 
@@ -38,13 +39,13 @@ impl AppState {
         sender: &User,
         display_name: &str,
         poll: &ValidPoll,
-        reply_to: Option<Uuid>,
+        placement: MessagePlacement,
         client_message_id: Option<Uuid>,
     ) -> Result<Option<Uuid>, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
         let reply_to = self
-            .reply_preview(room_id, reply_to)
+            .reply_preview(room_id, placement.reply_to)
             .await?
             .map(|reply| reply.message_id);
         let inserted = with_pool!(self, |pool| {
@@ -53,8 +54,8 @@ impl AppState {
                 let inserted = sqlx::query(
                     "INSERT INTO messages \
                      (id, room_id, sender_id, sender, content, reply_to_id, client_message_id, \
-                      created_at) \
-                     SELECT $1, $2, $3, $4, $5, $6, $7, $8 \
+                      created_at, topic_id) \
+                     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9 \
                      WHERE EXISTS (SELECT 1 FROM chat_members WHERE chat_members.room_id = $2 \
                        AND chat_members.user_id = $3 AND chat_members.status = 'active') \
                      ON CONFLICT (room_id, sender_id, client_message_id) \
@@ -68,6 +69,7 @@ impl AppState {
                 .bind(reply_to)
                 .bind(client_message_id)
                 .bind(created_at)
+                .bind(placement.topic_id)
                 .execute(&mut *transaction)
                 .await?
                 .rows_affected()

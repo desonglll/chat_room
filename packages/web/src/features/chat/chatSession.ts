@@ -5,20 +5,7 @@
  * fake clock and fake APIs. M1 tasks extend the frame fan-out here rather than opening
  * second subscriptions elsewhere.
  */
-import type {
-  ApiClient,
-  ChatDraft,
-  ClientFrame,
-  ChatListStore,
-  ChatSocketStatus,
-  ComposerStore,
-  CoreClock,
-  CoreSocketFactory,
-  CoreTimerHandle,
-  DraftsApi,
-  MessageStore,
-  PresenceStore,
-} from '@tg/core'
+import type { ChatDraft, CoreTimerHandle } from '@tg/core'
 import {
   EMPTY_DRAFT,
   TYPING_TTL_MS,
@@ -28,61 +15,27 @@ import {
   createRandomUuid,
   getChat,
   listChatMessages,
+  storedMessageToBroadcast,
 } from '@tg/core'
-import { applyPollFrame, type PollStore } from '../poll/pollStore'
+import { applyPollFrame } from '../poll/pollStore'
+import { applyViewsFrame } from '../channel/channelStore'
 import { applyVoiceListenedFrame } from '../voice/voiceStore'
+import type { ChatSession, ChatSessionOptions } from './chatSessionTypes'
+import { MAX_MESSAGE_CHARS } from './chatSessionTypes'
 
-/** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
-export const MAX_MESSAGE_CHARS = 4096
-
-export interface ChatSessionStores {
-  message: MessageStore
-  presence: PresenceStore
-  composer: ComposerStore
-  chatList: ChatListStore
-  /** Live poll tallies (TG-406). `poll_updated` frames are dropped when absent. */
-  poll?: PollStore | undefined
-}
-
-export interface ChatSessionOptions {
-  chatId: string
-  token: string
-  currentUserId: string
-  socketUrl: string
-  createSocket: CoreSocketFactory
-  clock: CoreClock
-  client: ApiClient
-  draftsApi: DraftsApi
-  stores: ChatSessionStores
-  /** Whether the reader can see the chat right now (page visible). Default: always. */
-  isVisible?: () => boolean
-}
-
-export interface ChatSession {
-  start(): void
-  /** Flushes a pending draft save, closes the socket, detaches every subscription. */
-  stop(): void
-  /** Optimistic append + WS send; false marks the row failed (offline). */
-  sendMessage(text: string): boolean
-  /**
-   * Composer edit: store + debounced cloud save. Typing frames are the composer's
-   * (TG-107 `createChatActionSender` via `sendFrame`), not this method's.
-   */
-  setDraftText(text: string): void
-  /** One raw client frame on this chat's socket (edit, recall, reaction, typing …). */
-  sendFrame(frame: ClientFrame): boolean
-  /**
-   * Advance the viewer's read cursor to the newest server message, when it moved. Called
-   * on history completion, on every settled arrival, and by the host when the page
-   * becomes visible; `isVisible` (option) gates it so a background tab reads nothing.
-   */
-  markRead(): void
-  status(): ChatSocketStatus
-  onStatus(handler: (status: ChatSocketStatus) => void): () => void
-}
+export type {
+  ChatSession,
+  ChatSessionOptions,
+  ChatSessionStores,
+  ChatSessionTopicMode,
+  SendMessageOptions,
+} from './chatSessionTypes'
+export { MAX_MESSAGE_CHARS } from './chatSessionTypes'
 
 export function createChatSession(options: ChatSessionOptions): ChatSession {
   const { chatId, currentUserId, clock, stores } = options
+  const topic = options.topic ?? null
+  let stopped = false
   const unsubscribers: Array<() => void> = []
   let expiryTimer: CoreTimerHandle | null = null
   let lastReadSent = ''
@@ -100,7 +53,9 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     // Catch-up page, newest-first from REST, reversed to chronological order; the
     // socket filters by cursor and `mergeIncomingBroadcast` dedups by message_id.
     fetchMissed: async () => {
-      const page = await listChatMessages(options.client, chatId, { token: options.token })
+      const page = topic
+        ? await topic.latest()
+        : await listChatMessages(options.client, chatId, { token: options.token })
       return page.slice().reverse()
     },
   })
@@ -161,6 +116,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
   }
 
   function markRead(): void {
+    if (options.readCursor === false) return
     if (socket.status() !== 'online' || !(options.isVisible?.() ?? true)) return
     const timeline = stores.message.getState().timelines[chatId]
     if (!timeline?.historyReady) return
@@ -173,7 +129,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     }
     if (!newest || newest === lastReadSent || newest === timeline.readCursors[currentUserId]) return
     lastReadSent = newest
-    socket.send({ type: 'read', message_id: newest })
+    if (topic) topic.read(newest)
+    else socket.send({ type: 'read', message_id: newest })
   }
 
   return {
@@ -185,10 +142,26 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
           refreshDescriptor(frame.participants.length)
         }),
         socket.on('history_complete', () => {
-          stores.message.getState().setHistoryReady(chatId, true)
-          markRead()
+          const ready = () => {
+            if (stopped) return
+            stores.message.getState().setHistoryReady(chatId, true)
+            markRead()
+          }
+          if (!topic) return ready()
+          // The chat-wide replay may hold none of a quiet topic's messages: merge the
+          // topic's newest page (older than the replay, deduped by id) before opening.
+          topic
+            .latest()
+            .then((page) => {
+              if (!stopped) stores.message.getState().prependHistory(chatId, page.map(storedMessageToBroadcast))
+            })
+            .catch(() => {
+              // The replayed rows still open; older pages load on scroll.
+            })
+            .finally(ready)
         }),
         socket.on('broadcast', (frame) => {
+          if (topic && !topic.accepts(frame)) return
           const ready = stores.message.getState().timelines[chatId]?.historyReady ?? false
           const motion = classifyMessageMotion(ready, frame.sender_id, currentUserId)
           stores.message.getState().applyBroadcast(chatId, frame, motion)
@@ -212,6 +185,9 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('poll_updated', (frame) => {
           if (stores.poll) applyPollFrame(frame, stores.poll)
         }),
+        socket.on('message_views_updated', (frame) => {
+          if (stores.channel) applyViewsFrame(frame, stores.channel)
+        }),
         // TG-401: the listener's and the sender's unlistened dots (features/voice).
         socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
       )
@@ -227,6 +203,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     },
 
     stop() {
+      stopped = true
       synchronizer.flush(chatId)
       synchronizer.dispose()
       for (const unsubscribe of unsubscribers) unsubscribe()
@@ -241,7 +218,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
       stores.message.getState().clearChat(chatId)
     },
 
-    sendMessage(text) {
+    sendMessage(text, options) {
       const content = text.trim()
       if (!content || [...content].length > MAX_MESSAGE_CHARS) return false
       const clientMessageId = createRandomUuid()
@@ -259,6 +236,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         content,
         ...(replyTo ? { reply_to: replyTo } : {}),
         client_message_id: clientMessageId,
+        ...(topic?.sendTopicId ? { topic_id: topic.sendTopicId } : {}),
+        ...(options?.silent ? { silent: true } : {}),
       })
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
       stores.composer.getState().clearDraft(chatId)
@@ -290,5 +269,6 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
 
     status: () => socket.status(),
     onStatus: (handler) => socket.onStatus(handler),
+    onFrame: (handler) => socket.onAnyFrame(handler),
   }
 }

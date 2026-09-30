@@ -18,7 +18,9 @@ import {
 } from './chatInfoApi'
 import type { InfoHeaderModel } from './chatInfoModel'
 import { selectInfoHeader } from './chatInfoModel'
-import { chatMemberLoader, createMemberSource } from './memberSource'
+import { chatAdminApi } from '../chatAdmin/chatAdminApi'
+import { createMemberPageSource } from '../chatAdmin/memberPageSource'
+import { createMemberSource } from './memberSource'
 import type { SharedPager } from './sharedPager'
 import { createSharedPager } from './sharedPager'
 import type { SharedFile, SharedLink, SharedSources } from './sharedSources'
@@ -47,7 +49,11 @@ export function createChatInfoPagers(
 ): ChatInfoPagers {
   const shared = overrides.shared ?? createSharedSources(chatId, { client, token })
   const online = () => new Set(presenceStore.getState().chats[chatId]?.participants.map((p) => p.user_id) ?? [])
-  const members = createMemberSource(overrides.loadMembers ?? chatMemberLoader(client, chatId, token), online)
+  // TG-201: the server-paged roster (keyset cursor, readable by every member) unless a test
+  // injects a one-shot loader.
+  const members = overrides.loadMembers
+    ? createMemberSource(overrides.loadMembers, online)
+    : createMemberPageSource(chatAdminApi, chatId)
   const byKey = (item: { key: string }) => item.key
   return {
     media: createSharedPager(shared.media, byKey),
