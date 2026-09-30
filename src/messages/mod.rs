@@ -2,6 +2,7 @@ pub mod actions;
 pub mod albums;
 pub mod auto_delete;
 mod catch_up;
+pub mod contacts;
 pub mod forward_handlers;
 mod forward_store;
 pub mod global_search;

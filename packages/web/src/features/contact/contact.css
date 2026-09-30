@@ -1,0 +1,80 @@
+/* TG-410 contact card bubble, contact picker, translation dialog. */
+.tg-contact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.tg-contact-card__who,
+.tg-contact-picker__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tg-contact-card__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-contact-card__name {
+  font-weight: 600;
+}
+
+.tg-contact-card__handle,
+.tg-contact-card__note,
+.tg-contact-picker__note,
+.tg-translation__original {
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-contact-card__actions {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--tg-divider);
+  padding-top: 4px;
+}
+
+.tg-contact-card__note {
+  margin: 0;
+}
+
+.tg-contact-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tg-contact-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-contact-picker__row {
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-translation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tg-translation__text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--tg-text-primary);
+}

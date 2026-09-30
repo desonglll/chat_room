@@ -158,6 +158,14 @@ pub(crate) fn api_routes(
             axum::routing::post(chats::public_handles::join_public),
         )
         .route(
+            "/api/translation",
+            get(crate::messages::contacts::translation_availability),
+        )
+        .route(
+            "/api/messages/:id/translate",
+            axum::routing::post(crate::messages::contacts::translate_message),
+        )
+        .route(
             "/api/direct-chats",
             axum::routing::post(chats::private_chat_handlers::start_direct_chat),
         )

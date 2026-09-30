@@ -10,6 +10,7 @@ import type { MediaViewerActions } from '../mediaViewer'
 import { MediaViewer, mediaViewerStore } from '../mediaViewer'
 import { requestDelete, requestForward } from './chatDialogStore'
 import { DeleteConfirmDialog, ForwardDialog } from './ChatDialogs'
+import { TranslationDialog } from '../contact/TranslationDialog'
 
 const viewerChatId = () => mediaViewerStore.getState().request?.chatId ?? ''
 
@@ -27,6 +28,8 @@ export function ChatOverlays() {
     <>
       <MediaViewer actions={actions} />
       <ForwardDialog />
+      {/* TG-410: the translation of a message, when AI is configured. */}
+      <TranslationDialog />
       <DeleteConfirmDialog />
     </>
   )

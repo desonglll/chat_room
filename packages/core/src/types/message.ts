@@ -32,6 +32,14 @@ export interface ReplyPreview {
   chat_title?: string
 }
 
+/** TG-410: a shared account, snapshotted when the card was sent (`user_id` null once deleted). */
+export interface ContactCard {
+  user_id: string | null
+  username: string
+  display_name: string
+  avatar_emoji: string
+}
+
 /** TG-409: a quoted slice of the replied-to message; `offset` in UTF-16 code units. */
 export interface ReplyQuote {
   text: string
@@ -148,6 +156,8 @@ export interface StoredMessage {
   video_note?: VideoNote
   /** TG-404: true when sent without notifications; omitted otherwise. */
   silent?: boolean
+  /** TG-410: a shared contact card; omitted otherwise. */
+  contact?: ContactCard
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
   grouped_id?: string
 }

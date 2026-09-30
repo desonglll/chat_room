@@ -124,6 +124,8 @@ impl AppState {
         self.attach_message_voice(messages).await?;
         // TG-402: and the static video note projection (duration, thumbnail).
         self.attach_message_video_note(messages).await?;
+        // TG-410: and contact cards.
+        self.attach_message_contacts(messages).await?;
         self.attach_message_entities(messages).await
     }
 }
