@@ -13,6 +13,7 @@ const broadcast = (reactions: BroadcastMessage['reactions'] = []): BroadcastMess
   attachment: null,
   reply_to: null,
   recalled_at: null,
+  favorite_id: null,
   edited_at: null,
   timestamp: '2026-08-20T00:00:00Z',
   forwarded_from: null,

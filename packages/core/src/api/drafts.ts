@@ -77,7 +77,7 @@ export function createDraftsApi(fetchLike: DraftFetchLike, options: DraftsApiOpt
   }
   return {
     async get(chatId) {
-      const response = await fetchLike(`${base}/api/chats/${chatId}/draft`, {
+      const response = await fetchLike(`${base}/api/chats/${encodeURIComponent(chatId)}/draft`, {
         method: 'GET',
         headers: headers(),
       })
@@ -85,7 +85,7 @@ export function createDraftsApi(fetchLike: DraftFetchLike, options: DraftsApiOpt
       return (await response.json()) as ChatDraft | null
     },
     async put(chatId, draft) {
-      const response = await fetchLike(`${base}/api/chats/${chatId}/draft`, {
+      const response = await fetchLike(`${base}/api/chats/${encodeURIComponent(chatId)}/draft`, {
         method: 'PUT',
         headers: headers(),
         body: JSON.stringify(draft),

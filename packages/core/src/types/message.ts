@@ -44,6 +44,8 @@ export interface ReadReceipt {
 export interface StoredMessage {
   id: string
   room_id: string
+  /** Always serialised by the server (null or a UUID) — the optimistic-send reconcile key. */
+  client_message_id: string | null
   sender_id: string | null
   sender: string
   sender_avatar: string
@@ -53,7 +55,7 @@ export interface StoredMessage {
   recalled_at: string | null
   edited_at: string | null
   created_at: string
-  favorite_id?: string | null
+  favorite_id: string | null
   forwarded_from: ForwardedFrom | null
   reactions: MessageReaction[]
 }

@@ -4,7 +4,7 @@
  */
 import type { ChatFilePage, ForwardResult, StoredMessage } from '../types'
 import type { ApiClient } from './http'
-import { encodePathSegment } from './http'
+import { encodePathSegment, QueryParams } from './http'
 
 const messagesPath = (chatId: string, suffix = ''): string =>
   `/api/chats/${encodePathSegment(chatId)}/messages${suffix}`
@@ -28,7 +28,7 @@ export function listChatMessages(
   before = '',
   limit = 50,
 ): Promise<StoredMessage[]> {
-  const query = new URLSearchParams({ limit: String(limit) })
+  const query = new QueryParams({ limit: String(limit) })
   if (before) query.set('before', before)
   return client.json<StoredMessage[]>('GET', messagesPath(chatId), { ...authOptions(credentials), query })
 }
@@ -43,7 +43,7 @@ export async function listChatMessageContext(
 ): Promise<StoredMessage[]> {
   const response = await client.request('GET', messagesPath(chatId, `/${encodePathSegment(messageId)}/context`), {
     ...authOptions(credentials),
-    query: new URLSearchParams({ limit: String(limit) }),
+    query: new QueryParams({ limit: String(limit) }),
     allowStatuses: [404],
   })
   if (response.status === 404) return []
@@ -58,7 +58,7 @@ export function searchChatMessages(
   before = '',
   limit = 50,
 ): Promise<StoredMessage[]> {
-  const query = new URLSearchParams({ q: searchQuery, limit: String(limit) })
+  const query = new QueryParams({ q: searchQuery, limit: String(limit) })
   if (before) query.set('before', before)
   return client.json<StoredMessage[]>('GET', messagesPath(chatId, '/search'), { ...authOptions(credentials), query })
 }
@@ -71,7 +71,7 @@ export function listChatFiles(
   before = '',
   limit = 50,
 ): Promise<ChatFilePage> {
-  const query = new URLSearchParams({ kind, limit: String(limit) })
+  const query = new QueryParams({ kind, limit: String(limit) })
   if (before) query.set('before', before)
   return client.json<ChatFilePage>('GET', `/api/chats/${encodePathSegment(chatId)}/files`, {
     ...authOptions(credentials),

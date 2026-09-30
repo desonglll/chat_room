@@ -157,6 +157,14 @@ describe('packages/core', () => {
 
   test('the rule under enforcement is still the one architecture.md section 2 specifies', () => {
     expect([...FORBIDDEN_MODULES]).toEqual(['react', 'react-dom', '@tg/ui', '@tg/web'])
-    expect([...FORBIDDEN_GLOBALS]).toEqual(['window', 'document', 'localStorage', 'navigator'])
+    expect([...FORBIDDEN_GLOBALS]).toEqual([
+      'window',
+      'document',
+      'localStorage',
+      'navigator',
+      // Hardened at TG-008/TG-011 integration: WHATWG globals stock React Native lacks.
+      'URLSearchParams',
+      'fetch',
+    ])
   })
 })

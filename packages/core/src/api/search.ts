@@ -3,7 +3,7 @@
  * result types migrated verbatim from `web/src/globalSearchApi.ts` (TG-011, with its
  * test); the transport was rewritten on the shared `ApiClient`.
  */
-import type { ApiClient } from './http'
+import { QueryParams, type ApiClient } from './http'
 
 export type GlobalSearchContentType = 'all' | 'text' | 'file' | 'image' | 'video' | 'audio'
 
@@ -50,8 +50,8 @@ function dayBoundary(value: string, endOfDay: boolean): string {
   return date.toISOString()
 }
 
-export function globalSearchParams(filters: GlobalSearchFilters, cursor = '', limit = 30): URLSearchParams {
-  const params = new URLSearchParams({ q: filters.q.trim(), limit: String(limit) })
+export function globalSearchParams(filters: GlobalSearchFilters, cursor = '', limit = 30): QueryParams {
+  const params = new QueryParams({ q: filters.q.trim(), limit: String(limit) })
   if (filters.roomId) params.set('room_id', filters.roomId)
   if (filters.senderId) params.set('sender_id', filters.senderId)
   if (filters.from) params.set('from', dayBoundary(filters.from, false))

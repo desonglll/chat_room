@@ -62,7 +62,7 @@ export interface BroadcastFrame {
   recalled_at: string | null
   edited_at: string | null
   timestamp: string
-  favorite_id?: string | null
+  favorite_id: string | null
   forwarded_from: ForwardedFrom | null
   reactions: MessageReaction[]
 }

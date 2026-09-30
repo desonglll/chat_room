@@ -14,7 +14,14 @@ import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const FORBIDDEN_MODULES = ['react', 'react-dom', '@tg/ui', '@tg/web'] as const
-export const FORBIDDEN_GLOBALS = ['window', 'document', 'localStorage', 'navigator'] as const
+export const FORBIDDEN_GLOBALS = [
+  'window',
+  'document',
+  'localStorage',
+  'navigator',
+  'URLSearchParams',
+  'fetch',
+] as const
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts']
 

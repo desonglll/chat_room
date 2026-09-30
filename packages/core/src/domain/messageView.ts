@@ -60,6 +60,9 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
   return {
     type: 'broadcast',
     message_id: message.id,
+    // Mirror the wire's omitted-when-None so reconcileOptimisticMessage can match a
+    // pending send whose ack arrives via reconnect catch-up instead of the live frame.
+    ...(message.client_message_id ? { client_message_id: message.client_message_id } : {}),
     sender_id: message.sender_id,
     sender: message.sender,
     sender_avatar: message.sender_avatar,
@@ -69,7 +72,7 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     recalled_at: message.recalled_at,
     edited_at: message.edited_at,
     timestamp: message.created_at,
-    favorite_id: message.favorite_id || null,
+    favorite_id: message.favorite_id,
     forwarded_from: message.forwarded_from,
     reactions: message.reactions || [],
   }

@@ -124,6 +124,8 @@ const broadcastFrame = (id: string, timestamp: string) => ({
 
 const stored = (id: string, created_at: string): StoredMessage => ({
   id,
+  client_message_id: null,
+  favorite_id: null,
   room_id: 'chat-1',
   sender_id: null,
   sender: 'alice',
