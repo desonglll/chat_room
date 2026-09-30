@@ -1,0 +1,226 @@
+/*
+ * TG-101 virtual message list. Imported from styles/index.css (components never import
+ * CSS, so `bun test` needs no CSS loader). Semantic `--tg-*` tokens only.
+ *
+ * Height rule: rows use padding, never margin — Virtuoso measures border boxes and an
+ * unmeasured margin would move the prepend anchor.
+ */
+
+.tg-mlist {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tg-mlist--state {
+  display: grid;
+  place-items: center;
+}
+
+.tg-mlist__scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-anchor: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tg-scrollbar) transparent;
+}
+
+.tg-mlist__row {
+  padding: var(--tg-bubble-gap-group) var(--tg-space-6) 0;
+  transition: background-color var(--tg-transition-slide);
+}
+
+.tg-mlist__row[data-joined] {
+  padding-top: var(--tg-bubble-gap);
+}
+
+.tg-mlist__row[data-highlighted] {
+  background: var(--tg-message-highlight);
+  transition: none;
+}
+
+/* ── Date separators: inline per day, plus the floating pill while scrolling ── */
+
+.tg-mlist__date {
+  display: flex;
+  justify-content: center;
+  padding: var(--tg-space-2) 0;
+}
+
+.tg-mlist__date-pill {
+  padding: var(--tg-space-0-5) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-service-bg);
+  color: var(--tg-service-text);
+  font: inherit;
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-mlist__sticky-date {
+  position: absolute;
+  top: var(--tg-space-2);
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--tg-transition-fade);
+}
+
+.tg-mlist__sticky-date[data-visible] {
+  opacity: 1;
+}
+
+.tg-mlist__top-loader {
+  position: absolute;
+  top: var(--tg-space-10);
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.tg-mlist__notice {
+  position: absolute;
+  bottom: var(--tg-space-4);
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.tg-mlist__notice .tg-mlist__date-pill {
+  cursor: pointer;
+}
+
+/* ── Scroll-to-bottom / back button ─────────────────────────────────────────── */
+
+.tg-mlist__fab {
+  position: absolute;
+  inset-inline-end: var(--tg-space-4);
+  bottom: var(--tg-space-4);
+  display: grid;
+  place-items: center;
+  width: var(--tg-touch-min);
+  height: var(--tg-touch-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-surface);
+  color: var(--tg-text-secondary);
+  box-shadow: var(--tg-shadow-menu);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(var(--tg-space-4)) scale(0.8);
+  pointer-events: none;
+  transition:
+    opacity var(--tg-transition-fade),
+    transform var(--tg-transition-spring);
+}
+
+.tg-mlist__fab[data-visible] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.tg-mlist__fab:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-mlist__fab:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-mlist__fab-badge {
+  position: absolute;
+  top: calc(var(--tg-space-2) * -1);
+  inset-inline-end: calc(var(--tg-space-1) * -1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-mlist__fab {
+    transform: none;
+  }
+
+  .tg-mlist__row,
+  .tg-mlist__sticky-date {
+    transition: none;
+  }
+}
+
+/* ── Default renderer (until TG-103's bubble takes the seam) ───────────────── */
+
+.tg-mlist-default {
+  align-items: flex-end;
+  gap: var(--tg-space-2);
+}
+
+.tg-mlist-default[data-selected] .tg-msg__bubble {
+  outline: var(--tg-focus-ring-width) solid var(--tg-accent);
+}
+
+.tg-mlist-default__avatar {
+  flex: none;
+  width: var(--tg-avatar-sm);
+  min-height: 1px;
+}
+
+.tg-mlist-default__reply {
+  display: block;
+  max-width: 100%;
+  border-block: 0;
+  border-inline-end: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-mlist-default__forward {
+  color: var(--tg-bubble-in-accent);
+  font-size: var(--tg-type-message-secondary-size);
+  line-height: var(--tg-type-message-secondary-line);
+}
+
+.tg-mlist-default__media {
+  display: block;
+  width: min(var(--tg-bubble-max-width), 100%);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-skeleton);
+}
+
+.tg-mlist-default__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tg-mlist-default__file {
+  color: var(--tg-text-link);
+  overflow-wrap: anywhere;
+}
+
+.tg-mlist-service {
+  display: flex;
+  justify-content: center;
+  padding: var(--tg-space-1) 0;
+}
+
+.tg-mlist-service__pill {
+  padding: var(--tg-space-0-5) var(--tg-space-2-5);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-service-bg);
+  color: var(--tg-service-text);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}

@@ -1,14 +1,15 @@
 /**
  * The middle pane with a chat open: header (title, member count, typing line,
- * connection state), the minimal message list, the minimal composer.
+ * connection state), the virtual message list (TG-101), the minimal composer.
+ * `?message=<id>` deep-links into history through the list's jump-to-message.
  */
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { authStore, chatListStore, presenceStore, selectChatById, selectPresence, uiStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { Avatar } from '@tg/ui'
 import { Composer } from './Composer'
-import { MessageList } from './MessageList'
+import { MessageList } from '../messageList/MessageList'
 import { useChatSession } from './useChatSession'
 
 const CONNECTION_COPY: Record<string, string> = {
@@ -19,6 +20,7 @@ const CONNECTION_COPY: Record<string, string> = {
 
 export function ChatPane() {
   const { chatId = '' } = useParams()
+  const [searchParams] = useSearchParams()
   const chat = useStore(chatListStore, selectChatById(chatId))
   const presence = useStore(presenceStore, selectPresence(chatId))
   const currentUserId = useStore(authStore, (state) => state.session?.user.id ?? '')
@@ -56,7 +58,12 @@ export function ChatPane() {
           </span>
         </button>
       </header>
-      <MessageList chatId={chatId} currentUserId={currentUserId} />
+      <MessageList
+        key={chatId}
+        chatId={chatId}
+        currentUserId={currentUserId}
+        targetMessageId={searchParams.get('message')?.trim() ?? ''}
+      />
       <Composer chatId={chatId} onSend={sendMessage} onDraftChange={setDraftText} />
     </div>
   )
