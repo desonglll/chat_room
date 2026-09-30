@@ -3,7 +3,7 @@
 use uuid::Uuid;
 
 use crate::message_store::MessageCursor;
-use crate::models::{ChatMember, ChatMessage, StoredMessage, UserStatus, UserStatusEntry};
+use crate::models::{ChatMessage, StoredMessage};
 
 /// Whether one broadcast frame may be delivered to `viewer`'s connection.
 ///
@@ -15,29 +15,6 @@ pub(crate) fn frame_visible_to(message: &ChatMessage, viewer: Uuid) -> bool {
         ChatMessage::DraftUpdated { user_id, .. } => *user_id == viewer,
         _ => true,
     }
-}
-
-/// The `auth_ok.statuses` snapshot: `online` for currently connected accounts, `empty` for
-/// every other active participant. TG-505 replaces `empty` with persisted, privacy-filtered
-/// last-seen tiers; until then the server honestly reports "no information".
-pub(crate) fn initial_statuses(
-    connected: &[ChatMember],
-    participants: &[ChatMember],
-) -> Vec<UserStatusEntry> {
-    participants
-        .iter()
-        .map(|participant| UserStatusEntry {
-            user_id: participant.user_id,
-            status: if connected
-                .iter()
-                .any(|member| member.user_id == participant.user_id)
-            {
-                UserStatus::Online
-            } else {
-                UserStatus::Empty
-            },
-        })
-        .collect()
 }
 
 pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {

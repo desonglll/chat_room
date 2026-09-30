@@ -156,15 +156,14 @@ impl AppState {
     ) -> Result<Option<StoredMessage>, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
-        let forwarder_display_name = self.resolve_display_name(target_room_id, forwarder).await;
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO messages \
                  (id, room_id, sender_id, sender, content, attachment_id, favorite_id, \
                   forwarded_from_sender, forwarded_from_room_name, created_at) \
-                 SELECT $3, $4, $5, $6, source.content, source.attachment_id, source.favorite_id, source.sender, \
+                 SELECT $3, $4, $5, $6, source.content, source.attachment_id, source.favorite_id, COALESCE($8, source.sender), \
                    CASE WHEN direct.room_id IS NULL THEN source_chat.title \
-                     ELSE COALESCE(NULLIF(peer.display_name, ''), peer.username) END, $7 \
+                     ELSE COALESCE($8, NULLIF(peer.display_name, ''), peer.username) END, $7 \
                  FROM messages AS source \
                  JOIN chats AS source_chat ON source_chat.id = source.room_id \
                    AND source_chat.deleted_at IS NULL \
@@ -193,8 +192,9 @@ impl AppState {
             .bind(id)
             .bind(target_room_id)
             .bind(forwarder.id)
-            .bind(&forwarder_display_name)
+            .bind(self.resolve_display_name(target_room_id, forwarder).await)
             .bind(created_at)
+            .bind(self.forward_attribution_override(source_message_id, forwarder.id).await?)
             .execute(pool)
             .await
             .map(|result| result.rows_affected() > 0)

@@ -1,0 +1,146 @@
+/*
+ * TG-505 privacy settings. Semantic tokens only. The only motion is the row hover/press
+ * colour transition, which is dropped under prefers-reduced-motion.
+ */
+
+.tg-privacy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+  min-height: 100%;
+  background: var(--tg-bg-secondary);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+}
+
+.tg-privacy__header {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  min-height: var(--tg-header-height);
+  padding-inline: var(--tg-space-2);
+  background: var(--tg-surface);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-privacy__title {
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-privacy__section,
+.tg-privacy__picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-4);
+  background: var(--tg-surface);
+}
+
+.tg-privacy__picker {
+  gap: var(--tg-space-4);
+}
+
+.tg-privacy__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-privacy__section-title {
+  margin: 0;
+  color: var(--tg-accent);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-privacy__footnote {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-privacy__error {
+  margin: 0;
+  padding-inline: var(--tg-space-4);
+  color: var(--tg-text-danger);
+}
+
+.tg-privacy__rows,
+.tg-privacy__users {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-privacy__row,
+.tg-privacy__user {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  width: 100%;
+  min-height: var(--tg-menu-row-height);
+  padding: var(--tg-space-2) var(--tg-space-1);
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-privacy__row {
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.tg-privacy__user--pick {
+  cursor: pointer;
+}
+
+.tg-privacy__row:hover,
+.tg-privacy__user--pick:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-privacy__row:active,
+.tg-privacy__user--pick:active {
+  background: var(--tg-surface-active);
+}
+
+.tg-privacy__row:focus-visible,
+.tg-privacy__user--pick:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-privacy__row-value,
+.tg-privacy__user-handle {
+  color: var(--tg-text-secondary);
+}
+
+.tg-privacy__row-value {
+  color: var(--tg-accent);
+}
+
+.tg-privacy__user-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-privacy__row,
+  .tg-privacy__user {
+    transition: none;
+  }
+}

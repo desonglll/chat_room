@@ -14,7 +14,6 @@ use uuid::Uuid;
 use crate::models::{ChatMessage, TypingAction, UserStatus};
 use crate::realtime::history_replay::replay_history;
 use crate::realtime::outbound::spawn_chat_forwarder;
-use crate::realtime::protocol::initial_statuses;
 use crate::realtime::system_lock::reject_locked_auth;
 use crate::state::SharedState;
 use crate::ws_auth::authenticate;
@@ -132,6 +131,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         }
     };
     let (members, first_connection) = state.member_connected(room_id, &user).await;
+    touch_last_seen(&state, user.id).await;
     let participants = match state.chat_participants(room_id).await {
         Ok(participants) => participants,
         Err(error) => {
@@ -163,12 +163,22 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             chat.title.clone()
         }
     };
+    // TG-505: statuses and the connected list are filtered by last-seen privacy per viewer.
+    let (statuses, visible_members) = state
+        .presence_snapshot(
+            user.id,
+            room_id,
+            &members,
+            &participants,
+            chrono::Utc::now(),
+        )
+        .await;
     if send_json(
         &mut sink,
         &ChatMessage::AuthOk {
             room_name: display_room_name,
-            statuses: initial_statuses(&members, &participants),
-            members: members.clone(),
+            statuses,
+            members: visible_members,
             participants: participants.clone(),
             read_receipts,
         },
@@ -252,6 +262,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
 
     forwarder.abort();
     let (members, last_connection) = state.member_disconnected(room_id, user.id).await;
+    let last_seen = touch_last_seen(&state, user.id).await;
     if last_connection {
         state
             .broadcast(
@@ -270,9 +281,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                 room_id,
                 ChatMessage::UserStatusChanged {
                     user_id: user.id,
-                    status: UserStatus::Offline {
-                        last_seen: chrono::Utc::now(),
-                    },
+                    status: UserStatus::Offline { last_seen },
                 },
             )
             .await;
@@ -287,6 +296,16 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             )
             .await;
     }
+}
+
+/// Persist activity now (TG-505) and return the instant recorded. A storage failure only
+/// costs last-seen accuracy, so it is logged and never fails the socket.
+async fn touch_last_seen(state: &SharedState, user_id: Uuid) -> chrono::DateTime<chrono::Utc> {
+    let now = chrono::Utc::now();
+    if let Err(error) = state.touch_last_seen(user_id, now).await {
+        tracing::warn!("persist last-seen failed: {error}");
+    }
+    now
 }
 
 pub(super) async fn send_json(

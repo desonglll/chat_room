@@ -282,6 +282,10 @@ impl AppState {
         let id = Uuid::new_v4();
         let now = Utc::now();
         let display_name = self.resolve_display_name(target_room_id, forwarder).await;
+        // TG-505: the original author's `forwards` rule, as for a direct message forward.
+        let hidden = self
+            .favorite_attribution_override(favorite_id, forwarder.id)
+            .await?;
         let inserted = with_pool!(self, |pool| {
             sqlx::query(
                 "INSERT INTO messages \
@@ -292,8 +296,12 @@ impl AppState {
                      THEN favorites.title ELSE favorites.content END, favorites.attachment_id, \
                    favorites.id, \
                    CASE WHEN favorites.kind = 'manual' THEN '我的收藏' \
-                     ELSE favorites.source_sender END, \
+                     ELSE COALESCE($7, favorites.source_sender) END, \
                    CASE WHEN favorites.kind = 'manual' THEN '个人收藏' \
+                     WHEN $7 IS NOT NULL AND EXISTS (SELECT 1 FROM messages AS source_message \
+                       JOIN direct_conversations AS direct \
+                         ON direct.room_id = source_message.room_id \
+                       WHERE source_message.id = favorites.source_message_id) THEN $7 \
                      ELSE favorites.source_room_name END, $6 \
                  FROM favorites WHERE favorites.id = $5 AND \
                    (favorites.user_id = $3 OR EXISTS \
@@ -318,6 +326,7 @@ impl AppState {
             .bind(display_name)
             .bind(favorite_id)
             .bind(now)
+            .bind(hidden)
             .execute(pool)
             .await
             .map(|result| result.rows_affected() > 0)

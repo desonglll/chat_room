@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::models::User;
 use crate::state::SharedState;
-use crate::user_handlers::bearer_token;
+use crate::user_handlers::{bearer_token, optional_bearer_token};
 
 pub const MAX_AVATAR_BYTES: usize = 5 * 1024 * 1024;
 pub const MULTIPART_OVERHEAD_BYTES: usize = 64 * 1024;
@@ -102,13 +102,31 @@ pub async fn upload_avatar(
     params(("id" = Uuid, Path, description = "Account id")),
     responses(
         (status = 200, description = "Avatar image"),
-        (status = 404, description = "Avatar not found")
+        (status = 404, description = "Avatar not found, or hidden by the owner's privacy rule")
     )
 )]
 pub async fn download_avatar(
     State(state): State<SharedState>,
     Path(user_id): Path<Uuid>,
+    headers: HeaderMap,
 ) -> Response<Body> {
+    // TG-505: the profile-photo rule. A refused viewer gets the same 404 as "no avatar", so
+    // the response does not confirm that a hidden photo exists.
+    let viewer = match optional_bearer_token(&headers) {
+        Some(token) => match state.session_user(token).await {
+            Ok(user) => user.map(|user| user.id),
+            Err(_) => return empty_response(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+        None => None,
+    };
+    match state.profile_photo_visible(user_id, viewer).await {
+        Ok(true) => {}
+        Ok(false) => return empty_response(StatusCode::NOT_FOUND),
+        Err(error) => {
+            tracing::error!("evaluate profile photo privacy failed: {error}");
+            return empty_response(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
     let avatar = match state.avatar_file(user_id).await {
         Ok(Some(avatar)) => avatar,
         Ok(None) => return empty_response(StatusCode::NOT_FOUND),
@@ -144,7 +162,14 @@ pub async fn download_avatar(
     );
     response.headers_mut().insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=31536000, immutable"),
+        // Short-lived, not immutable: the `?v=` version changes with the image but not
+        // with the owner's privacy rule, so a restriction must outlive stale caches quickly.
+        // A per-viewer answer must never sit in a shared cache.
+        HeaderValue::from_static(if viewer.is_some() {
+            "private, max-age=300"
+        } else {
+            "public, max-age=300"
+        }),
     );
     response.headers_mut().insert(
         "x-content-type-options",

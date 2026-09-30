@@ -80,7 +80,9 @@ async fn user_status_frames_follow_connections() {
 }
 
 #[tokio::test]
-async fn auth_ok_reports_online_and_empty_statuses_per_participant() {
+/// TG-505 replaced TG-007's `empty` placeholder: a participant who has connected before now
+/// reports the persisted last-seen (the default `everybody` rule admits every viewer).
+async fn auth_ok_reports_online_and_persisted_last_seen_per_participant() {
     let server = start_server().await;
     let room_id = create_chat(&server.base, "statuses", "st-alice").await;
     let alice_token = ws_frame_support::session_token(&server.base, "st-alice").await;
@@ -104,9 +106,10 @@ async fn auth_ok_reports_online_and_empty_statuses_per_participant() {
         statuses
             .iter()
             .find(|entry| entry["user_id"] == id.to_string())
-            .unwrap_or_else(|| panic!("no status entry for {id}"))["status"]["kind"]
+            .unwrap_or_else(|| panic!("no status entry for {id}"))["status"]
             .clone()
     };
-    assert_eq!(of(alice_id), "online");
-    assert_eq!(of(bob_id), "empty");
+    assert_eq!(of(alice_id)["kind"], "online");
+    assert_eq!(of(bob_id)["kind"], "offline");
+    assert!(of(bob_id)["last_seen"].is_string());
 }
