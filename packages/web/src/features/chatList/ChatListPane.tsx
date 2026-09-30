@@ -29,6 +29,7 @@ import { NewChatDialog } from './NewChatDialog'
 import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
 import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
+import { SavedMessagesRow } from '../savedMessages/SavedMessagesRow'
 
 export interface ChatListPaneProps {
   collapsed?: boolean | undefined
@@ -145,6 +146,11 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
           </p>
         ) : null}
         <ul className="tg-chatlist__items">
+          {folder === 'main' && !query.trim() ? (
+            <li>
+              <SavedMessagesRow collapsed={collapsed} />
+            </li>
+          ) : null}
           {showArchiveRow ? (
             <li>
               <ArchiveRow
