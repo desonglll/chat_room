@@ -13,6 +13,8 @@ import { bindTheme } from './app/theme'
 import './features/poll/register'
 // TG-303: registers the sticker message body with the message content registry.
 import './features/sticker/register'
+// TG-305: GIF bubble body, the media panel's GIF tab, and the "保存 GIF" menu row.
+import './features/gif/register'
 
 // Boot order matters: settings → theme attribute → session → render. The session is
 // restored synchronously so the router's first pass already knows whether `/` or

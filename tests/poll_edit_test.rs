@@ -82,7 +82,7 @@ async fn edit_scenario(server: &Server) {
 
     let direct = server
         .state
-        .edit_message(chat, alice.id, poll_id, "hijacked again")
+        .edit_message(chat, alice.id, poll_id, "hijacked again", &[])
         .await
         .unwrap();
     assert!(direct.is_none(), "a poll message must not be editable");
