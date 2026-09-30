@@ -1,67 +1,138 @@
 /**
- * The left pane: account header, minimal chat list, new-group entry. TG-102 replaces
- * the row anatomy (previews, pins, mute, drag width); the pane boundary and the
- * `chatListStore` source stay.
+ * The left pane (TG-102): top bar (hamburger menu + search), the archive entry row, and
+ * the chat rows in Telegram order. `collapsed` renders the avatar-only column; the shell
+ * owns width, collapse persistence and the mobile list ↔ chat switch.
  */
-import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { authStore, chatListStore, selectToken } from '@tg/core'
+import type { MouseEvent } from 'react'
+import { useMemo, useState } from 'react'
+import { useMatch, useNavigate } from 'react-router-dom'
+import type { MenuItem } from '@tg/ui'
+import { authStore, chatListStore, selectToken, settingsStore } from '@tg/core'
 import { useStore } from 'zustand/react'
-import { Avatar, Badge, IconButton, ScrollArea, Skeleton } from '@tg/ui'
+import { ScrollArea, Skeleton } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { browserStorage } from '../../app/platform'
 import { signOut } from '../../app/session'
-import { SpriteIcon } from '../shell/SpriteIcon'
+import { ArchiveRow } from './ArchiveRow'
+import { ChatListHeader } from './ChatListHeader'
+import type { ChatListFolder } from './chatListFilters'
+import { selectChatListView } from './chatListFilters'
+import { ConnectedChatRow } from './ConnectedChatRow'
 import { NewChatDialog } from './NewChatDialog'
+import { useMinuteClock } from './useMinuteClock'
 
-export function ChatListPane() {
-  const user = useStore(authStore, (state) => state.session?.user ?? null)
+export interface ChatListPaneProps {
+  collapsed?: boolean | undefined
+  onToggleCollapsed?: (() => void) | undefined
+}
+
+const isPlainClick = (event: MouseEvent) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+
+function toggleNightMode() {
+  const settings = settingsStore.getState()
+  const night =
+    settings.theme === 'dark' ||
+    (settings.theme === 'system' && document.documentElement.getAttribute('data-tg-theme') === 'night')
+  settings.update({ theme: night ? 'light' : 'dark' })
+  settingsStore.getState().persist(browserStorage)
+}
+
+export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListPaneProps) {
+  const currentUserId = useStore(authStore, (state) => state.session?.user.id ?? '')
   const token = useStore(authStore, selectToken)
-  const chats = useStore(chatListStore, (state) => state.chats)
+  const conversations = useStore(chatListStore, (state) => state.conversations)
   const loading = useStore(chatListStore, (state) => state.loading)
   const failed = useStore(chatListStore, (state) => state.error !== '')
+  const [folder, setFolder] = useState<ChatListFolder>('main')
+  const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
+  const activeChatId = useMatch('/chat/:chatId')?.params.chatId ?? ''
+  const now = useMinuteClock()
+
+  const view = useMemo(() => selectChatListView(conversations, folder, query), [conversations, folder, query])
+
+  const openChat = (chatId: string, event: MouseEvent<HTMLAnchorElement>) => {
+    if (!isPlainClick(event)) return
+    event.preventDefault()
+    void navigate(`/chat/${encodeURIComponent(chatId)}`)
+  }
+
+  const menuItems: MenuItem[] = [
+    { id: 'new-group', label: '新建群组', onSelect: () => setCreating(true) },
+    {
+      id: 'archive',
+      label: '已归档会话',
+      disabled: view.archivedCount === 0,
+      onSelect: () => setFolder('archive'),
+    },
+    { id: 'night', label: '夜间模式', onSelect: toggleNightMode },
+    ...(onToggleCollapsed
+      ? [{ id: 'collapse', label: collapsed ? '展开侧栏' : '收起侧栏', onSelect: onToggleCollapsed }]
+      : []),
+    {
+      id: 'sign-out',
+      label: '退出登录',
+      danger: true,
+      separatorBefore: true,
+      onSelect: () => void signOut({ client: apiClient, storage: browserStorage, store: authStore }),
+    },
+  ]
+
+  const showArchiveRow = folder === 'main' && !query.trim() && view.archivedCount > 0
+  const empty = !loading && !failed && view.rows.length === 0 && !showArchiveRow
 
   return (
-    <nav className="tg-chatlist" aria-label="会话列表">
-      <header className="tg-chatlist__header">
-        {user ? <Avatar label={user.display_name || user.username} initials={user.avatar_emoji || undefined} /> : null}
-        <span className="tg-chatlist__account">{user?.display_name || user?.username}</span>
-        <IconButton label="新建群组" variant="plain" onClick={() => setCreating(true)}>
-          <SpriteIcon name="room-add" size={22} />
-        </IconButton>
-        <IconButton
-          label="退出登录"
-          variant="plain"
-          onClick={() => void signOut({ client: apiClient, storage: browserStorage, store: authStore })}
-        >
-          <SpriteIcon name="back" size={20} />
-        </IconButton>
-      </header>
+    <nav className="tg-chatlist" aria-label="会话列表" data-collapsed={collapsed || undefined}>
+      <ChatListHeader
+        folder={folder}
+        collapsed={collapsed}
+        query={query}
+        onQueryChange={setQuery}
+        onCloseFolder={() => setFolder('main')}
+        menuItems={menuItems}
+      />
       <ScrollArea className="tg-chatlist__scroll" orientation="vertical" overlay>
-        {loading && chats.length === 0 ? (
+        {loading && conversations.length === 0 ? (
           <div className="tg-chatlist__loading" aria-hidden="true">
-            <Skeleton variant="rect" height="var(--tg-menu-row-height)" radius="var(--tg-radius-md)" />
-            <Skeleton variant="rect" height="var(--tg-menu-row-height)" radius="var(--tg-radius-md)" />
-            <Skeleton variant="rect" height="var(--tg-menu-row-height)" radius="var(--tg-radius-md)" />
+            {[0, 1, 2, 3].map((key) => (
+              <div key={key} className="tg-chatlist__skeleton-row">
+                <Skeleton variant="circle" width="var(--tg-avatar-md)" height="var(--tg-avatar-md)" />
+                {collapsed ? null : <Skeleton variant="text" lines={2} />}
+              </div>
+            ))}
           </div>
         ) : null}
-        {!loading && failed ? <p className="tg-chatlist__empty">会话列表加载失败，请刷新重试</p> : null}
-        {!loading && !failed && chats.length === 0 ? (
-          <p className="tg-chatlist__empty">还没有会话 — 建一个群，或等别人拉你进来</p>
+        {!loading && failed && conversations.length === 0 ? (
+          <p className="tg-chatlist__empty">会话列表加载失败，请刷新重试</p>
+        ) : null}
+        {empty && !collapsed ? (
+          <p className="tg-chatlist__empty">
+            {query.trim() ? '没有找到匹配的会话' : '还没有会话 — 建一个群，或等别人拉你进来'}
+          </p>
         ) : null}
         <ul className="tg-chatlist__items">
-          {chats.map((chat) => (
-            <li key={chat.id}>
-              <NavLink
-                to={`/chat/${chat.id}`}
-                className={({ isActive }) => `tg-chatlist__row${isActive ? ' tg-chatlist__row--active' : ''}`}
-              >
-                <Avatar label={chat.title} initials={chat.avatar_emoji || undefined} />
-                <span className="tg-chatlist__title">{chat.title}</span>
-                {chat.unread_count > 0 ? <Badge count={chat.unread_count} /> : null}
-              </NavLink>
+          {showArchiveRow ? (
+            <li>
+              <ArchiveRow
+                count={view.archivedCount}
+                unread={view.archivedUnread}
+                collapsed={collapsed}
+                onOpen={() => setFolder('archive')}
+              />
+            </li>
+          ) : null}
+          {view.rows.map((conversation) => (
+            <li key={conversation.room_id}>
+              <ConnectedChatRow
+                conversation={conversation}
+                currentUserId={currentUserId}
+                activeChatId={activeChatId}
+                collapsed={collapsed}
+                now={now}
+                onOpen={openChat}
+              />
             </li>
           ))}
         </ul>
