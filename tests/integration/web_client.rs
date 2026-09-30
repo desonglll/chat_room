@@ -22,11 +22,37 @@ async fn web_client_is_only_served_when_enabled() {
         "text/html; charset=utf-8"
     );
     let html = response.text().await.unwrap();
-    assert!(html.contains("<div id=\"app\"></div>"));
-    assert!(html.contains("/assets/app.css"));
-    assert!(html.contains("/assets/app.js"));
-    assert!(html.contains("<script src=\"/theme-bootstrap.js\"></script>"));
-    assert!(html.contains("rel=\"manifest\" href=\"/manifest.webmanifest\""));
+    assert!(html.contains("<div id=\"root\"></div>"));
+    assert!(html.contains("type=\"module\""));
+
+    // The entry is hash-named by vite, so read it out of the shell instead of pinning it.
+    let entry = html
+        .split("src=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("index.html references a script entry");
+    assert!(entry.starts_with("/assets/"));
+    assert!(entry.ends_with(".js"));
+
+    let script = reqwest::get(format!("{}{}", web, entry)).await.unwrap();
+    assert_eq!(script.status(), 200);
+    assert_eq!(
+        script.headers()[reqwest::header::CONTENT_TYPE],
+        "text/javascript; charset=utf-8"
+    );
+    let script = script.text().await.unwrap();
+    assert!(script.contains("createRoot"));
+    assert!(!script.contains("primevue"));
+
+    // The Vue entry must stay gone: a browser still holding the old service worker
+    // resolves it, gets 404, and unpins itself via the retired worker below.
+    let vue_entry = reqwest::get(format!("{}/assets/app.js", web)).await.unwrap();
+    assert_eq!(vue_entry.status(), 404);
+
+    let missing_asset = reqwest::get(format!("{}/assets/not-built.js", web))
+        .await
+        .unwrap();
+    assert_eq!(missing_asset.status(), 404);
 
     let manifest = reqwest::get(format!("{}/manifest.webmanifest", web))
         .await
@@ -40,13 +66,15 @@ async fn web_client_is_only_served_when_enabled() {
     assert_eq!(manifest["display"], "standalone");
     assert_eq!(manifest["icons"][0]["src"], "/pwa-192.png");
 
+    // Until packages/web ships its own worker, /sw.js is the generated retiring worker:
+    // it may reference no asset, no API path, and must unregister itself.
     let worker = reqwest::get(format!("{}/sw.js", web)).await.unwrap();
     assert_eq!(worker.status(), 200);
     assert_eq!(worker.headers()[reqwest::header::CACHE_CONTROL], "no-cache");
     assert_eq!(worker.headers()["service-worker-allowed"], "/");
     let worker = worker.text().await.unwrap();
-    assert!(worker.contains("echo-gate-static-"));
-    assert!(worker.contains("/assets/app.js"));
+    assert!(worker.contains("unregister"));
+    assert!(!worker.contains("/assets/"));
     assert!(!worker.contains("/api/"));
     assert!(!worker.contains("/ws"));
 
@@ -77,58 +105,4 @@ async fn web_client_is_only_served_when_enabled() {
         favicon.headers()[reqwest::header::CONTENT_TYPE],
         "image/svg+xml"
     );
-
-    let script = reqwest::get(format!("{}/assets/app.js", web))
-        .await
-        .unwrap();
-    assert_eq!(script.status(), 200);
-    let script = script.text().await.unwrap();
-    assert!(script.contains("/api/rooms"));
-    assert!(script.contains("WebSocket"));
-
-    let admin_dashboard = reqwest::get(format!("{}/assets/AdminDashboard.js", web))
-        .await
-        .unwrap();
-    assert_eq!(admin_dashboard.status(), 200);
-    assert_eq!(
-        admin_dashboard.headers()[reqwest::header::CONTENT_TYPE],
-        "text/javascript; charset=utf-8"
-    );
-    let admin_dashboard = admin_dashboard.text().await.unwrap();
-    assert!(
-        script.contains("/api/admin/overview") || admin_dashboard.contains("/api/admin/overview")
-    );
-
-    let lazy_dialog = reqwest::get(format!("{}/assets/AuthDialog.js", web))
-        .await
-        .unwrap();
-    assert_eq!(lazy_dialog.status(), 200);
-    assert_eq!(
-        lazy_dialog.headers()[reqwest::header::CONTENT_TYPE],
-        "text/javascript; charset=utf-8"
-    );
-
-    let missing_asset = reqwest::get(format!("{}/assets/not-built.js", web))
-        .await
-        .unwrap();
-    assert_eq!(missing_asset.status(), 404);
-
-    let archive_chunk = reqwest::get(format!("{}/assets/jszip.min.js", web))
-        .await
-        .unwrap();
-    assert_eq!(archive_chunk.status(), 200);
-    assert_eq!(
-        archive_chunk.headers()[reqwest::header::CONTENT_TYPE],
-        "text/javascript; charset=utf-8"
-    );
-
-    let css = reqwest::get(format!("{}/assets/app.css", web))
-        .await
-        .unwrap();
-    assert_eq!(css.status(), 200);
-    assert_eq!(
-        css.headers().get(reqwest::header::CONTENT_TYPE).unwrap(),
-        "text/css; charset=utf-8"
-    );
-    assert!(css.text().await.unwrap().contains("--p-primary-color"));
 }
