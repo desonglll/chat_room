@@ -13,6 +13,9 @@
 import type { BroadcastMessage } from '@tg/core'
 import type { DeliveryStatus } from './types'
 import { ClockGlyph, FailedGlyph, TickGlyph } from './icons'
+import { ChannelPostMeta } from '../channel/ChannelPostMeta'
+import type { ChannelPostParts } from '../channel/channelModel'
+import { channelPostLabel, channelPostOf } from '../channel/channelModel'
 
 const timeFormat = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 
@@ -40,14 +43,24 @@ export interface MetaParts {
   delivery: DeliveryStatus | null
   /** The whole meta as one sentence for assistive technology. */
   label: string
+  /** TG-202: a channel post's views and signature, drawn before the time. */
+  post: ChannelPostParts | null
 }
 
 export function metaParts(message: BroadcastMessage, outgoing: boolean, delivery: DeliveryStatus): MetaParts {
   const edited = message.edited_at !== null && message.recalled_at === null
   const time = formatMessageTime(message.timestamp)
   const shown = outgoing ? delivery : null
-  const label = [edited ? '已编辑' : '', time, shown === null ? '' : DELIVERY_LABEL[shown]].filter(Boolean).join(' ')
-  return { edited, time, delivery: shown, label }
+  const post = channelPostOf(message)
+  const label = [
+    post ? channelPostLabel(post) : '',
+    edited ? '已编辑' : '',
+    time,
+    shown === null ? '' : DELIVERY_LABEL[shown],
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return { edited, time, delivery: shown, label, post }
 }
 
 function DeliveryIcon({ delivery }: { delivery: DeliveryStatus }) {
@@ -56,9 +69,10 @@ function DeliveryIcon({ delivery }: { delivery: DeliveryStatus }) {
   return <TickGlyph double={delivery === 'read'} />
 }
 
-function MetaInner({ parts }: { parts: MetaParts }) {
+function MetaInner({ parts, visible = false }: { parts: MetaParts; visible?: boolean }) {
   return (
     <>
+      {parts.post ? <ChannelPostMeta post={parts.post} report={visible} /> : null}
       {parts.edited ? <span className="tg-bubble__edited">已编辑</span> : null}
       <time className="tg-bubble__time">{parts.time}</time>
       {parts.delivery === null ? null : (
@@ -79,7 +93,7 @@ export function MessageMeta({ parts, overlay, dateTime }: { parts: MetaParts; ov
       aria-label={parts.label}
       title={dateTime}
     >
-      <MetaInner parts={parts} />
+      <MetaInner parts={parts} visible />
     </span>
   )
 }

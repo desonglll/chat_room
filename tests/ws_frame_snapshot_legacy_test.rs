@@ -104,6 +104,8 @@ fn broadcast_frame_serializes_unchanged() {
         sticker: None,
         poll: None,
         entities: Vec::new(),
+        views: None,
+        post_author: None,
         voice: None,
         silent: false,
     };
@@ -166,6 +168,8 @@ fn broadcast_frame_serializes_unchanged() {
         sticker: None,
         poll: None,
         entities: Vec::new(),
+        views: None,
+        post_author: None,
         voice: None,
         silent: false,
     };

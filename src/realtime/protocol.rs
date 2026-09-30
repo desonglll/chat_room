@@ -40,6 +40,8 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         sticker: message.sticker,
         poll: message.poll,
         entities: message.entities,
+        views: message.views,
+        post_author: message.post_author,
         voice: message.voice,
         silent: message.silent,
     }

@@ -82,6 +82,10 @@ export interface BroadcastFrame {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'`. */
   sticker?: MessageSticker
+  /** TG-202: a channel post's view count; omitted for every other message. */
+  views?: number
+  /** TG-202: a signed channel post's author; omitted when unsigned. */
+  post_author?: string
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
   /** TG-404: true when sent without notifications; omitted otherwise. */

@@ -22,6 +22,8 @@ import {
 import { useStore } from 'zustand/react'
 import { apiClient } from '../../app/client'
 import { copyText } from '../../app/platform'
+import { ChannelFooter, useChannelPublisher } from '../channel'
+import { chatAdminApi } from '../chatAdmin'
 import { Composer } from '../composer'
 import { openMediaViewer } from '../mediaViewer'
 import { MessageList } from '../messageList/MessageList'
@@ -64,6 +66,8 @@ export function ChatPane() {
   // Primitive selections: the pane re-renders when the read tick or the delete permission
   // changes, not on every message frame (the list subscribes to the timeline itself).
   const peerReadAt = useStore(messageStore, (state) => peerReadThrough(selectTimeline(chatId)(state), currentUserId))
+  // TG-202: in a channel only `message.post` holders get the composer.
+  const canPublish = useChannelPublisher(chatAdminApi, chat)
   const selectionMode = selected.size > 0
   const selectionDeletable = useStore(
     messageStore,
@@ -126,6 +130,8 @@ export function ChatPane() {
           }}
           onCancel={clearSelection}
         />
+      ) : !canPublish ? (
+        <ChannelFooter chatId={chatId} />
       ) : (
         <Composer
           chatId={chatId}

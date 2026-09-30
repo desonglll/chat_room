@@ -74,6 +74,10 @@ export interface CreateChatRequest {
   join_policy: JoinPolicy
   avatar_emoji?: string
   description?: string
+  /** TG-202: `'group'` (default) or `'channel'`; any other type is refused. */
+  chat_type?: 'group' | 'channel'
+  /** TG-202: a channel's author signatures; ignored for a group. */
+  signatures_enabled?: boolean
 }
 
 export interface UpdateChatRequest {

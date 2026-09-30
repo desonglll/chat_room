@@ -7,12 +7,18 @@ use crate::models::ChatMember;
 use crate::state::{with_pool, AppState};
 
 impl AppState {
+    /// Every active member — except in a channel, where the participants are its staff
+    /// (owner and administrators): subscribers are not a roster that frames carry (TG-202,
+    /// `chats::channels`).
     pub async fn chat_participants(&self, room_id: Uuid) -> Result<Vec<ChatMember>, sqlx::Error> {
         let rows: Vec<ParticipantRow> = with_pool!(self, |pool| {
             sqlx::query_as(
                 "SELECT users.id AS user_id, users.username, users.avatar_emoji \
              FROM chat_members JOIN users ON users.id = chat_members.user_id \
+             JOIN chats ON chats.id = chat_members.room_id \
+             JOIN chat_roles ON chat_roles.id = chat_members.role_id \
              WHERE chat_members.room_id = $1 AND chat_members.status = 'active' \
+               AND (chats.chat_type <> 'channel' OR chat_roles.name IN ('owner', 'admin')) \
              ORDER BY LOWER(users.username)",
             )
             .bind(room_id)

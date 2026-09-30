@@ -279,6 +279,14 @@ impl AppState {
         target_room_id: Uuid,
         forwarder: &User,
     ) -> Result<Option<StoredMessage>, sqlx::Error> {
+        // TG-202: the full decision (restrictions; `message.post` in a channel), not only the
+        // role grant the insert re-checks.
+        if !self
+            .has_chat_permission(target_room_id, forwarder.id, "message.send")
+            .await?
+        {
+            return Ok(None);
+        }
         let id = Uuid::new_v4();
         let now = Utc::now();
         let display_name = self.resolve_display_name(target_room_id, forwarder).await;

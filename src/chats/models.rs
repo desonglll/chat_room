@@ -180,6 +180,13 @@ pub struct CreateChatRequest {
     pub avatar_emoji: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+    /// TG-202: `group` (default) or `channel`. A private chat is opened through
+    /// `/api/direct-chats`, and a supergroup is only ever reached by upgrading a group.
+    #[serde(default)]
+    pub chat_type: Option<ChatType>,
+    /// TG-202: a channel's author signatures; ignored for a group.
+    #[serde(default)]
+    pub signatures_enabled: Option<bool>,
 }
 
 /// Payload for PATCH /api/chats/{id}. Missing fields remain unchanged.
