@@ -64,6 +64,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-410 联系人名片与消息翻译 | 负责人实现 → 合并提交 | 名片 = 普通消息（`media_kind: contact`）+ `message_contacts` 发送时快照，走 `message.send` 与 TG-204/207 发帖闸门；附件菜单「联系人」打开好友选择器；气泡带「发消息 / 添加好友」。翻译复用既有 AI 供应方（`AiAssistant::translate`），只返回给请求者、不回写原文；AI 关闭（D-009）时 `/api/translation` 为 `available:false`、前端不显示「翻译」、接口 503。整聊天翻译模式暂不做（AI 关闭时不可见），记入 devlog。分支 141 个二进制 584/0。 |
 | TG-409 引用片段与跨聊天回复 | 负责人实现 → `0354b4b` | 引用必须是原文真实片段（服务端按 UTF-16 校验，≤1024），不匹配则丢弃引用保留回复。跨聊天回复须能读源聊天，否则降级为普通消息；目标聊天只看到发送时的**快照**（源发送者、源聊天标题、引用或前 200 字），`MESSAGE_SELECT` 的实时回复 join 限定同聊天——任何读路径都拿不到源消息其余内容。原文在引用后被编辑 → 「已修改」。PG 上 `INTEGER` 与 i64 绑定不匹配导致写入失败，测试抓到并改 `BIGINT`。回复列与映射移到 `reply_quotes::ReplyColumns`（`#[sqlx(flatten)]`），`store.rs` 由基线 457 降到 417。前端：「引用」读取选区、「在其他聊天中回复」复用转发选择器、气泡与回复栏显示引用/来源。分支 140 个二进制 582/0。 |
 | TG-503 Saved Messages | 负责人实现 → `9987b58` | 按用户决策 D-010 做**投影**：`favorites` 仍是唯一真相，无自聊行、无迁移（预留号 `20270201000002` 未用并记入 devlog），后端零改动故既有收藏测试全部保持有效。`/saved` 以聊天形态显示（笔记输入、转发、删除、可访问时「查看原消息」），会话列表顶部固定「收藏夹」行，所有已送达消息的菜单加「保存到收藏夹」。 |
 | TG-206 公开 username | 负责人实现 → 合并提交 | Telegram 句柄规则（5–32、a–z0–9_、字母开头、不以下划线结尾/不连续）+ 保留词；存小写使既有部分唯一索引实现大小写不敏感唯一，竞争写入的唯一冲突映射为 409；与用户登录名共享命名空间。预览对非成员**不返回内部 id**，加入走句柄并直接复用 `request_join`（封禁/锁定/审批/加入策略一处生效）；设进群密码的群不能公开。`/api/chats/discover?q=` 句柄前缀或标题子串。前端：`/public/:username` 预览页、管理面板「公开链接」（防抖可用性检查）、会话列表搜索下的「全局搜索」。双适配器测试；分支 139 个二进制 579/0。 |
@@ -179,7 +180,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-407 位置与实时位置 ← 需选型确认 | M | D | blocked | — | M1 |
 | TG-408 链接预览 ← 需安全评审 | M | D | blocked | — | M1 |
 | TG-409 引用片段与跨聊天回复 | M | B | **merged** `0354b4b` | — | TG-103 |
-| TG-410 联系人名片与消息翻译 | S | D | blocked | — | M1 |
+| TG-410 联系人名片与消息翻译 | S | D | **merged** | — | M1 |
 | TG-411 消息效果与动画 | S | C | blocked | — | TG-108 |
 
 ## M5 组织与设置（4 路并行）
