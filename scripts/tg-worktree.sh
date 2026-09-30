@@ -13,8 +13,22 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
+# The main checkout, resolved the same way whether this runs from the main
+# checkout or from inside a worktree. `--show-toplevel` would return the
+# worktree's own root, which made `check` look for
+# <worktree>/.claude/worktrees/<task> and fail for every agent following §2.4.
+REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 WORKTREE_ROOT="${REPO_ROOT}/.claude/worktrees"
+
+# Each worktree carries a frozen copy of this script from its base commit, so a
+# fix landed on main would never reach an agent already in flight. Delegate to
+# the main checkout's current copy instead of running a stale one.
+_self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+_canonical="${REPO_ROOT}/scripts/tg-worktree.sh"
+if [ "$_self" != "$_canonical" ] && [ -x "$_canonical" ] && [ -z "${TG_WORKTREE_REEXEC:-}" ]; then
+  export TG_WORKTREE_REEXEC=1
+  exec "$_canonical" "$@"
+fi
 DEVLOG_DIR="${REPO_ROOT}/docs/devlog"
 TEMPLATE="${DEVLOG_DIR}/_TEMPLATE.md"
 BASE_BRANCH="${TG_BASE_BRANCH:-main}"

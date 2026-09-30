@@ -71,6 +71,14 @@ export CARGO_TARGET_DIR=/Volumes/Tuo-APFS/workspace/.cargo-target/<task-id>
 
 检查 devlog 完整性、迁移 parity、文件大小、`cargo fmt`、`cargo clippy`。**通不过就在 devlog 里记录失败，不要留下无人知晓的红灯。**
 
+**从 worktree 内部调用时的注意事项** —— 每个 worktree 持有的是它基线提交那一刻的脚本副本。脚本现在会自动委托给主仓库的当前版本，但**基线早于这个修复的 worktree 拿不到这个行为**（`5ee18f4` 及更早）。此时用主仓库的绝对路径调用：
+
+```sh
+"$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/scripts/tg-worktree.sh" check TG-101
+```
+
+如果连这个也不行，把你手工执行的等价检查结果写进 devlog 的 `Verification`，并在 `docs/tg/board.md` 的失效记录里留一行 —— 不要静默跳过。
+
 然后按 `AGENTS.md` 的要求跑完整门禁：
 
 ```sh
