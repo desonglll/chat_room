@@ -128,6 +128,10 @@ pub(super) enum ServerMessage {
     Presence {},
     #[serde(rename = "read_receipt")]
     ReadReceipt {},
+    /// Catch-all for frame kinds this frozen client does not know (the TG-007 extensions and
+    /// anything later milestones add). Ignored instead of surfacing a decode error in the UI.
+    #[serde(other)]
+    Unknown,
 }
 
 pub(super) fn command_frame(command: ChatCommand) -> serde_json::Value {
@@ -220,7 +224,8 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
         ServerMessage::AuthFail { reason } => ChatEvent::Error(clean(&reason)),
         ServerMessage::AuthOk { .. }
         | ServerMessage::Presence {}
-        | ServerMessage::ReadReceipt {} => return,
+        | ServerMessage::ReadReceipt {}
+        | ServerMessage::Unknown => return,
     };
     let _ = sender.send(event);
 }
@@ -274,6 +279,40 @@ mod tests {
         };
         assert_eq!(message.sender, "alice");
         assert_eq!(message.content, "hello\nworld");
+    }
+
+    #[test]
+    fn unknown_and_extended_frames_are_tolerated_without_events() {
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        for frame in [
+            // TG-007 extension frames this frozen client does not render.
+            serde_json::json!({ "type": "user_status", "user_id": Uuid::new_v4(),
+                "status": { "kind": "online" } }),
+            serde_json::json!({ "type": "chat_updated", "chat": { "id": Uuid::new_v4() } }),
+            // A frame kind that does not exist at all.
+            serde_json::json!({ "type": "not_a_real_frame", "payload": 1 }),
+        ] {
+            let message = decode_server_message(&frame.to_string())
+                .expect("unknown frame kinds must decode to the catch-all, not error");
+            assert!(matches!(message, ServerMessage::Unknown));
+            emit_server_event(&sender, message);
+        }
+        // The extended typing frame still decodes as typing; extra fields are ignored.
+        let message = decode_server_message(
+            &serde_json::json!({ "type": "typing", "content": "draft",
+                "action": "recording_voice", "username": "alice" })
+            .to_string(),
+        )
+        .unwrap();
+        emit_server_event(&sender, message);
+        let ChatEvent::Typing(Some(name)) = receiver.try_recv().unwrap() else {
+            panic!("expected a typing event");
+        };
+        assert_eq!(name, "alice");
+        assert!(
+            receiver.try_recv().is_err(),
+            "unknown frames must emit nothing"
+        );
     }
 
     #[test]

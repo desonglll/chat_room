@@ -12,6 +12,14 @@ pub use crate::chats::models::{
     JoinChatRequest, UpdateChatRequest, UpdateMembershipRequest, UpdateNicknameRequest,
 };
 
+/// The WebSocket protocol lives in `crate::realtime` (TG-007), which owns the frames, and is
+/// re-exported here for the same reason.
+pub use crate::realtime::frames::ChatMessage;
+pub use crate::realtime::payloads::{
+    MessageViewCount, PollOption, PollState, TopicSummary, TypingAction, UserStatus,
+    UserStatusEntry,
+};
+
 // ── REST models ──────────────────────────────────────────────────────────────
 
 /// Point-in-time snapshot of a message's original sender/chat, kept even if the
@@ -174,151 +182,5 @@ pub struct ForwardResult {
     pub skipped_reason: Option<String>,
 }
 
-// ── WebSocket message envelope ───────────────────────────────────────────────
-
-/// Every WebSocket frame carries one JSON-serialised ChatMessage.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-// This transport enum intentionally mirrors the JSON protocol without boxed wire fields.
-#[allow(clippy::large_enum_variant)]
-pub enum ChatMessage {
-    /// Client → Server: join a public chat (no password needed).
-    #[serde(rename = "join")]
-    Join { token: Uuid },
-
-    /// Client → Server: authenticate with chat password.
-    #[serde(rename = "auth")]
-    Auth { token: Uuid, password: String },
-
-    /// Server → Client: authentication / join succeeded.
-    #[serde(rename = "auth_ok")]
-    AuthOk {
-        room_name: String,
-        members: Vec<ChatMember>,
-        participants: Vec<ChatMember>,
-        read_receipts: Vec<ReadReceipt>,
-    },
-
-    /// Server -> Client: all persisted history for this connection was replayed.
-    #[serde(rename = "history_complete")]
-    HistoryComplete,
-
-    /// Server → Client: authentication / join failed.
-    #[serde(rename = "auth_fail")]
-    AuthFail { reason: String },
-
-    /// Client → Server: send a chat message.
-    #[serde(rename = "message")]
-    Message {
-        content: String,
-        #[serde(default)]
-        reply_to: Option<Uuid>,
-        #[serde(default)]
-        client_message_id: Option<Uuid>,
-    },
-
-    /// Client -> Server: replace the content of a message sent by this account.
-    #[serde(rename = "edit")]
-    Edit { message_id: Uuid, content: String },
-
-    /// Both directions: publish a transient draft to other connected members.
-    #[serde(rename = "typing")]
-    Typing {
-        content: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        user_id: Option<Uuid>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        username: Option<String>,
-    },
-
-    /// Client -> Server: advance this account's read position in the chat.
-    #[serde(rename = "read")]
-    Read { message_id: Uuid },
-
-    /// Client -> Server: recall a message sent by this account.
-    #[serde(rename = "recall")]
-    Recall { message_id: Uuid },
-
-    /// Client -> Server: explicitly add or remove one emoji response.
-    #[serde(rename = "reaction")]
-    Reaction {
-        message_id: Uuid,
-        emoji: String,
-        active: bool,
-    },
-
-    /// Client -> Server: nudge another connected member in this chat.
-    #[serde(rename = "poke")]
-    Poke { target_user_id: Uuid },
-
-    /// Server → Client: a chat message broadcast from another user.
-    #[serde(rename = "broadcast")]
-    Broadcast {
-        message_id: Uuid,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        client_message_id: Option<Uuid>,
-        sender_id: Option<Uuid>,
-        sender: String,
-        sender_avatar: String,
-        content: String,
-        attachment: Option<Attachment>,
-        reply_to: Option<ReplyPreview>,
-        recalled_at: Option<DateTime<Utc>>,
-        edited_at: Option<DateTime<Utc>>,
-        timestamp: DateTime<Utc>,
-        #[serde(default)]
-        favorite_id: Option<Uuid>,
-        forwarded_from: Option<ForwardedFrom>,
-        #[serde(default)]
-        reactions: Vec<MessageReaction>,
-    },
-
-    /// Server -> Client: one member added or removed an emoji response.
-    #[serde(rename = "reaction_changed")]
-    ReactionChanged {
-        message_id: Uuid,
-        emoji: String,
-        user_id: Uuid,
-        active: bool,
-    },
-
-    /// Server -> Client: a sender replaced a message's content.
-    #[serde(rename = "message_edited")]
-    MessageEdited {
-        message_id: Uuid,
-        content: String,
-        edited_at: DateTime<Utc>,
-    },
-
-    /// Server -> Client: a message was marked as recalled.
-    #[serde(rename = "message_recalled")]
-    MessageRecalled {
-        message_id: Uuid,
-        recalled_at: DateTime<Utc>,
-    },
-
-    /// Server -> Client: the chat's current unique member snapshot changed.
-    #[serde(rename = "presence")]
-    Presence {
-        members: Vec<ChatMember>,
-        participants: Vec<ChatMember>,
-    },
-
-    /// Server -> Client: a participant advanced their read position.
-    #[serde(rename = "read_receipt")]
-    ReadReceipt {
-        user_id: Uuid,
-        username: String,
-        message_id: Uuid,
-    },
-
-    /// Server → Client: system event (join / leave).
-    #[serde(rename = "system")]
-    System {
-        content: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        members: Option<Vec<ChatMember>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        participants: Option<Vec<ChatMember>>,
-    },
-}
+// The WebSocket message envelope (`ChatMessage`) lives in `crate::realtime::frames` since
+// TG-007 and is re-exported at the top of this file.

@@ -11,9 +11,10 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::models::ChatMessage;
-use crate::realtime::outbound::{spawn_chat_forwarder, OutboundCursors};
-use crate::realtime::protocol::stored_message_to_chat;
+use crate::models::{ChatMessage, TypingAction, UserStatus};
+use crate::realtime::history_replay::replay_history;
+use crate::realtime::outbound::spawn_chat_forwarder;
+use crate::realtime::protocol::initial_statuses;
 use crate::realtime::system_lock::reject_locked_auth;
 use crate::state::SharedState;
 use crate::ws_auth::authenticate;
@@ -165,6 +166,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         &mut sink,
         &ChatMessage::AuthOk {
             room_name: display_room_name,
+            statuses: initial_statuses(&members, &participants),
             members: members.clone(),
             participants: participants.clone(),
             read_receipts,
@@ -182,81 +184,9 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         return;
     };
 
-    let history_boundary = match state.latest_message_cursor(room_id).await {
-        Ok(cursor) => cursor,
-        Err(error) => {
-            tracing::error!("read message history boundary failed: {}", error);
-            let _ = send_json(
-                &mut sink,
-                &ChatMessage::System {
-                    content: "message history is temporarily unavailable".into(),
-                    members: None,
-                    participants: None,
-                },
-            )
-            .await;
-            state.member_disconnected(room_id, user.id).await;
-            return;
-        }
-    };
-    let recall_boundary = match state.latest_recall_cursor(room_id).await {
-        Ok(cursor) => cursor,
-        Err(error) => {
-            tracing::warn!("read recall boundary failed: {}", error);
-            None
-        }
-    };
-    let edit_boundary = match state.latest_edit_cursor(room_id).await {
-        Ok(cursor) => cursor,
-        Err(error) => {
-            tracing::warn!("read edit boundary failed: {}", error);
-            None
-        }
-    };
-
-    let history = match state
-        .message_history(
-            room_id,
-            state.realtime_config().history_replay_limit,
-            history_boundary.as_ref(),
-            Some(user.id),
-        )
-        .await
-    {
-        Ok(history) => history,
-        Err(error) => {
-            tracing::error!("load message history failed: {}", error);
-            let _ = send_json(
-                &mut sink,
-                &ChatMessage::System {
-                    content: "message history is temporarily unavailable".into(),
-                    members: None,
-                    participants: None,
-                },
-            )
-            .await;
-            state.member_disconnected(room_id, user.id).await;
-            return;
-        }
-    };
-
-    for message in history {
-        if send_json(&mut sink, &stored_message_to_chat(message))
-            .await
-            .is_err()
-        {
-            state.member_disconnected(room_id, user.id).await;
-            return;
-        }
-    }
-
-    if send_json(&mut sink, &ChatMessage::HistoryComplete)
-        .await
-        .is_err()
-    {
-        state.member_disconnected(room_id, user.id).await;
+    let Some(cursors) = replay_history(&state, room_id, user.id, &mut sink).await else {
         return;
-    }
+    };
 
     if membership.is_some() {
         state
@@ -280,6 +210,18 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
             )
             .await;
     }
+    if first_connection || membership.is_some() {
+        // After the join system/presence frame; clients must not rely on that order.
+        state
+            .broadcast(
+                room_id,
+                ChatMessage::UserStatusChanged {
+                    user_id: user.id,
+                    status: UserStatus::Online,
+                },
+            )
+            .await;
+    }
 
     let forwarder = spawn_chat_forwarder(
         state.clone(),
@@ -288,11 +230,7 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
         authenticated.session_id,
         sink,
         chat_messages,
-        OutboundCursors {
-            messages: history_boundary,
-            recalls: recall_boundary,
-            edits: edit_boundary,
-        },
+        cursors,
     );
 
     while let Some(frame) = stream.next().await {
@@ -318,8 +256,21 @@ async fn handle_socket(socket: WebSocket, room_id: Uuid, state: SharedState) {
                 room_id,
                 ChatMessage::Typing {
                     content: String::new(),
+                    action: TypingAction::Cancel,
                     user_id: Some(user.id),
                     username: Some(username.clone()),
+                },
+            )
+            .await;
+        // Before the trailing presence frame; clients must not rely on that order.
+        state
+            .broadcast(
+                room_id,
+                ChatMessage::UserStatusChanged {
+                    user_id: user.id,
+                    status: UserStatus::Offline {
+                        last_seen: chrono::Utc::now(),
+                    },
                 },
             )
             .await;

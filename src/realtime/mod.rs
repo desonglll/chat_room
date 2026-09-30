@@ -1,6 +1,9 @@
 pub(crate) mod auth;
+pub(crate) mod frames;
+mod history_replay;
 pub(crate) mod inbound;
 mod outbound;
+pub(crate) mod payloads;
 pub(crate) mod protocol;
 pub(crate) mod system_lock;
 pub mod ws;

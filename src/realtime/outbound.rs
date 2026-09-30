@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::message_store::MessageCursor;
 use crate::messages::actions::{EditCursor, RecallCursor};
 use crate::models::ChatMessage;
-use crate::realtime::protocol::{advance_message_cursor, stored_message_to_chat};
+use crate::realtime::protocol::{advance_message_cursor, frame_visible_to, stored_message_to_chat};
 use crate::realtime::system_lock::close_if_locked;
 use crate::state::{ChatEvent, SharedState};
 
@@ -49,9 +49,11 @@ pub(super) fn spawn_chat_forwarder(
             tokio::select! {
                 event = chat_messages.recv() => match event {
                     Ok(ChatEvent::Message(message)) => {
-                        advance_message_cursor(&mut cursors.messages, &message);
-                        if send_json(&mut sink, &message).await.is_err() {
-                            break;
+                        if frame_visible_to(&message, user_id) {
+                            advance_message_cursor(&mut cursors.messages, &message);
+                            if send_json(&mut sink, &message).await.is_err() {
+                                break;
+                            }
                         }
                     }
                     Ok(ChatEvent::Disconnect { reason }) => {

@@ -1,7 +1,44 @@
-//! Conversion and cursor helpers for outbound WebSocket messages.
+//! Conversion, routing, and cursor helpers for outbound WebSocket messages.
+
+use uuid::Uuid;
 
 use crate::message_store::MessageCursor;
-use crate::models::{ChatMessage, StoredMessage};
+use crate::models::{ChatMember, ChatMessage, StoredMessage, UserStatus, UserStatusEntry};
+
+/// Whether one broadcast frame may be delivered to `viewer`'s connection.
+///
+/// Almost every frame is chat-wide. The exception is `draft_updated` (TG-007/TG-008): a cloud
+/// draft is broadcast on the chat channel but belongs to one account, so the transport keeps
+/// it private to that account's own connections.
+pub(crate) fn frame_visible_to(message: &ChatMessage, viewer: Uuid) -> bool {
+    match message {
+        ChatMessage::DraftUpdated { user_id, .. } => *user_id == viewer,
+        _ => true,
+    }
+}
+
+/// The `auth_ok.statuses` snapshot: `online` for currently connected accounts, `empty` for
+/// every other active participant. TG-505 replaces `empty` with persisted, privacy-filtered
+/// last-seen tiers; until then the server honestly reports "no information".
+pub(crate) fn initial_statuses(
+    connected: &[ChatMember],
+    participants: &[ChatMember],
+) -> Vec<UserStatusEntry> {
+    participants
+        .iter()
+        .map(|participant| UserStatusEntry {
+            user_id: participant.user_id,
+            status: if connected
+                .iter()
+                .any(|member| member.user_id == participant.user_id)
+            {
+                UserStatus::Online
+            } else {
+                UserStatus::Empty
+            },
+        })
+        .collect()
+}
 
 pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
     ChatMessage::Broadcast {

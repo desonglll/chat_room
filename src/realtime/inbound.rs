@@ -2,7 +2,7 @@
 
 use uuid::Uuid;
 
-use crate::models::{ChatMember, ChatMessage, User};
+use crate::models::{ChatMember, ChatMessage, TypingAction, User};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::ws_auth::{normalize_message, normalize_typing};
@@ -60,6 +60,7 @@ pub async fn handle_client_message(
                     room_id,
                     ChatMessage::Typing {
                         content: String::new(),
+                        action: TypingAction::Cancel,
                         user_id: Some(user.id),
                         username: Some(display_name.clone()),
                     },
@@ -143,12 +144,15 @@ pub async fn handle_client_message(
                 Err(error) => tracing::warn!("edit message failed: {}", error),
             }
         }
-        ChatMessage::Typing { content, .. } => {
+        ChatMessage::Typing {
+            content, action, ..
+        } => {
             state
                 .broadcast(
                     room_id,
                     ChatMessage::Typing {
                         content: normalize_typing(content),
+                        action,
                         user_id: Some(user.id),
                         username: Some(user.username.clone()),
                     },

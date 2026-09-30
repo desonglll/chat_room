@@ -124,7 +124,7 @@ async fn read_json(
         match stream.next().await {
             Some(Ok(Message::Text(t))) => {
                 let value = serde_json::from_str::<serde_json::Value>(&t).unwrap();
-                if value["type"] != "history_complete" {
+                if value["type"] != "history_complete" && value["type"] != "user_status" {
                     return value;
                 }
             }

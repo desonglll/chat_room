@@ -127,7 +127,9 @@ async fn next_json(
         let frame = socket.next().await.unwrap().unwrap();
         if let Message::Text(text) = frame {
             let value: serde_json::Value = serde_json::from_str(&text).unwrap();
-            if value["type"] != "history_complete" {
+            // TG-007 emits live user_status frames on connect/disconnect; this file's
+            // assertions are about attachment frames, so skip them like history_complete.
+            if value["type"] != "history_complete" && value["type"] != "user_status" {
                 return value;
             }
         }
