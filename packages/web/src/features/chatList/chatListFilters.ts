@@ -12,6 +12,8 @@ export interface ChatListView {
   /** Archived chats, for the archive entry row (main folder, no search). */
   archivedCount: number
   archivedUnread: number
+  /** Archived chats in list order (for the archive row's avatar stack and preview). */
+  archived: ConversationSummary[]
 }
 
 const matches = (conversation: ConversationSummary, needle: string): boolean =>
@@ -34,6 +36,7 @@ export function selectChatListView(
   const pool = needle ? sorted : folder === 'archive' ? archived : sorted.filter((c) => !c.preferences.is_archived)
   return {
     rows: needle ? pool.filter((conversation) => matches(conversation, needle)) : pool,
+    archived,
     archivedCount: archived.length,
     archivedUnread: archived.reduce((total, conversation) => total + conversation.unread_count, 0),
   }

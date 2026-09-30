@@ -51,7 +51,7 @@ export function ChatListHeader({
     <header className="tg-chatlist__header">
       {leading}
       {collapsed ? null : folder === 'archive' ? (
-        <h2 className="tg-chatlist__folder-title">已归档会话</h2>
+        <h2 className="tg-chatlist__folder-title">已归档的对话</h2>
       ) : (
         <label className="tg-chatlist__search">
           <ChatListIcon name="search" size={20} className="tg-chatlist__search-icon" />
