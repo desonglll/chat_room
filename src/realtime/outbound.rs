@@ -1,6 +1,6 @@
 //! Outbound WebSocket events, database polling, and heartbeat delivery.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{stream::SplitSink, SinkExt};
@@ -11,6 +11,7 @@ use tokio::{
 };
 use uuid::Uuid;
 
+use crate::accounts::privacy::PresenceFilter;
 use crate::message_store::MessageCursor;
 use crate::messages::actions::{EditCursor, RecallCursor};
 use crate::models::ChatMessage;
@@ -19,6 +20,10 @@ use crate::realtime::system_lock::close_if_locked;
 use crate::state::{ChatEvent, SharedState};
 
 use super::ws::send_json;
+
+/// Heartbeats refresh the persisted last-seen (TG-505) at most this often per connection,
+/// so a crash leaves it at most this stale for an account that was online.
+const LAST_SEEN_REFRESH: Duration = Duration::from_secs(60);
 
 pub(super) struct OutboundCursors {
     pub messages: Option<MessageCursor>,
@@ -44,11 +49,16 @@ pub(super) fn spawn_chat_forwarder(
         message_poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
         heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
         heartbeat.tick().await;
+        let mut presence = PresenceFilter::new(user_id, room_id);
+        let mut last_seen_refreshed = Instant::now();
 
         loop {
             tokio::select! {
                 event = chat_messages.recv() => match event {
                     Ok(ChatEvent::Message(message)) => {
+                        let Some(message) = presence.apply(&state, *message).await else {
+                            continue;
+                        };
                         if frame_visible_to(&message, user_id) {
                             advance_message_cursor(&mut cursors.messages, &message);
                             if send_json(&mut sink, &message).await.is_err() {
@@ -98,6 +108,12 @@ pub(super) fn spawn_chat_forwarder(
                     }
                     if sink.send(Message::Ping(Vec::new())).await.is_err() {
                         break;
+                    }
+                    if last_seen_refreshed.elapsed() >= LAST_SEEN_REFRESH {
+                        last_seen_refreshed = Instant::now();
+                        if let Err(error) = state.touch_last_seen(user_id, chrono::Utc::now()).await {
+                            tracing::warn!("refresh last-seen failed: {error}");
+                        }
                     }
                 },
             }

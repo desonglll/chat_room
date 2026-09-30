@@ -172,6 +172,14 @@ pub async fn invite_member(
     if username.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
+    // TG-505: the invitee's `group_invites` privacy rule (Telegram's USER_PRIVACY_RESTRICTED).
+    if !state
+        .group_invite_allowed(user.id, username)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
     state
         .record_audit_event(
             AuditEventDraft::chat(&user, room_id, "room.member.invite_requested")
