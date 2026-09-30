@@ -1,10 +1,22 @@
 /**
- * Pure functions: optimistic send, cursor advancement, scroll-anchor policy, the composer
- * calculator, markdown sanitising, and the rest of the framework-agnostic logic migrated out
- * of the old Vue client.
+ * `@tg/core/domain` — pure business logic, one concern per file. No platform access, no
+ * transport; anything platform-shaped arrives as an injected interface from
+ * `types/platform.ts`.
  *
- * Nothing here may read a clock, a socket or storage directly — take them as arguments.
- *
- * Owner of the contents: TG-011. This barrel is the frozen entry point `@tg/core/domain`.
+ * `domain/draft*` is RESERVED for TG-008 (cloud drafts) — do not add draft modules here.
  */
-export {}
+export * from './messageView'
+export * from './calculator'
+export * from './markdown'
+export * from './chatOptimistic'
+export * from './chatIncoming'
+export * from './messageReactions'
+export * from './messageMotion'
+export * from './messageViewportPolicy'
+export * from './attachmentUploadProgress'
+export * from './fileHash'
+export * from './avatarColor'
+export * from './randomUuid'
+export * from './messageDeepLink'
+export * from './searchPattern'
+export * from './textFrameBatch'

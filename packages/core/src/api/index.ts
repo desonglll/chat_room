@@ -1,8 +1,12 @@
 /**
- * HTTP client, one file per domain (`chats.ts`, `messages.ts`, `stickers.ts`, …).
+ * `@tg/core/api` — HTTP clients, one file per domain, all on the canonical
+ * `/api/chats/*` dialect via the shared injected-fetch `ApiClient`.
  *
- * `fetch` is a platform-neutral global and is allowed here; `window`/`document` are not.
- *
- * Owner of the contents: TG-011. This barrel is the frozen entry point `@tg/core/api`.
+ * `api/drafts.ts` is RESERVED for TG-008 (cloud drafts) — do not add it here.
  */
-export {}
+export * from './http'
+export * from './config'
+export * from './auth'
+export * from './chats'
+export * from './messages'
+export * from './search'
