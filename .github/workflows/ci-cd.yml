@@ -31,6 +31,11 @@ jobs:
     timeout-minutes: 45
     env:
       TEST_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      # The redis service below maps 6379 to the runner host. Without this var the
+      # env-gated Redis tests (tests/service_skip/mod.rs rule: TEST_REDIS_URL, then
+      # CHAT_ROOM_REDIS_URL) print SKIPPED markers instead of exercising Redis, so the
+      # service container ran for nothing.
+      TEST_REDIS_URL: redis://127.0.0.1:6379/
     services:
       postgres:
         image: postgres:17-alpine
