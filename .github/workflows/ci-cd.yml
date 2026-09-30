@@ -2,7 +2,10 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    # `agent/**` covers the Telegram-parity worktree branches. Without it a task
+    # branch got no CI until it was already merged into main, which is part of
+    # how a16f422 landed red (see TG-000's finding in docs/tg/board.md).
+    branches: [main, "agent/**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:

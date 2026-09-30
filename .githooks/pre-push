@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# Runs the two fast audit gates before a push.
+#
+# Why this exists: a16f422 was pushed straight to `main` with
+# scripts/check_file_sizes.py failing. CI does run that script, but only on
+# `push`, which reports after the commit is already on the branch and cannot
+# block anything. Direct pushes bypass the `pull_request` trigger entirely, so
+# nothing stood between a red audit and `main`.
+#
+# These two checks take well under a second. cargo and bun gates are left out
+# deliberately: they take minutes and share a build-directory lock across
+# worktrees, so putting them here would make people bypass the hook.
+#
+# Install (hooks are not shared by git automatically):
+#
+#     git config core.hooksPath .githooks
+#
+# Bypass for a genuine emergency:
+#
+#     git push --no-verify
+#
+# If you bypass it, say so in the relevant devlog. An undocumented bypass is how
+# this class of problem recurs.
+
+set -uo pipefail
+
+REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+failed=0
+
+run_gate() {
+  local label="$1" script="$2"
+  if [ ! -f "${REPO_ROOT}/${script}" ]; then
+    printf 'pre-push: skipping %s (%s not present on this ref)\n' "$label" "$script"
+    return 0
+  fi
+  if ! (cd "$REPO_ROOT" && python3 "$script" >/dev/null 2>&1); then
+    printf '\npre-push: %s FAILED\n\n' "$label"
+    (cd "$REPO_ROOT" && python3 "$script" 2>&1 | grep -E '^error|failed' | head -20)
+    failed=1
+  fi
+}
+
+run_gate 'file-size audit' 'scripts/check_file_sizes.py'
+run_gate 'migration parity' 'scripts/check_migration_parity.py'
+
+if [ "$failed" -ne 0 ]; then
+  cat <<'EOF'
+
+Push refused. Fix the audit rather than raising the baseline — raising it
+deletes the gate. See docs/tg/roadmap.md TG-000 for what that costs.
+
+To push anyway: git push --no-verify  (and record it in your devlog)
+EOF
+  exit 1
+fi
+
+exit 0

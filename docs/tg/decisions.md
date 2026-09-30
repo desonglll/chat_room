@@ -95,4 +95,42 @@ TG-605 会写一个 Node 宿主真实验证这两条，而不是止于文档承�
 
 **已验证** 共享配置生效：新路径被创建并填充，clippy 通过。CI 与 Docker 的 `CARGO_TARGET_DIR` 覆盖已就位（`.github/workflows/ci-cd.yml` env 块、`Dockerfile` builder 阶段）。
 
-**sccache 未采用** sccache 的价值在于「各 worktree 独立 target 但共享依赖编译缓存」。既然磁盘不允许独立 target，sccache 解决不了锁竞争，装了也没用。若将来磁盘宽裕并改为独立 target，再重新评估。
+**sccache 未采用（保留在 D-007）** sccache 的价值在于「各 worktree 独立 target 但共享依赖编译缓存」。既然磁盘不允许独立 target，sccache 解决不了锁竞争，装了也没用。若将来磁盘宽裕并改为独立 target，再重新评估。
+
+## D-008 `main` 是开发分支，`master` 废弃
+
+**日期** 2026-09-30 · **确认人** 用户
+
+**结论** 所有开发在 `main`。`master` 不再使用。
+
+**这解释了 TG-000 发现的根因** GitHub 的 `origin/HEAD` 指向 `origin/master`，而真实工作全在 `main`。所以仓库首页、Actions 默认视图、状态徽章描述的都是 `master`；`main` 恰好是没人被提示去保护的那个分支。红色的 CI 运行确实存在，只是发生在不是仓库门面的分支上。
+
+**两个分支已真正分叉**，不是 master 落后：
+
+```
+origin/main   领先 master 83 个提交
+origin/master 有 10 个 main 没有的提交
+共同祖先      d845402
+```
+
+**`master` 上有不该随分支一起丢掉的东西**，已归档为 tag `archive/master-2026-09-30`：
+
+| 内容 | 为什么保留 |
+| --- | --- |
+| `web2/` 约 4,474 行的早期 React 19 客户端（Ant Design 6 + axios + react-router 8）：`AuthProvider`、`RequireAuth`、`ConversationList`、`MessageList`、`MessageComposer`、`RoomWorkspace`、`useRoomSocket`、`lib/api.ts`、`types.ts`，以及 Auth/Chat/Contacts/Discover/Settings/Admin 六个页面 | **UI 层不是我们要的** —— 锁定决策是自建组件，用 Ant Design 会重犯放弃 PrimeVue 时要避免的错。但 `lib/api.ts`、`types.ts`、`useRoomSocket.ts` 是 TG-011 的直接参考 |
+| `c24a2f1` web/API 容器分离：`build.rs` 引入 cargo feature（`react` / `vue` / `api-only`）选择嵌入哪个客户端或不嵌入，加上 `deploy/nginx.conf` 与重做的 `docker-compose.yaml` | 关系到 TG-003 与 TG-602。`api-only` 是分离部署必需的能力，`main` 上没有 |
+
+取回任意文件：`git show archive/master-2026-09-30:<path>`
+
+**尚需在 GitHub 上手工完成的一步** 把默认分支从 `master` 改为 `main`（或删掉 `master`）。这是服务端设置，本机没有 `gh`，无法从代码侧完成。在此之前仓库门面仍是 `master`，红色的 `main` 仍然不显眼。
+
+**已从代码侧补上的防线**
+
+| 措施 | 位置 |
+| --- | --- |
+| CI 也在 `agent/**` 分支上运行，任务分支合并前就能拿到结果 | `.github/workflows/ci-cd.yml` 的 `on.push.branches` |
+| pre-push 钩子执行两个快速审计（文件大小、迁移 parity），红了拒绝推送 | `.githooks/pre-push`，装法 `git config core.hooksPath .githooks`（已在本机设置） |
+
+钩子刻意不跑 cargo 与 bun 门禁：它们耗时数分钟且共享构建目录锁，放进钩子只会让人养成 `--no-verify` 的习惯。
+
+**未解决** `on: push` 触发的 CI 在提交已经进入分支之后才报告，本质上无法阻挡。唯一的事前门禁是 `pull_request`，而 `a16f422`（以及此前的 `7acf7c3`、`fc25980`、`09ffdb1`，提交信息都是 `update.`）是直接推送。要真正堵住这个洞，需要在 GitHub 上要求 PR 并把 `Quality gates` 设为必需检查 —— 同样是服务端设置。
