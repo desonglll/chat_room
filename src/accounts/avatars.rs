@@ -72,6 +72,18 @@ impl AppState {
             .bind(now)
             .execute(&mut *transaction)
             .await?;
+            // TG-511: every uploaded photo is kept in the history.
+            sqlx::query(
+                "INSERT INTO user_avatar_history (storage_key, user_id, mime_type, size_bytes, created_at) \
+                 VALUES ($1, $2, $3, $4, $5)",
+            )
+            .bind(storage_key)
+            .bind(user_id)
+            .bind(mime_type)
+            .bind(size_bytes)
+            .bind(now)
+            .execute(&mut *transaction)
+            .await?;
             let user: Option<User> = sqlx::query_as(
                 "UPDATE users SET avatar_emoji = $1 WHERE id = $2 \
                  RETURNING id, username, avatar_emoji, display_name, signature, homepage, created_at",
@@ -89,17 +101,30 @@ impl AppState {
         Ok(result)
     }
 
+    /// Clear the current photo (the owner switched to an emoji). TG-511: the photo stays in
+    /// the history, so the storage key to delete is returned only for a photo that is not
+    /// there (a pre-history upload that somehow escaped the backfill).
     pub(crate) async fn delete_user_avatar_file(
         &self,
         user_id: Uuid,
     ) -> Result<Option<String>, sqlx::Error> {
-        with_pool!(self, |pool| {
+        let removed: Option<String> = with_pool!(self, |pool| {
             sqlx::query_scalar(
                 "DELETE FROM user_avatar_files WHERE user_id = $1 RETURNING storage_key",
             )
             .bind(user_id)
             .fetch_optional(pool)
             .await
-        })
+        })?;
+        let Some(key) = removed else {
+            return Ok(None);
+        };
+        let kept: Option<String> = with_pool!(self, |pool| {
+            sqlx::query_scalar("SELECT storage_key FROM user_avatar_history WHERE storage_key = $1")
+                .bind(&key)
+                .fetch_optional(pool)
+                .await
+        })?;
+        Ok(kept.is_none().then_some(key))
     }
 }

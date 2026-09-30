@@ -15,6 +15,7 @@ import { WorkspaceShell } from '../features/shell/WorkspaceShell'
 import { StickerSetLinkRoute } from '../features/sticker/StickerSetLinkRoute'
 import { JoinChatRoute } from '../features/inviteLinks/JoinChatRoute'
 import { PublicChatRoute } from '../features/chatPreview/PublicChatRoute'
+import { AddContactRoute } from '../features/profile/AddContactRoute'
 import { SavedMessagesRoute } from '../features/savedMessages/SavedMessagesRoute'
 
 function RequireSession({ children }: { children: ReactNode }) {
@@ -49,6 +50,7 @@ export const appRouter = createBrowserRouter([
       { path: '/addstickers/:shortName', element: <StickerSetLinkRoute /> },
       { path: '/joinchat/:token', element: <JoinChatRoute /> },
       { path: '/public/:username', element: <PublicChatRoute /> },
+      { path: '/add/:username', element: <AddContactRoute /> },
       { path: '/saved', element: <SavedMessagesRoute /> },
     ],
   },
