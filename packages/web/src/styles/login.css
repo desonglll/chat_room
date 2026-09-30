@@ -1,0 +1,50 @@
+/* The login/register page: one centred card on the sunken backdrop. */
+
+.tg-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--tg-space-6);
+  background: var(--tg-bg-secondary);
+}
+
+.tg-login__card {
+  width: min(100%, var(--tg-column-width));
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-4);
+  padding: var(--tg-space-8) var(--tg-space-6);
+  background: var(--tg-surface);
+  border-radius: var(--tg-radius-sheet);
+  box-shadow: var(--tg-shadow-panel);
+}
+
+.tg-login__title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--tg-type-hero-size);
+  line-height: var(--tg-type-hero-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-login__subtitle {
+  margin: 0 0 var(--tg-space-2);
+  text-align: center;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-login__error {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-danger-soft);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-login__switch {
+  margin-top: var(--tg-space-1);
+}

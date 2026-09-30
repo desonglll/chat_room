@@ -1,0 +1,24 @@
+/* Base document chrome. The token layer supplies every value. */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--tg-bg);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  letter-spacing: var(--tg-letter-spacing);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tg-sprite-icon {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+}

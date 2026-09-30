@@ -1,0 +1,12 @@
+/*
+ * @tg/web styles — one entry, imported once from main.tsx AFTER `@tg/ui/styles.css`
+ * (the token layer must resolve first). Same rule as packages/ui, enforced by
+ * `test/tokenDiscipline.test.ts`: every rule reads `--tg-*` semantic tokens, never
+ * `--tg-raw-*`, and contains no colour literal. Components never import CSS themselves,
+ * so `bun test` can import them without a CSS loader.
+ */
+
+@import url('./app.css');
+@import url('./login.css');
+@import url('./shell.css');
+@import url('./chat.css');
