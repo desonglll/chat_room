@@ -34,10 +34,13 @@ pub async fn forward_messages(
 
     let mut results = Vec::with_capacity(request.message_ids.len() * request.target_room_ids.len());
     // TG-403: oldest first, and album items forwarded together stay an album in the target.
-    let mut plan = state.plan_forward(&request.message_ids).await.map_err(|error| {
-        tracing::error!("plan forward failed: {}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let mut plan = state
+        .plan_forward(&request.message_ids)
+        .await
+        .map_err(|error| {
+            tracing::error!("plan forward failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     for message_id in std::mem::take(&mut plan.order) {
         let Some(source_room_id) = state.message_room_id(message_id).await.map_err(|error| {
             tracing::error!("look up source chat for forward failed: {}", error);

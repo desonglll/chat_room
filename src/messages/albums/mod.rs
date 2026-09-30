@@ -42,12 +42,19 @@ use store::NewAlbum;
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/chats/:id/albums", post(handlers::send))
-        .route("/api/chats/:id/albums/:grouped_id", delete(handlers::delete))
+        .route(
+            "/api/chats/:id/albums/:grouped_id",
+            delete(handlers::delete),
+        )
 }
 
 /// Who may send an album into `room_id`: a participant (else 404, never revealing the chat)
 /// holding `message.send_media` and `message.send` (or `message.post` in a channel).
-async fn authorize_send(state: &SharedState, room_id: Uuid, sender: &User) -> Result<(), AlbumError> {
+async fn authorize_send(
+    state: &SharedState,
+    room_id: Uuid,
+    sender: &User,
+) -> Result<(), AlbumError> {
     state.chat(room_id).await.ok_or(AlbumError::NotFound)?;
     if !state.is_chat_participant(room_id, sender.id).await? {
         return Err(AlbumError::NotFound);
@@ -90,6 +97,10 @@ pub async fn send_album(
         return Err(AlbumError::Invalid("caption_too_long"));
     }
     authorize_send(state, room_id, sender).await?;
+    let topic_id = state
+        .resolve_post_topic(room_id, sender.id, request.topic_id)
+        .await
+        .map_err(AlbumError::from_topic)?;
 
     let mut sessions = Vec::with_capacity(count);
     for &upload_id in &request.upload_ids {
@@ -134,6 +145,7 @@ pub async fn send_album(
                 reply_to,
                 is_sensitive: request.is_sensitive,
                 silent: request.silent,
+                topic_id,
             },
             &items,
         )
@@ -177,7 +189,10 @@ pub async fn recall_album(
         return Err(AlbumError::NotFound);
     }
     for attachment_id in items.iter().filter_map(|(_, attachment)| *attachment) {
-        if let Err(error) = state.recompute_attachment_orphan_status(attachment_id).await {
+        if let Err(error) = state
+            .recompute_attachment_orphan_status(attachment_id)
+            .await
+        {
             tracing::warn!("recompute attachment orphan status failed: {error:#}");
         }
     }

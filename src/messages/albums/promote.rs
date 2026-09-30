@@ -31,7 +31,10 @@ impl AppState {
     ) -> Result<PromotedItem> {
         let upload_id = session.id;
         let declared = u64::try_from(session.declared_size_bytes).context("negative size")?;
-        let staged = self.attachment_store().chunked_upload_size(upload_id).await?;
+        let staged = self
+            .attachment_store()
+            .chunked_upload_size(upload_id)
+            .await?;
         let (content_hash, storage_key) = if staged == declared {
             self.publish_staged(session, declared).await?
         } else if staged == 0 {
@@ -72,13 +75,15 @@ impl AppState {
         }
         // Record the verified digest before the staging file moves (see module docs).
         with_pool!(self, |pool| {
-            sqlx::query("UPDATE attachment_uploads SET content_hash = $1, updated_at = $2 WHERE id = $3")
-                .bind(&content_hash)
-                .bind(Utc::now())
-                .bind(upload_id)
-                .execute(pool)
-                .await
-                .map(|_| ())
+            sqlx::query(
+                "UPDATE attachment_uploads SET content_hash = $1, updated_at = $2 WHERE id = $3",
+            )
+            .bind(&content_hash)
+            .bind(Utc::now())
+            .bind(upload_id)
+            .execute(pool)
+            .await
+            .map(|_| ())
         })?;
         let _guard = self.content_hash_locks().lock(&content_hash).await;
         let storage_key = match self.healthy_storage_key(&content_hash).await? {
@@ -104,7 +109,11 @@ impl AppState {
             bail!("upload {} has no staged bytes", session.id);
         };
         let owned = self
-            .healthy_owned_storage_key(&content_hash, session.uploader_id, session.declared_size_bytes)
+            .healthy_owned_storage_key(
+                &content_hash,
+                session.uploader_id,
+                session.declared_size_bytes,
+            )
             .await?;
         let storage_key = match owned {
             Some(key) => key,

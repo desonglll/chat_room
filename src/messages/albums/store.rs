@@ -17,6 +17,8 @@ pub(super) struct NewAlbum<'a> {
     pub reply_to: Option<ReplyPreview>,
     pub is_sensitive: bool,
     pub silent: bool,
+    /// TG-204: already resolved by `resolve_post_topic`; `None` = General.
+    pub topic_id: Option<Uuid>,
 }
 
 struct Row {
@@ -107,8 +109,8 @@ impl AppState {
                     sqlx::query(
                         "INSERT INTO messages \
                          (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, \
-                          created_at, silent, grouped_id) \
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                          created_at, silent, grouped_id, topic_id) \
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
                     )
                     .bind(row.message_id)
                     .bind(album.room_id)
@@ -120,6 +122,7 @@ impl AppState {
                     .bind(row.created_at)
                     .bind(album.silent)
                     .bind(grouped_id)
+                    .bind(album.topic_id)
                     .execute(&mut *tx)
                     .await?;
                     sqlx::query(
@@ -147,7 +150,11 @@ impl AppState {
                 sender_id: Some(sender_id),
                 sender: album.sender_display_name.to_string(),
                 sender_avatar: album.sender.avatar_emoji.clone(),
-                content: if index == 0 { album.caption.to_string() } else { String::new() },
+                content: if index == 0 {
+                    album.caption.to_string()
+                } else {
+                    String::new()
+                },
                 attachment: Some(Attachment {
                     id: row.attachment_id,
                     file_name: item.file_name.clone(),
@@ -159,7 +166,11 @@ impl AppState {
                     ),
                     is_sensitive: album.is_sensitive,
                 }),
-                reply_to: if index == 0 { album.reply_to.clone() } else { None },
+                reply_to: if index == 0 {
+                    album.reply_to.clone()
+                } else {
+                    None
+                },
                 created_at: row.created_at,
                 silent: album.silent,
                 grouped_id: Some(grouped_id),

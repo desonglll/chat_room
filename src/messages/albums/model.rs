@@ -34,6 +34,9 @@ pub struct SendAlbumRequest {
     /// TG-404: every item is sent silently.
     #[serde(default)]
     pub silent: bool,
+    /// TG-204: the forum topic to post into; absent = General.
+    #[serde(default)]
+    pub topic_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -69,6 +72,19 @@ pub enum AlbumError {
     Unavailable,
     Database(sqlx::Error),
     Storage(anyhow::Error),
+}
+
+impl AlbumError {
+    /// TG-204's topic gate, in this module's wire vocabulary.
+    pub(crate) fn from_topic(error: crate::chats::TopicError) -> Self {
+        use crate::chats::TopicError;
+        match error {
+            TopicError::Database(error) => Self::Database(error),
+            TopicError::NotFound => Self::NotFound,
+            TopicError::Closed | TopicError::Forbidden => Self::Forbidden,
+            _ => Self::Invalid("invalid_topic"),
+        }
+    }
 }
 
 impl From<sqlx::Error> for AlbumError {
