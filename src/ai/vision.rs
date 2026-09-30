@@ -179,7 +179,7 @@ impl VisionAssistant {
             .map(str::trim)
             .filter(|text| !text.is_empty())
             .ok_or_else(|| anyhow::anyhow!("vision response had no text content"))?;
-        super::parse_json_object::<VisualProjection>(text)?.normalized()
+        super::prompt::parse_json_object::<VisualProjection>(text)?.normalized()
     }
 }
 

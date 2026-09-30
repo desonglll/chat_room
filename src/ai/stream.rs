@@ -19,8 +19,11 @@ impl AiAssistant {
         room_name: &str,
         context: &[super::AiContextMessage],
     ) -> anyhow::Result<AiTextStream> {
-        self.stream_request(super::suggestion_request(room_name, context, true), false)
-            .await
+        self.stream_request(
+            super::prompt::suggestion_request(room_name, context, true),
+            false,
+        )
+        .await
     }
 
     pub async fn answer_stream(
@@ -201,45 +204,5 @@ fn conversation_messages(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn retrieved_evidence_prompt_requires_source_citations() {
-        let messages = conversation_messages(
-            Some("retrieved_evidence:\nsource: S1"),
-            &[],
-            "When is launch?",
-            true,
-            Some("查找事实"),
-        );
-        let encoded = serde_json::to_string(&messages).unwrap();
-
-        assert!(encoded.contains("authorized conversation context"));
-        assert!(encoded.contains("exact label such as [S1]"));
-        assert!(encoded.contains("retrieved_evidence"));
-        assert!(encoded.contains("full room history"));
-        assert!(encoded.contains("participants, events, chronology"));
-        assert!(encoded.contains("查找事实"));
-    }
-
-    #[test]
-    fn broad_summary_prompt_requires_reviewing_every_visual_projection() {
-        let messages = conversation_messages(
-            Some(
-                "source_messages[1]{source,message_id,attachment_id,projection}:\n\
-                 A1,message-1,attachment-1,{summary:\"whiteboard\",uncertainties:[\"date unclear\"]}",
-            ),
-            &[],
-            "Summarize everything in the room, including the images.",
-            false,
-            Some("conversation summary"),
-        );
-        let encoded = serde_json::to_string(&messages).unwrap();
-
-        assert!(encoded.contains("source_messages"));
-        assert!(encoded.contains("review every supplied visual projection"));
-        assert!(encoded.contains("preserve its source label and uncertainty"));
-        assert!(encoded.contains("A1"));
-    }
-}
+#[path = "stream_tests.rs"]
+mod tests;

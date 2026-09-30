@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use super::*;
+use crate::ai::AiRuntimeStatus;
 
 #[test]
 fn parses_upload_limit_and_rejects_zero() {

@@ -1,3 +1,6 @@
+//! Redis fan-out and the bounded work queues that shed load ahead of it.
+
+use anyhow::{bail, Result};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -15,6 +18,22 @@ impl Default for WorkQueueConfig {
             upload_concurrency: 4,
             wait_timeout_secs: 30,
         }
+    }
+}
+
+impl WorkQueueConfig {
+    pub(super) fn validate(&self) -> Result<()> {
+        if self.message_concurrency == 0
+            || self.upload_concurrency == 0
+            || self.message_concurrency > u32::MAX as usize
+            || self.upload_concurrency > u32::MAX as usize
+        {
+            bail!("work_queue concurrency limits must be between 1 and u32::MAX");
+        }
+        if self.wait_timeout_secs == 0 || self.wait_timeout_secs > 300 {
+            bail!("work_queue.wait_timeout_secs must be between 1 and 300");
+        }
+        Ok(())
     }
 }
 
@@ -39,5 +58,23 @@ impl Default for RedisConfig {
             command_timeout_ms: 500,
             message_ttl_secs: 30,
         }
+    }
+}
+
+impl RedisConfig {
+    pub(super) fn validate(&self) -> Result<()> {
+        if self.enabled && self.url.trim().is_empty() {
+            bail!("redis.url is required when redis.enabled is true");
+        }
+        if self.key_prefix.trim().is_empty() {
+            bail!("redis.key_prefix must not be empty");
+        }
+        if self.connect_timeout_ms == 0 || self.command_timeout_ms == 0 {
+            bail!("redis timeouts must be greater than zero");
+        }
+        if self.message_ttl_secs == 0 || self.message_ttl_secs > 3600 {
+            bail!("redis.message_ttl_secs must be between 1 and 3600");
+        }
+        Ok(())
     }
 }

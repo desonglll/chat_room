@@ -1,7 +1,8 @@
 use genai::chat::{ChatMessage, ChatRequest};
 use serde::{Deserialize, Serialize};
 
-use super::{parse_json_object, AiAssistant};
+use super::prompt::parse_json_object;
+use super::AiAssistant;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct AiExtractionContextMessage {

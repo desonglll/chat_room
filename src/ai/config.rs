@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -70,6 +71,73 @@ impl AiConfig {
 
     pub(crate) fn vision_max_image_bytes(&self) -> u64 {
         self.vision_max_image_mib.saturating_mul(1024 * 1024)
+    }
+
+    /// Reject an `[ai]` section that cannot possibly work. Credential
+    /// availability is deliberately *not* checked: an optional AI
+    /// misconfiguration must not prevent the chat server from starting, it is
+    /// reported at runtime through [`AiConfig::runtime_status`].
+    pub(crate) fn validate(&self) -> Result<()> {
+        for (name, body) in [
+            ("ai.standard_extra_body", &self.standard_extra_body),
+            ("ai.reasoning_extra_body", &self.reasoning_extra_body),
+        ] {
+            if body.as_ref().is_some_and(|value| !value.is_object()) {
+                bail!("{name} must be a JSON/TOML object");
+            }
+        }
+        if !self.enabled {
+            return Ok(());
+        }
+        if !matches!(self.provider.as_str(), "openai" | "anthropic") {
+            bail!("ai.provider must be 'openai' or 'anthropic'");
+        }
+        if self.api_key_env.trim().is_empty() {
+            bail!("ai.api_key_env is required when ai.enabled is true");
+        }
+        if self.model.trim().is_empty() {
+            bail!("ai.model is required when ai.enabled is true");
+        }
+        if self.max_context_messages == 0 || self.analysis_context_messages == 0 {
+            bail!("AI context message limits must be greater than zero");
+        }
+        if self.request_timeout_secs == 0 || self.request_timeout_secs > 300 {
+            bail!("ai.request_timeout_secs must be between 1 and 300");
+        }
+        self.validate_vision()?;
+        if self.stream_idle_timeout_secs == 0 || self.stream_idle_timeout_secs > 300 {
+            bail!("ai.stream_idle_timeout_secs must be between 1 and 300");
+        }
+        if self.stream_total_timeout_secs < self.stream_idle_timeout_secs
+            || self.stream_total_timeout_secs > 1800
+        {
+            bail!("ai.stream_total_timeout_secs must be between the idle timeout and 1800");
+        }
+        Ok(())
+    }
+
+    fn validate_vision(&self) -> Result<()> {
+        if self.vision_model.is_none() {
+            return Ok(());
+        }
+        if self.vision_api_key_env.trim().is_empty() {
+            bail!("ai.vision_api_key_env is required when a vision model is configured");
+        }
+        if self.vision_max_images == 0 || self.vision_max_images > 20 {
+            bail!("ai.vision_max_images must be between 1 and 20");
+        }
+        if self.vision_max_total_images < self.vision_max_images
+            || self.vision_max_total_images > 200
+        {
+            bail!("ai.vision_max_total_images must be between vision_max_images and 200");
+        }
+        if self.vision_max_image_mib == 0 || self.vision_max_image_mib > 20 {
+            bail!("ai.vision_max_image_mib must be between 1 and 20");
+        }
+        if self.vision_request_timeout_secs == 0 || self.vision_request_timeout_secs > 300 {
+            bail!("ai.vision_request_timeout_secs must be between 1 and 300");
+        }
+        Ok(())
     }
 }
 
