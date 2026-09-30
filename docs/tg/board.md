@@ -10,6 +10,10 @@
 - 盘点日期：2026-09-30
 - 当前里程碑：**M1**（M0 合并完成；用户 2026-09-30 指示继续全部剩余里程碑，运行规则见 D-009）
 
+### 已知抖动测试
+
+- `tests/auth_security_test.rs::redis_adapter_shares_limits_between_instances_when_configured`：2 秒限流窗口，机器高负载时间歇失败。需要一个不依赖墙钟的版本（候选跟进项）。
+
 ### 服务依赖测试的可见性规则（TG-013 已修复静默跳过）
 
 冻结契约（`docs/devlog/TG-013.md`）：**环境变量缺失 = 显式跳过并在原始 stderr 打 marker；设了但连不上 = 大声 panic；设了且可达 = 真实执行。** 不再有任何探测-回退 URL。统计一次运行漏掉的覆盖：
@@ -58,6 +62,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-302 贴纸服务端 | `e3d4089` → 合并提交 | 负责人在 main 上用私有构建目录独立复跑（D-011，不采信共享目录结果）：fmt/clippy 干净，78 个二进制 340 过 2 挂 → 逐个定位：`ws_frame_routing_test::draft_updated…` 是**测试自身竞态**（bob 自己的「joined the room」系统帧抢在 marker 前，`collect_until("system")` 取错帧），负责人修测试为跳过非 marker 系统帧，隐私断言仍覆盖 marker 之前全部帧，4/4 通过；`auth_security_test::redis_adapter_shares_limits…` 是 2 秒窗口的限流测试，负载 ~25 时间歇失败（隔离重跑 2/3），记为已知抖动。迁移 parity 55 对。agent 在卡外修了一处真实缺陷：孤儿附件清理会在引用消息全部撤回后删掉贴纸包文件，已加回归测试。遗留：转发的贴纸退化为普通附件；custom emoji API 归 TG-304。 |
 | TG-101 虚拟消息列表 | `1823285` → `a2da0a2` | 负责人合并树复跑：lint/typecheck 0，测试 core 213/0、ui 103/0、web 262/0；两处追加式冲突（`styles/index.css`、core `domain/index.ts`）手工保留双方并确认无重复导出。agent 实测：prepend 锚点位移 0 px（0–200 ms 延迟）、跳 5 万条后返回 0 px、10 万行列表堆 8.5 MB。遗留：`messageStore` 只更新自己的 timeline，REST 加载的消息收不到编辑/撤回/回应 → 交 TG-100 加 `prependHistory`；零位移部分依赖 react-virtuoso 内部行为，升级时须重跑 `runBrowserBench.mjs`。 |
 | TG-105 媒体查看器 | `992e442` → `db1afad` | 负责人合并树复跑：web 238/0（core 179、ui 103），lint/typecheck 0；`styles/index.css` 追加行冲突手工保留双方。未挂载：待 TG-101 合并后在应用根挂 `<MediaViewer>` 并绑定气泡 `onOpenMedia`。遗留：文件列表 API 不能向新方向翻页（深跳后看不到更新的媒体）；列表来源媒体无说明文字。 |
 | TG-104 输入框 | `f4da8f9` → 合并提交 | 负责人合并树复跑：lint/typecheck 0，测试 core 179/0、ui 103/0、web 193/0。Composer 尚未挂载：需要 `chatSession.sendFrame`，该文件属在飞的 TG-101，负责人在 TG-101 合并后按 devlog 补丁清单接线（含删除旧 `chat/Composer.tsx`、移除会话自带 typing 预览避免重复帧）。遗留：上传不带内容哈希（无去重/直传 OSS）；多文件逐条发送（相册归 TG-403）；无上传占位行；转发失败无 toast。 |
@@ -123,7 +128,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | TG-301 TGS 解码与 Lottie 渲染 ← 性能风险 | L | A | in-progress | — | M1 |
-| TG-302 贴纸数据模型与服务端 | L | B | in-progress | — | M1 |
+| TG-302 贴纸数据模型与服务端 | L | B | **merged** | — | M1 |
 | TG-303 贴纸面板 | L | A | blocked | — | TG-301, TG-302 |
 | TG-304 自定义 emoji | M | B | blocked | — | TG-302 |
 | TG-305 GIF | M | A | blocked | — | TG-303 |
