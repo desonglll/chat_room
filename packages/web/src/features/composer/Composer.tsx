@@ -6,7 +6,7 @@
  * (keyboard, caret); pasted/dropped/picked files go to `usePendingBatch`.
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
-import type { ChatMember } from '@tg/core'
+import type { ChatMember, Sticker } from '@tg/core'
 import { activeComposerBar, composerStore, evaluateArithmeticExpression, messageStore, settingsStore } from '@tg/core'
 import { IconButton, Popover } from '@tg/ui'
 import { useStore } from 'zustand/react'
@@ -22,6 +22,11 @@ import { PendingDialog } from './PendingDialog'
 import { useComposerController } from './useComposerController'
 import { useComposerInput } from './useComposerInput'
 import { usePendingBatch } from './usePendingBatch'
+// Direct module imports, not the `../sticker` barrel: the barrel also re-exports the
+// renderer, which would pull it into the entry chunk.
+import { LazyMediaPanel } from '../sticker/LazyMediaPanel'
+import { stickerLibrary } from '../sticker/stickerLibrary'
+import { StickerSuggestions } from '../sticker/suggest/StickerSuggestions'
 
 export interface ComposerProps {
   chatId: string
@@ -127,6 +132,13 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
     addFiles(files, false)
   }
 
+  // TG-303: a sticker goes out over HTTP (not the socket) and consumes the reply bar.
+  const sendSticker = (sticker: Sticker) => {
+    if (!canSend) return
+    void stickerLibrary().send({ chatId, sticker, replyTo })
+    controller.consumeReply()
+  }
+
   const hasPayload = text.trim() !== '' || bar.kind === 'forward'
   const showSend = hasPayload || bar.kind === 'edit'
   const calc = !edit && ARITHMETIC.test(text) ? evaluateArithmeticExpression(text) : null
@@ -147,6 +159,16 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
           />
         ) : null}
         {selecting && !mentionOpen ? <FormatToolbar onFormat={input.format} /> : null}
+        {edit || mentionOpen ? null : (
+          <StickerSuggestions
+            draft={text}
+            disabled={!canSend}
+            onPick={(sticker) => {
+              sendSticker(sticker)
+              controller.input('')
+            }}
+          />
+        )}
         <div className="tg-compose__row">
           <IconButton
             ref={emojiRef}
@@ -232,7 +254,16 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
         aria-label="表情"
         className="tg-compose__emoji-popover"
       >
-        <EmojiPanel onPick={input.insert} />
+        <LazyMediaPanel
+          chatId={chatId}
+          emoji={<EmojiPanel onPick={input.insert} />}
+          canSend={canSend}
+          onSendSticker={(sticker) => {
+            sendSticker(sticker)
+            setEmojiOpen(false)
+          }}
+          onClose={() => setEmojiOpen(false)}
+        />
       </Popover>
       <DropZone anchorRef={rootRef} onFiles={addFiles} />
       <PendingDialog pending={pending} />

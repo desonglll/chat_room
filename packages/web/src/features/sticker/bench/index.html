@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-303 sticker panel benchmark</title>
+    <!--
+      Dev-only benchmark page for the sticker panel; never part of the shipped bundle (vite
+      builds only packages/web/index.html). Driven by ./measurePanel.mjs, which builds this
+      page in production mode and measures it in headless Chromium.
+
+      Query: sets=12 per=25 layers=24 mode=virtual|naive
+    -->
+  </head>
+  <body>
+    <div id="bench"></div>
+    <script type="module" src="./panelBench.tsx"></script>
+  </body>
+</html>

@@ -9,7 +9,6 @@ import { createMediaStore, selectUploadPercent } from './mediaStore'
 import { createMessageStore, selectTimeline } from './messageStore'
 import { createPresenceStore, selectPresence, TYPING_TTL_MS } from './presenceStore'
 import { createSettingsStore, SETTINGS_STORAGE_KEY } from './settingsStore'
-import { createStickerStore } from './stickerStore'
 import { createUiStore, selectTopModal } from './uiStore'
 
 const chat = (id: string, title: string): Chat => ({
@@ -199,20 +198,6 @@ describe('presenceStore', () => {
       kind: 'offline',
       last_seen: '2026-09-30T12:00:00Z',
     })
-  })
-})
-
-describe('stickerStore', () => {
-  test('keeps bounded recents and toggles favorites', () => {
-    const store = createStickerStore()
-    const ref = { set_id: 's1', sticker_id: 'a', emoji: '🦀' }
-    store.getState().pushRecent(ref, 2)
-    store.getState().pushRecent({ set_id: 's1', sticker_id: 'b', emoji: '🎉' }, 2)
-    store.getState().pushRecent(ref, 2)
-    expect(store.getState().recent.map((sticker) => sticker.sticker_id)).toEqual(['a', 'b'])
-    store.getState().toggleFavorite(ref)
-    store.getState().toggleFavorite(ref)
-    expect(store.getState().favorites).toEqual([])
   })
 })
 

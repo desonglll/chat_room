@@ -20,6 +20,7 @@ import { ChatOverlays } from '../chat/ChatOverlays'
 import { ChatListPane } from '../chatList/ChatListPane'
 import { useChatListSync } from '../chatList/useChatListSync'
 import { SettingsHost } from '../settings/shell'
+import { StickerOverlays } from '../sticker/StickerOverlays'
 import { InfoPane } from './InfoPane'
 import { SIDEBAR_COLLAPSED_WIDTH } from './sidebarLayout'
 import { SidebarResizer } from './SidebarResizer'
@@ -58,6 +59,7 @@ export function WorkspaceShell() {
       </section>
       <InfoPane />
       <ChatOverlays />
+      <StickerOverlays />
     </div>
   )
 }

@@ -15,7 +15,15 @@
  * - `chat.membership_status`/`membership_role` (inside `chat_updated`): omitted when null.
  */
 import type { Chat, ChatMember, ChatMembership } from './chat'
-import type { Attachment, ForwardedFrom, MessageEntity, MessageReaction, ReadReceipt, ReplyPreview } from './message'
+import type {
+  Attachment,
+  ForwardedFrom,
+  MessageEntity,
+  MessageReaction,
+  MessageSticker,
+  ReadReceipt,
+  ReplyPreview,
+} from './message'
 
 /** The ten typing actions. Unknown wire strings MUST degrade to `'typing'` (TG-007 §1). */
 export const TYPING_ACTIONS = [
@@ -69,6 +77,10 @@ export interface BroadcastFrame {
   poll?: PollState
   /** TG-304: omitted when the message has no entities. */
   entities?: MessageEntity[]
+  /** TG-302: `'sticker'` for a sticker message; omitted otherwise. */
+  media_kind?: string
+  /** TG-302: omitted unless `media_kind === 'sticker'`. */
+  sticker?: MessageSticker
 }
 
 export interface TypingFrame {
