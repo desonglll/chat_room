@@ -147,7 +147,7 @@ describe('composerStore', () => {
     store.getState().setReplyTarget('c1', 'm9')
     store.getState().startEditing('c2', 'm3')
     expect(selectDraft('c1')(store.getState())).toMatchObject({ text: 'hello', replyToMessageId: 'm9' })
-    expect(store.getState().editing).toEqual({ c2: 'm3' })
+    expect(store.getState().editing).toEqual({ c2: { messageId: 'm3', originalText: '', text: '' } })
     store.getState().stopEditing('c2')
     expect(store.getState().editing).toEqual({})
   })
