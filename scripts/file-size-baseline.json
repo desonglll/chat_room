@@ -26,7 +26,7 @@
   "web/src/components/AdminDashboard.vue": 431,
   "web/src/components/AiAssistantPage.vue": 484,
   "web/src/components/MessageList.vue": 482,
-  "web/src/composables/useChatSocket.ts": 396,
+  "web/src/composables/useChatSocket.ts": 399,
   "web/src/types.ts": 427,
   "web/src/vscodeDisguise.css": 437
 }

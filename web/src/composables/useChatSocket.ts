@@ -214,6 +214,9 @@ export function useChatSocket(onSystemEvent?: (content: string) => void) {
       applyPresence(message.members, message.participants)
       return
     }
+    // TG-007: ignore frame kinds this frozen client does not know (user_status,
+    // chat_updated, draft_updated, ...) instead of rendering them as system bubbles.
+    if (message.type !== 'system') return
 
     const content = message.content || ''
     if (message.members) members.value = message.members
