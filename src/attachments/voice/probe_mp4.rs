@@ -51,6 +51,20 @@ fn usable((timescale, duration): (u32, u64)) -> Option<u32> {
     to_ms(u128::from(duration), u128::from(timescale))
 }
 
+/// `(track_ID, mdhd timescale)` of every `trak` in `moov`.
+fn track_timescales(moov: &[u8]) -> Vec<(u32, u32)> {
+    boxes(moov)
+        .filter(|(kind, _)| *kind == b"trak")
+        .filter_map(|(_, trak)| {
+            let tkhd = child(trak, b"tkhd")?;
+            // Full box: version 1 has 64-bit creation/modification times.
+            let id = u32_at(tkhd, if tkhd.first()? == &1 { 20 } else { 12 })?;
+            let mdhd = child(child(trak, b"mdia")?, b"mdhd").and_then(header_duration)?;
+            Some((id, mdhd.0))
+        })
+        .collect()
+}
+
 pub(super) fn mp4_duration_ms(bytes: &[u8]) -> Option<u32> {
     let moov = child(bytes, b"moov")?;
     let mdhd = child(moov, b"trak")
@@ -60,33 +74,75 @@ pub(super) fn mp4_duration_ms(bytes: &[u8]) -> Option<u32> {
     // A fragmented file (`mvex`) keeps its samples in `moof`s; its `mvhd`/`mdhd` durations
     // describe only the (empty) initial segment — Chromium writes a few ticks there.
     if let Some(mvex) = child(moov, b"mvex") {
-        let timescale = mdhd?.0;
-        let default_duration = child(mvex, b"trex")
-            .and_then(|trex| u32_at(trex, 12))
-            .unwrap_or(0);
+        // Each track keeps its own clock (TG-402: a video note has video at 1/30000 and
+        // audio at 1/48000), so fragments are followed per `track_ID` and the longest wins.
+        let timescales = track_timescales(moov);
+        // The track's own `trex`, else the first one (single-track files).
+        let trex_default = |track: u32| {
+            let first = child(mvex, b"trex");
+            boxes(mvex)
+                .filter(|(kind, _)| *kind == b"trex")
+                .map(|(_, trex)| trex)
+                .find(|trex| u32_at(trex, 4) == Some(track))
+                .or(first)
+                .and_then(|trex| u32_at(trex, 12))
+                .unwrap_or(0)
+        };
         // Each fragment starts at its `tfdt` decode time when it has one: Chromium writes a
         // short last-sample duration per fragment, so summing `trun`s alone undercounts.
-        let (mut cursor, mut ticks): (u128, u128) = (0, 0);
+        let mut cursors: Vec<(u32, u128)> = Vec::new();
         for (kind, moof) in boxes(bytes) {
             if kind != b"moof" {
                 continue;
             }
             for (kind, traf) in boxes(moof) {
-                if kind == b"traf" {
-                    let start = child(traf, b"tfdt").and_then(decode_time).unwrap_or(cursor);
-                    cursor = start + traf_ticks(traf, default_duration)?;
-                    ticks = ticks.max(cursor);
+                if kind != b"traf" {
+                    continue;
                 }
+                let track = child(traf, b"tfhd").and_then(|tfhd| u32_at(tfhd, 4))?;
+                let slot = match cursors.iter().position(|(id, _)| *id == track) {
+                    Some(slot) => slot,
+                    None => {
+                        cursors.push((track, 0));
+                        cursors.len() - 1
+                    }
+                };
+                let start = child(traf, b"tfdt")
+                    .and_then(decode_time)
+                    .unwrap_or(cursors[slot].1);
+                cursors[slot].1 = start + traf_ticks(traf, trex_default(track))?;
             }
         }
-        if ticks > 0 {
-            return to_ms(ticks, u128::from(timescale));
+        let longest = cursors
+            .iter()
+            .filter_map(|(track, ticks)| {
+                let timescale = timescales
+                    .iter()
+                    .find(|(id, _)| id == track)
+                    .map(|(_, timescale)| *timescale)
+                    .or(mdhd.map(|(timescale, _)| timescale))?;
+                to_ms(*ticks, u128::from(timescale))
+            })
+            .max();
+        if let Some(ms) = longest.filter(|ms| *ms > 0) {
+            return Some(ms);
         }
     }
     child(moov, b"mvhd")
         .and_then(header_duration)
         .and_then(usable)
         .or_else(|| mdhd.and_then(usable))
+}
+
+/// Whether `moov` declares a video track (`hdlr` handler type `vide`). TG-402 refuses a
+/// "video note" that is audio only.
+pub(super) fn mp4_has_video(bytes: &[u8]) -> bool {
+    child(bytes, b"moov").is_some_and(|moov| {
+        boxes(moov)
+            .filter(|(kind, _)| *kind == b"trak")
+            .filter_map(|(_, trak)| child(child(trak, b"mdia")?, b"hdlr"))
+            .any(|hdlr| hdlr.get(8..12) == Some(b"vide"))
+    })
 }
 
 /// `tfdt.baseMediaDecodeTime` (full box, version 0: 32 bits, version 1: 64 bits).

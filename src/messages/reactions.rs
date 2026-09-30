@@ -122,6 +122,8 @@ impl AppState {
         self.attach_channel_post_fields(messages).await?;
         // TG-401: the static voice projection (duration, waveform) rides along too.
         self.attach_message_voice(messages).await?;
+        // TG-402: and the static video note projection (duration, thumbnail).
+        self.attach_message_video_note(messages).await?;
         self.attach_message_entities(messages).await
     }
 }

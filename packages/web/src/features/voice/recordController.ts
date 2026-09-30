@@ -5,8 +5,11 @@
  *
  * Chat actions (TG-107): `recording_voice` while the microphone is open, `uploading_voice`
  * while the file goes out, `cancel` when it is sent, discarded or fails.
+ *
+ * TG-402 reuses the same flow for round video messages: the recorder and upload are generic
+ * (`RecorderSession<T>`), and the chat actions, the cap and the error copy are injectable.
  */
-import type { ChatActionSender } from '@tg/core'
+import type { ChatActionSender, TypingAction } from '@tg/core'
 import { ApiError, VOICE_RESTRICTED } from '@tg/core'
 import {
   IDLE_GESTURE,
@@ -16,7 +19,7 @@ import {
   type GestureOutcome,
   type GestureState,
 } from './recordGesture'
-import { RecorderError, type VoiceRecorder, type VoiceRecording } from './voiceRecorder'
+import { RecorderError, type VoiceRecording } from './voiceRecorder'
 
 /** Shorter recordings are dropped (an accidental press), as Telegram does. */
 export const MIN_VOICE_MS = 700
@@ -42,20 +45,36 @@ export const IDLE_RECORD_STATE: RecordState = {
   error: null,
 }
 
-export interface RecordControllerDeps {
+/** What the controller needs from a recorder; `VoiceRecorder` is one (TG-402 adds video). */
+export interface RecorderSession<T> {
+  start(): Promise<void>
+  onLevel(listener: (peak: number, elapsedMs: number) => void): () => void
+  elapsedMs(): number
+  stop(): Promise<T>
+  cancel(): void
+}
+
+export interface RecordControllerDeps<T = VoiceRecording> {
   chatId: string
-  createRecorder(): VoiceRecorder
-  upload(recording: VoiceRecording): Promise<void>
+  createRecorder(): RecorderSession<T>
+  upload(recording: T): Promise<void>
   actions: ChatActionSender
   now(): number
   /** The upload went out (the composer consumes its reply bar). */
   onSent?(): void
+  /** Chat actions while recording / uploading; voice's by default. */
+  chatActions?: { recording: TypingAction; uploading: TypingAction }
+  /** Recording stops and sends by itself at this length (TG-402: 60 s). */
+  maxMs?: number
+  /** Error copy; voice's `recordErrorText` by default. */
+  errorText?(error: unknown): string
 }
 
 export interface RecordController {
   getState(): RecordState
   subscribe(listener: () => void): () => void
-  press(x: number, y: number): void
+  /** `heldMs`: how long the pointer has already been down (a delayed press is no tap). */
+  press(x: number, y: number, heldMs?: number): void
   move(x: number, y: number): void
   release(): void
   /** Hands-free mode's «发送». */
@@ -79,10 +98,12 @@ export function recordErrorText(error: unknown): string {
   return '语音发送失败，请重试'
 }
 
-export function createRecordController(deps: RecordControllerDeps): RecordController {
+export function createRecordController<T = VoiceRecording>(deps: RecordControllerDeps<T>): RecordController {
   const listeners = new Set<() => void>()
+  const chatActions = deps.chatActions ?? { recording: 'recording_voice', uploading: 'uploading_voice' }
+  const errorText = deps.errorText ?? recordErrorText
   let state: RecordState = IDLE_RECORD_STATE
-  let recorder: VoiceRecorder | null = null
+  let recorder: RecorderSession<T> | null = null
   let stopLevels: (() => void) | null = null
 
   const set = (next: Partial<RecordState>) => {
@@ -100,7 +121,7 @@ export function createRecordController(deps: RecordControllerDeps): RecordContro
     recorder?.cancel()
     teardown()
     deps.actions.sendChatAction(deps.chatId, 'cancel')
-    set({ ...IDLE_RECORD_STATE, error: recordErrorText(error) })
+    set({ ...IDLE_RECORD_STATE, error: errorText(error) })
   }
 
   const cancel = () => {
@@ -123,7 +144,7 @@ export function createRecordController(deps: RecordControllerDeps): RecordContro
     }
     teardown()
     set({ phase: 'sending', gesture: IDLE_GESTURE })
-    deps.actions.sendChatAction(deps.chatId, 'uploading_voice')
+    deps.actions.sendChatAction(deps.chatId, chatActions.uploading)
     active
       .stop()
       .then((recording) => deps.upload(recording))
@@ -146,9 +167,9 @@ export function createRecordController(deps: RecordControllerDeps): RecordContro
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    press(x, y) {
+    press(x, y, heldMs = 0) {
       if (state.phase !== 'idle') return
-      let created: VoiceRecorder
+      let created: RecorderSession<T>
       try {
         created = deps.createRecorder()
       } catch (error) {
@@ -156,17 +177,18 @@ export function createRecordController(deps: RecordControllerDeps): RecordContro
         return
       }
       recorder = created
-      set({ ...IDLE_RECORD_STATE, phase: 'starting', gesture: pressGesture(x, y, deps.now()) })
+      set({ ...IDLE_RECORD_STATE, phase: 'starting', gesture: pressGesture(x, y, deps.now() - heldMs) })
       stopLevels = created.onLevel((peak, elapsedMs) => {
         const levels = state.levels.length >= LIVE_LEVELS ? state.levels.slice(1) : state.levels.slice()
         levels.push(peak)
         set({ levels, elapsedMs })
+        if (deps.maxMs !== undefined && elapsedMs >= deps.maxMs && recorder === created) finish()
       })
       created.start().then(
         () => {
           if (recorder !== created) return
           set({ phase: 'recording' })
-          deps.actions.sendChatAction(deps.chatId, 'recording_voice')
+          deps.actions.sendChatAction(deps.chatId, chatActions.recording)
           // Released (send) before the microphone opened: honour it now.
           if (state.gesture.phase === 'idle') finish()
         },

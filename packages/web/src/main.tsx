@@ -15,6 +15,8 @@ import './features/poll/register'
 import './features/sticker/register'
 // TG-401: registers the voice bubble body with the message content registry.
 import './features/voice/register'
+// TG-402: registers the round video bubble body with the message content registry.
+import './features/videoNote/register'
 // TG-305: GIF bubble body, the media panel's GIF tab, and the "保存 GIF" menu row.
 import './features/gif/register'
 // TG-403: the album mosaic body for collapsed album rows.

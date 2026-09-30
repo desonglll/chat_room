@@ -108,6 +108,7 @@ fn broadcast_frame_serializes_unchanged() {
         views: None,
         post_author: None,
         voice: None,
+        video_note: None,
         silent: false,
         grouped_id: None,
     };
@@ -174,6 +175,7 @@ fn broadcast_frame_serializes_unchanged() {
         views: None,
         post_author: None,
         voice: None,
+        video_note: None,
         silent: false,
         grouped_id: None,
     };

@@ -24,6 +24,7 @@ import type {
   ReadReceipt,
   ReplyPreview,
   VoiceNote,
+  VideoNote,
 } from './message'
 
 /** The ten typing actions. Unknown wire strings MUST degrade to `'typing'` (TG-007 §1). */
@@ -90,6 +91,8 @@ export interface BroadcastFrame {
   post_author?: string
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
+  /** TG-402: present exactly when the message is a round video message; omitted otherwise. */
+  video_note?: VideoNote
   /** TG-404: true when sent without notifications; omitted otherwise. */
   silent?: boolean
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */

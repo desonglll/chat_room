@@ -25,6 +25,7 @@ pub(crate) fn api_routes(
         .merge(crate::stickers::routes())
         .merge(crate::messages::polls::routes())
         .merge(crate::attachments::voice::routes(multipart_body_limit))
+        .merge(crate::attachments::video_note::routes(multipart_body_limit))
         .merge(crate::messages::scheduled::routes())
         .merge(crate::messages::albums::routes())
         .merge(chats::routes::canonical(multipart_body_limit))
