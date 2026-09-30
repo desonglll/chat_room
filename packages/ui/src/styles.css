@@ -1,0 +1,43 @@
+/*
+ * @tg/ui — the one stylesheet an application imports.
+ *
+ *     import '@tg/ui/styles.css'
+ *
+ * Order matters: TG-009's token layer must be resolved before any component rule reads a
+ * `--tg-*` variable, and the component files are alphabetical after that because none of them
+ * depends on another's cascade position (every selector is a distinct class).
+ *
+ * Why the CSS is a single import instead of `import './Button.css'` inside `Button.tsx`:
+ *
+ *  - the components are consumed as TypeScript SOURCE (TG-002's decision: no build step for
+ *    `core`/`ui`), so a CSS import inside a `.tsx` would force every consumer — including
+ *    `bun test` — to have a CSS loader configured;
+ *  - the documentation pages under `src/docs/` are served by `bun <html>` with no bundler
+ *    configuration, exactly as TG-009's `preview.html` opens with none;
+ *  - one stylesheet is also one place to audit, which is what the token-discipline test scans.
+ *
+ * THE RULE, inherited from TG-009 and enforced by `src/test/tokenDiscipline.test.ts`:
+ * component CSS reads `--tg-*` and never `--tg-raw-*`, and contains no colour literal. Component
+ * internal variables are named `--tg-ui-*` so they can never be mistaken for a token.
+ */
+
+@import url('./tokens/index.css');
+
+@import url('./primitives/Avatar.css');
+@import url('./primitives/Badge.css');
+@import url('./primitives/Button.css');
+@import url('./primitives/Checkbox.css');
+@import url('./primitives/ContextMenu.css');
+@import url('./primitives/Dialog.css');
+@import url('./primitives/IconButton.css');
+@import url('./primitives/Menu.css');
+@import url('./primitives/Popover.css');
+@import url('./primitives/Radio.css');
+@import url('./primitives/Ripple.css');
+@import url('./primitives/ScrollArea.css');
+@import url('./primitives/Skeleton.css');
+@import url('./primitives/Spinner.css');
+@import url('./primitives/Tabs.css');
+@import url('./primitives/TextField.css');
+@import url('./primitives/Toggle.css');
+@import url('./primitives/Tooltip.css');

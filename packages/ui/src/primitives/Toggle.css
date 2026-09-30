@@ -1,0 +1,102 @@
+/*
+ * Toggle. The thumb slides with --tg-transition-spring-smooth: TG-009's `smooth` spring is exactly
+ * critically damped (zeta = 1.0000), so the thumb arrives without overshoot, which is what
+ * Telegram's switch does. Under reduced motion the duration collapses to 1ms and the easing to
+ * linear, so the thumb jumps rather than vanishing.
+ */
+.tg-toggle {
+  --tg-ui-toggle-width: var(--tg-space-12);
+  --tg-ui-toggle-height: var(--tg-space-7);
+  --tg-ui-toggle-inset: var(--tg-space-0-5);
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--tg-font-sans);
+}
+
+.tg-toggle--sm {
+  --tg-ui-toggle-width: var(--tg-space-10);
+  --tg-ui-toggle-height: var(--tg-space-6);
+}
+
+.tg-toggle--row {
+  display: flex;
+  inline-size: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-space-4);
+  min-block-size: var(--tg-touch-min);
+}
+
+.tg-toggle--label-end {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.tg-toggle__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+  min-inline-size: 0;
+}
+
+.tg-toggle__label {
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  cursor: pointer;
+}
+
+.tg-toggle__description {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-toggle__track {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  inline-size: var(--tg-ui-toggle-width);
+  block-size: var(--tg-ui-toggle-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background-color: var(--tg-border-strong);
+  cursor: pointer;
+  transition: background-color var(--tg-transition-panel);
+}
+
+.tg-toggle__track[aria-checked='true'] {
+  background-color: var(--tg-accent);
+}
+
+.tg-toggle__track:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-toggle__track:disabled {
+  cursor: default;
+  opacity: var(--tg-opacity-disabled);
+}
+
+.tg-toggle__thumb {
+  position: absolute;
+  inset-block-start: var(--tg-ui-toggle-inset);
+  inset-inline-start: var(--tg-ui-toggle-inset);
+  inline-size: calc(var(--tg-ui-toggle-height) - var(--tg-ui-toggle-inset) * 2);
+  block-size: calc(var(--tg-ui-toggle-height) - var(--tg-ui-toggle-inset) * 2);
+  border-radius: var(--tg-radius-circle);
+  background-color: var(--tg-surface);
+  box-shadow: var(--tg-shadow-panel);
+  transition: transform var(--tg-transition-spring-smooth);
+}
+
+.tg-toggle__track[aria-checked='true'] .tg-toggle__thumb {
+  transform: translateX(calc(var(--tg-ui-toggle-width) - var(--tg-ui-toggle-height)));
+}
+
+.tg-toggle--disabled .tg-toggle__label {
+  color: var(--tg-text-disabled);
+  cursor: default;
+}

@@ -1,0 +1,81 @@
+/*
+ * Ripple — Telegram's, not Material's.
+ *
+ * Every number comes from TG-009's ripple tokens:
+ *   --tg-ripple-scale-start  0     (0.27 for the compact/handheld variant)
+ *   --tg-ripple-scale-end    2
+ *   --tg-ripple-duration     700ms
+ * Under prefers-reduced-motion TG-009 collapses start and end to 1 and shortens the duration to
+ * --tg-duration-fade, so the wave stops travelling but still flashes. That degradation needs no
+ * media query here: it is already in the tokens this file reads.
+ */
+.tg-ripple {
+  --tg-ui-ripple-ink: var(--tg-ripple);
+  --tg-ui-ripple-alpha: 1;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* `inherit` keeps the clip in step with a pill button or a circular icon button without the
+     host having to tell the ripple its own radius. */
+  border-radius: inherit;
+  pointer-events: none;
+  /* Its own layer, so a 700ms wave never repaints the host's text. */
+  contain: strict;
+}
+
+.tg-ripple--inverse {
+  --tg-ui-ripple-ink: var(--tg-text-on-accent);
+  --tg-ui-ripple-alpha: 0.24;
+}
+
+.tg-ripple--accent {
+  --tg-ui-ripple-ink: var(--tg-accent);
+  --tg-ui-ripple-alpha: 0.16;
+}
+
+.tg-ripple--muted {
+  --tg-ui-ripple-ink: var(--tg-text-tertiary);
+  --tg-ui-ripple-alpha: 0.2;
+}
+
+.tg-ripple__wave {
+  position: absolute;
+  border-radius: var(--tg-radius-circle);
+  background-color: var(--tg-ui-ripple-ink);
+  transform: scale(var(--tg-ripple-scale-start));
+  will-change: transform, opacity;
+  animation: tg-ripple-expand var(--tg-ripple-duration) var(--tg-ease-decelerate) forwards;
+}
+
+.tg-ripple--compact .tg-ripple__wave {
+  animation-name: tg-ripple-expand-compact;
+}
+
+@keyframes tg-ripple-expand {
+  from {
+    transform: scale(var(--tg-ripple-scale-start));
+    opacity: var(--tg-ui-ripple-alpha);
+  }
+  to {
+    transform: scale(var(--tg-ripple-scale-end));
+    opacity: 0;
+  }
+}
+
+/* The handheld variant differs only in the start scale. Telegram's value is 0.27 and TG-009 has
+   it as `--tg-raw-ripple-scale-start-compact`, but it was not promoted to the semantic layer, so
+   this file cannot read it (components never touch `--tg-raw-`). An integration patch promoting
+   `--tg-ripple-scale-start-compact` is requested in docs/devlog/TG-010.md; until it lands the
+   fallback reproduces 0.27 from the two semantic ripple scales that DO exist. */
+@keyframes tg-ripple-expand-compact {
+  from {
+    transform: scale(
+      var(--tg-ripple-scale-start-compact, calc(var(--tg-ripple-scale-end) * 0.135 + var(--tg-ripple-scale-start)))
+    );
+    opacity: var(--tg-ui-ripple-alpha);
+  }
+  to {
+    transform: scale(var(--tg-ripple-scale-end));
+    opacity: 0;
+  }
+}

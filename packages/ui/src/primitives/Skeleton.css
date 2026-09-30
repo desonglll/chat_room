@@ -1,0 +1,71 @@
+/*
+ * Skeleton. The base fill is --tg-skeleton; the travelling sheen is --tg-surface-raised faded in
+ * and out with `transparent`, so no colour literal is needed for either theme.
+ *
+ * --tg-ui-loop-period has the same provenance as in Spinner.css (an integration patch for
+ * `--tg-duration-loop` is requested in the devlog).
+ */
+.tg-skeleton {
+  --tg-ui-loop-period: var(--tg-duration-loop, 1000ms);
+  display: block;
+  background-color: var(--tg-skeleton);
+  border-radius: var(--tg-radius-sm);
+}
+
+.tg-skeleton--text {
+  block-size: var(--tg-type-message-line);
+  border-radius: var(--tg-radius-xs);
+}
+
+.tg-skeleton--short {
+  inline-size: 60%;
+}
+
+.tg-skeleton--rect {
+  block-size: var(--tg-space-16);
+  border-radius: var(--tg-radius-panel);
+}
+
+.tg-skeleton--circle {
+  inline-size: var(--tg-avatar-md);
+  block-size: var(--tg-avatar-md);
+  border-radius: var(--tg-radius-circle);
+}
+
+.tg-skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.tg-skeleton--animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.tg-skeleton--animated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(90deg, transparent, var(--tg-surface-raised), transparent);
+  /* 200% wide so the sheen is off-screen at both ends of the sweep. */
+  inline-size: 200%;
+  transform: translateX(-75%);
+  opacity: 0.6;
+  animation: tg-skeleton-sheen calc(var(--tg-ui-loop-period) * 1.4) var(--tg-ease-standard) infinite;
+}
+
+@keyframes tg-skeleton-sheen {
+  to {
+    transform: translateX(25%);
+  }
+}
+
+/* A skeleton is pure decoration, so its degradation is to stop travelling. It stays visible, and
+   the thing it stands in for is still announced busy by its container. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-skeleton--animated::after {
+    animation: none;
+    transform: translateX(-25%);
+  }
+}

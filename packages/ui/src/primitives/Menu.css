@@ -1,0 +1,110 @@
+/*
+ * Menu rows. Row height is --tg-menu-row-height (tweb's $menu-height, 48px).
+ */
+.tg-menu {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: calc(var(--tg-column-width) / 2);
+  max-inline-size: var(--tg-column-width);
+  padding-block: var(--tg-space-1);
+  overflow-y: auto;
+}
+
+.tg-menu__slot {
+  display: flex;
+  flex-direction: column;
+}
+
+.tg-menu__separator {
+  block-size: 1px;
+  margin-block: var(--tg-space-1);
+  background-color: var(--tg-divider);
+}
+
+.tg-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  box-sizing: border-box;
+  min-block-size: var(--tg-menu-row-height);
+  padding-inline: var(--tg-space-4);
+  border: 0;
+  background-color: transparent;
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-press);
+}
+
+.tg-menu__item:hover,
+.tg-menu__item:focus {
+  background-color: var(--tg-surface-hover);
+  outline: none;
+}
+
+/* A focus ring is still drawn for keyboard focus: a hover tint alone is not a focus indicator. */
+.tg-menu__item:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(var(--tg-focus-ring-offset) * -1);
+}
+
+.tg-menu__item[aria-disabled='true'] {
+  color: var(--tg-text-disabled);
+  cursor: default;
+}
+
+.tg-menu__item[aria-disabled='true']:hover {
+  background-color: transparent;
+}
+
+.tg-menu__item[data-tg-danger] {
+  color: var(--tg-text-danger);
+}
+
+.tg-menu__item[data-tg-danger]:hover {
+  background-color: var(--tg-danger-soft);
+}
+
+.tg-menu__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+  color: var(--tg-text-secondary);
+}
+
+.tg-menu__item[data-tg-danger] .tg-menu__icon {
+  color: currentColor;
+}
+
+.tg-menu__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tg-menu__hint {
+  flex: none;
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-menu__check {
+  flex: none;
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+  color: var(--tg-accent);
+}
+
+.tg-popover--menu-list {
+  padding: 0;
+  overflow: hidden;
+}

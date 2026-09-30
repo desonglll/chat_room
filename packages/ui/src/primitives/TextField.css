@@ -1,0 +1,194 @@
+/*
+ * TextField. Telegram's field is a 1px bordered box with --tg-radius-control (16px), and the
+ * border becomes the accent at 2px on focus while the floating label sits in the gap.
+ */
+.tg-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+  font-family: var(--tg-font-sans);
+}
+
+.tg-field--block {
+  display: flex;
+  inline-size: 100%;
+}
+
+.tg-field__box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  box-sizing: border-box;
+  padding-inline: var(--tg-space-3);
+  border: 1px solid var(--tg-border);
+  border-radius: var(--tg-radius-control);
+  background-color: var(--tg-surface);
+  transition:
+    border-color var(--tg-transition-panel),
+    box-shadow var(--tg-transition-panel);
+}
+
+.tg-field--sm .tg-field__box {
+  min-block-size: var(--tg-space-8);
+}
+
+.tg-field--md .tg-field__box {
+  min-block-size: var(--tg-control-height);
+}
+
+.tg-field--lg .tg-field__box {
+  min-block-size: var(--tg-space-14);
+}
+
+.tg-field--multiline .tg-field__box {
+  align-items: stretch;
+  padding-block: var(--tg-space-2);
+}
+
+.tg-field__control {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  letter-spacing: var(--tg-letter-spacing);
+  outline: none;
+  resize: vertical;
+}
+
+.tg-field--sm .tg-field__control {
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-field__control::placeholder {
+  color: var(--tg-text-tertiary);
+}
+
+.tg-field__control:disabled {
+  color: var(--tg-text-disabled);
+  cursor: default;
+}
+
+/* ── Floating label ───────────────────────────────────────────────────────────
+   Rest position: vertically centred inside the box. Floated: sitting on the border, with the
+   background of the box painted behind it so it cuts the border line the way Telegram's does. */
+.tg-field__label {
+  position: absolute;
+  inset-inline-start: var(--tg-space-3);
+  /* The float animates `inset-block-start` from the box centre to its top edge, with a constant
+     translateY(-50%). Animating the offset rather than the transform keeps the rest and floated
+     positions correct at every size without a per-size magic number, and puts the floated label
+     exactly ON the border, where its --tg-surface background cuts the line. */
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  padding-inline: var(--tg-space-1);
+  background-color: var(--tg-surface);
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  pointer-events: none;
+  transition:
+    inset-block-start var(--tg-transition-panel),
+    font-size var(--tg-transition-panel),
+    color var(--tg-transition-panel);
+}
+
+/* A textarea is taller than one line, so its resting label sits near the first line rather than at
+   the vertical centre of the box. */
+.tg-field--multiline .tg-field__label {
+  inset-block-start: var(--tg-space-5);
+}
+
+.tg-field__box:focus-within .tg-field__label,
+.tg-field__control:not(:placeholder-shown) + .tg-field__label {
+  inset-block-start: 0;
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-field__box:focus-within .tg-field__label {
+  color: var(--tg-accent);
+}
+
+/* The focus treatment is a 2px accent border, not an outline, because the label overlaps the
+   border and an outline would be drawn through it. Non-colour signal: the border thickens. */
+.tg-field__box:focus-within {
+  border-color: var(--tg-accent);
+  box-shadow: inset 0 0 0 1px var(--tg-accent);
+}
+
+.tg-field--invalid .tg-field__box {
+  border-color: var(--tg-danger);
+}
+
+.tg-field--invalid .tg-field__box:focus-within {
+  box-shadow: inset 0 0 0 1px var(--tg-danger);
+}
+
+.tg-field--invalid .tg-field__label,
+.tg-field--invalid .tg-field__box:focus-within .tg-field__label {
+  color: var(--tg-danger);
+}
+
+.tg-field--disabled .tg-field__box {
+  background-color: var(--tg-bg-secondary);
+  opacity: var(--tg-opacity-disabled);
+}
+
+.tg-field__adornment {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+  color: var(--tg-text-tertiary);
+}
+
+.tg-field__clear {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background-color: transparent;
+  color: var(--tg-text-tertiary);
+  cursor: pointer;
+}
+
+.tg-field__clear > svg {
+  inline-size: var(--tg-icon-sm);
+  block-size: var(--tg-icon-sm);
+}
+
+.tg-field__clear:hover {
+  background-color: var(--tg-surface-hover);
+  color: var(--tg-text-secondary);
+}
+
+.tg-field__clear:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: 0;
+}
+
+.tg-field__message {
+  margin: 0;
+  padding-inline: var(--tg-space-3);
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-field__message--error {
+  color: var(--tg-text-danger);
+}

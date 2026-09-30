@@ -1,0 +1,175 @@
+/*
+ * Tabs. Telegram's chat-filter strip is the `underline` variant; the media panel and the settings
+ * segmented control are `segmented`.
+ *
+ * The underline is a pseudo-element on the selected tab rather than a single sliding bar: a shared
+ * sliding bar has to be measured in JS, and the measurement is wrong on the first frame and after
+ * every font load. The trade-off is that the indicator cross-fades instead of travelling, which is
+ * the one visible deviation from tweb and is recorded in the devlog.
+ */
+.tg-tabs {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  font-family: var(--tg-font-sans);
+}
+
+.tg-tabs--vertical {
+  flex-direction: row;
+}
+
+.tg-tabs__list {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  min-inline-size: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tg-tabs__list::-webkit-scrollbar {
+  display: none;
+}
+
+.tg-tabs--vertical .tg-tabs__list {
+  flex-direction: column;
+  overflow-x: visible;
+  overflow-y: auto;
+}
+
+.tg-tabs__list--stretch .tg-tabs__tab {
+  flex: 1 1 0;
+}
+
+.tg-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tg-space-2);
+  box-sizing: border-box;
+  min-block-size: var(--tg-menu-row-height);
+  min-inline-size: var(--tg-touch-min);
+  padding-inline: var(--tg-space-4);
+  border: 0;
+  background-color: transparent;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+  font-weight: var(--tg-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--tg-transition-panel),
+    background-color var(--tg-transition-press);
+}
+
+.tg-tabs__tab:hover:not([aria-disabled='true']) {
+  color: var(--tg-text-primary);
+}
+
+.tg-tabs__tab[aria-selected='true'] {
+  color: var(--tg-accent);
+}
+
+.tg-tabs__tab[aria-disabled='true'] {
+  color: var(--tg-text-disabled);
+  cursor: default;
+}
+
+.tg-tabs__tab:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(var(--tg-focus-ring-offset) * -1);
+}
+
+.tg-tabs__icon {
+  display: inline-flex;
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+}
+
+.tg-tabs__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── underline ──────────────────────────────────────────────────────────────── */
+.tg-tabs--underline .tg-tabs__list {
+  box-shadow: inset 0 -1px 0 0 var(--tg-divider);
+}
+
+.tg-tabs--underline .tg-tabs__tab::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--tg-space-2);
+  inset-block-end: 0;
+  block-size: var(--tg-space-0-5);
+  border-start-start-radius: var(--tg-radius-pill);
+  border-start-end-radius: var(--tg-radius-pill);
+  background-color: var(--tg-accent);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    opacity var(--tg-transition-fade),
+    transform var(--tg-transition-panel);
+}
+
+.tg-tabs--underline .tg-tabs__tab[aria-selected='true']::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.tg-tabs--underline.tg-tabs--vertical .tg-tabs__list {
+  box-shadow: inset -1px 0 0 0 var(--tg-divider);
+}
+
+.tg-tabs--underline.tg-tabs--vertical .tg-tabs__tab::after {
+  inset-inline: auto 0;
+  inset-block: var(--tg-space-2);
+  inline-size: var(--tg-space-0-5);
+  block-size: auto;
+  transform: scaleY(0.4);
+}
+
+.tg-tabs--underline.tg-tabs--vertical .tg-tabs__tab[aria-selected='true']::after {
+  transform: scaleY(1);
+}
+
+/* ── segmented ──────────────────────────────────────────────────────────────── */
+.tg-tabs--segmented .tg-tabs__list {
+  gap: var(--tg-space-0-5);
+  padding: var(--tg-space-0-5);
+  border-radius: var(--tg-radius-md);
+  background-color: var(--tg-bg-secondary);
+}
+
+.tg-tabs--segmented .tg-tabs__tab {
+  min-block-size: var(--tg-space-8);
+  border-radius: var(--tg-radius-sm);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-tabs--segmented .tg-tabs__tab[aria-selected='true'] {
+  background-color: var(--tg-surface);
+  color: var(--tg-text-primary);
+  box-shadow: var(--tg-shadow-panel);
+}
+
+.tg-tabs__badge {
+  display: inline-flex;
+  flex: none;
+}
+
+.tg-tabs__panel {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding-block: var(--tg-space-4);
+}
+
+.tg-tabs__panel:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(var(--tg-focus-ring-offset) * -1);
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@tg/ui primitives</title>
+    <!--
+      Two stylesheets and no build configuration. `../styles.css` pulls in TG-009's token layer and
+      every component's CSS; `docs.css` styles the gallery chrome and uses the same semantic tokens,
+      so the documentation page is itself a consumer of the contract it documents.
+
+      Serve with:  bun run -F @tg/ui docs     (Bun's dev server bundles the TSX below)
+    -->
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="./docs.css" />
+    <link rel="stylesheet" href="./docs-pages.css" />
+  </head>
+  <body>
+    <div id="gallery"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

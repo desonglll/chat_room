@@ -1,0 +1,118 @@
+/*
+ * Avatar.
+ *
+ * The seven `--tg-avatar-<n>` names below DO NOT EXIST in TG-009's frozen set. They are read with
+ * `var(--tg-avatar-1, var(--tg-accent))` so the component works today and lights up when the
+ * integration patch requested in docs/devlog/TG-010.md adds them to semantic.css. This is the one
+ * place in the package that reads a token that is not yet declared, and the fallback is another
+ * semantic token — never a literal.
+ */
+.tg-avatar {
+  --tg-ui-avatar-fill: var(--tg-accent);
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-avatar-md);
+  block-size: var(--tg-avatar-md);
+  border-radius: var(--tg-radius-avatar);
+  background-color: var(--tg-ui-avatar-fill);
+  color: var(--tg-text-on-accent);
+  font-family: var(--tg-font-rounded);
+  font-weight: var(--tg-weight-medium);
+  user-select: none;
+  overflow: visible;
+}
+
+.tg-avatar--forum {
+  border-radius: var(--tg-radius-avatar-forum);
+}
+
+.tg-avatar--sm {
+  inline-size: var(--tg-avatar-sm);
+  block-size: var(--tg-avatar-sm);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-avatar--md {
+  inline-size: var(--tg-avatar-md);
+  block-size: var(--tg-avatar-md);
+  font-size: var(--tg-type-header-size);
+}
+
+.tg-avatar--lg {
+  inline-size: var(--tg-space-16);
+  block-size: var(--tg-space-16);
+  font-size: var(--tg-type-hero-size);
+}
+
+.tg-avatar--xl {
+  inline-size: var(--tg-space-20);
+  block-size: var(--tg-space-20);
+  font-size: var(--tg-type-hero-size);
+}
+
+.tg-avatar--slot-0 {
+  --tg-ui-avatar-fill: var(--tg-avatar-1, var(--tg-accent));
+}
+
+.tg-avatar--slot-1 {
+  --tg-ui-avatar-fill: var(--tg-avatar-2, var(--tg-accent));
+}
+
+.tg-avatar--slot-2 {
+  --tg-ui-avatar-fill: var(--tg-avatar-3, var(--tg-accent));
+}
+
+.tg-avatar--slot-3 {
+  --tg-ui-avatar-fill: var(--tg-avatar-4, var(--tg-accent));
+}
+
+.tg-avatar--slot-4 {
+  --tg-ui-avatar-fill: var(--tg-avatar-5, var(--tg-accent));
+}
+
+.tg-avatar--slot-5 {
+  --tg-ui-avatar-fill: var(--tg-avatar-6, var(--tg-accent));
+}
+
+.tg-avatar--slot-6 {
+  --tg-ui-avatar-fill: var(--tg-avatar-7, var(--tg-accent));
+}
+
+.tg-avatar__image,
+.tg-avatar__initials {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.tg-avatar__online {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-end: 0;
+  inline-size: 28%;
+  block-size: 28%;
+  min-inline-size: var(--tg-space-2-5);
+  min-block-size: var(--tg-space-2-5);
+  border-radius: var(--tg-radius-circle);
+  background-color: var(--tg-online);
+  /* The ring is what separates the dot from a same-coloured avatar; --tg-online on white is
+     2.42:1, which is a decorative use under the TG-606 ruling, and `data-tg-online` on the host
+     is the non-colour second signal a consumer can key off. */
+  box-shadow: 0 0 0 2px var(--tg-surface);
+}
+
+.tg-avatar__badge {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  transform: translate(25%, -25%);
+}

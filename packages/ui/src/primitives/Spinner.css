@@ -1,0 +1,125 @@
+/*
+ * Spinner.
+ *
+ * One value in this file is not a token, and it is the only such value in the package:
+ * --tg-ui-loop-period. TG-009's nine durations are all one-shot TRANSITION durations, and eight
+ * of the nine collapse to 1ms under prefers-reduced-motion. A continuous indeterminate animation
+ * needs a period, not a transition duration; driving a spinner from --tg-duration-spring-long
+ * would make it strobe at 1ms for a reduced-motion user, which is worse than no spinner.
+ *
+ * docs/devlog/TG-010.md requests `--tg-duration-loop: 1000ms` as an integration patch for
+ * semantic.css (Skeleton needs the same token). The `var()` fallback below is the value used
+ * until that lands, and it is deliberately declared once, here.
+ */
+.tg-spinner {
+  --tg-ui-loop-period: var(--tg-duration-loop, 1000ms);
+  --tg-ui-spinner-ink: var(--tg-accent);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+  color: var(--tg-ui-spinner-ink);
+}
+
+.tg-spinner--sm {
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+}
+
+.tg-spinner--md {
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+}
+
+.tg-spinner--lg {
+  inline-size: var(--tg-space-10);
+  block-size: var(--tg-space-10);
+}
+
+.tg-spinner--accent {
+  --tg-ui-spinner-ink: var(--tg-accent);
+}
+
+.tg-spinner--inverse {
+  --tg-ui-spinner-ink: var(--tg-text-on-accent);
+}
+
+.tg-spinner--muted {
+  --tg-ui-spinner-ink: var(--tg-text-tertiary);
+}
+
+.tg-spinner--default {
+  --tg-ui-spinner-ink: currentColor;
+}
+
+.tg-spinner__track {
+  inline-size: 100%;
+  block-size: 100%;
+  animation: tg-spinner-rotate var(--tg-ui-loop-period) linear infinite;
+}
+
+.tg-spinner__arc {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* Indeterminate: a quarter-turn arc whose length breathes, which is Telegram's preloader rather
+   than a fixed arc. The dash cycle is deliberately not a whole multiple of the rotation period, so
+   the arc never appears to stall at the same angle.
+
+   Scoped to the indeterminate case on purpose: CSS beats an SVG PRESENTATION ATTRIBUTE, so a
+   `stroke-dasharray` on the base rule would silently override the determinate arc computed in
+   `Spinner.tsx` and every progress value would render as the same sliver. */
+.tg-spinner:not(.tg-spinner--determinate) .tg-spinner__arc {
+  stroke-dasharray: 16 47;
+  animation: tg-spinner-dash calc(var(--tg-ui-loop-period) * 1.4) var(--tg-ease-standard) infinite;
+}
+
+.tg-spinner--determinate .tg-spinner__track {
+  animation: none;
+  /* Start the arc at 12 o'clock, the way a progress ring is read. */
+  transform: rotate(-90deg);
+}
+
+.tg-spinner--determinate .tg-spinner__arc {
+  animation: none;
+  transition: stroke-dashoffset var(--tg-transition-panel);
+}
+
+@keyframes tg-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes tg-spinner-dash {
+  0% {
+    stroke-dasharray: 2 61;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 42 21;
+    stroke-dashoffset: -14;
+  }
+  100% {
+    stroke-dasharray: 2 61;
+    stroke-dashoffset: -62;
+  }
+}
+
+/* The degradation for a spinner is to keep turning and stop breathing: the rotation carries the
+   "still working" meaning, the dash pulse is decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-spinner:not(.tg-spinner--determinate) .tg-spinner__arc {
+    animation: none;
+    stroke-dasharray: 16 47;
+  }
+
+  .tg-spinner__track {
+    animation-duration: calc(var(--tg-ui-loop-period) * 2);
+  }
+}

@@ -1,0 +1,190 @@
+/*
+ * Gallery chrome: the shell, the navigation, the header controls and the theme panes. The page
+ * building blocks the demos use live in `docs-pages.css`; the split is the repository's 350-line
+ * source gate, not a design boundary.
+ *
+ * Subject to the same rule as the components: semantic tokens only, no `--tg-raw-`, no colour
+ * literals. `src/test/tokenDiscipline.test.ts` scans this file.
+ */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--tg-bg-secondary);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+}
+
+.doc-shell {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) 1fr;
+  min-block-size: 100vh;
+  background-color: var(--tg-bg-secondary);
+  color: var(--tg-text-primary);
+}
+
+/* ── Navigation ─────────────────────────────────────────────────────────────── */
+.doc-nav {
+  position: sticky;
+  inset-block-start: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+  align-self: start;
+  max-block-size: 100vh;
+  padding: var(--tg-space-4) var(--tg-space-2);
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--tg-divider);
+  background-color: var(--tg-surface);
+}
+
+.doc-nav__brand {
+  padding: var(--tg-space-2) var(--tg-space-3);
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+  letter-spacing: var(--tg-letter-spacing);
+  text-transform: uppercase;
+}
+
+.doc-nav__link {
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-md);
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-subtitle-size);
+  text-decoration: none;
+}
+
+.doc-nav__link:hover {
+  background-color: var(--tg-surface-hover);
+}
+
+.doc-nav__link[aria-current='page'] {
+  background-color: var(--tg-surface-selected);
+  color: var(--tg-text-on-selected);
+  font-weight: var(--tg-weight-medium);
+}
+
+.doc-nav__link:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.doc-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-4);
+  min-inline-size: 0;
+  padding: var(--tg-space-5);
+}
+
+.doc-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--tg-space-4);
+}
+
+.doc-header__title {
+  margin: 0;
+  font-size: var(--tg-type-hero-size);
+  line-height: var(--tg-type-hero-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.doc-header__summary {
+  margin: var(--tg-space-1) 0 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.doc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-3);
+}
+
+.doc-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+}
+
+.doc-control > select {
+  min-block-size: var(--tg-space-8);
+  padding-inline: var(--tg-space-2);
+  border: 1px solid var(--tg-border);
+  border-radius: var(--tg-radius-md);
+  background-color: var(--tg-surface);
+  color: var(--tg-text-primary);
+  font: inherit;
+  font-size: var(--tg-type-subtitle-size);
+}
+
+.doc-notes {
+  margin: 0;
+  padding: var(--tg-space-3) var(--tg-space-4) var(--tg-space-3) var(--tg-space-8);
+  border-radius: var(--tg-radius-panel);
+  background-color: var(--tg-surface);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.doc-notes > li + li {
+  margin-block-start: var(--tg-space-1);
+}
+
+/* ── Panes ──────────────────────────────────────────────────────────────────── */
+.doc-panes {
+  display: grid;
+  gap: var(--tg-space-4);
+}
+
+.doc-panes--split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.doc-pane {
+  min-inline-size: 0;
+  padding: var(--tg-space-4);
+  border-radius: var(--tg-radius-panel);
+  border: 1px solid var(--tg-divider);
+  background-color: var(--tg-chat-bg);
+  background-image: var(--tg-wallpaper-image);
+  color: var(--tg-text-primary);
+}
+
+.doc-pane__label {
+  margin: 0 0 var(--tg-space-3);
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-regular);
+  text-transform: uppercase;
+}
+
+.doc-pane__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-4);
+  padding: var(--tg-space-4);
+  border-radius: var(--tg-radius-panel);
+  background-color: var(--tg-surface);
+}
+
+.doc-footer {
+  padding-block: var(--tg-space-4);
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+}

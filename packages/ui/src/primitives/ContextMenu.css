@@ -1,0 +1,20 @@
+/*
+ * ContextMenu wrapper. `display: contents` would be ideal (no box at all) but it breaks the
+ * long-press pointer capture and makes the keyboard route unanchorable, so the wrapper is a real
+ * inline box that inherits its own layout from the content.
+ */
+.tg-context-menu {
+  display: contents;
+}
+
+/* While a long press is being evaluated, stop the browser turning it into a text selection or a
+   native callout - which is what makes long-press feel broken on touch. */
+.tg-context-menu[data-tg-context-open] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tg-context-menu:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}

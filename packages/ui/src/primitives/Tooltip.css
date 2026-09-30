@@ -1,0 +1,22 @@
+/*
+ * Tooltip. It reuses the Popover surface and only narrows it: dark plate, small text, no focus
+ * ring (it can never be focused), and pointer-events off so it can never swallow a click meant for
+ * the trigger underneath it.
+ */
+.tg-tooltip {
+  max-inline-size: var(--tg-column-width);
+  padding: var(--tg-space-1-5) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background-color: var(--tg-service-bg);
+  color: var(--tg-service-text);
+  box-shadow: var(--tg-shadow-menu);
+  pointer-events: none;
+}
+
+.tg-tooltip__text {
+  display: block;
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  text-align: center;
+}

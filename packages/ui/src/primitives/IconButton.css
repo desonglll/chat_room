@@ -1,0 +1,126 @@
+/*
+ * IconButton. The hit area is never smaller than --tg-touch-min (44px) at sizes md and lg; the
+ * `sm` variant is 32px and is meant only for dense rows where it sits inside a larger row-level
+ * hit target, which is exactly how Telegram uses it in the chat list.
+ */
+.tg-icon-button {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background-color: transparent;
+  color: var(--tg-text-secondary);
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--tg-transition-press),
+    color var(--tg-transition-press),
+    opacity var(--tg-transition-press);
+}
+
+.tg-icon-button--rounded {
+  border-radius: var(--tg-radius-md);
+}
+
+.tg-icon-button--sm {
+  inline-size: var(--tg-space-8);
+  block-size: var(--tg-space-8);
+}
+
+.tg-icon-button--md {
+  inline-size: var(--tg-space-10);
+  block-size: var(--tg-space-10);
+}
+
+.tg-icon-button--lg {
+  inline-size: var(--tg-control-height);
+  block-size: var(--tg-control-height);
+}
+
+.tg-icon-button--sm .tg-icon-button__glyph {
+  inline-size: var(--tg-icon-sm);
+  block-size: var(--tg-icon-sm);
+}
+
+.tg-icon-button--md .tg-icon-button__glyph {
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+}
+
+.tg-icon-button--lg .tg-icon-button__glyph {
+  inline-size: var(--tg-icon-lg);
+  block-size: var(--tg-icon-lg);
+}
+
+.tg-icon-button__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.tg-icon-button__glyph > svg {
+  inline-size: 100%;
+  block-size: 100%;
+  fill: none;
+  stroke: currentColor;
+}
+
+.tg-icon-button--plain:hover:not(:disabled) {
+  background-color: var(--tg-surface-hover);
+  color: var(--tg-text-primary);
+}
+
+.tg-icon-button--plain:active:not(:disabled) {
+  background-color: var(--tg-surface-active);
+}
+
+.tg-icon-button--filled {
+  background-color: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-icon-button--filled:hover:not(:disabled) {
+  background-color: var(--tg-accent-hover);
+}
+
+.tg-icon-button--tonal {
+  background-color: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.tg-icon-button--tonal:hover:not(:disabled) {
+  background-color: var(--tg-accent-soft-filled);
+}
+
+.tg-icon-button--danger {
+  background-color: transparent;
+  color: var(--tg-danger);
+}
+
+.tg-icon-button--danger:hover:not(:disabled) {
+  background-color: var(--tg-danger-soft);
+}
+
+/* aria-pressed is the state; the accent tint is the visual echo of it. Selected state must not
+   be colour-only, so the icon colour changes as well as the background. */
+.tg-icon-button[aria-pressed='true'] {
+  background-color: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.tg-icon-button:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-icon-button:disabled {
+  cursor: default;
+  opacity: var(--tg-opacity-disabled);
+}

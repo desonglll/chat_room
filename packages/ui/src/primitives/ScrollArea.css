@@ -1,0 +1,89 @@
+/*
+ * ScrollArea. Native overflow, Telegram's bar.
+ *
+ * Two mechanisms on purpose: `scrollbar-color` / `scrollbar-width` is the standard and is what
+ * Firefox honours; `::-webkit-scrollbar` is what Chromium and Safari honour and is the only way to
+ * get tweb's overlay behaviour, because the standard properties cannot make a bar float.
+ */
+.tg-scroll {
+  min-block-size: 0;
+  min-inline-size: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tg-scrollbar) transparent;
+  overscroll-behavior: contain;
+}
+
+.tg-scroll--vertical {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.tg-scroll--horizontal {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.tg-scroll--both {
+  overflow: auto;
+}
+
+.tg-scroll:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(var(--tg-focus-ring-offset) * -1);
+}
+
+.tg-scroll::-webkit-scrollbar {
+  inline-size: var(--tg-space-1-5);
+  block-size: var(--tg-space-1-5);
+}
+
+.tg-scroll::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.tg-scroll::-webkit-scrollbar-thumb {
+  border-radius: var(--tg-radius-pill);
+  background-color: var(--tg-scrollbar);
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--tg-scrollbar-hover);
+}
+
+/* Overlay behaviour: the thumb is transparent until the region is hovered or is being scrolled.
+   The fade uses --tg-duration-fade, which TG-009 deliberately keeps alive under reduced motion, so
+   the bar still appears and disappears smoothly for a reduced-motion user. */
+.tg-scroll--overlay {
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--tg-transition-fade);
+}
+
+.tg-scroll--overlay:hover,
+.tg-scroll--overlay:focus-within,
+.tg-scroll--overlay[data-tg-scrolling] {
+  scrollbar-color: var(--tg-scrollbar) transparent;
+}
+
+.tg-scroll--overlay::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.tg-scroll--overlay:hover::-webkit-scrollbar-thumb,
+.tg-scroll--overlay:focus-within::-webkit-scrollbar-thumb,
+.tg-scroll--overlay[data-tg-scrolling]::-webkit-scrollbar-thumb {
+  background-color: var(--tg-scrollbar);
+}
+
+/* `currentColor` rather than an opaque literal: a mask built from a gradient is an ALPHA mask
+   (mask-mode: match-source), so only the alpha channel is read and any opaque colour does the same
+   job. This keeps the file free of colour literals, which the token-discipline test enforces. */
+.tg-scroll--fade {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    currentColor var(--tg-space-4),
+    currentColor calc(100% - var(--tg-space-4)),
+    transparent 100%
+  );
+}

@@ -1,0 +1,101 @@
+/*
+ * Popover surface and its enter/exit motion.
+ *
+ * Telegram's menus scale up from the corner nearest the anchor, which is why the transform origin
+ * is keyed off data-tg-placement rather than being centred. The enter curve is --tg-ease-overshoot
+ * (Android's EASE_OUT_BACK, which tweb also uses as --btn-corner-transition); the exit is the
+ * plain accelerate curve, because Telegram's panels leave faster than they arrive.
+ *
+ * Reduced motion: --tg-duration-panel and --tg-duration-exit both collapse to 1ms and
+ * --tg-ease-overshoot becomes linear, so the panel appears and disappears without scaling. The
+ * opacity part still runs, because --tg-duration-fade survives by design.
+ */
+.tg-popover {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  max-block-size: calc(100vh - var(--tg-space-8));
+  border-radius: var(--tg-radius-panel);
+  background-color: var(--tg-surface-raised);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+  transform-origin: top left;
+  animation:
+    tg-popover-in var(--tg-duration-panel) var(--tg-ease-overshoot),
+    tg-popover-fade-in var(--tg-transition-fade);
+}
+
+.tg-popover--panel {
+  box-shadow: var(--tg-shadow-panel-strong);
+  border: 1px solid var(--tg-divider);
+}
+
+.tg-popover--menu {
+  box-shadow: var(--tg-shadow-menu);
+  background-color: var(--tg-surface-glass);
+  backdrop-filter: blur(var(--tg-blur-menu));
+}
+
+.tg-popover[data-tg-state='closing'] {
+  animation:
+    tg-popover-out var(--tg-duration-exit) var(--tg-ease-accelerate) forwards,
+    tg-popover-fade-out var(--tg-transition-fade) forwards;
+}
+
+.tg-popover[data-tg-placement^='top'] {
+  transform-origin: bottom left;
+}
+
+.tg-popover[data-tg-placement='top-end'],
+.tg-popover[data-tg-placement='bottom-end'] {
+  transform-origin: top right;
+}
+
+.tg-popover[data-tg-placement='top-end'] {
+  transform-origin: bottom right;
+}
+
+.tg-popover[data-tg-placement^='left'] {
+  transform-origin: top right;
+}
+
+.tg-popover:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(var(--tg-focus-ring-offset) * -1);
+}
+
+@keyframes tg-popover-in {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes tg-popover-out {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes tg-popover-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tg-popover-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

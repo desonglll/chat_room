@@ -1,0 +1,14 @@
+# TG-009's token layer is frozen (see docs/devlog/TG-009.md, "Frozen interface") and TG-010 is not
+# allowed to write it. It is also hand-formatted: aligned provenance comments and box-drawing
+# section headers that prettier reflows into noise.
+#
+# Ignoring it here does two things:
+#   * `bun run -F @tg/ui lint` stops failing on 14 files this package's current owner may not edit
+#     - that failure is pre-existing at 9010d69, not something TG-010 introduced;
+#   * `bun run -F @tg/ui format` stops silently rewriting those 14 frozen files, which it does
+#     today and which is how this file came to exist.
+#
+# If the integration lead would rather have the token layer formatted, delete this file and run
+#   bunx prettier --write packages/ui/src/tokens
+# once, on a branch that owns those paths.
+src/tokens/

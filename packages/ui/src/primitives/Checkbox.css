@@ -1,0 +1,108 @@
+/*
+ * Checkbox. The mark is drawn with a stroke-dashoffset wipe on --tg-transition-spring-smooth,
+ * which is Telegram's tick-in feel; under reduced motion the duration collapses and the tick
+ * simply appears.
+ */
+.tg-checkbox {
+  --tg-ui-box-size: var(--tg-space-5);
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--tg-space-3);
+  min-block-size: var(--tg-touch-min);
+  align-items: center;
+  font-family: var(--tg-font-sans);
+}
+
+.tg-checkbox--sm {
+  --tg-ui-box-size: var(--tg-space-4);
+  min-block-size: var(--tg-space-8);
+}
+
+/* Visually hidden but still the real control: it keeps focus, keyboard and form semantics. */
+.tg-checkbox__input {
+  position: absolute;
+  inline-size: var(--tg-ui-box-size);
+  block-size: var(--tg-ui-box-size);
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tg-checkbox__box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: var(--tg-ui-box-size);
+  block-size: var(--tg-ui-box-size);
+  border: 2px solid var(--tg-border-strong);
+  border-radius: var(--tg-radius-sm);
+  background-color: transparent;
+  color: var(--tg-text-on-accent);
+  transition:
+    background-color var(--tg-transition-press),
+    border-color var(--tg-transition-press);
+}
+
+.tg-checkbox--round .tg-checkbox__box {
+  border-radius: var(--tg-radius-circle);
+}
+
+.tg-checkbox__mark {
+  inline-size: 100%;
+  block-size: 100%;
+  transform: scale(0);
+  opacity: 0;
+  transition:
+    transform var(--tg-transition-spring-smooth),
+    opacity var(--tg-transition-fade);
+}
+
+.tg-checkbox__input:checked ~ .tg-checkbox__box,
+.tg-checkbox__input:indeterminate ~ .tg-checkbox__box {
+  background-color: var(--tg-accent);
+  border-color: var(--tg-accent);
+}
+
+.tg-checkbox__input:checked ~ .tg-checkbox__box .tg-checkbox__mark,
+.tg-checkbox__input:indeterminate ~ .tg-checkbox__box .tg-checkbox__mark {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.tg-checkbox__input:focus-visible ~ .tg-checkbox__box {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-checkbox__input:disabled ~ .tg-checkbox__box {
+  opacity: var(--tg-opacity-disabled);
+  cursor: default;
+}
+
+.tg-checkbox__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+  min-inline-size: 0;
+}
+
+.tg-checkbox__label {
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  cursor: pointer;
+}
+
+.tg-checkbox__description {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-checkbox--disabled .tg-checkbox__label {
+  color: var(--tg-text-disabled);
+  cursor: default;
+}

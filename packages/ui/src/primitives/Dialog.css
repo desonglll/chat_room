@@ -1,0 +1,266 @@
+/*
+ * Modal and Sheet share this file because they share `internal/DialogSurface.tsx`.
+ *
+ * Motion:
+ *   modal enter  scale + fade, --tg-duration-enter with --tg-ease-overshoot (Telegram's popup pop)
+ *   modal exit   scale down + fade, --tg-duration-exit with --tg-ease-accelerate
+ *   sheet enter  slide from the edge, --tg-transition-slide (EASE_OUT_QUINT)
+ *   backdrop     fade only, on --tg-transition-fade, which SURVIVES reduced motion by design
+ *
+ * Under prefers-reduced-motion every movement duration above collapses to 1ms and
+ * --tg-ease-overshoot becomes linear, so the dialog stops moving but still cross-fades in. That is
+ * degradation, not removal, and it needs no rule here: it is already in the tokens.
+ */
+.tg-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  font-family: var(--tg-font-sans);
+}
+
+.tg-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: var(--tg-overlay);
+  animation: tg-dialog-backdrop-in var(--tg-transition-fade);
+}
+
+.tg-dialog__backdrop[data-tg-state='closing'] {
+  animation: tg-dialog-backdrop-out var(--tg-transition-fade) forwards;
+}
+
+.tg-dialog__surface {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-block-size: calc(100vh - var(--tg-space-8));
+  background-color: var(--tg-surface);
+  color: var(--tg-text-primary);
+  box-shadow: var(--tg-shadow-panel-strong);
+  outline: none;
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+.tg-dialog--modal {
+  align-items: center;
+  justify-content: center;
+  padding: var(--tg-space-4);
+}
+
+.tg-dialog--modal .tg-dialog__surface {
+  inline-size: 100%;
+  border-radius: var(--tg-radius-panel);
+  animation:
+    tg-dialog-modal-in var(--tg-duration-enter) var(--tg-ease-overshoot),
+    tg-dialog-backdrop-in var(--tg-transition-fade);
+}
+
+.tg-dialog--modal .tg-dialog__surface[data-tg-state='closing'] {
+  animation:
+    tg-dialog-modal-out var(--tg-duration-exit) var(--tg-ease-accelerate) forwards,
+    tg-dialog-backdrop-out var(--tg-transition-fade) forwards;
+}
+
+.tg-dialog__surface--sm {
+  max-inline-size: var(--tg-column-width);
+}
+
+.tg-dialog__surface--md {
+  max-inline-size: var(--tg-column-width-max);
+}
+
+.tg-dialog__surface--lg {
+  max-inline-size: calc(var(--tg-column-width-max) * 1.5);
+}
+
+/* ── Sheet ──────────────────────────────────────────────────────────────────── */
+.tg-dialog--sheet .tg-dialog__surface {
+  --tg-ui-dialog-extent: var(--tg-column-width);
+  position: absolute;
+  animation: tg-sheet-in var(--tg-transition-slide);
+}
+
+.tg-dialog--sheet .tg-dialog__surface[data-tg-state='closing'] {
+  animation: tg-sheet-out var(--tg-duration-exit) var(--tg-ease-accelerate) forwards;
+}
+
+.tg-dialog--bottom .tg-dialog__surface {
+  inset-inline: 0;
+  inset-block-end: 0;
+  max-block-size: 90vh;
+  border-start-start-radius: var(--tg-radius-sheet);
+  border-start-end-radius: var(--tg-radius-sheet);
+  --tg-ui-sheet-from: translateY(100%);
+}
+
+.tg-dialog--top .tg-dialog__surface {
+  inset-inline: 0;
+  inset-block-start: 0;
+  max-block-size: 90vh;
+  border-end-start-radius: var(--tg-radius-sheet);
+  border-end-end-radius: var(--tg-radius-sheet);
+  --tg-ui-sheet-from: translateY(-100%);
+}
+
+.tg-dialog--left .tg-dialog__surface,
+.tg-dialog--right .tg-dialog__surface {
+  inset-block: 0;
+  inline-size: var(--tg-ui-dialog-extent);
+  max-inline-size: 100vw;
+  max-block-size: 100vh;
+}
+
+.tg-dialog--left .tg-dialog__surface {
+  inset-inline-start: 0;
+  --tg-ui-sheet-from: translateX(-100%);
+}
+
+.tg-dialog--right .tg-dialog__surface {
+  inset-inline-end: 0;
+  --tg-ui-sheet-from: translateX(100%);
+}
+
+.tg-dialog__grabber {
+  flex: none;
+  align-self: center;
+  inline-size: var(--tg-space-8);
+  block-size: var(--tg-space-1);
+  margin-block-start: var(--tg-space-2);
+  border-radius: var(--tg-radius-pill);
+  background-color: var(--tg-border-strong);
+}
+
+/* ── Chrome ─────────────────────────────────────────────────────────────────── */
+.tg-dialog__header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-space-3);
+  min-block-size: var(--tg-header-height);
+  padding-inline: var(--tg-space-5);
+  padding-block-start: var(--tg-space-2);
+}
+
+.tg-dialog__title {
+  margin: 0;
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-dialog__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-space-10);
+  block-size: var(--tg-space-10);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background-color: transparent;
+  color: var(--tg-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--tg-transition-press);
+}
+
+.tg-dialog__close > svg {
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+}
+
+.tg-dialog__close:hover {
+  background-color: var(--tg-surface-hover);
+  color: var(--tg-text-primary);
+}
+
+.tg-dialog__close:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: 0;
+}
+
+.tg-dialog__description {
+  flex: none;
+  margin: 0;
+  padding-inline: var(--tg-space-5);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-dialog__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: var(--tg-space-4) var(--tg-space-5);
+  overflow-y: auto;
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+}
+
+.tg-dialog__footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-5) var(--tg-space-5);
+}
+
+@keyframes tg-dialog-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tg-dialog-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tg-dialog-modal-in {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes tg-dialog-modal-out {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes tg-sheet-in {
+  from {
+    transform: var(--tg-ui-sheet-from);
+  }
+  to {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes tg-sheet-out {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: var(--tg-ui-sheet-from);
+  }
+}

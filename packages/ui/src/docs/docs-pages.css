@@ -1,0 +1,182 @@
+/*
+ * Gallery page building blocks: the layout helpers in `kit.tsx` and the per-page scaffolding the
+ * demos need. Split out of `docs.css` purely for the repository's 350-line source gate.
+ *
+ * Same rule as everywhere else in this package: semantic tokens only, no `--tg-raw-`, no colour
+ * literals. `src/test/tokenDiscipline.test.ts` scans this file too.
+ */
+/* ── Page building blocks (docs/kit.tsx) ────────────────────────────────────── */
+.doc-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.doc-section__title {
+  margin: 0;
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.doc-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.doc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-3);
+}
+
+.doc-row--center {
+  align-items: center;
+}
+
+.doc-row--start {
+  align-items: flex-start;
+}
+
+.doc-row--end {
+  align-items: flex-end;
+}
+
+.doc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.doc-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+}
+
+.doc-state__label {
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.doc-icon {
+  inline-size: 100%;
+  block-size: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doc-filler {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.doc-note {
+  color: var(--tg-text-tertiary);
+  font-size: var(--tg-type-label-size);
+}
+
+/* ── Per-page scaffolding ───────────────────────────────────────────────────── */
+.doc-ripple-surface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--tg-space-20);
+  min-inline-size: var(--tg-column-width);
+  padding: var(--tg-space-4);
+  border-radius: var(--tg-radius-panel);
+  background-color: var(--tg-bg-secondary);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.doc-ripple-surface--accent {
+  background-color: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.doc-ripple-surface--short {
+  min-block-size: var(--tg-space-10);
+}
+
+.doc-popover {
+  inline-size: var(--tg-column-width);
+  padding: var(--tg-space-4);
+}
+
+.doc-context-target {
+  padding: var(--tg-space-4);
+  border-radius: var(--tg-radius-panel);
+  border: 1px dashed var(--tg-border-strong);
+  background-color: var(--tg-bg-secondary);
+}
+
+.doc-inverse-plate {
+  display: inline-flex;
+  padding: var(--tg-space-2);
+  border-radius: var(--tg-radius-md);
+  background-color: var(--tg-accent);
+}
+
+.doc-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+}
+
+.doc-skeleton-row__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.doc-scroll {
+  max-block-size: calc(var(--tg-space-20) * 2);
+  padding: var(--tg-space-2);
+  border-radius: var(--tg-radius-panel);
+  border: 1px solid var(--tg-divider);
+}
+
+.doc-scroll--horizontal {
+  max-block-size: none;
+}
+
+.doc-scroll__track {
+  display: flex;
+  gap: var(--tg-space-2);
+}
+
+.doc-chip {
+  flex: none;
+  padding: var(--tg-space-1-5) var(--tg-space-3);
+  border-radius: var(--tg-radius-pill);
+  background-color: var(--tg-accent-soft);
+  color: var(--tg-accent);
+  font-size: var(--tg-type-label-size);
+  white-space: nowrap;
+}
+
+.doc-vertical-tabs {
+  max-inline-size: calc(var(--tg-column-width) / 2);
+}
+
+.doc-menu-plate {
+  display: inline-flex;
+  border-radius: var(--tg-radius-panel);
+  border: 1px solid var(--tg-divider);
+  background-color: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-menu);
+  overflow: hidden;
+}

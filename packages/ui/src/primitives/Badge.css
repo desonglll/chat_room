@@ -1,0 +1,77 @@
+/*
+ * Badge. TG-009 exported --tg-ease-badge-in / --tg-ease-badge-out straight from tweb's
+ * --chatlist-badge-transition-in / -out, so the enter overshoot and the plain exit are Telegram's
+ * own curves rather than a guess. Both collapse under reduced motion (badge-in becomes linear and
+ * the durations become 1ms), so the badge still appears and disappears, just without the pop.
+ */
+.tg-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background-color: var(--tg-badge-bg);
+  color: var(--tg-badge-text);
+  border-radius: var(--tg-radius-pill);
+  font-family: var(--tg-font-sans);
+  font-weight: var(--tg-weight-medium);
+  font-size: var(--tg-type-badge-size);
+  line-height: var(--tg-type-badge-line);
+  font-variant-numeric: tabular-nums;
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform var(--tg-duration-panel) var(--tg-ease-badge-in),
+    opacity var(--tg-transition-fade);
+}
+
+.tg-badge--sm {
+  min-inline-size: var(--tg-space-4);
+  block-size: var(--tg-space-4);
+  padding-inline: var(--tg-space-1);
+}
+
+.tg-badge--md {
+  min-inline-size: var(--tg-space-5);
+  block-size: var(--tg-space-5);
+  padding-inline: var(--tg-space-1-5);
+}
+
+.tg-badge--muted {
+  background-color: var(--tg-badge-muted-bg);
+}
+
+.tg-badge--danger {
+  background-color: var(--tg-danger);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-badge--success {
+  background-color: var(--tg-success);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-badge--dot {
+  min-inline-size: var(--tg-space-2-5);
+  inline-size: var(--tg-space-2-5);
+  block-size: var(--tg-space-2-5);
+  padding: 0;
+}
+
+.tg-badge--sm.tg-badge--dot {
+  min-inline-size: var(--tg-space-2);
+  inline-size: var(--tg-space-2);
+  block-size: var(--tg-space-2);
+}
+
+.tg-badge--hidden {
+  transform: scale(0);
+  opacity: 0;
+  transition:
+    transform var(--tg-duration-panel) var(--tg-ease-badge-out),
+    opacity var(--tg-transition-fade);
+}
+
+.tg-badge__text {
+  padding-block-end: 1px;
+}

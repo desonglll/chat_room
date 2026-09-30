@@ -1,0 +1,117 @@
+/*
+ * Radio. Telegram's radio is a ring that grows an accent dot; the dot scales in on
+ * --tg-transition-spring-smooth (critically damped, no overshoot).
+ */
+.tg-radio {
+  --tg-ui-ring-size: var(--tg-space-5);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  min-block-size: var(--tg-touch-min);
+  font-family: var(--tg-font-sans);
+}
+
+.tg-radio--sm {
+  --tg-ui-ring-size: var(--tg-space-4);
+  min-block-size: var(--tg-space-8);
+}
+
+.tg-radio__input {
+  position: absolute;
+  inline-size: var(--tg-ui-ring-size);
+  block-size: var(--tg-ui-ring-size);
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tg-radio__dot {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  box-sizing: border-box;
+  inline-size: var(--tg-ui-ring-size);
+  block-size: var(--tg-ui-ring-size);
+  border: 2px solid var(--tg-border-strong);
+  border-radius: var(--tg-radius-circle);
+  transition: border-color var(--tg-transition-press);
+}
+
+.tg-radio__dot::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: var(--tg-radius-circle);
+  background-color: var(--tg-accent);
+  transform: scale(0);
+  transition: transform var(--tg-transition-spring-smooth);
+}
+
+.tg-radio__input:checked ~ .tg-radio__dot {
+  border-color: var(--tg-accent);
+}
+
+.tg-radio__input:checked ~ .tg-radio__dot::after {
+  transform: scale(1);
+}
+
+.tg-radio__input:focus-visible ~ .tg-radio__dot {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-radio__input:disabled ~ .tg-radio__dot {
+  opacity: var(--tg-opacity-disabled);
+  cursor: default;
+}
+
+.tg-radio__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+  min-inline-size: 0;
+}
+
+.tg-radio__label {
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+  cursor: pointer;
+}
+
+.tg-radio__description {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-radio--disabled .tg-radio__label {
+  color: var(--tg-text-disabled);
+  cursor: default;
+}
+
+.tg-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  font-family: var(--tg-font-sans);
+}
+
+.tg-radio-group__label {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-radio-group__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+}
+
+.tg-radio-group--horizontal .tg-radio-group__options {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--tg-space-4);
+}

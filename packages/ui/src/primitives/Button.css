@@ -1,0 +1,154 @@
+/*
+ * Button. Sizes come from the layout tokens (--tg-control-height is tweb's 48px $button-height);
+ * the press transition is --tg-transition-press, which collapses to 1ms under reduced motion.
+ */
+.tg-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tg-space-2);
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--tg-radius-control);
+  font-family: var(--tg-font-sans);
+  font-weight: var(--tg-weight-medium);
+  letter-spacing: var(--tg-letter-spacing);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  transition:
+    background-color var(--tg-transition-press),
+    color var(--tg-transition-press),
+    box-shadow var(--tg-transition-press),
+    opacity var(--tg-transition-press);
+}
+
+.tg-button--sm {
+  min-height: var(--tg-space-8);
+  padding-inline: var(--tg-space-3);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-button--md {
+  min-height: var(--tg-control-height);
+  padding-inline: var(--tg-space-5);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+}
+
+.tg-button--lg {
+  min-height: var(--tg-space-14);
+  padding-inline: var(--tg-space-6);
+  font-size: var(--tg-type-message-size);
+  line-height: var(--tg-type-message-line);
+}
+
+.tg-button--pill {
+  border-radius: var(--tg-radius-pill);
+}
+
+.tg-button--block {
+  display: flex;
+  width: 100%;
+}
+
+/* ── Variants ─────────────────────────────────────────────────────────────────
+   filled  white-on-accent, 3.31:1 on day. Deliberate deviation from 4.5:1, per
+           the contrast ruling on the TG-606 card. Do not "fix" the token.
+   tonal   accent ink on --tg-accent-soft; this pair is AA-safe.
+   text    accent ink on the surface hover tint.
+   danger  the destructive fill; same on-fill contrast trade as `filled`. */
+.tg-button--filled {
+  background-color: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-button--filled:hover:not(:disabled) {
+  background-color: var(--tg-accent-hover);
+}
+
+.tg-button--filled:active:not(:disabled) {
+  background-color: var(--tg-accent-active);
+}
+
+.tg-button--tonal {
+  background-color: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.tg-button--tonal:hover:not(:disabled) {
+  background-color: var(--tg-accent-soft-filled);
+}
+
+.tg-button--text {
+  background-color: transparent;
+  color: var(--tg-accent);
+}
+
+.tg-button--text:hover:not(:disabled) {
+  background-color: var(--tg-surface-hover);
+}
+
+.tg-button--text:active:not(:disabled) {
+  background-color: var(--tg-surface-active);
+}
+
+.tg-button--danger {
+  background-color: var(--tg-danger);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-button--danger:hover:not(:disabled) {
+  background-color: var(--tg-danger-hover);
+}
+
+.tg-button:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-button:disabled {
+  cursor: default;
+  opacity: var(--tg-opacity-disabled);
+}
+
+.tg-button[data-tg-loading] {
+  cursor: progress;
+  pointer-events: none;
+}
+
+.tg-button__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-icon-md);
+  block-size: var(--tg-icon-md);
+}
+
+.tg-button__label {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The loader replaces the label visually but the label keeps naming the button. */
+.tg-button[data-tg-loading] .tg-button__label,
+.tg-button[data-tg-loading] .tg-button__icon {
+  visibility: hidden;
+}
+
+.tg-button__loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
