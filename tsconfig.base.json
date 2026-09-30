@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": [
+    "Shared compiler options for the @tg/* packages. Each package's tsconfig.json extends",
+    "this file and runs `tsc --noEmit`; there is no root tsconfig.json and no project",
+    "references, because `composite` cannot coexist with `noEmit` and these packages are",
+    "consumed as TypeScript source.",
+    "",
+    "`lib` deliberately omits DOM. packages/ui and packages/web add it back; packages/core",
+    "does not, which makes `window`/`document` a type error there as a second net behind",
+    "packages/core/test/platformBoundary.test.ts (architecture.md section 2)."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  }
+}

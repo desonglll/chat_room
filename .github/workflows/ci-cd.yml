@@ -77,6 +77,11 @@ jobs:
         working-directory: web
         run: bun install --frozen-lockfile
 
+      # The old Vue client in web/ is deliberately outside the bun workspace declared by the
+      # root package.json, so the two installs are independent until TG-602 deletes web/.
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
       - name: Install desktop dependencies
         working-directory: desktop
         run: uv sync --locked --extra dev
@@ -111,6 +116,27 @@ jobs:
 
       - name: Check web entry bundle size
         run: python3 scripts/check_web_bundle.py
+
+      - name: Check packages formatting
+        run: bun run -F '@tg/*' lint
+
+      - name: Check packages types
+        run: bun run -F '@tg/*' typecheck
+
+      # architecture.md section 2 / decision D-002: packages/core must import no
+      # react / react-dom / @tg/ui / @tg/web and reference no window / document /
+      # localStorage / navigator, or the React Native door closes. Its own gate so a failure
+      # is unmistakable in the log; it also runs inside "Run packages tests".
+      - name: Check packages/core platform boundary
+        working-directory: packages/core
+        run: bun run boundary
+
+      - name: Run packages tests
+        run: bun run -F '@tg/*' test
+
+      - name: Build React client
+        working-directory: packages/web
+        run: bun run build
 
       - name: Run desktop tests
         working-directory: desktop

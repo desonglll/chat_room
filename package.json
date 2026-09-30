@@ -1,0 +1,29 @@
+{
+  "name": "echo-gate-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "typecheck": "bun run -F '@tg/*' typecheck",
+    "lint": "bun run -F '@tg/*' lint",
+    "test": "bun run -F '@tg/*' test",
+    "format": "bun run -F '@tg/*' format",
+    "build": "bun run -F '@tg/web' build",
+    "boundary": "bun run -F '@tg/core' boundary"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  },
+  "prettier": {
+    "printWidth": 120,
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "all"
+  },
+  "engines": {
+    "bun": ">=1.3.14"
+  }
+}
