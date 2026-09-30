@@ -1,0 +1,83 @@
+/*
+ * TG-404 schedule picker and scheduled-messages list. No motion of its own beyond the Modal's
+ * (which already honours prefers-reduced-motion).
+ */
+
+.tg-schedule__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-1);
+  margin-block-end: var(--tg-space-3);
+}
+
+.tg-schedule .tg-toggle {
+  margin-block-start: var(--tg-space-3);
+}
+
+.tg-scheduled__day + .tg-scheduled__day {
+  margin-block-start: var(--tg-space-4);
+}
+
+.tg-scheduled__day-title {
+  margin: 0 0 var(--tg-space-2);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+  font-weight: var(--tg-weight-medium);
+  line-height: var(--tg-type-meta-line);
+  text-align: center;
+}
+
+.tg-scheduled__list {
+  display: grid;
+  gap: var(--tg-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-scheduled__item {
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-bubble-out);
+  color: var(--tg-bubble-out-text);
+}
+
+.tg-scheduled__item[aria-busy='true'] {
+  opacity: var(--tg-opacity-disabled);
+}
+
+.tg-scheduled__meta {
+  display: flex;
+  gap: var(--tg-space-2);
+  color: var(--tg-bubble-out-meta);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-scheduled__silent {
+  color: var(--tg-bubble-out-accent);
+}
+
+.tg-scheduled__text {
+  margin: var(--tg-space-1) 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tg-scheduled__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--tg-space-1);
+}
+
+.tg-scheduled__empty,
+.tg-scheduled__error {
+  margin: var(--tg-space-4) 0;
+  text-align: center;
+  color: var(--tg-text-secondary);
+}
+
+.tg-scheduled__error {
+  color: var(--tg-text-danger);
+}

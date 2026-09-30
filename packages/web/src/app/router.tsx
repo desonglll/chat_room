@@ -13,6 +13,7 @@ import { ChatPane } from '../features/chat/ChatPane'
 import { EmptyChatState } from '../features/shell/EmptyChatState'
 import { WorkspaceShell } from '../features/shell/WorkspaceShell'
 import { StickerSetLinkRoute } from '../features/sticker/StickerSetLinkRoute'
+import { JoinChatRoute } from '../features/inviteLinks/JoinChatRoute'
 
 function RequireSession({ children }: { children: ReactNode }) {
   const authenticated = useStore(authStore, (state) => state.session !== null)
@@ -43,6 +44,7 @@ export const appRouter = createBrowserRouter([
       { path: '/', element: <EmptyChatState /> },
       { path: '/chat/:chatId', element: <ChatPane /> },
       { path: '/addstickers/:shortName', element: <StickerSetLinkRoute /> },
+      { path: '/joinchat/:token', element: <JoinChatRoute /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

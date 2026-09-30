@@ -68,6 +68,12 @@ pub struct StoredMessage {
     /// TG-202: a signed channel post's author; omitted when unsigned.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post_author: Option<String>,
+    /// TG-401: present exactly when the message is a voice message (`docs/devlog/TG-401.md`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<crate::attachments::voice::model::VoiceNote>,
+    /// TG-404: sent without notifications; omitted (= false) for ordinary messages.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub silent: bool,
 }
 
 /// Aggregated users who applied one emoji response to a message.

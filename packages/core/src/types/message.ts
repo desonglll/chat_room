@@ -63,6 +63,17 @@ export interface MessageSticker {
   height: number
 }
 
+/**
+ * TG-401: a voice message's playback projection. `waveform` is exactly 100 samples in 0..31,
+ * evenly spread over `duration_ms`. `listened` is per viewer: for the sender, "someone else
+ * played it"; for everyone else, "I played it". See docs/devlog/TG-401.md.
+ */
+export interface VoiceNote {
+  duration_ms: number
+  waveform: number[]
+  listened: boolean
+}
+
 export interface MessageReaction {
   emoji: string
   user_ids: string[]
@@ -104,6 +115,10 @@ export interface StoredMessage {
   views?: number
   /** TG-202: a signed channel post's author; omitted when unsigned. */
   post_author?: string
+  /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
+  voice?: VoiceNote
+  /** TG-404: true when sent without notifications; omitted otherwise. */
+  silent?: boolean
 }
 
 /**

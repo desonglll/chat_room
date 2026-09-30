@@ -22,6 +22,7 @@ pub mod default_permissions;
 pub mod drafts;
 pub mod governance_handlers;
 pub mod handlers;
+pub mod invite_links;
 pub(crate) mod lifecycle;
 pub mod lifecycle_handlers;
 pub mod member_page;

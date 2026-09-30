@@ -81,5 +81,6 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     ...(message.sticker ? { sticker: message.sticker } : {}),
     ...(message.views !== undefined ? { views: message.views } : {}),
     ...(message.post_author ? { post_author: message.post_author } : {}),
+    ...(message.voice ? { voice: message.voice } : {}),
   }
 }

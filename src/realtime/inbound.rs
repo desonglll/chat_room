@@ -12,7 +12,11 @@ use crate::ws_auth::{normalize_message, normalize_typing};
 /// Match `@username` tokens in `content` against the chat's active participants.
 /// A match requires a non-alphanumeric (or end-of-string) boundary right after the
 /// username so `@bob` doesn't spuriously match a message that says `@bobby`.
-fn extract_mentions(content: &str, participants: &[ChatMember], exclude: Uuid) -> Vec<Uuid> {
+pub(crate) fn extract_mentions(
+    content: &str,
+    participants: &[ChatMember],
+    exclude: Uuid,
+) -> Vec<Uuid> {
     participants
         .iter()
         .filter(|member| member.user_id != exclude && !member.username.is_empty())
@@ -60,6 +64,7 @@ pub async fn handle_client_message(
             reply_to,
             client_message_id,
             entities,
+            silent,
         } => {
             let leading_trim = leading_trim_utf16(&content);
             let Some(content) = normalize_message(content) else {
@@ -95,6 +100,7 @@ pub async fn handle_client_message(
                     reply_to,
                     client_message_id,
                     &entities,
+                    silent,
                 )
                 .await
             {

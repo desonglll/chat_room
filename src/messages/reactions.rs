@@ -120,6 +120,8 @@ impl AppState {
         self.attach_message_media(messages).await?;
         // TG-202: a channel post's views and signature ride along the same way.
         self.attach_channel_post_fields(messages).await?;
+        // TG-401: the static voice projection (duration, waveform) rides along too.
+        self.attach_message_voice(messages).await?;
         self.attach_message_entities(messages).await
     }
 }

@@ -16,3 +16,5 @@ export type {
   RegisterOptions,
 } from './content/contentTypes'
 export { MessageText } from './content/MessageText'
+export { registerMessageMenuItem } from './messageMenu'
+export type { MessageMenuContribution } from './messageMenu'

@@ -9,7 +9,7 @@ import { authStore, chatListStore, composerStore, messageStore, presenceStore, s
 import { useStore } from 'zustand/react'
 import { apiClient, draftsApi } from '../../app/client'
 import { browserClock, chatSocketUrl, createBrowserSocket, onPageVisible, pageVisible } from '../../app/platform'
-import type { ChatSession } from './chatSession'
+import type { ChatSession, SendMessageOptions } from './chatSession'
 import { createChatSession } from './chatSession'
 import { registerChatSession } from './chatSessionRegistry'
 import { pollStore } from '../poll/pollStore'
@@ -17,7 +17,7 @@ import { channelStore } from '../channel/channelStore'
 
 export interface ChatSessionHandle {
   connection: ChatSocketStatus
-  sendMessage(text: string): boolean
+  sendMessage(text: string, options?: SendMessageOptions): boolean
   setDraftText(text: string): void
   sendFrame(frame: ClientFrame): boolean
 }
@@ -64,7 +64,10 @@ export function useChatSession(chatId: string): ChatSessionHandle {
     }
   }, [chatId, token, currentUserId])
 
-  const sendMessage = useCallback((text: string) => sessionRef.current?.sendMessage(text) ?? false, [])
+  const sendMessage = useCallback(
+    (text: string, options?: SendMessageOptions) => sessionRef.current?.sendMessage(text, options) ?? false,
+    [],
+  )
   const setDraftText = useCallback((text: string) => {
     sessionRef.current?.setDraftText(text)
   }, [])
