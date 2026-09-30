@@ -2,11 +2,12 @@
  * Presence seam for chat rows (TG-107 owns presence). The row takes plain props —
  * `isOnline` and `typingText` — and this adapter is the ONE place that decides where
  * they come from. Today it reads the existing `presenceStore`, which only holds data for
- * a chat whose session is open; TG-107's hooks replace `useChatRowPresence`'s body.
+ * a chat whose session is open; Typing text now comes from TG-107's `useTypingSummary`.
  */
 import type { ChatPresence, ConversationSummary } from '@tg/core'
 import { presenceStore } from '@tg/core'
 import { useStore } from 'zustand/react'
+import { useTypingSummary } from '../presence'
 
 export interface ChatRowPresence {
   isOnline: boolean | undefined
@@ -38,5 +39,9 @@ export function deriveChatRowPresence(
 
 export function useChatRowPresence(conversation: ConversationSummary, currentUserId: string): ChatRowPresence {
   const presence = useStore(presenceStore, (state) => state.chats[conversation.room_id])
-  return deriveChatRowPresence(presence, conversation, currentUserId)
+  // TG-107 owns the typing copy (nine actions, 1/2/3+ merging, 5 s expiry); the local
+  // derivation still supplies `isOnline` and is the fallback text.
+  const typingSummary = useTypingSummary(conversation.room_id)
+  const derived = deriveChatRowPresence(presence, conversation, currentUserId)
+  return typingSummary === null ? derived : { ...derived, typingText: typingSummary }
 }
