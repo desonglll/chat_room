@@ -5,7 +5,7 @@
 任务详情见 `docs/tg/roadmap.md`。每个进行中任务的细节见 `docs/devlog/<TASK-ID>.md`。
 
 - 盘点提交：`a16f422`
-- **绿色基线提交：`fb818ee`** —— TG-000 合并后 `main` 首次全绿，pre-push 钩子从拒绝转为通过（闭环验证）
+- **绿色基线提交：`d12aae2`** —— TG-004+005+006 合并、`f044c5d` 修复 TG-003 遗留的红测试之后，集成负责人实测 `main` 全量套件（含 18 个真实执行的 PostgreSQL 测试）全绿
 - 归档 tag：`archive/master-2026-09-30`（见 D-008）
 - 盘点日期：2026-09-30
 - 当前里程碑：**M0**
@@ -26,14 +26,14 @@ export TEST_POSTGRES_ADMIN_URL="postgresql://chatroom:chatroom@127.0.0.1:52735/p
 
 ## 当前在飞的任务
 
-三个 worktree 并行，路径不重叠。
+两个 worktree 并行。两者都会写 `tests/`，所以按**文件**划分所有权：TG-013 独占 `tests/migration_support/**` 与 `tests/migration_upgrade_test.rs`；TG-007 不得碰这两处，TG-013 不得碰 `src/**` 与 realtime/websocket 相关测试。
 
 | 任务 | worktree | 分支 | 说明 |
 | --- | --- | --- | --- |
-| TG-004+005+006 | `.claude/worktrees/tg-004` | `agent/tg-004-chat-model-rename` | Chat 重命名垂直切片，M0 风险最高项 |
-| TG-010 | `.claude/worktrees/tg-010` | `agent/tg-010-ui-primitives` | 19 个基础组件，消费 TG-009 冻结的 197 个语义 token |
+| TG-007 | `.claude/worktrees/tg-007` | `agent/tg-007-ws-frame-extension` | WebSocket 帧一次性破坏变更。获准编辑 `src/models.rs`（`ChatMessage` 帧枚举在此），比照 TG-004 的例外，集成负责人合并时审查 |
+| TG-013 | `.claude/worktrees/tg-013` | `agent/tg-013-postgres-skip-visibility` | 修 PostgreSQL 测试静默跳过；只碰 `tests/migration_support/**`、`tests/migration_upgrade_test.rs`、`docker-compose.local.yaml`、`docs/stress-testing.md` |
 
-TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这是预期行为。TG-004 已获授权在需要时切到私有 target 目录。
+两个任务都用 cargo，会在共享构建目录上串行等锁。这是预期行为。TG-004 的私有 target 目录（21 GB）已在合并后删除。
 
 ### 已集成
 
@@ -44,15 +44,17 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | TG-000 绿色基线 | `fb818ee` | rebase 到 main 后重跑：`check_file_sizes.py` 通过（33 个基线告警、无增长）、迁移 parity 49 对、`cargo fmt` 干净、`clippy --all-targets --all-features` 零告警、`cargo test --all-targets --all-features` **exit 0**。另外确认 `src/lib.rs` / `src/models.rs` / `src/routes.rs` / `Cargo.toml` 与 main 零差异，即公开接口未变。**合并后 pre-push 钩子从拒绝转为通过** —— 这是「基线变绿」最直接的闭环证据。 |
 | CI 加固 + D-008 | `8b9d178` | 钩子在红树上拒绝、在绿树上通过，两个方向都实测过 |
 | TG-003 `build.rs` 切 React 产物 | `3f2822e` | rebase 到 main 后**亲自起服务器 curl 验证**，不采信报告：`GET /` 返回含 `<div id="root">` 的 React `index.html`；**`/assets/app.js`（Vue 入口）→ 404**；React 入口 200、220080 字节与 Vite 自报一致；服务的 bundle 里 `react-dom` 1 次、`createRoot` 2 次、`__REACT_DEVTOOLS_GLOBAL_HOOK__` 8 次，而 `createApp` 0 次、`primevue` 0 次，且含 `App.tsx` 的字面文本。另验 `src/web.rs` 硬嵌的 9 个遗留路径全部 200，**合成的 `sw.js` 确实是自注销版且对 `app.js` 的引用为 0 次** —— 旧 Service Worker 会把回访浏览器钉在 404 上，这是卡上没写、agent 自己发现的。 |
+| TG-010 `packages/ui` 基础组件 | `38095c3` + `0d46042` | 集成补丁由负责人实测后落地：avatar 七色 token 补进两主题且集合仍完全一致（77=77）；`--tg-duration-loop` 放在 reduced-motion 折叠块之外的理由成立（循环动效收成 1ms 会频闪）；`.prettierignore` 按 14 个文件逐一测量后保留（出处标注是承重结构）；`bunfig.toml` 把裸 `bun test` 圈进 `packages/`，根 124/0、`web/` 208/0。**该合并当时未更新看板，此行为事后补记（见协议失效记录）。** |
+| TG-004+005+006 Chat 重命名 | `9d09c2d` + `d12aae2` | rebase 到 main 零文件交集；基线四行补丁由负责人折进功能提交，保持该提交自绿。独立验证未采信自我报告：fmt/clippy 干净；全量套件在 `TEST_POSTGRES_ADMIN_URL` 下全绿 —— 唯一失败定位为 main 自 TG-003 起的既有红灯（`web_client` 测试两侧逐字节相同），非本分支回归，已修于 `f044c5d`；bun 门禁 124/0 且 lockfile 无变化；四路对抗验证全绿：**SQLite** 64 个迁移用 CLI 3.51.0（默认 `legacy_alter_table=ON`，风险真实）全量重放 —— 触发器体确认重写、FK 探针拒绝孤儿行、`rooms`/`room_%` 对象为零、`foreign_key_check` 零行；**PostgreSQL** 54 个迁移重放 —— `pg_proc.prosrc` 扫描零旧表名、`record_room_join_notification` 确认重建、双触发路径带回滚冒烟通过、95 个外键全解析；**门禁突变**：501 行种子确实被咬、无陈旧基线键；迁移 parity 52 对。遗留（外观）：PostgreSQL 约束名保留旧名，devlog 已记。 |
 | TG-009 Design tokens | `785953a` | rebase 到 main 后独立验证：**`day.css` 与 `night.css` 各声明 70 个 token 且集合完全一致**，6 个强调色文件集合亦完全一致 —— 主题切换不可能留下未定义变量（这是 agent 没提、但最容易出问题的不变量）。`preview.html` 对 `--tg-raw-` 原语的引用数为 **0**，且十六进制、`rgb()`/`hsl()`、命名颜色字面量各为 **0** —— 它确实只靠语义 token 上色，所以是证明而非效果图。原语仅被 token 层自身引用。每个值带 `[web]`/`[desktop]`/`[ios]`/`[derived]`/`[ours]` 出处标注，真实值与猜测值可区分。文件大小最大 253 行。 |
 
 ## 顺序约束
 
-**TG-004 合并进 `main` 之前不要再创建碰 `src/**` 或 `migrations*/**` 的 worktree。** 它重命名十余张表并改动约 30 个模块，任何并行的 Rust 分支都会被撕碎。不碰 Rust 的任务（TG-009、TG-010、TG-013）不受影响。
+TG-004 已合并，worktree 创建限制解除。
 
-剩余顺序：`TG-004+005+006`（进行中）→ `TG-007` → `TG-008`；`TG-009` → `TG-010`；`TG-006`+`TG-007` → `TG-011`；三者齐 → `TG-012`。
+剩余顺序：`TG-007` → `TG-008`；`TG-006` ✓ + `TG-007` → `TG-011`；`TG-003` ✓ + `TG-010` ✓ + `TG-011` → `TG-012`。`TG-013` 与任何任务并行（不碰 `src/**`）。
 
-**TG-004 / TG-005 / TG-006 是一个垂直切片，由同一个 worktree 连续完成。** 迁移重命名了表名而 Rust 代码仍在查旧表名 —— 单独合并 TG-004 会让树无法编译。这是出卡时的疏漏，已在此更正。
+TG-007 合并后，TG-008 与 TG-011 可并行，但两者的卡都写了 `packages/core/src/**`：届时按文件切分（TG-008 只拿 `stores/drafts` 一个域文件，TG-011 拿其余），在各自 devlog 固定文件清单后再开工。
 
 ## M0 地基
 
@@ -62,14 +64,14 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | TG-001 回收构建目录并验证共享配置 | S | **merged** `4499a7e` | 集成负责人 | — | — |
 | TG-002 monorepo 骨架 | M | **merged** `296612a` | agent:TG-002 | — | — |
 | TG-003 `build.rs` 切换嵌入目标 | S | **merged** `3f2822e` | agent:TG-003 | — | — |
-| TG-004 Chat 数据模型迁移 | L | **in-progress** | agent:TG-004 | `tg-004` | TG-000 ✓ |
-| TG-005 Rust 模块与类型重命名 | L | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-004 |
-| TG-006 API 路径重命名与 alias | M | **in-progress**（同一 worktree） | agent:TG-004 | `tg-004` | TG-005 |
-| TG-007 WebSocket 帧扩展 | M | not-started | — | — | TG-005 |
-| TG-008 云端草稿 | M | not-started | — | — | TG-006, TG-007 |
+| TG-004 Chat 数据模型迁移 | L | **merged** `9d09c2d` | agent:TG-004 | — | TG-000 ✓ |
+| TG-005 Rust 模块与类型重命名 | L | **merged** `9d09c2d`（同一提交） | agent:TG-004 | — | TG-004 ✓ |
+| TG-006 API 路径重命名与 alias | M | **merged** `9d09c2d`（同一提交） | agent:TG-004 | — | TG-005 ✓ |
+| TG-007 WebSocket 帧扩展 | M | **in-progress** | agent:TG-007 | `tg-007` | TG-005 ✓ |
+| TG-008 云端草稿 | M | not-started | — | — | TG-006 ✓, TG-007 |
 | TG-009 Design tokens 提取 | M | **merged** `785953a` | agent:TG-009 | — | — |
-| TG-013 修正 PostgreSQL 测试静默跳过 | S | not-started | — | — | — |
-| TG-010 `packages/ui` 基础组件 | L | **in-progress** | agent:TG-010 | `tg-010` | TG-002 ✓, TG-009 ✓ |
+| TG-013 修正 PostgreSQL 测试静默跳过 | S | **in-progress** | agent:TG-013 | `tg-013` | — |
+| TG-010 `packages/ui` 基础组件 | L | **merged** `38095c3`+`0d46042` | agent:TG-010 | — | TG-002 ✓, TG-009 ✓ |
 | TG-011 `packages/core` 骨架与逻辑迁移 | L | not-started | — | — | TG-002, TG-006, TG-007 |
 | TG-012 登录与最小可用壳 | M | not-started | — | — | TG-003, TG-010, TG-011 |
 
@@ -191,6 +193,8 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 - **2026-09-30** 盘点发现 `a16f422` 的 `scripts/check_file_sizes.py` 有 5 个错误，即基线本身是红的。旧路线图的 `FND-001 修复当前 CI 阻断` 是同一类问题，说明这道门禁会反复变红而没人盯。TG-000 负责修复，并确认 CI 是否真的在 PR 上执行这个脚本。
 - **2026-09-30** TG-002 的 agent 报告 `scripts/tg-worktree.sh check` 从 worktree 内部无法运行：`REPO_ROOT` 用了 `git rev-parse --show-toplevel`，在 worktree 里返回 worktree 自己的根，于是去找 `<worktree>/.claude/worktrees/<task>`。**这是脚本的真实缺陷，协议 §2.4 对每个 agent 都会失效。** 已改用 `--git-common-dir` 解析主仓库，并加了「worktree 里的旧副本自动委托给主仓库当前版本」的自愈。自愈只对此修复之后创建的 worktree 生效，基线为 `5ee18f4` 或更早的 worktree 需按 §2.4 用绝对路径调用。该 agent 手工复现了全部检查项，没有静默跳过 —— 这是正确的处理方式。
 - **2026-09-30** TG-002 的 agent 提交了 `bun.lock`，虽然它不在该任务的 allowed paths 里。理由成立（创建 bun workspace 必然产生它，CI 的 `--frozen-lockfile` 没有它无法工作），且已在 devlog 中显式标注而非静默提交。集成负责人追认。**这说明 allowed paths 应该预见到锁文件** —— 后续涉及包管理的任务卡要把锁文件写进 allowed paths。
+- **2026-09-30** TG-010 已合并（`38095c3` + `0d46042`）但当时没有更新看板：在飞表仍列 `tg-010`、M0 表仍标 in-progress、已集成表无该行、worktree 已删而看板不知道。本次 TG-004 集成时发现并补记。「合并时更新看板」是集成负责人自己的职责 —— 看板是唯一真相源，它失真比任何单个 devlog 失真都贵。
+- **2026-09-30** 集成 TG-004 跑全量套件时发现 `web_client::web_client_is_only_served_when_enabled` 在 main 上红：它仍断言旧 Vue 壳（`<div id="app">`、`/assets/app.js`、PrimeVue 变量），而 TG-003 在 `3f2822e` 已把嵌入产物切成 React。TG-003 集成时只做了手工 curl 验证、没有重跑全量 cargo 套件；且所有 TG 提交仍未推送，CI 一次都没跑过。已修于 `f044c5d`，把当时的手工验证固化成断言（含「`/assets/app.js` 必须保持 404」与「`sw.js` 必须自注销且不引用任何资产」）。教训：**集成清单必须包含全量 cargo 套件** —— 手工验证只能补充、不能替代；未推送则 CI 等于不存在。
 
 ## 待用户决策
 
