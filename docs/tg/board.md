@@ -151,7 +151,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-401 语音消息 | L | A | in-progress | — | M1 |
 | TG-402 圆形视频消息 | M | A | blocked | — | TG-401 |
 | TG-403 相册 / 媒体组 | M | B | blocked | — | M1 |
-| TG-404 定时发送与静默发送 | M | B | blocked | — | M1 |
+| TG-404 定时发送与静默发送 | M | B | in-progress | — | M1 |
 | TG-405 自毁计时器 | M | C | blocked | — | M1 |
 | TG-406 投票与测验 | L | C | **merged** `0b0c562` | — | M1 |
 | TG-407 位置与实时位置 ← 需选型确认 | M | D | blocked | — | M1 |
