@@ -147,7 +147,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-502 归档区 | S | A | blocked | — | TG-102 |
 | TG-503 Saved Messages ← 需决策确认 | M | B | blocked | — | TG-208 |
 | TG-504 全局搜索分栏 | M | B | blocked | — | M3, M4 |
-| TG-505 隐私设置矩阵 | L | C | blocked | — | TG-107 |
+| TG-505 隐私设置矩阵 | L | C | in-progress | — | TG-107 |
 | TG-506 两步验证云密码 | M | C | in-progress | — | M0 |
 | TG-507 主题与聊天背景 | L | D | blocked | — | TG-009 |
 | TG-508 通知例外与自定义声音 | M | D | blocked | — | M1 |
