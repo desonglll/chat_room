@@ -18,5 +18,8 @@ web/.DS_Store
 web/dist
 web/node_modules
 web/package-lock.json
+node_modules
+packages/*/node_modules
+packages/*/dist
 Dockerfile*
 docker-compose*.yaml

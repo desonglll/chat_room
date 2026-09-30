@@ -20,7 +20,7 @@ self-hosted service.
 - Personal favorites and folders for messages, files, links, and notes.
 - Optional AI suggestions and independent AI threads with durable runs,
   citations, and room-authorized retrieval.
-- Vue browser client and a PySide6 desktop client backed by the same Rust API.
+- React browser client and a PySide6 desktop client backed by the same Rust API.
 - SQLite for a minimal local deployment or PostgreSQL, Redis, Qdrant, and OSS
   for larger deployments.
 
@@ -36,11 +36,16 @@ cargo run --bin server -- \
 ```
 
 `echo-gate.local.toml` is intentionally absent: a missing configuration file
-selects the safe built-in defaults. The first build installs the locked browser
-dependencies and embeds the production web bundle. Open
+selects the safe built-in defaults. The first build runs `bun install
+--frozen-lockfile` for the Bun workspace at the repository root, builds
+`packages/web` (React + Vite), and embeds that bundle in the server binary. Open
 `http://127.0.0.1:3000`, register an account, and create a room. This path does
 not require PostgreSQL, Redis, Qdrant, object storage, an AI provider, or any
 secret.
+
+The previous Vue client in `web/` is frozen and no longer part of the Rust
+build. It stays independently runnable from its own lockfile (`cd web && bun
+install && bun run dev`) as a behavior reference until it is removed.
 
 For a local multi-service environment, start the infrastructure and run the
 server on the host:
@@ -56,7 +61,7 @@ The production container layout is documented in
 ## Architecture
 
 ```text
-Vue web client ----------- HTTP / WebSocket -----------+
+React web client --------- HTTP / WebSocket -----------+
 PySide6 desktop client --- HTTP / WebSocket -----------+--> Axum domain modules
                                                           |       |
                                                           |       +--> SQLite or PostgreSQL
@@ -97,7 +102,14 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 
+bun install --frozen-lockfile
+bun run -F '*' test
+bun run -F '*' typecheck
+bun run -F '@tg/web' build
+
+# Only when changing the frozen Vue client; CI still gates it.
 cd web
+bun install --frozen-lockfile
 bun test
 bun run typecheck
 bun run build
@@ -114,7 +126,8 @@ tests, and the complete CI release gate are described in
 
 ## Clients
 
-- [Browser client](web/README.md)
+- [Browser client](packages/web) (React; the frozen Vue client and its notes remain in
+  [web/README.md](web/README.md))
 - [Desktop client](desktop/README.md)
 - [Web/Desktop/CLI capability matrix](docs/client-capability-matrix.md)
 - [Brand and interface system](design/README.md)

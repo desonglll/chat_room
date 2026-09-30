@@ -43,10 +43,27 @@ container to `postgres`, `redis`, and `qdrant` by their Compose service names.
 Values such as `redis://127.0.0.1:6379/` in `.env` are for a host-local
 `cargo run`; inside a container, `127.0.0.1` refers to that container itself.
 
+## What the image build reads
+
+`docker build` needs Bun as well as Rust because `build.rs` compiles the browser
+client into the server binary. The builder stage copies, in this order:
+
+1. `Cargo.toml`, `Cargo.lock`, `build.rs`, `migrations/`, `migrations-postgres/`
+2. the Bun workspace manifests only — `package.json`, `bun.lock`,
+   `tsconfig.base.json`, and each `packages/*/package.json` — then runs
+   `bun install --frozen-lockfile` at the repository root
+3. `src/`, `packages/`, and `web/public/`
+
+Step 2 is separated from step 3 so that a source-only change reuses the cached
+dependency layer. `bun install` runs once at the workspace root; there is no
+per-package install. `web/public/` is still copied because the server embeds the
+brand, icon, PWA, and emoji-data files that live there; the rest of `web/` (the
+frozen Vue client) is not part of the image build.
+
 ## Use a published image
 
-The GitHub Actions workflow tests Rust and Vue changes while building the
-container image in parallel. After both jobs pass, pushes to `main` and `v*`
+The GitHub Actions workflow tests Rust and browser-client changes while building
+the container image in parallel. After both jobs pass, pushes to `main` and `v*`
 tags publish the same image to GitHub Container Registry
 and, when configured, Docker Hub. Set one of these in `.env` to use a published
 image instead of the local image name:

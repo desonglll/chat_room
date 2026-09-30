@@ -20,15 +20,22 @@ ENV CARGO_HTTP_TIMEOUT=600 \
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY migrations ./migrations
 COPY migrations-postgres ./migrations-postgres
-COPY web/package.json web/bun.lock web/tsconfig.json web/vite.config.ts ./web/
+# Workspace manifests only, so the install layer is cached until a dependency changes.
+COPY package.json bun.lock tsconfig.base.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/web/package.json ./packages/web/
 
 RUN --mount=type=cache,id=chatroom-bun,target=/root/.bun/install/cache \
-    cd web && bun install --frozen-lockfile
+    bun install --frozen-lockfile
 
 COPY src ./src
-COPY web/index.html ./web/index.html
+# build.rs builds packages/web; packages/core and packages/ui are needed because
+# @tg/web's build runs `tsc --noEmit` across its workspace imports first.
+COPY packages ./packages
+# The eight files under web/public that src/web.rs still embeds by fixed path. The rest of
+# web/ (the frozen Vue client) is not part of the Rust build any more.
 COPY web/public ./web/public
-COPY web/src ./web/src
 
 FROM source AS builder
 
