@@ -1,0 +1,67 @@
+/* Frame, backdrop, phases and the shared-element flight. */
+
+.tg-mv {
+  position: fixed;
+  inset: 0;
+  /* Above popovers (1000), below dialogs (1100): a forward picker or a delete confirmation
+     opened from the viewer appears on top of it. */
+  z-index: 1050;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  color: var(--tg-service-text);
+  overscroll-behavior: contain;
+}
+
+.tg-mv:focus {
+  outline: none;
+}
+
+/* Dark from its very first paint: opacity animates, the colour never passes through white. */
+.tg-mv__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--tg-overlay-strong);
+  opacity: 0;
+}
+
+.tg-mv__bar,
+.tg-mv__footer,
+.tg-mv__arrow,
+.tg-mv__tool--corner {
+  transition: opacity var(--tg-transition-fade);
+}
+
+.tg-mv[data-phase='enter'] :is(.tg-mv__bar, .tg-mv__footer, .tg-mv__arrow, .tg-mv__tool--corner),
+.tg-mv[data-phase='exit'] :is(.tg-mv__bar, .tg-mv__footer, .tg-mv__arrow, .tg-mv__tool--corner) {
+  opacity: 0;
+}
+
+.tg-mv[data-phase='exit'] {
+  pointer-events: none;
+}
+
+/* While the flight carries the medium, the stage's own copy must not show. */
+.tg-mv[data-flying] .tg-mv__stage {
+  visibility: hidden;
+}
+
+.tg-mv__flight {
+  position: fixed;
+  inset-block-start: 0;
+  left: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  will-change: transform, width, height;
+}
+
+.tg-mv__flight[hidden] {
+  display: none;
+}
+
+.tg-mv__flight > img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
