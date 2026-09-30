@@ -1,7 +1,9 @@
 /**
- * Types mirroring the Rust contract one-to-one, one file per domain
- * (`chat.ts`, `message.ts`, `user.ts`, `sticker.ts`, …).
- *
- * Owner of the contents: TG-011. This barrel is the frozen entry point `@tg/core/types`.
+ * `@tg/core/types` — mirrors of the Rust wire contract, one file per domain, plus the
+ * injected platform capability interfaces. Nothing in here executes; it is all shape.
  */
-export {}
+export * from './chat'
+export * from './message'
+export * from './user'
+export * from './realtime'
+export * from './platform'

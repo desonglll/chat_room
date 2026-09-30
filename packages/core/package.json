@@ -18,5 +18,8 @@
     "format": "prettier --write src test",
     "test": "bun test",
     "boundary": "bun test test/platformBoundary.test.ts"
+  },
+  "dependencies": {
+    "zustand": "5.0.8"
   }
 }
