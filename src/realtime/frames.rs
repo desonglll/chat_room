@@ -206,6 +206,12 @@ pub enum ChatMessage {
         recalled_at: DateTime<Utc>,
     },
 
+    /// Server -> Client (TG-405): messages removed for everyone (the chat's auto-delete timer
+    /// expired). Unlike a recall there is no placeholder: clients drop the rows. Additive; an
+    /// older client ignores it and loses the rows on its next history load.
+    #[serde(rename = "messages_deleted")]
+    MessagesDeleted { message_ids: Vec<Uuid> },
+
     /// Server -> Client: the chat's current unique member snapshot changed.
     ///
     /// Unchanged by TG-007: per-user status travels in `user_status` frames, not here, and

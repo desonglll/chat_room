@@ -67,3 +67,10 @@ export const PlayIcon = () => (
     <path d="M8 5.5v13l10-6.5z" fill="currentColor" />
   </Glyph>
 )
+
+export const TimerIcon = () => (
+  <Glyph>
+    <circle cx="12" cy="13" r="8" />
+    <path d="M12 9v4l2.5 2.5M9.5 2.5h5" />
+  </Glyph>
+)

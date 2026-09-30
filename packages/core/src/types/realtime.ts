@@ -198,6 +198,8 @@ export type ServerFrame =
   | BroadcastFrame
   | { type: 'read_receipt'; user_id: string; username: string; message_id: string }
   | { type: 'message_recalled'; message_id: string; recalled_at: string }
+  /** TG-405: removed for everyone (auto-delete); no placeholder, the rows disappear. */
+  | { type: 'messages_deleted'; message_ids: string[] }
   | { type: 'message_edited'; message_id: string; content: string; edited_at: string; entities?: MessageEntity[] }
   | { type: 'reaction_changed'; message_id: string; emoji: string; user_id: string; active: boolean }
   | TypingFrame

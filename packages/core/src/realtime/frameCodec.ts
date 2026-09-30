@@ -17,6 +17,7 @@ const KNOWN_SERVER_TYPES: ReadonlySet<string> = new Set([
   'broadcast',
   'read_receipt',
   'message_recalled',
+  'messages_deleted',
   'message_edited',
   'reaction_changed',
   'typing',

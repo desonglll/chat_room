@@ -90,6 +90,14 @@ describe('messageStore.prependHistory', () => {
     first = selectTimeline(CHAT)(store.getState()).messages[0] as BroadcastMessage
     expect(first.recalled_at).toBe('r')
   })
+
+  test('messages deleted for everyone (TG-405 auto-delete) leave the timeline without a placeholder', () => {
+    const store = seeded()
+    store.getState().prependHistory(CHAT, [message('m5', 5), message('m6', 6)])
+    const before = ids(store)
+    store.getState().applyDeleted(CHAT, { type: 'messages_deleted', message_ids: ['m5', 'unknown'] })
+    expect(ids(store)).toEqual(before.filter((id) => id !== 'm5'))
+  })
 })
 
 describe('messageStore read cursors', () => {

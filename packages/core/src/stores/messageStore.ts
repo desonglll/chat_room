@@ -46,6 +46,8 @@ export interface MessageState {
   markDelivery(chatId: string, clientMessageId: string, state: 'sending' | 'failed'): void
   applyEdit(chatId: string, frame: Extract<ServerFrame, { type: 'message_edited' }>): void
   applyRecall(chatId: string, frame: Extract<ServerFrame, { type: 'message_recalled' }>): void
+  /** TG-405: drop messages deleted for everyone (auto-delete). */
+  applyDeleted(chatId: string, frame: Extract<ServerFrame, { type: 'messages_deleted' }>): void
   applyReaction(chatId: string, frame: Extract<ServerFrame, { type: 'reaction_changed' }>): void
   clearChat(chatId: string): void
 }
@@ -122,6 +124,16 @@ export const createMessageStore = () =>
               : message,
           ),
         })),
+      applyDeleted: (chatId, frame) =>
+        update(chatId, (timeline) => {
+          const gone = new Set(frame.message_ids)
+          return {
+            ...timeline,
+            messages: timeline.messages.filter(
+              (message) => message.type !== 'broadcast' || !gone.has(message.message_id),
+            ),
+          }
+        }),
       applyReaction: (chatId, frame) =>
         update(chatId, (timeline) => ({ ...timeline, messages: applyMessageReaction(timeline.messages, frame) })),
       clearChat: (chatId) =>

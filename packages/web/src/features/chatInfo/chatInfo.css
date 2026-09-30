@@ -182,3 +182,51 @@
 .tg-chatinfo__link:hover {
   text-decoration: underline;
 }
+
+/* TG-405 «自动删除消息» row. */
+.tg-chatinfo__autodelete {
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-chatinfo__autodelete-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-chatinfo__autodelete-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-chatinfo__autodelete-choice {
+  padding: 4px 10px;
+  border: 1px solid var(--tg-divider);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--tg-text-primary);
+  cursor: pointer;
+}
+
+.tg-chatinfo__autodelete-choice[aria-selected='true'] {
+  border-color: var(--tg-accent);
+  color: var(--tg-accent);
+}
+
+.tg-chatinfo__autodelete-note {
+  margin: 6px 0 0;
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}

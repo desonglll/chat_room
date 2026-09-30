@@ -8,6 +8,7 @@ import { linkify } from '../message/content/linkify'
 import { useLastSeenText } from '../presence'
 import type { InfoHeaderModel } from './chatInfoModel'
 import { memberCountText, subscriberCountText } from './chatInfoModel'
+import { AutoDeleteRow } from './AutoDeleteRow'
 import { AtIcon, BellIcon, InfoIcon } from './icons'
 
 function PrivateStatus({ userId }: { userId: string }) {
@@ -65,9 +66,17 @@ export interface InfoDetailsProps {
   notificationsOn: boolean
   notificationsBusy: boolean
   onNotificationsChange(enabled: boolean): void
+  /** TG-405: shows the «自动删除消息» row when given. */
+  chatId?: string | undefined
 }
 
-export function InfoDetails({ header, notificationsOn, notificationsBusy, onNotificationsChange }: InfoDetailsProps) {
+export function InfoDetails({
+  header,
+  notificationsOn,
+  notificationsBusy,
+  onNotificationsChange,
+  chatId,
+}: InfoDetailsProps) {
   const about = header.variant === 'private' ? header.bio : header.description
   return (
     <ul className="tg-chatinfo__details" aria-label="详细信息">
@@ -92,6 +101,7 @@ export function InfoDetails({ header, notificationsOn, notificationsBusy, onNoti
           onCheckedChange={onNotificationsChange}
         />
       </li>
+      {chatId ? <AutoDeleteRow chatId={chatId} /> : null}
     </ul>
   )
 }
