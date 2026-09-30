@@ -191,9 +191,12 @@ async fn redis_adapter_shares_limits_between_instances_when_configured() {
         return;
     };
     let mut config = limited_config();
-    config.auth.rate_limit_window_secs = 2;
+    // TG-111: the window must outlast three debug-build logins under full-suite load
+    // (a 2 s window flaked when one login took ~2 s). Isolation comes from the unique key
+    // prefix, not from a short expiry, and the keys are deleted at the end.
+    config.auth.rate_limit_window_secs = 600;
     config.redis.enabled = true;
-    config.redis.url = redis_url;
+    config.redis.url = redis_url.clone();
     config.redis.key_prefix = format!("chat-room-test-{}", Uuid::new_v4());
     let first = start(build_app(Arc::new(
         AppState::new_with_config(&config).await.unwrap(),
@@ -226,4 +229,31 @@ async fn redis_adapter_shares_limits_between_instances_when_configured() {
             .status(),
         429
     );
+
+    // The 429 must come from the shared Redis counters, not a per-instance fallback:
+    // both the IP and the account counter saw all three attempts across the two servers.
+    let mut redis = redis::Client::open(redis_url)
+        .unwrap()
+        .get_multiplexed_async_connection()
+        .await
+        .unwrap();
+    let keys: Vec<String> = redis::cmd("KEYS")
+        .arg(format!("{}:auth-rate:*", config.redis.key_prefix))
+        .query_async(&mut redis)
+        .await
+        .unwrap();
+    assert_eq!(keys.len(), 2, "one IP and one account counter: {keys:?}");
+    for key in &keys {
+        let count: u64 = redis::cmd("GET")
+            .arg(key)
+            .query_async(&mut redis)
+            .await
+            .unwrap();
+        assert_eq!(count, 3, "{key} counts attempts from both instances");
+    }
+    let _: () = redis::cmd("DEL")
+        .arg(&keys)
+        .query_async(&mut redis)
+        .await
+        .unwrap();
 }
