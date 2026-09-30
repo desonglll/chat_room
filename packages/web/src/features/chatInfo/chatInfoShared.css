@@ -1,0 +1,192 @@
+/* TG-106 info panel: the shared-content tabs (media grid, file/link/voice/member rows). */
+
+/* ── Shared content ──────────────────────────────────────────────────────── */
+
+.tg-chatinfo__tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--tg-surface);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+/* At least one viewport tall, so the strip can stick on a short tab too — that is what lets
+   each tab keep its own scroll offset (SharedSection) instead of being clamped to the top. */
+.tg-chatinfo__shared {
+  min-height: 100%;
+}
+
+.tg-chatinfo__panel {
+  padding-block: var(--tg-space-1);
+}
+
+.tg-chatinfo__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tg-space-0-5);
+}
+
+.tg-chatinfo__tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: var(--tg-skeleton);
+  cursor: pointer;
+}
+
+.tg-chatinfo__tile > img,
+.tg-chatinfo__tile > video {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.tg-chatinfo__tile[data-veiled] > img,
+.tg-chatinfo__tile[data-veiled] > video {
+  filter: blur(var(--tg-blur-glass));
+}
+
+.tg-chatinfo__tile:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-chatinfo__tile-badge {
+  position: absolute;
+  inset-block-end: var(--tg-space-1);
+  inset-inline-start: var(--tg-space-1);
+  display: inline-flex;
+  padding: var(--tg-space-0-5);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-media-time-bg);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-chatinfo__list {
+  margin: 0;
+  padding: 0 var(--tg-space-2);
+  list-style: none;
+}
+
+.tg-chatinfo__item {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-2);
+  border-radius: var(--tg-radius-md);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.tg-chatinfo__item:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-chatinfo__item-thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--tg-avatar-md);
+  block-size: var(--tg-avatar-md);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatinfo__item-thumb[data-kind='link'] {
+  background: var(--tg-accent-soft-filled);
+  color: var(--tg-accent);
+  font-size: var(--tg-type-title-size);
+}
+
+.tg-chatinfo__item-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-chatinfo__item-title,
+.tg-chatinfo__item-link,
+.tg-chatinfo__item-meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tg-chatinfo__item-title {
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatinfo__item-link {
+  color: var(--tg-text-link);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-chatinfo__item-meta {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-chatinfo__item-meta[data-online] {
+  color: var(--tg-accent);
+}
+
+.tg-chatinfo__item-role {
+  flex: none;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-chatinfo__audio {
+  inline-size: 100%;
+  margin-block-start: var(--tg-space-1);
+}
+
+.tg-chatinfo__empty {
+  margin: 0;
+  padding: var(--tg-space-8) var(--tg-space-4);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  text-align: center;
+}
+
+.tg-chatinfo__retry {
+  display: block;
+  margin: var(--tg-space-4) auto;
+  padding: var(--tg-space-1) var(--tg-space-3);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-accent-soft);
+  color: var(--tg-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-chatinfo__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--tg-space-3);
+}
+
+.tg-chatinfo__sentinel {
+  block-size: 1px;
+}
+
+/* Six tabs share the column width: tighter than the strip's default padding. */
+.tg-chatinfo__tabs .tg-tabs__tab {
+  min-inline-size: 0;
+  padding-inline: var(--tg-space-1);
+  white-space: nowrap;
+}
