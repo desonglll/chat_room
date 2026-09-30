@@ -62,6 +62,12 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-100 M1 集成接线 | `1be8aea` → `bf7880d` | 气泡进虚拟列表、全部动作绑定、选择栏与转发、Composer/MediaViewer/头部状态挂载、`prependHistory` 让 REST 加载的消息接收编辑/撤回/回应、补发 `read` 帧（此前从未发送，双勾与未读永不更新）。agent 自带 16 步双账号 E2E（`packages/web/test/e2e/m1-chat.e2e.mjs`）对真实服务器通过。负责人合并树 bun：core 248/0、ui 103/0、web 358/0。遗留：已读判定按「可见即读」；置顶消息无展示；加入/离开系统消息不入时间线（既有行为）。 |
+| TG-106 右侧信息面板 | `74ab520` → `4e61ffa` | 开合面板时消息列表逐帧 0 px 位移（`chatInfo/panelAnchor.ts`，依赖 TG-101 的 DOM 属性名）；三种头部、六个独立游标分页。负责人待办：`WorkspaceShell` 常挂 `<InfoPane/>`、头部按钮切换、删 `shell.css` 旧面板样式。后端缺口：`/files` 无语音/GIF/纯媒体过滤；无链接索引；成员列表不分页 → 交 M2/M4。 |
+| TG-208 单聊路径统一 | `0a19c23` → `75ae908` | 审计结论：消息读写本就同路径，重复在建聊天 SQL 与 9 处「是否单聊」反查。`direct_conversations` 只剩查找；`/api/chats` 以 `chat_type:"private"` 列出单聊；`/api/rooms` 仍排除单聊保护冻结客户端。 |
+| TG-301 TGS 渲染 | `698d50d` → `2ce9f3b` | canvas「light」构建（无 eval，符合 CSP）+ worker 池；20 个不同贴纸页面 59.8 fps、零长任务、离屏 CPU 0；贴纸自身 20–30 fps 在负载 23–30 的机器上测得，需安静机器复测。lottie 懒加载。 |
+| TG-505 隐私矩阵 | `6291637` → `ecd8e78` | 合并树上 `privacy_rules_test::hidden_viewers_receive_no_live_presence_of_the_owner` **确定性失败**（3/3，分支上通过）→ 已退回原 agent 对 main 诊断修复。last-seen 持久化与模糊化已落地；冻结 Vue 客户端免登录拉头像，对受限者不再显示。 |
+| TG-506 两步验证 | `362486b` → `a2c73a5` | 无 2FA 账号登录响应不变；有 2FA 返回 428 + 一次性 pending token；开启终止其他会话（D-010）。服务器无邮件传输，恢复邮箱接口返回 503 直到部署注入 mailer。与 TG-505 在 `routes.rs`/`api_doc.rs`/core `api/index.ts`/`styles/index.css` 的纯追加冲突由负责人保留双方。 |
 | TG-302 贴纸服务端 | `e3d4089` → 合并提交 | 负责人在 main 上用私有构建目录独立复跑（D-011，不采信共享目录结果）：fmt/clippy 干净，78 个二进制 340 过 2 挂 → 逐个定位：`ws_frame_routing_test::draft_updated…` 是**测试自身竞态**（bob 自己的「joined the room」系统帧抢在 marker 前，`collect_until("system")` 取错帧），负责人修测试为跳过非 marker 系统帧，隐私断言仍覆盖 marker 之前全部帧，4/4 通过；`auth_security_test::redis_adapter_shares_limits…` 是 2 秒窗口的限流测试，负载 ~25 时间歇失败（隔离重跑 2/3），记为已知抖动。迁移 parity 55 对。agent 在卡外修了一处真实缺陷：孤儿附件清理会在引用消息全部撤回后删掉贴纸包文件，已加回归测试。遗留：转发的贴纸退化为普通附件；custom emoji API 归 TG-304。 |
 | TG-101 虚拟消息列表 | `1823285` → `a2da0a2` | 负责人合并树复跑：lint/typecheck 0，测试 core 213/0、ui 103/0、web 262/0；两处追加式冲突（`styles/index.css`、core `domain/index.ts`）手工保留双方并确认无重复导出。agent 实测：prepend 锚点位移 0 px（0–200 ms 延迟）、跳 5 万条后返回 0 px、10 万行列表堆 8.5 MB。遗留：`messageStore` 只更新自己的 timeline，REST 加载的消息收不到编辑/撤回/回应 → 交 TG-100 加 `prependHistory`；零位移部分依赖 react-virtuoso 内部行为，升级时须重跑 `runBrowserBench.mjs`。 |
 | TG-105 媒体查看器 | `992e442` → `db1afad` | 负责人合并树复跑：web 238/0（core 179、ui 103），lint/typecheck 0；`styles/index.css` 追加行冲突手工保留双方。未挂载：待 TG-101 合并后在应用根挂 `<MediaViewer>` 并绑定气泡 `onOpenMedia`。遗留：文件列表 API 不能向新方向翻页（深跳后看不到更新的媒体）；列表来源媒体无说明文字。 |
@@ -100,13 +106,13 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| TG-100 M1 集成接线（负责人新增） | M | — | in-progress | agent:TG-100 | TG-101..105,107 |
+| TG-100 M1 集成接线（负责人新增） | M | — | **merged** `bf7880d` | agent:TG-100 | TG-101..105,107 |
 | TG-101 虚拟消息列表 ← 最高风险 | XL | A | **merged** `a2da0a2` | — | TG-012 |
 | TG-102 三栏布局与会话侧栏 | L | B | **merged** | — | TG-012 |
 | TG-103 消息气泡系统 | L | C | **merged** `6108b90` | — | TG-012 |
 | TG-104 输入框 | L | B | **merged** | — | TG-102, TG-008 |
 | TG-105 媒体查看器 | M | C | **merged** `db1afad` | — | TG-103 |
-| TG-106 右侧信息面板 | M | A | in-progress | — | TG-101 |
+| TG-106 右侧信息面板 | M | A | **merged** `4e61ffa` | — | TG-101 |
 | TG-107 粒度输入状态与在线状态 UI | S | B | **merged** `4181c4f` | — | TG-007 |
 | TG-108 动效审计与 reduced-motion | M | C | blocked | — | M1 其余项 |
 
@@ -114,25 +120,25 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| TG-201 超级群与权限体系 | XL | A | blocked | — | M1 |
+| TG-201 超级群与权限体系 | XL | A | in-progress | — | M1 |
 | TG-202 频道广播语义 | L | B | blocked | — | TG-201 |
 | TG-203 频道评论区 | M | B | blocked | — | TG-202 |
 | TG-204 话题（论坛模式） | L | C | blocked | — | TG-201 |
 | TG-205 邀请链接体系 | M | A | blocked | — | TG-201 |
 | TG-206 公开 username 与聊天发现 | M | C | blocked | — | TG-201 |
 | TG-207 慢速模式与成员限制 UI | S | A | blocked | — | TG-201 |
-| TG-208 单聊路径统一 | M | B | in-progress | — | TG-005 |
+| TG-208 单聊路径统一 | M | B | **merged** `75ae908` | — | TG-005 |
 
 ## M3 表达力（2 路并行）
 
 | 任务 | 规模 | 组 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| TG-301 TGS 解码与 Lottie 渲染 ← 性能风险 | L | A | in-progress | — | M1 |
+| TG-301 TGS 解码与 Lottie 渲染 ← 性能风险 | L | A | **merged** `2ce9f3b` | — | M1 |
 | TG-302 贴纸数据模型与服务端 | L | B | **merged** | — | M1 |
-| TG-303 贴纸面板 | L | A | blocked | — | TG-301, TG-302 |
+| TG-303 贴纸面板 | L | A | in-progress | — | TG-301, TG-302 |
 | TG-304 自定义 emoji | M | B | in-progress | — | TG-302 |
 | TG-305 GIF | M | A | blocked | — | TG-303 |
-| TG-306 静态与视频贴纸 | S | B | blocked | — | TG-301, TG-302 |
+| TG-306 静态与视频贴纸 | S | B | in-progress | — | TG-301, TG-302 |
 
 ## M4 消息能力（4 路并行）
 
@@ -158,8 +164,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-502 归档区 | S | A | blocked | — | TG-102 |
 | TG-503 Saved Messages ← 需决策确认 | M | B | blocked | — | TG-208 |
 | TG-504 全局搜索分栏 | M | B | blocked | — | M3, M4 |
-| TG-505 隐私设置矩阵 | L | C | in-progress | — | TG-107 |
-| TG-506 两步验证云密码 | M | C | in-progress | — | M0 |
+| TG-505 隐私设置矩阵 | L | C | **merged** `ecd8e78`（合并后回归修复中） | — | TG-107 |
+| TG-506 两步验证云密码 | M | C | **merged** `a2c73a5` | — | M0 |
 | TG-507 主题与聊天背景 | L | D | blocked | — | TG-009 |
 | TG-508 通知例外与自定义声音 | M | D | blocked | — | M1 |
 | TG-509 数据与存储 | M | A | blocked | — | M4 |
