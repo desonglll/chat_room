@@ -142,6 +142,8 @@ window.__panelBench = {
       mountMs: Math.round(mountedMs * 10) / 10,
       firstPaintMs: Math.round(paintedMs * 10) / 10,
       mountedStickers: panelHost.querySelectorAll('.tg-sticker').length,
+      // Stickers fetched, inflated and parsed (off-thread) by the end of the sample.
+      decoded: panelHost.querySelectorAll('.tg-sticker[data-phase="static"], .tg-sticker[data-phase="live"]').length,
       ...frames,
     }
   },

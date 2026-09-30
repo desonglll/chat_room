@@ -1,15 +1,12 @@
 /**
- * One sticker of any format, as the panel, the suggestion strip, the preview and the
- * message bubble draw it. TGS goes through TG-301's `<AnimatedSticker>` (worker rendering,
- * viewport pause, concurrency cap); WebP is a lazy `<img>`; WebM is a muted looping
- * `<video>` that does not autoplay under reduced motion.
- *
- * TG-306 is building the renderer's own format-dispatching `<Sticker>`; when it lands this
- * file becomes a one-line re-export of it — nothing else in this feature knows formats.
+ * One sticker, as the panel, the suggestion strip, the preview and the message bubble draw
+ * it: a thin adapter from this feature's `(src, format)` pair onto TG-306's format-dispatching
+ * `<Sticker>` (TGS worker rendering, WebP `<img>`, WebM `<video>` with its Safari fallback,
+ * all under the renderer's viewport / reduced-motion / cap policy).
  */
-import { usePrefersReducedMotion } from '@tg/ui'
+import { useMemo } from 'react'
 import type { StickerFormat } from '@tg/core'
-import { AnimatedSticker } from './renderer'
+import { Sticker, type StickerDescriptor } from './renderer'
 
 export interface StickerViewProps {
   src: string
@@ -23,47 +20,9 @@ export interface StickerViewProps {
 }
 
 export function StickerView({ src, format, size, label, autoplay = true, loop = true, className }: StickerViewProps) {
-  const reduced = usePrefersReducedMotion()
-  const classes = className ? `tg-sticker-view ${className}` : 'tg-sticker-view'
-  if (format === 'tgs') {
-    return (
-      <AnimatedSticker
-        src={src}
-        size={size}
-        autoplay={autoplay}
-        loop={loop}
-        {...(label === undefined ? {} : { label })}
-        {...(className === undefined ? {} : { className })}
-      />
-    )
-  }
-  if (format === 'webm') {
-    return (
-      <video
-        className={classes}
-        src={src}
-        width={size}
-        height={size}
-        muted
-        playsInline
-        loop={loop}
-        autoPlay={autoplay && !reduced}
-        preload="metadata"
-        aria-label={label}
-        draggable={false}
-      />
-    )
-  }
-  return (
-    <img
-      className={classes}
-      src={src}
-      width={size}
-      height={size}
-      alt={label ?? ''}
-      loading="lazy"
-      decoding="async"
-      draggable={false}
-    />
+  const sticker = useMemo<StickerDescriptor>(
+    () => ({ format, file_url: src, emoji: label ?? null }),
+    [format, src, label],
   )
+  return <Sticker sticker={sticker} size={size} label={label} autoplay={autoplay} loop={loop} className={className} />
 }

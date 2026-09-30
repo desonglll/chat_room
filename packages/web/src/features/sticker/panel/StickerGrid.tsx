@@ -7,7 +7,7 @@
  *   points (`proximity`), so a fling settles on a section boundary as in Telegram.
  * - Press-and-hold previews (`usePressPreview`), right click opens `onMenu`.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { Sticker } from '@tg/core'
 import { StickerPreview } from '../preview/StickerPreview'
 import { usePressPreview } from '../preview/usePressPreview'
@@ -39,6 +39,8 @@ export interface StickerGridProps {
 }
 
 const CELL_STICKER = 64
+/** The media panel's grid box (panel.css) — right on the first render, corrected by the observer. */
+const DEFAULT_VIEWPORT = { width: 312, height: 300 }
 const OVERSCAN = 144
 
 const reducedMotion = () =>
@@ -47,7 +49,7 @@ const reducedMotion = () =>
 export function StickerGrid(props: StickerGridProps) {
   const { sections, onPick, onMenu, onActiveSection, handleRef, disabled = false, label } = props
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [viewport, setViewport] = useState(props.initialViewport ?? { width: 320, height: 320 })
+  const [viewport, setViewport] = useState(props.initialViewport ?? DEFAULT_VIEWPORT)
   const [scrollTop, setScrollTop] = useState(0)
   const columns = columnsFor(viewport.width)
   const layout = useMemo(() => layoutPanel(sections, columns), [sections, columns])
@@ -58,12 +60,17 @@ export function StickerGrid(props: StickerGridProps) {
   }, [sections])
   const preview = usePressPreview()
 
-  useLayoutEffect(() => {
+  // Measured by ResizeObserver only: its first callback arrives after the browser's own
+  // layout, so opening the panel never forces a synchronous layout from script.
+  useEffect(() => {
     const element = scrollRef.current
     if (!element) return
-    const measure = () => setViewport({ width: element.clientWidth, height: element.clientHeight })
-    measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(([entry]) => {
+      const box = entry?.contentBoxSize?.[0]
+      const width = Math.round(box?.inlineSize ?? element.clientWidth)
+      const height = Math.round(box?.blockSize ?? element.clientHeight)
+      setViewport((current) => (current.width === width && current.height === height ? current : { width, height }))
+    })
     observer.observe(element)
     return () => observer.disconnect()
   }, [])

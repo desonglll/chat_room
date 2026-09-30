@@ -27,8 +27,13 @@ const THUMB = 32
 export function SetRail({ entries, active, onSelect, onSettings }: SetRailProps) {
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Keep the active entry in view — but not on mount, where the first entry is already
+  // visible and a scrollIntoView would only force a synchronous layout.
+  const previous = useRef<string | null>(null)
   useEffect(() => {
-    if (!active) return
+    const was = previous.current
+    previous.current = active
+    if (!active || was === null) return
     const button = listRef.current?.querySelector<HTMLElement>(`[data-rail-id="${CSS.escape(active)}"]`)
     button?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [active])

@@ -26,6 +26,8 @@ const jsonOut = args.includes('--json') ? args[args.indexOf('--json') + 1] : nul
 const shots = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null
 if (shots) mkdirSync(shots, { recursive: true })
 const OPEN_SAMPLE_MS = 3000
+const WARM_RUNS = 3
+const median = (runs, key) => [...runs].sort((a, b) => key(a) - key(b))[Math.floor(runs.length / 2)]
 const SCROLL_MS = 3000
 
 // Gates apply to the warm virtual run: the page has already rendered this UI once (code,
@@ -33,9 +35,10 @@ const SCROLL_MS = 3000
 // The cold first open of a fresh page is reported, not gated: it is dominated by one-off
 // first layout (font fallback), identical with 5 or 300 stickers (see the devlog).
 const THRESHOLDS = {
-  // Opening never blocks input: not a single long task (> 50 ms) while the panel mounts and
-  // settles, and the panel is on screen within two frames' budget of 50 ms.
-  open: { maxLongTaskMs: 0, totalBlockingMs: 0, firstPaintMs: 50 },
+  // Opening never blocks input. Median run: not a single long task (> 50 ms) while the panel
+  // mounts and settles, on screen within 50 ms. Every run: no task over the 100 ms RAIL
+  // response budget.
+  open: { maxLongTaskMs: 0, totalBlockingMs: 0, firstPaintMs: 50, everyRunMaxLongTaskMs: 100 },
   // Scrolling 300 stickers keeps the page at display rate.
   scroll: { fps: 50, maxLongTaskMs: 100 },
   // Card acceptance: suggestions within 200 ms of the keystroke.
@@ -128,7 +131,11 @@ const report = {
 }
 try {
   report.cold = await openAndScroll(browser, url, 'virtual', false)
-  report.virtual = await openAndScroll(browser, url, 'virtual', true)
+  // The warm open is gated on the median of WARM_RUNS fresh pages: the host is shared, and a
+  // single run swings by 2–4× under load (see the devlog).
+  report.warmRuns = []
+  for (let run = 0; run < WARM_RUNS; run += 1) report.warmRuns.push(await openAndScroll(browser, url, 'virtual', true))
+  report.virtual = median(report.warmRuns, (run) => run.open.firstPaintMs)
   report.naive = await openAndScroll(browser, url, 'naive', true)
   report.suggest = await suggest(browser, url)
 } finally {
@@ -140,20 +147,25 @@ const { open, scroll } = report.virtual
 if (open.maxLongTaskMs > THRESHOLDS.open.maxLongTaskMs) failures.push(`open max long task ${open.maxLongTaskMs} ms`)
 if (open.totalBlockingMs > THRESHOLDS.open.totalBlockingMs) failures.push(`open blocking ${open.totalBlockingMs} ms`)
 if (open.firstPaintMs > THRESHOLDS.open.firstPaintMs) failures.push(`open first paint ${open.firstPaintMs} ms`)
+for (const run of report.warmRuns) {
+  if (run.open.maxLongTaskMs > THRESHOLDS.open.everyRunMaxLongTaskMs)
+    failures.push(`a warm run had a ${run.open.maxLongTaskMs} ms task`)
+}
 if (scroll.fps < THRESHOLDS.scroll.fps) failures.push(`scroll fps ${scroll.fps}`)
 if (scroll.maxLongTaskMs > THRESHOLDS.scroll.maxLongTaskMs) failures.push(`scroll long task ${scroll.maxLongTaskMs} ms`)
 if (report.suggest.maxMs > THRESHOLDS.suggest.maxMs) failures.push(`suggest ${report.suggest.maxMs} ms`)
 
 console.log(`load average ${report.load}`)
-for (const run of [report.cold, report.virtual, report.naive]) {
+for (const run of [report.cold, ...report.warmRuns, report.naive]) {
   const o = run.open
   const s = run.scroll
   console.log(
     `${run.mode.padEnd(8)} ${run.stickers} stickers | open: mount ${o.mountMs} ms, paint ${o.firstPaintMs} ms, ` +
-      `mounted ${o.mountedStickers}, long ${o.longTasks} (max ${o.maxLongTaskMs} ms, TBT ${o.totalBlockingMs} ms), fps ${o.fps} | ` +
+      `mounted ${o.mountedStickers}, decoded ${o.decoded}, long ${o.longTasks} (max ${o.maxLongTaskMs} ms, TBT ${o.totalBlockingMs} ms), fps ${o.fps} | ` +
       `scroll: fps ${s.fps}, p95 ${s.p95FrameMs} ms, long ${s.longTasks} (max ${s.maxLongTaskMs} ms), mounted ${s.maxMounted}`,
   )
 }
+console.log(`gated warm run (median first paint): ${report.warmRuns.indexOf(report.virtual) + 1} of ${WARM_RUNS}`)
 console.log(`suggest  keystroke → strip: ${report.suggest.runs.join(', ')} ms (max ${report.suggest.maxMs})`)
 console.log(failures.length === 0 ? 'PASS' : `FAIL ${failures.join('; ')}`)
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2))

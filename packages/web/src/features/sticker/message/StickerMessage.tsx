@@ -4,7 +4,7 @@
  */
 import type { MessageContentProps } from '../../message'
 import { openStickerSet } from '../overlayStore'
-import { StickerView } from '../StickerView'
+import { LazyStickerView as StickerView } from '../LazyStickerView'
 import { stickerMessageView } from './stickerMessageModel'
 
 export function StickerMessage({ message }: MessageContentProps) {

@@ -1,16 +1,15 @@
 /*
- * TG-303 shared sticker styles: the sticker view, the press-and-hold preview, the
+ * TG-303 shared sticker styles: the press-and-hold preview, the
  * suggestion strip and the sticker message body. Panel and management styles live beside
  * their components. Semantic tokens only; reduced-motion fallbacks at the bottom.
  */
 
-.tg-sticker-view {
-  display: block;
+/* Until the renderer chunk arrives (LazyStickerView). */
+.tg-sticker-placeholder {
+  display: inline-block;
   flex: none;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-skeleton);
 }
 
 /* ── Press-and-hold preview ─────────────────────────────────────────── */

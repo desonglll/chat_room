@@ -22,7 +22,11 @@ import { PendingDialog } from './PendingDialog'
 import { useComposerController } from './useComposerController'
 import { useComposerInput } from './useComposerInput'
 import { usePendingBatch } from './usePendingBatch'
-import { LazyMediaPanel, StickerSuggestions, stickerLibrary } from '../sticker'
+// Direct module imports, not the `../sticker` barrel: the barrel also re-exports the
+// renderer, which would pull it into the entry chunk.
+import { LazyMediaPanel } from '../sticker/LazyMediaPanel'
+import { stickerLibrary } from '../sticker/stickerLibrary'
+import { StickerSuggestions } from '../sticker/suggest/StickerSuggestions'
 
 export interface ComposerProps {
   chatId: string
