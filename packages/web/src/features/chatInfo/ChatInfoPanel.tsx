@@ -77,6 +77,7 @@ export function ChatInfoPanel({
               notificationsOn={info.notificationsOn}
               notificationsBusy={info.notificationsBusy}
               onNotificationsChange={info.setNotifications}
+              chatId={chatId}
             />
             {header.variant === 'group' ? <ChatAdminEntry chatId={chatId} /> : null}
             <SharedSection

@@ -179,6 +179,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('user_status', (frame) => stores.presence.getState().applyUserStatus(chatId, frame)),
         socket.on('message_edited', (frame) => stores.message.getState().applyEdit(chatId, frame)),
         socket.on('message_recalled', (frame) => stores.message.getState().applyRecall(chatId, frame)),
+        socket.on('messages_deleted', (frame) => stores.message.getState().applyDeleted(chatId, frame)),
         socket.on('reaction_changed', (frame) => stores.message.getState().applyReaction(chatId, frame)),
         socket.on('chat_updated', (frame) => stores.chatList.getState().applyChatUpdated(frame.chat)),
         socket.on('draft_updated', (frame) => acceptRemoteDraft(frame)),

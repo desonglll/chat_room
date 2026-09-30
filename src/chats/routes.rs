@@ -139,6 +139,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
             get(slow_mode::get_slow_mode).put(slow_mode::put_slow_mode),
         )
         .route(
+            &path("/:id/auto-delete"),
+            axum::routing::put(crate::messages::auto_delete::put_auto_delete),
+        )
+        .route(
             &path("/:id/forum"),
             axum::routing::put(topic_handlers::put_forum),
         )
