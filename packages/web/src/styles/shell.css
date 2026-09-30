@@ -51,7 +51,7 @@
   background: var(--tg-chat-bg);
 }
 
-.tg-shell__back {
+.tg-mobile-back {
   display: none;
 }
 
@@ -108,17 +108,10 @@
     inline-size: 100%;
   }
 
-  .tg-shell__back {
+  /* The chat header renders the back button inline as its first child. */
+  .tg-mobile-back {
     display: inline-flex;
-    position: absolute;
-    inset-block-start: calc((var(--tg-header-height) - var(--tg-control-height)) / 2);
-    inset-inline-start: var(--tg-space-1);
-    z-index: 2;
-  }
-
-  /* Room for the floating back button until the chat header renders it inline. */
-  .tg-shell__main .tg-chat__header {
-    padding-inline-start: calc(var(--tg-control-height) + var(--tg-space-2));
+    flex: none;
   }
 }
 

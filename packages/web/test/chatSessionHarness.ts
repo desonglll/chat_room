@@ -142,7 +142,9 @@ export const AUTH_OK = {
   statuses: [{ user_id: ME, status: { kind: 'online' } }],
 }
 
-export function harness(options: { storedDraft?: ChatDraft | null; missed?: StoredMessage[] } = {}) {
+export function harness(
+  options: { storedDraft?: ChatDraft | null; missed?: StoredMessage[]; visible?: () => boolean } = {},
+) {
   const sockets: FakeSocket[] = []
   const clock = new FakeClock()
   const stores = {
@@ -194,6 +196,7 @@ export function harness(options: { storedDraft?: ChatDraft | null; missed?: Stor
     client,
     draftsApi,
     stores,
+    ...(options.visible ? { isVisible: options.visible } : {}),
   })
 
   const online = async () => {

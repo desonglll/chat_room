@@ -1,11 +1,10 @@
 /**
  * The chat wiring seam under fakes (harness in ./chatSessionHarness): socket lifecycle
- * → store fan-out, optimistic send → broadcast reconcile, reconnect catch-up, and the
- * typing-preview throttle. The draft-policy half lives in chatSessionDrafts.test.ts.
+ * → store fan-out, optimistic send → broadcast reconcile, reconnect catch-up, raw frames
+ * and read cursors (TG-100). The draft-policy half lives in chatSessionDrafts.test.ts.
  */
 import { describe, expect, test } from 'bun:test'
 import { selectTimeline } from '@tg/core'
-import { TYPING_SEND_INTERVAL_MS } from '../src/features/chat/chatSession'
 import { AUTH_OK, broadcastFrame, CHAT_ID, harness, ME, settle, storedMessage } from './chatSessionHarness'
 
 describe('connection fan-out', () => {
@@ -114,22 +113,64 @@ describe('reconnect catch-up', () => {
   })
 })
 
-describe('typing send throttle', () => {
-  test('at most one preview per interval, cancel when the composer empties', async () => {
-    const { session, sockets, clock, online } = harness()
+describe('raw frames and read cursors (TG-100)', () => {
+  const readFrames = (socket: { sentFrames(): Array<Record<string, unknown>> }) =>
+    socket.sentFrames().filter((frame) => frame.type === 'read')
+
+  test('sendFrame goes out as-is; draft edits send no typing frames (the composer owns typing)', async () => {
+    const { session, sockets, online } = harness()
     await online()
-    session.setDraftText('a')
-    session.setDraftText('ab')
-    let typing = sockets[0]!.sentFrames().filter((frame) => frame.type === 'typing')
-    expect(typing).toHaveLength(1)
-    expect(typing[0]).toMatchObject({ content: 'a', action: 'typing' })
-    clock.advance(TYPING_SEND_INTERVAL_MS)
+    expect(session.sendFrame({ type: 'recall', message_id: 'm1' })).toBeTrue()
     session.setDraftText('abc')
-    session.setDraftText('')
-    typing = sockets[0]!.sentFrames().filter((frame) => frame.type === 'typing')
-    expect(typing).toHaveLength(3)
-    expect(typing[1]).toMatchObject({ content: 'abc', action: 'typing' })
-    expect(typing[2]).toMatchObject({ content: '', action: 'cancel' })
+    const frames = sockets[0]!.sentFrames()
+    expect(frames).toContainEqual({ type: 'recall', message_id: 'm1' })
+    expect(frames.filter((frame) => frame.type === 'typing')).toHaveLength(0)
+    session.stop()
+  })
+
+  test('auth_ok receipts and read_receipt frames become read cursors', async () => {
+    const { session, sockets, stores } = harness()
+    session.start()
+    await settle()
+    sockets[0]!.open()
+    sockets[0]!.receive({ ...AUTH_OK, read_receipts: [{ user_id: 'user-other', username: 'other', message_id: 'm1' }] })
+    expect(selectTimeline(CHAT_ID)(stores.message.getState()).readCursors).toEqual({ 'user-other': 'm1' })
+    sockets[0]!.receive({ type: 'read_receipt', user_id: 'user-other', username: 'other', message_id: 'm2' })
+    expect(selectTimeline(CHAT_ID)(stores.message.getState()).readCursors).toEqual({ 'user-other': 'm2' })
+    session.stop()
+  })
+
+  test('the newest message is marked read on history completion and on each incoming arrival, once', async () => {
+    const { session, sockets, stores } = harness()
+    session.start()
+    await settle()
+    const socket = sockets[0]!
+    socket.open()
+    socket.receive(AUTH_OK)
+    socket.receive(broadcastFrame('m1', '2026-09-30T09:00:00Z', 'replayed'))
+    expect(readFrames(socket)).toHaveLength(0) // not before the replay is complete
+    socket.receive({ type: 'history_complete' })
+    expect(readFrames(socket)).toEqual([{ type: 'read', message_id: 'm1' }])
+    socket.receive(broadcastFrame('m2', '2026-09-30T09:01:00Z', 'live'))
+    socket.receive(broadcastFrame('m3', '2026-09-30T09:02:00Z', 'own', { sender_id: ME }))
+    session.markRead() // own arrivals do not trigger it; an explicit call (page shown) does
+    expect(readFrames(socket).map((frame) => frame.message_id)).toEqual(['m1', 'm2', 'm3'])
+    session.markRead()
+    expect(readFrames(socket)).toHaveLength(3)
+    session.stop()
+    // Closing the chat drops its timeline: the next open replays from the server.
+    expect(selectTimeline(CHAT_ID)(stores.message.getState()).messages).toHaveLength(0)
+  })
+
+  test('a hidden page advances nothing until it becomes visible', async () => {
+    let visible = false
+    const { session, sockets, online } = harness({ visible: () => visible })
+    await online()
+    sockets[0]!.receive(broadcastFrame('m1', '2026-09-30T09:00:00Z', 'while hidden'))
+    expect(readFrames(sockets[0]!)).toHaveLength(0)
+    visible = true
+    session.markRead()
+    expect(readFrames(sockets[0]!)).toEqual([{ type: 'read', message_id: 'm1' }])
     session.stop()
   })
 })

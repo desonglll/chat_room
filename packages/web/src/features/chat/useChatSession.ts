@@ -4,18 +4,20 @@
  * stopping the first (store merges are idempotent, so the replay is harmless).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChatSocketStatus } from '@tg/core'
+import type { ChatSocketStatus, ClientFrame } from '@tg/core'
 import { authStore, chatListStore, composerStore, messageStore, presenceStore, selectToken } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { apiClient, draftsApi } from '../../app/client'
-import { browserClock, chatSocketUrl, createBrowserSocket } from '../../app/platform'
+import { browserClock, chatSocketUrl, createBrowserSocket, onPageVisible, pageVisible } from '../../app/platform'
 import type { ChatSession } from './chatSession'
 import { createChatSession } from './chatSession'
+import { registerChatSession } from './chatSessionRegistry'
 
 export interface ChatSessionHandle {
   connection: ChatSocketStatus
   sendMessage(text: string): boolean
   setDraftText(text: string): void
+  sendFrame(frame: ClientFrame): boolean
 }
 
 export function useChatSession(chatId: string): ChatSessionHandle {
@@ -35,6 +37,7 @@ export function useChatSession(chatId: string): ChatSessionHandle {
       clock: browserClock,
       client: apiClient,
       draftsApi,
+      isVisible: pageVisible,
       stores: {
         message: messageStore,
         presence: presenceStore,
@@ -44,10 +47,14 @@ export function useChatSession(chatId: string): ChatSessionHandle {
     })
     sessionRef.current = session
     const offStatus = session.onStatus(setConnection)
+    const unregister = registerChatSession(chatId, session)
+    const offVisible = onPageVisible(() => session.markRead())
     session.start()
     setConnection(session.status())
     return () => {
       offStatus()
+      offVisible()
+      unregister()
       session.stop()
       sessionRef.current = null
     }
@@ -58,5 +65,7 @@ export function useChatSession(chatId: string): ChatSessionHandle {
     sessionRef.current?.setDraftText(text)
   }, [])
 
-  return { connection, sendMessage, setDraftText }
+  const sendFrame = useCallback((frame: ClientFrame) => sessionRef.current?.sendFrame(frame) ?? false, [])
+
+  return { connection, sendMessage, setDraftText, sendFrame }
 }

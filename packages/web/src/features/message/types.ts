@@ -1,26 +1,17 @@
 /**
  * The TG-103 public contract: what a message row needs to know about its neighbours
- * (`MessageRenderContext`, frozen with TG-101) and what it can ask the chat session to do
- * (`MessageActions`). Both are declared here, beside the bubble, because they are domain
- * types of this feature and not wire types (AGENTS.md "Ownership").
+ * (`MessageRenderContext`) and what it can ask the chat session to do (`MessageActions`).
+ * The render context is declared once, by the list that computes it (TG-101's
+ * `messageList/renderContract.ts`), and re-exported here (unified by TG-100); the actions
+ * are declared here, beside the bubble, because they are this feature's domain types.
  */
 import type { DisplayMessage } from '@tg/core'
+import type { MessageRenderContext } from '../messageList/renderContract'
 
-/**
- * Where a row sits inside a run of consecutive messages from one sender. TG-101 computes it;
- * the bubble only renders it. Structurally identical to TG-101's declaration — the
- * integration lead unifies the two.
- */
-export type GroupPosition = 'single' | 'first' | 'middle' | 'last'
+export type { MessageRenderContext }
 
-export interface MessageRenderContext {
-  groupPosition: GroupPosition
-  isOutgoing: boolean
-  showAvatar: boolean
-  showSenderName: boolean
-  highlighted: boolean
-  selected: boolean
-}
+/** Where a row sits inside a run of consecutive messages from one sender. */
+export type GroupPosition = MessageRenderContext['groupPosition']
 
 /**
  * Per-message callbacks, already bound to the message by the caller. Every member is

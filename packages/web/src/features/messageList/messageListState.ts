@@ -87,6 +87,12 @@ export interface MessageListControllerOptions {
   afterPaint?: () => Promise<void>
   /** Called synchronously right before rows are prepended (the view pins its anchor). */
   beforePrepend?: () => void
+  /**
+   * Live mode: put older rows in front of the live timeline itself (the message store,
+   * TG-100) and return how many were added; `getLive()` must see them synchronously.
+   * Omitted → rows go to the private `older` array.
+   */
+  prependLive?: (rows: readonly BroadcastMessage[]) => number
 }
 
 export const MESSAGE_NOT_FOUND_NOTICE = '消息不存在或已被删除'

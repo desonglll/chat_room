@@ -81,3 +81,27 @@ export function accountSocketUrl(): string {
   const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
   return `${scheme}://${window.location.host}/ws/account`
 }
+
+/** Whether the page is on screen: a hidden tab must not advance read cursors. */
+export function pageVisible(): boolean {
+  return typeof document === 'undefined' || document.visibilityState === 'visible'
+}
+
+/** Subscribe to page visibility changes; returns the unsubscribe function. */
+export function onPageVisible(handler: () => void): () => void {
+  const listener = () => {
+    if (pageVisible()) handler()
+  }
+  document.addEventListener('visibilitychange', listener)
+  return () => document.removeEventListener('visibilitychange', listener)
+}
+
+/** Clipboard write; false when the browser refuses (insecure origin, permissions). */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}

@@ -6,8 +6,10 @@
  */
 import { expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Composer } from '../src/features/chat/Composer'
-import { MessageList } from '../src/features/chat/MessageList'
+import { MemoryRouter } from 'react-router-dom'
+import { ChatHeader } from '../src/features/chat/ChatHeader'
+import { SelectionBar } from '../src/features/chat/SelectionBar'
+import { MessageList } from '../src/features/messageList/MessageList'
 import { LoginPage } from '../src/features/auth/LoginPage'
 import { EmptyChatState } from '../src/features/shell/EmptyChatState'
 import { resolveTheme } from '../src/app/theme'
@@ -32,18 +34,37 @@ test('EmptyChatState is the quiet service pill', () => {
   expect(html).toContain('选择一个会话开始聊天')
 })
 
-test('Composer exposes a named textarea and a disabled send while empty', () => {
-  const html = renderToStaticMarkup(<Composer chatId="c1" onSend={() => true} onDraftChange={() => {}} />)
-  expect(html).toContain('aria-label="消息内容"')
-  expect(html).toContain('placeholder="写消息…"')
-  expect(html).toContain('aria-label="发送"')
-  expect(html).toContain('disabled')
-})
-
 test('MessageList before history_complete announces loading, not emptiness', () => {
   const html = renderToStaticMarkup(<MessageList chatId="c1" currentUserId="u1" />)
   expect(html).toContain('正在载入消息')
   expect(html).not.toContain('还没有消息')
+})
+
+test('ChatHeader: inline mobile back button; connection copy replaces the presence line', () => {
+  const at = (connection: 'connecting' | 'online') =>
+    renderToStaticMarkup(
+      <MemoryRouter>
+        <ChatHeader chatId="c1" connection={connection} />
+      </MemoryRouter>,
+    )
+  const connecting = at('connecting')
+  expect(connecting).toContain('tg-mobile-back')
+  expect(connecting).toContain('aria-label="返回会话列表"')
+  expect(connecting).toContain('连接中…')
+  const online = at('online')
+  expect(online).not.toContain('连接中…')
+  expect(online).toContain('tg-presence-status')
+})
+
+test('SelectionBar: count, forward, delete disabled unless every message is deletable', () => {
+  const noop = () => {}
+  const html = renderToStaticMarkup(
+    <SelectionBar count={3} canDelete={false} onForward={noop} onDelete={noop} onCancel={noop} />,
+  )
+  expect(html).toContain('已选 3 条')
+  expect(html).toContain('转发')
+  expect(html).toMatch(/<button[^>]*disabled[^>]*>(?:(?!<\/button>).)*删除/)
+  expect(html).toContain('aria-label="取消选择"')
 })
 
 test('resolveTheme: explicit wins, system follows the OS', () => {

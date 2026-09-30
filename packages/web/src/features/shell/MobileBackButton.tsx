@@ -1,7 +1,6 @@
 /**
- * Mobile single-column layout: the way back from a chat to the list. Rendered by the
- * shell over the chat header's leading edge (CSS shows it only below the mobile
- * breakpoint); a chat header may render it inline instead (integration patch list).
+ * Mobile single-column layout: the way back from a chat to the list. Rendered inline as
+ * the chat header's first child (TG-100); CSS shows it only below the mobile breakpoint.
  */
 import { useNavigate } from 'react-router-dom'
 import { IconButton } from '@tg/ui'

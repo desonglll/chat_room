@@ -114,7 +114,10 @@ chatListStore.getState().setChats([
 // Bulk seed (applyBroadcast per message is O(n) each): `?live=100000` puts the whole
 // history in the store timeline, which is how the 100k-rows-mounted memory is measured.
 messageStore.setState((state) => ({
-  timelines: { ...state.timelines, [CHAT_ID]: { messages: server.slice(TOTAL - LIVE), historyReady: true } },
+  timelines: {
+    ...state.timelines,
+    [CHAT_ID]: { messages: server.slice(TOTAL - LIVE), historyReady: true, readCursors: {} },
+  },
 }))
 
 let next = TOTAL

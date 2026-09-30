@@ -1,4 +1,4 @@
-/* The conversation pane: header, minimal message rows, minimal composer. */
+/* The conversation pane: header, the default renderer's rows, selection bar, chat dialogs. */
 
 .tg-chat {
   flex: 1;
@@ -164,43 +164,77 @@
   color: var(--tg-text-danger);
 }
 
-/* ── Composer ─────────────────────────────────────────────────────────────── */
+/* ── Selection bar (replaces the composer while messages are selected) ─────── */
 
-.tg-composer {
+.tg-selection {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--tg-space-2);
-  padding: var(--tg-space-2) var(--tg-space-4) var(--tg-space-3);
-}
-
-.tg-composer__field {
-  flex: 1;
-  min-width: 0;
-  background: var(--tg-surface);
+  min-height: var(--tg-header-height);
+  margin: var(--tg-space-2) var(--tg-space-4) var(--tg-space-3);
+  padding: var(--tg-space-1) var(--tg-space-2);
   border-radius: var(--tg-radius-sheet);
+  background: var(--tg-surface);
   box-shadow: var(--tg-shadow-composer);
 }
 
-.tg-composer__input {
-  display: block;
+.tg-selection__count {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--tg-weight-medium);
+}
+
+/* ── Forward picker and delete confirmation ─────────────────────────────── */
+
+.tg-forward {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.tg-forward__list {
+  max-height: min(60vh, calc(var(--tg-space-20) * 5));
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tg-forward__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
   width: 100%;
-  box-sizing: border-box;
-  max-height: var(--tg-space-20);
-  padding: var(--tg-space-3) var(--tg-space-4);
+  padding: var(--tg-space-2);
   border: 0;
-  border-radius: inherit;
+  border-radius: var(--tg-radius-md);
   background: transparent;
-  color: var(--tg-text-primary);
+  color: inherit;
   font: inherit;
-  letter-spacing: inherit;
-  resize: none;
-  field-sizing: content;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
 }
 
-.tg-composer__input::placeholder {
-  color: var(--tg-text-tertiary);
+.tg-forward__row:hover,
+.tg-forward__row:focus-visible {
+  background: var(--tg-surface-hover);
 }
 
-.tg-composer__input:focus-visible {
-  outline: none;
+.tg-forward__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-forward__empty {
+  padding: var(--tg-space-4);
+  color: var(--tg-text-secondary);
+  text-align: center;
+}
+
+.tg-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tg-space-2);
 }

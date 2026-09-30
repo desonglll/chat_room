@@ -8,6 +8,7 @@
 import type {
   ApiClient,
   ChatDraft,
+  ClientFrame,
   ChatListStore,
   ChatSocketStatus,
   ComposerStore,
@@ -25,13 +26,12 @@ import {
   createChatSocket,
   createDraftSynchronizer,
   createRandomUuid,
+  getChat,
   listChatMessages,
 } from '@tg/core'
 
-/** Server caps: message ≤ 4096 chars, typing preview ≤ 512 (`src/realtime/auth.rs`). */
+/** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
 export const MAX_MESSAGE_CHARS = 4096
-export const TYPING_PREVIEW_CHARS = 512
-export const TYPING_SEND_INTERVAL_MS = 1000
 
 export interface ChatSessionStores {
   message: MessageStore
@@ -50,6 +50,8 @@ export interface ChatSessionOptions {
   client: ApiClient
   draftsApi: DraftsApi
   stores: ChatSessionStores
+  /** Whether the reader can see the chat right now (page visible). Default: always. */
+  isVisible?: () => boolean
 }
 
 export interface ChatSession {
@@ -58,8 +60,19 @@ export interface ChatSession {
   stop(): void
   /** Optimistic append + WS send; false marks the row failed (offline). */
   sendMessage(text: string): boolean
-  /** Composer edit: store + debounced cloud save + throttled typing preview. */
+  /**
+   * Composer edit: store + debounced cloud save. Typing frames are the composer's
+   * (TG-107 `createChatActionSender` via `sendFrame`), not this method's.
+   */
   setDraftText(text: string): void
+  /** One raw client frame on this chat's socket (edit, recall, reaction, typing …). */
+  sendFrame(frame: ClientFrame): boolean
+  /**
+   * Advance the viewer's read cursor to the newest server message, when it moved. Called
+   * on history completion, on every settled arrival, and by the host when the page
+   * becomes visible; `isVisible` (option) gates it so a background tab reads nothing.
+   */
+  markRead(): void
   status(): ChatSocketStatus
   onStatus(handler: (status: ChatSocketStatus) => void): () => void
 }
@@ -68,9 +81,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
   const { chatId, currentUserId, clock, stores } = options
   const unsubscribers: Array<() => void> = []
   let expiryTimer: CoreTimerHandle | null = null
-  // -Infinity so the very first preview always goes out, whatever the clock's epoch.
-  let lastTypingSentAt = Number.NEGATIVE_INFINITY
-  let typingCleared = true
+  let lastReadSent = ''
+  let knownParticipants = -1
   // Whether the server may hold a draft row for this chat: set optimistically when a
   // commit starts, corrected by every accepted remote state. Decides whether sending a
   // message needs to flush an empty clear (PUT "") or has nothing to clean up.
@@ -124,33 +136,65 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
     }, TYPING_TTL_MS + 50)
   }
 
-  function maybeSendTyping(text: string): void {
-    if (socket.status() !== 'online') return
-    if (!text) {
-      if (!typingCleared) {
-        typingCleared = true
-        socket.send({ type: 'typing', content: '', action: 'cancel' })
-      }
-      return
+  /**
+   * The chat descriptor (member count, title …) is fetched once by the list sync; when
+   * the participant set changes size (a join / leave while the chat is open), refetch it
+   * so the header's member count follows. Private chats have no descriptor (404 → null).
+   */
+  function refreshDescriptor(participants: number): void {
+    if (participants === knownParticipants) return
+    const first = knownParticipants < 0
+    knownParticipants = participants
+    const known = stores.chatList.getState().chats.find((chat) => chat.id === chatId)
+    if (first && known?.member_count === participants) return
+    getChat(options.client, chatId, options.token)
+      .then((chat) => {
+        if (chat) stores.chatList.getState().upsertChat(chat)
+      })
+      .catch(() => {
+        // The header keeps the last known descriptor.
+      })
+  }
+
+  function markRead(): void {
+    if (socket.status() !== 'online' || !(options.isVisible?.() ?? true)) return
+    const timeline = stores.message.getState().timelines[chatId]
+    if (!timeline?.historyReady) return
+    let newest = ''
+    for (let index = timeline.messages.length - 1; index >= 0; index -= 1) {
+      const message = timeline.messages[index]
+      if (message?.type !== 'broadcast' || message.message_id.startsWith('pending:')) continue
+      newest = message.message_id
+      break
     }
-    const now = clock.now()
-    if (now - lastTypingSentAt < TYPING_SEND_INTERVAL_MS) return
-    lastTypingSentAt = now
-    typingCleared = false
-    socket.send({ type: 'typing', content: text.slice(0, TYPING_PREVIEW_CHARS), action: 'typing' })
+    if (!newest || newest === lastReadSent || newest === timeline.readCursors[currentUserId]) return
+    lastReadSent = newest
+    socket.send({ type: 'read', message_id: newest })
   }
 
   return {
     start() {
       unsubscribers.push(
-        socket.on('auth_ok', (frame) => stores.presence.getState().applyAuthOk(chatId, frame)),
-        socket.on('history_complete', () => stores.message.getState().setHistoryReady(chatId, true)),
+        socket.on('auth_ok', (frame) => {
+          stores.presence.getState().applyAuthOk(chatId, frame)
+          stores.message.getState().applyReadReceipts(chatId, frame.read_receipts)
+          refreshDescriptor(frame.participants.length)
+        }),
+        socket.on('history_complete', () => {
+          stores.message.getState().setHistoryReady(chatId, true)
+          markRead()
+        }),
         socket.on('broadcast', (frame) => {
           const ready = stores.message.getState().timelines[chatId]?.historyReady ?? false
           const motion = classifyMessageMotion(ready, frame.sender_id, currentUserId)
           stores.message.getState().applyBroadcast(chatId, frame, motion)
+          if (ready && frame.sender_id !== currentUserId) markRead()
         }),
-        socket.on('presence', (frame) => stores.presence.getState().applyPresence(chatId, frame)),
+        socket.on('read_receipt', (frame) => stores.message.getState().applyReadReceipts(chatId, [frame])),
+        socket.on('presence', (frame) => {
+          stores.presence.getState().applyPresence(chatId, frame)
+          refreshDescriptor(frame.participants.length)
+        }),
         socket.on('typing', (frame) => {
           stores.presence.getState().applyTyping(chatId, frame, clock.now())
           scheduleTypingExpiry()
@@ -183,6 +227,9 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         expiryTimer = null
       }
       socket.close()
+      // The next open replays from the server: a kept timeline could silently skip every
+      // message that arrived while the chat was closed (the replay appends after it).
+      stores.message.getState().clearChat(chatId)
     },
 
     sendMessage(text) {
@@ -216,7 +263,6 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         // debounce cannot store a draft for a message that was already sent.
         synchronizer.dispose()
       }
-      typingCleared = true // the server broadcasts the cancel itself on message store
       return sent
     },
 
@@ -228,8 +274,10 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         reply_to_message_id: draft.replyToMessageId,
         topic_id: draft.topicId,
       })
-      maybeSendTyping(text)
     },
+
+    sendFrame: (frame) => socket.send(frame),
+    markRead,
 
     status: () => socket.status(),
     onStatus: (handler) => socket.onStatus(handler),

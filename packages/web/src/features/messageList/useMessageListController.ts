@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useRef } from 'react'
 import type { DisplayMessage, MessageLayoutEntry } from '@tg/core'
-import { authStore, createMessageLayoutCache, selectToken } from '@tg/core'
+import { authStore, createMessageLayoutCache, messageStore, selectTimeline, selectToken } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { apiClient } from '../../app/client'
 import { createMessageListApi } from './messageListApi'
@@ -35,15 +35,16 @@ export function useMessageListController({
   api,
   onBeforePrepend,
 }: UseMessageListControllerInput) {
-  const liveRef = useRef(live)
-  liveRef.current = live
   const beforePrependRef = useRef(onBeforePrepend)
   beforePrependRef.current = onBeforePrepend
   const controller = useMemo(
     () =>
       createMessageListController({
         api: api ?? createMessageListApi(apiClient, chatId, () => selectToken(authStore.getState())),
-        getLive: () => liveRef.current,
+        // The store, not the last rendered prop: `prependLive` writes it and the anchor
+        // math reads the result in the same tick, before React re-renders.
+        getLive: () => selectTimeline(chatId)(messageStore.getState()).messages,
+        prependLive: (rows) => messageStore.getState().prependHistory(chatId, rows),
         timers: browserTimers,
         beforePrepend: () => beforePrependRef.current(),
         afterPaint: () =>
