@@ -138,7 +138,7 @@ impl MessageRow {
             created_at: self.created_at,
             favorite_id: self.favorite_id,
             forwarded_from,
-            reactions: Vec::new(),
+            ..Default::default()
         }
     }
 }

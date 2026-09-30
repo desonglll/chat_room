@@ -31,7 +31,7 @@ pub struct ForwardedFrom {
 }
 
 /// A chat message persisted as part of a chat session.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct StoredMessage {
     pub id: Uuid,
     pub client_message_id: Option<Uuid>,
@@ -50,6 +50,12 @@ pub struct StoredMessage {
     pub forwarded_from: Option<ForwardedFrom>,
     #[serde(default)]
     pub reactions: Vec<MessageReaction>,
+    /// TG-302: `"sticker"` for sticker messages; absent for text and plain attachments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_kind: Option<String>,
+    /// TG-302: which sticker a sticker message sent; the file is `attachment`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sticker: Option<crate::stickers::models::MessageSticker>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

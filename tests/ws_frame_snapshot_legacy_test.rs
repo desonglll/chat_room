@@ -147,6 +147,8 @@ fn broadcast_frame_serializes_unchanged() {
             emoji: "👍".into(),
             user_ids: vec![id(12)],
         }],
+        media_kind: None,
+        sticker: None,
     };
     assert_wire(
         &full,
@@ -186,10 +188,9 @@ fn broadcast_frame_serializes_unchanged() {
         ),
     );
 
-    // The nullable fields stay *present as null* when absent (`sender_id`, `attachment`,
-    // `reply_to`, `recalled_at`, `edited_at`, `favorite_id`, `forwarded_from`) and
-    // `reactions` is always emitted; only `client_message_id` is omitted (not null) when
-    // absent — the frozen clients rely on both rules.
+    // Nullable fields stay *present as null* (`sender_id`, `attachment`, `reply_to`, `recalled_at`,
+    // `edited_at`, `favorite_id`, `forwarded_from`), `reactions` is always emitted; only
+    // `client_message_id` and TG-302's `media_kind`/`sticker` are omitted when absent.
     let minimal = ChatMessage::Broadcast {
         message_id: id(10),
         client_message_id: None,
@@ -205,6 +206,8 @@ fn broadcast_frame_serializes_unchanged() {
         favorite_id: None,
         forwarded_from: None,
         reactions: Vec::new(),
+        media_kind: None,
+        sticker: None,
     };
     assert_wire(
         &minimal,

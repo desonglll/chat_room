@@ -109,10 +109,11 @@ impl AppState {
                 });
             }
         }
-        for message in messages {
+        for message in messages.iter_mut() {
             message.reactions = grouped.remove(&message.id).unwrap_or_default();
         }
-        Ok(())
+        // TG-302: every message loader runs this step, so `media_kind`/`sticker` ride along.
+        self.attach_message_media(messages).await
     }
 }
 
