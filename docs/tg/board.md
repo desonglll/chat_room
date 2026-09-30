@@ -130,7 +130,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-301 TGS 解码与 Lottie 渲染 ← 性能风险 | L | A | in-progress | — | M1 |
 | TG-302 贴纸数据模型与服务端 | L | B | **merged** | — | M1 |
 | TG-303 贴纸面板 | L | A | blocked | — | TG-301, TG-302 |
-| TG-304 自定义 emoji | M | B | blocked | — | TG-302 |
+| TG-304 自定义 emoji | M | B | in-progress | — | TG-302 |
 | TG-305 GIF | M | A | blocked | — | TG-303 |
 | TG-306 静态与视频贴纸 | S | B | blocked | — | TG-301, TG-302 |
 
