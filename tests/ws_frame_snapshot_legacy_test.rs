@@ -149,6 +149,7 @@ fn broadcast_frame_serializes_unchanged() {
         }],
         media_kind: None,
         sticker: None,
+        poll: None,
     };
     assert_wire(
         &full,
@@ -208,6 +209,7 @@ fn broadcast_frame_serializes_unchanged() {
         reactions: Vec::new(),
         media_kind: None,
         sticker: None,
+        poll: None,
     };
     assert_wire(
         &minimal,

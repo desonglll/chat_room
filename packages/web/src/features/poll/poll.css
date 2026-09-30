@@ -1,0 +1,296 @@
+/*
+ * TG-406 poll bubble body and dialogs. Colours come from the bubble's side palette
+ * (`--tg-msg-*`, set by features/message/styles/bubble.css), so an outgoing poll is drawn
+ * in the outgoing accent without a second rule set.
+ *
+ * Motion: result bars grow from zero when results appear and glide when counts change
+ * (spring transition). Under prefers-reduced-motion both are removed explicitly below —
+ * the bar simply shows its current length.
+ */
+
+.tg-poll {
+  inline-size: calc(var(--tg-space-20) * 3.5);
+  max-inline-size: 100%;
+  padding-inline: var(--tg-bubble-padding-inline);
+  color: var(--tg-msg-text);
+}
+
+.tg-poll__question {
+  font-weight: var(--tg-weight-medium);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tg-poll__kind {
+  margin-block: var(--tg-space-0-5) var(--tg-space-2);
+  color: var(--tg-msg-meta);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-poll__options {
+  display: grid;
+  gap: var(--tg-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ── Ballot ────────────────────────────────────────────────────────────── */
+
+.tg-poll__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2-5);
+  inline-size: 100%;
+  min-block-size: var(--tg-touch-min);
+  padding: var(--tg-space-1) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-poll__choice:disabled {
+  cursor: progress;
+  opacity: var(--tg-opacity-disabled);
+}
+
+.tg-poll__choice:focus-visible,
+.tg-poll__action:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+  border-radius: var(--tg-radius-xs);
+}
+
+.tg-poll__marker {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--tg-icon-sm);
+  block-size: var(--tg-icon-sm);
+  border: 2px solid var(--tg-msg-meta);
+  border-radius: var(--tg-radius-circle);
+  transition:
+    background-color var(--tg-transition-fade),
+    border-color var(--tg-transition-fade);
+}
+
+.tg-poll__marker[data-shape='square'] {
+  border-radius: var(--tg-radius-xs);
+}
+
+.tg-poll__marker[data-ticked] {
+  border-color: var(--tg-msg-accent);
+  background: var(--tg-msg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-poll__text {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ── Results ───────────────────────────────────────────────────────────── */
+
+.tg-poll__result {
+  display: grid;
+  grid-template-columns: calc(var(--tg-space-10) + var(--tg-space-1)) 1fr;
+  align-items: start;
+  padding-block: var(--tg-space-0-5);
+}
+
+.tg-poll__percent {
+  font-weight: var(--tg-weight-medium);
+  font-size: var(--tg-type-message-secondary-size);
+  line-height: var(--tg-type-message-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.tg-poll__result-body {
+  display: grid;
+  gap: var(--tg-space-1);
+  min-inline-size: 0;
+}
+
+.tg-poll__mark {
+  display: inline-flex;
+  margin-inline-start: var(--tg-space-1);
+  vertical-align: -0.1em;
+  color: var(--tg-msg-accent);
+}
+
+.tg-poll__result[data-mark='correct'] .tg-poll__mark {
+  color: var(--tg-success);
+}
+
+.tg-poll__result[data-mark='wrong'] .tg-poll__mark {
+  color: var(--tg-danger);
+}
+
+.tg-poll__bar {
+  display: block;
+  block-size: var(--tg-space-1);
+  min-inline-size: var(--tg-space-1);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-msg-accent);
+  transform: scaleX(var(--poll-share, 0));
+  transform-origin: left center;
+  transition: transform var(--tg-transition-spring);
+  animation: tg-poll-grow var(--tg-duration-spring-long) var(--tg-ease-spring-smooth);
+}
+
+[dir='rtl'] .tg-poll__bar {
+  transform-origin: right center;
+}
+
+.tg-poll__result[data-mark='correct'] .tg-poll__bar {
+  background: var(--tg-success);
+}
+
+.tg-poll__result[data-mark='wrong'] .tg-poll__bar {
+  background: var(--tg-danger);
+}
+
+@keyframes tg-poll-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ── Footer, explanation, errors ───────────────────────────────────────── */
+
+.tg-poll__explanation {
+  display: flex;
+  gap: var(--tg-space-1-5);
+  margin-block-start: var(--tg-space-2);
+  padding: var(--tg-space-1-5) var(--tg-space-2);
+  border-radius: var(--tg-radius-sm);
+  background: var(--tg-surface-hover);
+  font-size: var(--tg-type-message-secondary-size);
+  line-height: var(--tg-type-message-secondary-line);
+}
+
+.tg-poll__error {
+  margin-block-start: var(--tg-space-1);
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-poll__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--tg-space-1) var(--tg-space-3);
+  margin-block-start: var(--tg-space-2);
+  color: var(--tg-msg-meta);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+}
+
+.tg-poll__action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tg-msg-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-poll__action:disabled {
+  opacity: var(--tg-opacity-disabled);
+  cursor: default;
+}
+
+.tg-poll__action--primary {
+  font-weight: var(--tg-weight-medium);
+}
+
+/* ── Dialogs ───────────────────────────────────────────────────────────── */
+
+.tg-poll-create__section {
+  margin-block: var(--tg-space-4) var(--tg-space-1);
+  color: var(--tg-text-link);
+  font-weight: var(--tg-weight-medium);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-poll-create__options {
+  display: grid;
+  gap: var(--tg-space-1-5);
+  margin: 0 0 var(--tg-space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.tg-poll-create__option {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-1-5);
+}
+
+/* The ring is painted over the (transparent) native input in @tg/ui's Radio, so without this
+   a click on the visible ring never reaches the input. Scoped here; reported to the lead. */
+.tg-poll-create__option .tg-radio__dot {
+  pointer-events: none;
+}
+
+.tg-poll-create__option .tg-radio {
+  gap: 0;
+}
+
+.tg-poll-create__explanation {
+  margin-block-start: var(--tg-space-3);
+}
+
+.tg-poll-create__hint {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-poll-create__error {
+  margin-block-start: var(--tg-space-2);
+  color: var(--tg-text-danger);
+}
+
+.tg-poll-voters__option + .tg-poll-voters__option {
+  margin-block-start: var(--tg-space-3);
+}
+
+.tg-poll-voters__title {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 var(--tg-space-1);
+  font-size: var(--tg-type-label-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-poll-voters__total,
+.tg-poll-voters__empty {
+  color: var(--tg-text-secondary);
+  font-weight: var(--tg-weight-regular);
+}
+
+.tg-poll-voters__list {
+  display: grid;
+  gap: var(--tg-space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-poll-voters__voter {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-poll__bar {
+    animation: none;
+    transition: none;
+  }
+}

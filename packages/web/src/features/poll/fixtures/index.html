@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-406 polls</title>
+    <!--
+      Dev-only fixture page for every poll state, with a local (serverless) vote simulation;
+      never part of the shipped bundle. Serve with Bun's HTML dev server:
+
+        bun packages/web/src/features/poll/fixtures/index.html
+    -->
+    <link rel="stylesheet" href="../../../../../ui/src/styles.css" />
+    <link rel="stylesheet" href="../../message/message.css" />
+    <link rel="stylesheet" href="../../message/fixtures/fixtures.css" />
+    <link rel="stylesheet" href="../poll.css" />
+  </head>
+  <body>
+    <div id="fixtures"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

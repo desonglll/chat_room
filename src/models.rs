@@ -56,6 +56,9 @@ pub struct StoredMessage {
     /// TG-302: which sticker a sticker message sent; the file is `attachment`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sticker: Option<crate::stickers::models::MessageSticker>,
+    /// TG-406: present exactly when the message carries a poll (`docs/devlog/TG-406.md`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub poll: Option<PollState>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

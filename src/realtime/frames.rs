@@ -132,6 +132,9 @@ pub enum ChatMessage {
         media_kind: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         sticker: Option<MessageSticker>,
+        /// TG-406: optional, omitted unless the message carries a poll (docs/devlog/TG-406.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        poll: Option<PollState>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

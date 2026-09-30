@@ -120,6 +120,7 @@ async fn skeleton_frames_traverse_the_broadcast_path() {
                 closed: false,
                 total_voters: 0,
                 options: Vec::new(),
+                ..PollState::default()
             },
         },
     ];

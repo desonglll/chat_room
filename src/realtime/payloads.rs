@@ -6,6 +6,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// What a member is currently doing in the chat, carried by the `typing` frame.
@@ -91,19 +92,57 @@ pub struct MessageViewCount {
     pub views: i64,
 }
 
-/// Poll snapshot carried by `poll_updated`. Business logic lands in M4.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Poll snapshot carried by `poll_updated`, and by a poll message's `poll` field.
+///
+/// TG-007 froze `id`/`question`/`closed`/`total_voters`/`options`; TG-406 filled the logic and
+/// grew the shape **additively**: every later field is omitted at its default, so the TG-007
+/// snapshot serialises byte-for-byte as before. `id` is the carrying message's id (a poll is
+/// keyed by its message). See `docs/devlog/TG-406.md`, Frozen interface.
+///
+/// `poll_updated` is chat-wide, so it never carries viewer-specific data: `chosen` is absent
+/// (`None` = "not known in this frame", merge-keep the local value), and a quiz's
+/// `correct_option`/`explanation` appear only once the poll is closed. A per-viewer read
+/// (history, `GET /api/polls/:id`, a vote response) sets `chosen` (`Some([])` = not voted) and
+/// reveals the quiz answer to a viewer who has answered. No frame ever carries voter ids.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct PollState {
     pub id: Uuid,
     pub question: String,
     pub closed: bool,
     pub total_voters: i64,
     pub options: Vec<PollOption>,
+    /// Voters are visible (`GET /api/polls/:id/voters`). Absent means anonymous.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub public_voters: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub multiple_choice: bool,
+    /// Quiz mode: exactly one correct option, and a vote can never be changed or retracted.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub quiz: bool,
+    /// Index into `options`. Quiz only, and only when revealed (see type docs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correct_option: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explanation: Option<String>,
+    /// The viewer's own chosen option indexes. Absent in chat-wide frames.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chosen: Option<Vec<u32>>,
+    /// Monotonic per poll; a client drops any snapshot older than the one it holds.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub revision: i64,
 }
 
 /// One answer row of a [`PollState`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct PollOption {
     pub text: String,
     pub voters: i64,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+fn is_zero(value: &i64) -> bool {
+    *value == 0
 }
