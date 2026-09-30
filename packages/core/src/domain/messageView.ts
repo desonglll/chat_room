@@ -75,5 +75,6 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     favorite_id: message.favorite_id,
     forwarded_from: message.forwarded_from,
     reactions: message.reactions || [],
+    ...(message.entities?.length ? { entities: message.entities } : {}),
   }
 }
