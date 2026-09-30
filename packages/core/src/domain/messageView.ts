@@ -76,5 +76,6 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     forwarded_from: message.forwarded_from,
     reactions: message.reactions || [],
     ...(message.poll ? { poll: message.poll } : {}),
+    ...(message.entities?.length ? { entities: message.entities } : {}),
   }
 }

@@ -31,6 +31,21 @@ export interface ForwardedFrom {
   room_name: string
 }
 
+/**
+ * TG-304: one formatted range of a message's text. `offset`/`length` are UTF-16 code units
+ * (JavaScript string indices). Type-specific fields are omitted unless the type uses them.
+ * The wire omits `entities` when a message has none — read absent as `[]`.
+ */
+export interface MessageEntity {
+  type: string
+  offset: number
+  length: number
+  custom_emoji_id?: string
+  url?: string
+  user_id?: string
+  language?: string
+}
+
 export interface MessageReaction {
   emoji: string
   user_ids: string[]
@@ -62,6 +77,8 @@ export interface StoredMessage {
   reactions: MessageReaction[]
   /** TG-406: present exactly when the message carries a poll; omitted otherwise. */
   poll?: PollState
+  /** TG-304: omitted when the message has no entities. */
+  entities?: MessageEntity[]
 }
 
 /**

@@ -1,0 +1,115 @@
+/*
+ * TG-304 inline custom emoji, emoji status and the custom emoji pickers. Semantic tokens
+ * only. An inline emoji is a fixed square that scales with the text around it and sits on
+ * the baseline like a glyph; its image is not draggable and not separately selectable.
+ */
+
+.tg-custom-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -0.2em;
+  inline-size: 1.25em;
+  block-size: 1.25em;
+  line-height: 1;
+}
+
+.tg-custom-emoji__image {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.tg-emoji-status {
+  margin-inline-start: var(--tg-space-1);
+  flex: none;
+  vertical-align: middle;
+}
+
+.tg-custom-emoji-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2);
+  overflow-y: auto;
+}
+
+.tg-custom-emoji-grid__title {
+  margin: 0 0 var(--tg-space-1);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--tg-text-secondary);
+}
+
+.tg-custom-emoji-grid__cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  gap: var(--tg-space-1);
+}
+
+.tg-custom-emoji-grid__cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: var(--tg-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--tg-duration-press) var(--tg-ease-standard);
+}
+
+.tg-custom-emoji-grid__cell:hover,
+.tg-custom-emoji-grid__cell:focus-visible {
+  background: var(--tg-surface-hover);
+}
+
+.tg-custom-emoji-grid__empty,
+.tg-emoji-status-picker__error {
+  margin: 0;
+  padding: var(--tg-space-4);
+  text-align: center;
+  color: var(--tg-text-secondary);
+}
+
+.tg-emoji-status-picker__durations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-2);
+}
+
+.tg-emoji-status-picker__duration,
+.tg-emoji-status-picker__clear {
+  border: 0;
+  border-radius: var(--tg-radius-sm);
+  padding: var(--tg-space-1) var(--tg-space-2);
+  background: var(--tg-surface-hover);
+  color: var(--tg-text-primary);
+  cursor: pointer;
+}
+
+.tg-emoji-status-picker__duration[aria-checked='true'] {
+  background: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-emoji-status-picker__clear {
+  margin: var(--tg-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-custom-emoji-grid__cell {
+    transition: none;
+  }
+}
+
+/* Dev fixture page only (fixtures/index.html). */
+.tg-custom-emoji-fixture {
+  max-inline-size: 30rem;
+  margin: 0 auto;
+  padding: var(--tg-space-4);
+  background: var(--tg-surface);
+  color: var(--tg-text-primary);
+  font-family: var(--tg-font-sans);
+}

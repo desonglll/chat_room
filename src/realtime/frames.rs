@@ -18,6 +18,7 @@ use crate::models::{
 use crate::realtime::payloads::{
     MessageViewCount, PollState, TopicSummary, TypingAction, UserStatus, UserStatusEntry,
 };
+use crate::stickers::custom_emoji::MessageEntity;
 use crate::stickers::models::MessageSticker;
 
 /// Every WebSocket frame carries one JSON-serialised ChatMessage.
@@ -65,11 +66,20 @@ pub enum ChatMessage {
         reply_to: Option<Uuid>,
         #[serde(default)]
         client_message_id: Option<Uuid>,
+        /// TG-304: optional formatted ranges of `content` (docs/devlog/TG-304.md).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        entities: Vec<MessageEntity>,
     },
 
-    /// Client -> Server: replace the content of a message sent by this account.
+    /// Client -> Server: replace the content of a message sent by this account. TG-304: the
+    /// optional `entities` replace the message's entities (absent = none).
     #[serde(rename = "edit")]
-    Edit { message_id: Uuid, content: String },
+    Edit {
+        message_id: Uuid,
+        content: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        entities: Vec<MessageEntity>,
+    },
 
     /// Both directions: publish a transient draft and what the sender is doing.
     ///
@@ -135,6 +145,9 @@ pub enum ChatMessage {
         /// TG-406: optional, omitted unless the message carries a poll (docs/devlog/TG-406.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         poll: Option<PollState>,
+        /// TG-304: omitted unless the message has entities.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        entities: Vec<MessageEntity>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.
@@ -152,6 +165,9 @@ pub enum ChatMessage {
         message_id: Uuid,
         content: String,
         edited_at: DateTime<Utc>,
+        /// TG-304: the edited text's entities; omitted (= none) when empty.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        entities: Vec<MessageEntity>,
     },
 
     /// Server -> Client: a message was marked as recalled.

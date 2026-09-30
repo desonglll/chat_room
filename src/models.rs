@@ -59,6 +59,9 @@ pub struct StoredMessage {
     /// TG-406: present exactly when the message carries a poll (`docs/devlog/TG-406.md`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub poll: Option<PollState>,
+    /// TG-304: formatted ranges of `content` (custom emoji); omitted when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entities: Vec<crate::stickers::custom_emoji::MessageEntity>,
 }
 
 /// Aggregated users who applied one emoji response to a message.

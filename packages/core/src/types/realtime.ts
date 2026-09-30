@@ -15,7 +15,7 @@
  * - `chat.membership_status`/`membership_role` (inside `chat_updated`): omitted when null.
  */
 import type { Chat, ChatMember, ChatMembership } from './chat'
-import type { Attachment, ForwardedFrom, MessageReaction, ReadReceipt, ReplyPreview } from './message'
+import type { Attachment, ForwardedFrom, MessageEntity, MessageReaction, ReadReceipt, ReplyPreview } from './message'
 
 /** The ten typing actions. Unknown wire strings MUST degrade to `'typing'` (TG-007 §1). */
 export const TYPING_ACTIONS = [
@@ -67,6 +67,8 @@ export interface BroadcastFrame {
   reactions: MessageReaction[]
   /** TG-406: present exactly when the message carries a poll; omitted otherwise. */
   poll?: PollState
+  /** TG-304: omitted when the message has no entities. */
+  entities?: MessageEntity[]
 }
 
 export interface TypingFrame {
@@ -151,7 +153,7 @@ export type ServerFrame =
   | BroadcastFrame
   | { type: 'read_receipt'; user_id: string; username: string; message_id: string }
   | { type: 'message_recalled'; message_id: string; recalled_at: string }
-  | { type: 'message_edited'; message_id: string; content: string; edited_at: string }
+  | { type: 'message_edited'; message_id: string; content: string; edited_at: string; entities?: MessageEntity[] }
   | { type: 'reaction_changed'; message_id: string; emoji: string; user_id: string; active: boolean }
   | TypingFrame
   | { type: 'presence'; members: ChatMember[]; participants: ChatMember[] }
@@ -170,8 +172,8 @@ export type ServerFrameType = ServerFrame['type']
 export type ClientFrame =
   | { type: 'join'; token: string }
   | { type: 'auth'; token: string; password: string }
-  | { type: 'message'; content: string; reply_to?: string; client_message_id?: string }
-  | { type: 'edit'; message_id: string; content: string }
+  | { type: 'message'; content: string; reply_to?: string; client_message_id?: string; entities?: MessageEntity[] }
+  | { type: 'edit'; message_id: string; content: string; entities?: MessageEntity[] }
   | { type: 'read'; message_id: string }
   | { type: 'recall'; message_id: string }
   | { type: 'reaction'; message_id: string; emoji: string; active: boolean }

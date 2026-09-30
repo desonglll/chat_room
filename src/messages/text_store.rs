@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::store::{MessageRow, MESSAGE_SELECT};
 use crate::models::StoredMessage;
 use crate::state::{with_pool, AppState};
+use crate::stickers::custom_emoji::{entity_store::insert_message_entities, MessageEntity};
 
 pub(crate) struct StoreMessageResult {
     pub message: StoredMessage,
@@ -13,6 +14,9 @@ pub(crate) struct StoreMessageResult {
 }
 
 impl AppState {
+    /// Store a text message with its TG-304 entities, in one transaction so the live poller
+    /// never sees the text without them. `entities` must already be
+    /// accepted (`AppState::accept_message_entities`).
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn store_message(
         &self,
@@ -23,12 +27,15 @@ impl AppState {
         content: &str,
         reply_to: Option<Uuid>,
         client_message_id: Option<Uuid>,
+        entities: &[MessageEntity],
     ) -> Result<StoreMessageResult, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = Utc::now();
         let reply_to = self.reply_preview(room_id, reply_to).await?;
         let inserted = with_pool!(self, |pool| {
-            sqlx::query(
+            async {
+            let mut tx = pool.begin().await?;
+            let inserted = sqlx::query(
                 "INSERT INTO messages \
                  (id, room_id, sender_id, sender, content, reply_to_id, client_message_id, created_at) \
                  SELECT $1, $2, $3, $4, $5, $6, $7, $8 \
@@ -48,9 +55,17 @@ impl AppState {
             .bind(reply_to.as_ref().map(|reply| reply.message_id))
             .bind(client_message_id)
             .bind(created_at)
-            .execute(pool)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected()
+                > 0;
+            if inserted {
+                insert_message_entities!(tx, id, entities)?;
+            }
+            tx.commit().await?;
+            Ok::<bool, sqlx::Error>(inserted)
+            }
             .await
-            .map(|result| result.rows_affected() > 0)
         })?;
 
         if !inserted {
@@ -92,6 +107,7 @@ impl AppState {
                 created_at,
                 favorite_id: None,
                 forwarded_from: None,
+                entities: entities.to_vec(),
                 ..Default::default()
             },
             inserted,

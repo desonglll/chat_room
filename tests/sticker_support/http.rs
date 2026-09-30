@@ -21,7 +21,11 @@ impl Drop for Server {
 }
 
 pub async fn start(config: AppConfig) -> Server {
-    let state = Arc::new(AppState::new_with_config(&config).await.unwrap());
+    start_with_state(Arc::new(AppState::new_with_config(&config).await.unwrap())).await
+}
+
+/// Serve an already-built state (TG-304 runs the same flows on a PostgreSQL state).
+pub async fn start_with_state(state: Arc<AppState>) -> Server {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let task = tokio::spawn({

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-304 custom emoji</title>
+    <!--
+      Dev-only page: renders a real chat's history through TG-103's MessageBubble with the
+      TG-304 entity_text kind, plus the viewer's emoji status and custom emoji tab. Never
+      part of the shipped bundle. Serve through the vite dev server (it proxies /api) and
+      open /src/features/customEmoji/fixtures/index.html?chat=<id> with a stored session.
+    -->
+  </head>
+  <body>
+    <div id="fixtures"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::state::{with_pool, AppState};
+use crate::stickers::custom_emoji::{entity_store::insert_message_entities, MessageEntity};
 
 #[derive(Clone, Debug)]
 pub(crate) struct RecallCursor {
@@ -16,32 +17,49 @@ pub(crate) struct EditCursor {
     pub edited_at: DateTime<Utc>,
     pub id: Uuid,
     pub content: String,
+    /// TG-304: the edited text's entities (filled by `edits_after` only).
+    pub entities: Vec<MessageEntity>,
 }
 
 impl AppState {
     /// Replace a sender-owned message while retaining its identity and edit timestamp.
     /// Also un-recalls the message: a sender can always re-edit their own recalled
     /// draft (only they could see it), and doing so republishes it to everyone.
+    /// TG-304: `entities` (already accepted) replace the old ones in the same transaction.
     pub async fn edit_message(
         &self,
         room_id: Uuid,
         sender_id: Uuid,
         message_id: Uuid,
         content: &str,
+        entities: &[MessageEntity],
     ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let edited_at = Utc::now();
         let attachment_id: Option<Option<Uuid>> = with_pool!(self, |pool| {
-            sqlx::query_scalar(
-                "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
+            async {
+                let mut tx = pool.begin().await?;
+                let updated: Option<Option<Uuid>> = sqlx::query_scalar(
+                    "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
              WHERE id = $3 AND room_id = $4 AND sender_id = $5 \
              RETURNING attachment_id",
-            )
-            .bind(content)
-            .bind(edited_at)
-            .bind(message_id)
-            .bind(room_id)
-            .bind(sender_id)
-            .fetch_optional(pool)
+                )
+                .bind(content)
+                .bind(edited_at)
+                .bind(message_id)
+                .bind(room_id)
+                .bind(sender_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+                if updated.is_some() {
+                    sqlx::query("DELETE FROM message_entities WHERE message_id = $1")
+                        .bind(message_id)
+                        .execute(&mut *tx)
+                        .await?;
+                    insert_message_entities!(tx, message_id, entities)?;
+                }
+                tx.commit().await?;
+                Ok::<_, sqlx::Error>(updated)
+            }
             .await
         })?;
         // A re-edit un-recalls the message, which can resurrect a reference to
@@ -164,6 +182,7 @@ impl AppState {
             edited_at,
             id,
             content,
+            entities: Vec::new(),
         }))
     }
 
@@ -199,12 +218,15 @@ impl AppState {
             };
             Ok::<_, sqlx::Error>(rows)
         })?;
+        let ids: Vec<Uuid> = rows.iter().map(|(_, id, _)| *id).collect();
+        let mut entities = self.load_message_entities(&ids).await?;
         Ok(rows
             .into_iter()
             .map(|(edited_at, id, content)| EditCursor {
                 edited_at,
                 id,
                 content,
+                entities: entities.remove(&id).unwrap_or_default(),
             })
             .collect())
     }

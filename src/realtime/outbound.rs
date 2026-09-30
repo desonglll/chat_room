@@ -222,6 +222,7 @@ async fn poll_database_updates(
                         message_id: edited.id,
                         content: edited.content,
                         edited_at: edited.edited_at,
+                        entities: edited.entities,
                     },
                 )
                 .await
