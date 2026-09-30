@@ -26,6 +26,16 @@ export CARGO_TARGET_DIR=/Volumes/Tuo-APFS/workspace/.cargo-target/<task-id>
 
 **定期清理** —— `cargo sweep --time 14 /Volumes/Tuo-APFS/workspace/.cargo-target/chat_room`，每月一次。这个目录不会自己收缩。
 
+## 1.1 不要在本地构建容器镜像
+
+**`docker build` 由 GitHub Actions 负责，任何任务都不在本地执行它。**
+
+`.github/workflows/ci-cd.yml` 的 `image: Build container image` job 用 buildx 加 GitHub Actions 缓存构建镜像（`push: false`），且不带 `if:` 条件，所以 `agent/**` 分支推送时也会跑 —— 改了 `Dockerfile` 的任务分支会被 CI 验证。
+
+本地构建是冗余的、慢的、缓存不共享，而且会和共享构建目录抢磁盘。改 `Dockerfile` 时把改动的正确性讲清楚，把"镜像能否构建"交给 CI 回答。
+
+**发布镜像只在 `main` 与 `v*` tag 上发生。** `publish` job 的 `if:` 显式限定了这两者 —— 因为 metadata 用 `type=ref,event=branch` 打标签，若不限定，每个 `agent/**` 分支推送都会往 ghcr.io 发布一个以分支命名的镜像。
+
 ---
 
 ## 2. 一个任务的完整生命周期

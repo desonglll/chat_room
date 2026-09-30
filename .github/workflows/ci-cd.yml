@@ -179,7 +179,15 @@ jobs:
   publish:
     name: Publish container image
     needs: [test, image]
-    if: github.event_name != 'pull_request'
+    # Only main and version tags publish. The metadata step tags with
+    # `type=ref,event=branch`, so without this guard every `agent/**` task branch
+    # push would publish an image named after the branch to ghcr.io — a
+    # consequence of widening the push trigger to agent/** for CI coverage.
+    # The `image` job above still builds (push: false) on those branches, which
+    # is the coverage that was wanted.
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

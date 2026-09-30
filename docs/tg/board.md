@@ -174,9 +174,15 @@ TG-003 与 TG-004 都用 cargo，会在共享构建目录上串行等锁。这�
 | Docker 覆盖 | `Dockerfile` builder 阶段设 `CARGO_TARGET_DIR=/app/target`，保住 cache mount |
 | 清理工具 | `scripts/tg-sweep-build-cache.sh`，默认 dry-run，检测 `rustc` 在跑时拒绝清理 |
 | `cargo-sweep` | **未安装**。脚本会提示安装命令并降级为只报告。装它要编译，需等无人构建时再做 |
-| `docker build` 验证 | **未执行** —— 留给 TG-003（它要改 `Dockerfile` 的 COPY 列表，一起验证更省一次完整镜像构建） |
+| `docker build` 验证 | **取消，不在本地做**（用户指示 2026-09-30：镜像工作在 GitHub Action 完成）。CI 的 `image` job 无 `if:` 条件，`agent/**` 分支推送时也会构建，覆盖已足够。`Dockerfile` 的 `ENV CARGO_TARGET_DIR=/app/target` 靠阅读确认。 |
 
 结论：194GB 里 99% 以上是沉积。一次 `clippy --all-targets` 的真实足迹是 1.5GB。
+
+## 集成负责人自己引入的缺陷
+
+诚实记录，和 agent 的缺陷同等对待。
+
+- **2026-09-30** 为了让任务分支获得 CI 覆盖，我把 `on.push.branches` 从 `[main]` 放宽到 `[main, "agent/**"]`。但 `publish` job 当时只排除 `pull_request`，而 metadata 用 `type=ref,event=branch` 打标签 —— **每个 worktree 分支推送都会往 ghcr.io 发布一个以分支命名的镜像**。已把 `publish` 的 `if:` 限定为 `main` 与 `v*` tag。`image` job 保持无条件，那才是想要的覆盖。教训：放宽触发条件前要把该 workflow 里所有下游 job 的条件过一遍。
 
 ## 协议失效记录
 

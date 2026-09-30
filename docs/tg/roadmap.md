@@ -85,9 +85,9 @@ M0 的卡上仍标了组字母，但那只表示依赖分层，**不代表可以
   - 删除仓库内旧 `target/`（194 GB），确认 `.cargo/config.toml` 指向的共享目录被创建。
   - 全量 `cargo build --all-targets` 与 `cargo test --all-targets` 各跑一次，记录新目录的真实体积到 devlog。
   - 安装 `cargo-sweep`，把 `cargo sweep --time 14` 写进 `scripts/` 并在本文件记录执行周期。
-  - 验证 `docker build` 与 CI 因为 `CARGO_TARGET_DIR` 覆盖而不读 `.cargo/config.toml`。
+  - 验证 CI 与 Docker 因为 `CARGO_TARGET_DIR` 覆盖而不读 `.cargo/config.toml`。**`Dockerfile` 的 `ENV CARGO_TARGET_DIR` 靠阅读确认，不在本地构建镜像验证** —— 镜像构建归 CI。
 - **Allowed paths** `.cargo/**`、`scripts/**`、`Dockerfile`、`.github/workflows/**`、`docs/tg/**`
-- **Acceptance** 共享目录体积记录在案；`docker build` 成功；CI 绿；两个 worktree 同时 `cargo check` 时第二个显示等锁而非报错。
+- **Acceptance** 共享目录体积记录在案；CI 绿；两个 worktree 同时 `cargo check` 时第二个显示等锁而非报错。
 - **Migration** 无
 
 ## TG-002 monorepo 骨架 · M · 组 A
@@ -109,7 +109,8 @@ M0 的卡上仍标了组字母，但那只表示依赖分层，**不代表可以
 - **Outcome** 服务端二进制嵌入 `packages/web/dist`，旧 `web/` 不再参与 Rust 构建。
 - **Work** 改 `build.rs` 的 rerun-if-changed 列表、`bun install` 目录、`bun run build` 目录与产物路径；更新 `Dockerfile` 的 COPY 列表；更新 `README.md` 的快速开始。
 - **Allowed paths** `build.rs`、`Dockerfile`、`README.md`、`docs/container-deployment.md`
-- **Acceptance** `cargo build --release --bin server` 成功且 `http://127.0.0.1:3000` 返回新 React 页面；`docker build` 成功。
+- **Acceptance** `cargo build --release --bin server` 成功且 `http://127.0.0.1:3000` 返回新 React 页面。**镜像构建不在本地做** —— 见下方说明。
+- **镜像验证由 CI 负责，不在本地执行**（集成负责人，2026-09-30）。`.github/workflows/ci-cd.yml` 的 `image: Build container image` job 用 buildx 加 GitHub Actions 缓存构建镜像（`push: false`），且不带 `if:` 条件，因此在 `agent/**` 分支推送时同样会跑。本地 `docker build` 是冗余的、慢的、且缓存不共享。改 `Dockerfile` 的任务只需保证改动本身可推理，把镜像能否构建交给 CI 回答。
 - **Migration** 无
 
 ## TG-004 Chat 数据模型迁移 · L · 组 C（依赖 TG-001）
