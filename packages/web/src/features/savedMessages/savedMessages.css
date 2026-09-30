@@ -1,0 +1,151 @@
+/* TG-503 Saved Messages: the favorites projection laid out like a chat. */
+.tg-saved {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--tg-chat-bg);
+}
+
+.tg-saved__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--tg-bg);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-saved__title {
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+  color: var(--tg-text-primary);
+}
+
+.tg-saved__notice,
+.tg-saved__empty,
+.tg-saved__source,
+.tg-saved__meta {
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-saved__scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.tg-saved__empty {
+  margin: 24px;
+  text-align: center;
+}
+
+.tg-saved__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+}
+
+.tg-saved__entry {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tg-saved__bubble {
+  max-width: min(480px, 85%);
+  padding: 6px 10px;
+  border-radius: var(--tg-bubble-radius);
+  background: var(--tg-bubble-out-fill);
+  color: var(--tg-bubble-out-text);
+}
+
+.tg-saved__source {
+  margin: 0 0 2px;
+  color: var(--tg-accent);
+}
+
+.tg-saved__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tg-saved__image {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--tg-radius-md);
+}
+
+.tg-saved__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.tg-saved__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tg-saved__actions button,
+.tg-saved__picker button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--tg-text-link);
+  cursor: pointer;
+}
+
+.tg-saved__compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--tg-bg);
+  border-top: 1px solid var(--tg-divider);
+}
+
+.tg-saved__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The pinned «收藏夹» row in the chat list. */
+.tg-saved-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-saved-row[data-active] {
+  background: var(--tg-bg-secondary);
+}
+
+.tg-saved-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-saved-row__title {
+  color: var(--tg-text-primary);
+}
+
+.tg-saved-row__subtitle {
+  font-size: var(--tg-type-meta-size);
+  color: var(--tg-text-secondary);
+}
