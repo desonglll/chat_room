@@ -170,6 +170,14 @@
   --tg-duration-spring-long: var(--tg-raw-duration-500);
   --tg-duration-ripple: var(--tg-raw-duration-700);
 
+  /* The one duration deliberately excluded from the reduced-motion collapse
+     below. The nine above are one-shot transition durations and collapsing them
+     to 1ms makes motion instant, which is the point. A spinner and a skeleton
+     shimmer LOOP, so 1ms would strobe them — the opposite of calming. Requested
+     by TG-010, which had to inline a literal in Spinner.css and Skeleton.css
+     until this landed; both literals can now be replaced by this token. */
+  --tg-duration-loop: 1000ms;
+
   /* ══ Motion · easings ══════════════════════════════════════════════════ */
   --tg-ease-standard: var(--tg-raw-ease-standard);
   --tg-ease-decelerate: var(--tg-raw-ease-out-quint);

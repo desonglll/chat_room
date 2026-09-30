@@ -1,0 +1,17 @@
+# Confine the test runner to the workspace packages.
+#
+# Without this, a bare `bun test` at the repository root loads every test file in
+# one process, including web/'s — and web/ installs a global jsdom `document`.
+# React then takes DOM code paths instead of pure SSR, so @tg/ui's
+# renderToStaticMarkup assertions fail. Measured: overlayAria.test.tsx alone is
+# 20 pass / 0 fail; run alongside web/src/markdown.test.ts it is 17 pass / 4 fail.
+#
+# The package scripts were always correct (`bun run test` delegates to
+# `-F '@tg/*' test`, and CI runs web/'s suite with working-directory: web), but
+# bare `bun test` is what a person or an agent actually types, and it presented
+# four unexplained red tests that belonged to nobody.
+#
+# web/'s own suite keeps running in CI and via `cd web && bun test`. When TG-602
+# deletes web/, this setting stops mattering and can go with it.
+[test]
+root = "packages"

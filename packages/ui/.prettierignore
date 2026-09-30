@@ -12,3 +12,24 @@
 #   bunx prettier --write packages/ui/src/tokens
 # once, on a branch that owns those paths.
 src/tokens/
+
+# ── Integration lead, 2026-09-30: verified, decision is to keep this ignore ──
+#
+# Measured rather than assumed. Checking themes/day.css alone was misleading — it
+# differs by 2 lines of selector quote style, which nearly led to deleting this
+# file. Across all 14 the total is 259 lines, and two changes are not cosmetic:
+#
+#   motion.css                115 lines — the generated linear() sample points
+#                                         get rewrapped, making the generated
+#                                         data hard to regenerate and diff
+#   --tg-bubble-out-selected  rgb(33 33 33 / 40%) is exploded across three lines
+#                                         because its trailing [web] provenance
+#                                         comment pushes the line past printWidth
+#
+# The provenance tags ([web]/[desktop]/[ios]/[derived]/[ours]) are how a reader
+# tells a real Telegram value from a guess, so trailing-comment layout is load
+# bearing here, not decoration.
+#
+# Consequence to be aware of: the token layer is NOT format-checked. It is
+# hand-formatted by convention. TG-507 edits these files heavily — match the
+# surrounding style by hand.

@@ -119,4 +119,33 @@
   --tg-badge-bg: var(--tg-accent);
   --tg-badge-text: #ffffff;
   --tg-badge-muted-bg: #707579; /* [derived] night secondary-color, the muted counterpart of day's #bbbbbb */
+
+  /* ══ Avatar slots ══════════════════════════════════════════════════════
+     Telegram assigns each peer one of seven colours by id. It draws them as
+     vertical gradients; a single colour per slot is a deliberate
+     simplification — TG-507 can add `-top`/`-bottom` pairs without renaming
+     these.
+
+     [ours: 需核对 tdesktop 的 historyPeer1..7UserpicBg 与 tweb 的
+     --peer-avatar-N-top/bottom] These are the long-standing Telegram peer
+     colours as best known, but unlike the rest of this file they were NOT read
+     out of client source. Treat them as provisional and verify before relying
+     on exact hues.
+
+     Deliberately NOT reused: web/src/avatarColor.ts's palette, whose own
+     comment says "muted colors keep identities distinct without turning the
+     workspace into a field of competing accents" — the opposite of Telegram's
+     saturated identity colours. Cloning Telegram means dropping it.
+
+     Declared identically in day and night: these are saturated enough for both,
+     and keeping the two theme files' token sets identical is an invariant (each
+     declares exactly the same names, so a theme switch can never leave a
+     variable undefined). */
+  --tg-avatar-1: #e17076;
+  --tg-avatar-2: #faa774;
+  --tg-avatar-3: #a695e7;
+  --tg-avatar-4: #7bc862;
+  --tg-avatar-5: #6ec9cb;
+  --tg-avatar-6: #65aadd;
+  --tg-avatar-7: #ee7aae;
 }
