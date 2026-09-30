@@ -31,6 +31,10 @@
   border-top: 1px solid var(--tg-divider);
 }
 
+.tg-channel-footer__main {
+  flex: 1 1 auto;
+}
+
 .tg-channel-footer__leave {
   flex: none;
   color: var(--tg-text-secondary);

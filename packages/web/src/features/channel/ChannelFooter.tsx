@@ -31,7 +31,7 @@ export function ChannelFooterView(props: ChannelFooterViewProps) {
         <p className="tg-channel-footer__note">订阅申请已提交，等待管理员审核</p>
       ) : subscribed ? (
         <>
-          <Button variant="text" fullWidth loading={busy} onClick={props.onToggleMute}>
+          <Button variant="text" className="tg-channel-footer__main" loading={busy} onClick={props.onToggleMute}>
             {muted ? '取消静音' : '静音'}
           </Button>
           <Button variant="text" className="tg-channel-footer__leave" disabled={busy} onClick={props.onLeave}>
