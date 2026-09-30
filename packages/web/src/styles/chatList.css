@@ -1,0 +1,336 @@
+/*
+ * The chat list (TG-102): top bar, search pill, chat rows in every state, the archive
+ * entry, the collapsed avatar-only column. Geometry follows Telegram Web: 72px rows,
+ * 54px avatars, accent-filled active row.
+ */
+
+.tg-chatlist {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--tg-surface);
+  border-right: 1px solid var(--tg-divider);
+}
+
+.tg-chatlist__header {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  flex: none;
+  height: var(--tg-header-height);
+  padding: 0 var(--tg-space-3) 0 var(--tg-space-2);
+}
+
+.tg-chatlist[data-collapsed] .tg-chatlist__header {
+  justify-content: center;
+  padding: 0;
+}
+
+.tg-chatlist__folder-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+/* ── Search pill ─────────────────────────────────────────────────────────── */
+
+.tg-chatlist__search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: var(--tg-control-height);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-bg-secondary);
+  border: 2px solid transparent;
+  color: var(--tg-text-tertiary);
+  transition:
+    border-color var(--tg-transition-fade),
+    background-color var(--tg-transition-fade);
+}
+
+.tg-chatlist__search:focus-within {
+  border-color: var(--tg-accent);
+  background: var(--tg-surface);
+  color: var(--tg-accent);
+}
+
+.tg-chatlist__search-icon {
+  flex: none;
+  margin-inline: var(--tg-space-3) var(--tg-space-2);
+}
+
+.tg-chatlist__search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--tg-space-2) 0 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+  font-size: var(--tg-type-subtitle-size);
+}
+
+.tg-chatlist__search-input::placeholder {
+  color: var(--tg-text-tertiary);
+}
+
+.tg-chatlist__search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.tg-chatlist__search-clear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tg-space-8);
+  height: var(--tg-space-8);
+  margin-inline-end: var(--tg-space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: transparent;
+  color: var(--tg-text-secondary);
+  cursor: pointer;
+}
+
+.tg-chatlist__search-clear:hover {
+  background: var(--tg-surface-hover);
+}
+
+/* ── List ────────────────────────────────────────────────────────────────── */
+
+.tg-chatlist__scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.tg-chatlist__loading {
+  display: flex;
+  flex-direction: column;
+  padding: var(--tg-space-2);
+}
+
+.tg-chatlist__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  height: 4.5rem;
+  padding: 0 var(--tg-space-2);
+}
+
+.tg-chatlist__skeleton-row > :last-child {
+  flex: 1;
+}
+
+.tg-chatlist__empty {
+  margin: 0;
+  padding: var(--tg-space-8) var(--tg-space-6);
+  text-align: center;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-chatlist__items {
+  margin: 0;
+  padding: 0 var(--tg-space-2) var(--tg-space-2);
+  list-style: none;
+}
+
+/* ── Row ─────────────────────────────────────────────────────────────────── */
+
+.tg-chatrow {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2-5);
+  box-sizing: border-box;
+  width: 100%;
+  height: 4.5rem;
+  padding: 0 var(--tg-space-2-5) 0 var(--tg-space-2);
+  border: 0;
+  border-radius: var(--tg-radius-lg);
+  background: transparent;
+  color: var(--tg-text-primary);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tg-chatrow:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-chatrow:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-chatrow--collapsed {
+  justify-content: center;
+  padding: 0;
+}
+
+.tg-chatrow > .tg-avatar {
+  flex: none;
+}
+
+.tg-chatrow__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+}
+
+.tg-chatrow__top,
+.tg-chatrow__bottom {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  min-width: 0;
+}
+
+.tg-chatrow__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatrow__muted,
+.tg-chatrow__pin,
+.tg-chatrow__ticks,
+.tg-chatrow__media {
+  display: inline-flex;
+  flex: none;
+}
+
+.tg-chatrow__muted,
+.tg-chatrow__pin {
+  color: var(--tg-text-tertiary);
+}
+
+.tg-chatrow__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-0-5);
+  flex: none;
+  margin-inline-start: auto;
+  padding-inline-start: var(--tg-space-1);
+}
+
+.tg-chatrow__ticks {
+  color: var(--tg-bubble-tick);
+}
+
+.tg-chatrow__time {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  white-space: nowrap;
+}
+
+.tg-chatrow__preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-chatrow__sender {
+  color: var(--tg-text-primary);
+}
+
+.tg-chatrow__draft {
+  color: var(--tg-text-danger);
+}
+
+.tg-chatrow__preview--typing {
+  color: var(--tg-accent);
+}
+
+.tg-chatrow__preview--recalled {
+  font-style: italic;
+}
+
+.tg-chatrow__media {
+  vertical-align: text-bottom;
+  margin-inline-end: var(--tg-space-1);
+}
+
+.tg-chatrow__badge {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.tg-chatrow__pin {
+  margin-inline-start: auto;
+}
+
+/* The active row is accent-filled; everything on it turns to the on-selected colour. */
+.tg-chatrow--active,
+.tg-chatrow--active:hover {
+  background: var(--tg-surface-selected);
+  color: var(--tg-text-on-selected);
+}
+
+.tg-chatrow--active .tg-chatrow__time,
+.tg-chatrow--active .tg-chatrow__preview,
+.tg-chatrow--active .tg-chatrow__sender,
+.tg-chatrow--active .tg-chatrow__draft,
+.tg-chatrow--active .tg-chatrow__ticks,
+.tg-chatrow--active .tg-chatrow__muted,
+.tg-chatrow--active .tg-chatrow__pin {
+  color: var(--tg-text-on-selected);
+}
+
+.tg-chatrow--active .tg-chatrow__badge {
+  background: var(--tg-text-on-selected);
+  color: var(--tg-surface-selected);
+}
+
+/* ── Archive entry ───────────────────────────────────────────────────────── */
+
+.tg-chatrow__archive-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--tg-avatar-md);
+  block-size: var(--tg-avatar-md);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-badge-muted-bg);
+  color: var(--tg-text-on-accent);
+}
+
+/* ── New-chat dialog ─────────────────────────────────────────────────────── */
+
+.tg-new-chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-4);
+  padding-top: var(--tg-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-chatrow,
+  .tg-chatlist__search {
+    transition: none;
+  }
+}

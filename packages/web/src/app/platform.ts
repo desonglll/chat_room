@@ -75,3 +75,9 @@ export function chatSocketUrl(chatId: string): string {
   const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
   return `${scheme}://${window.location.host}/ws/${encodeURIComponent(chatId)}`
 }
+
+/** Same-origin `/ws/account` URL: cross-chat new-message events and unread snapshots. */
+export function accountSocketUrl(): string {
+  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${scheme}://${window.location.host}/ws/account`
+}
