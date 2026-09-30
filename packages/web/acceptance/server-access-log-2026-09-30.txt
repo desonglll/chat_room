@@ -1,0 +1,11 @@
+2026-09-30T12:05:50.988020Z  INFO http.request{request_id=0a4919b3-428e-421e-90c5-e06c64ae886d method=GET route=/}: chat_room::observability: request completed status=200 latency_ms=0
+2026-09-30T12:05:50.989425Z  INFO http.request{request_id=585c902a-ca42-4b71-8090-2f092483152d method=GET route=/assets/*path}: chat_room::observability: request completed status=200 latency_ms=0
+2026-09-30T12:05:51.219558Z  INFO http.request{request_id=309c80de-60d9-4f8c-8232-1de11c2ac068 method=POST route=/api/users/register}: chat_room::observability: request completed status=201 latency_ms=228
+2026-09-30T12:05:51.443402Z  INFO http.request{request_id=091e8cce-606a-426c-8008-0b6af33e412e method=POST route=/api/users/register}: chat_room::observability: request completed status=201 latency_ms=223
+2026-09-30T12:05:51.446401Z  INFO http.request{request_id=ee4d6d6c-4e56-4856-bb47-0f3bbb45ef17 method=POST route=/api/chats}: chat_room::observability: request completed status=201 latency_ms=2
+2026-09-30T12:05:51.449863Z  INFO http.request{request_id=ebc70e6a-820e-4e0c-8582-499e0e8c77b4 method=GET route=/ws/:room_id}: chat_room::observability: request completed status=101 latency_ms=0
+2026-09-30T12:05:51.724913Z  INFO http.request{request_id=38b470a3-1128-4928-ae16-d700f8664fd8 method=GET route=/api/chats/:id/messages}: chat_room::observability: request completed status=200 latency_ms=7
+2026-09-30T12:05:51.728463Z  INFO http.request{request_id=56c38bc4-e792-4876-8dd6-71235fa6b9df method=GET route=/ws/:room_id}: chat_room::observability: request completed status=101 latency_ms=0
+2026-09-30T12:05:51.750952Z  INFO http.request{request_id=d452d989-2b7d-42cc-b355-579f46547b9d method=POST route=/api/chats/:id/join-requests}: chat_room::observability: request completed status=200 latency_ms=5
+2026-09-30T12:05:51.752334Z  INFO http.request{request_id=2bccfd63-befd-4e08-9a0b-c0b179471485 method=GET route=/ws/:room_id}: chat_room::observability: request completed status=101 latency_ms=0
+2026-09-30T12:05:51.760997Z  INFO http.request{request_id=2cf19ecf-1633-4e98-8bf7-6c3b200a1261 method=PUT route=/api/chats/:id/draft}: chat_room::observability: request completed status=200 latency_ms=1

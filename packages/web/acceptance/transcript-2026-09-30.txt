@@ -1,0 +1,10 @@
+ok 01  served shell  — index.html + /assets/index-D1oyjc5s.js (358447 bytes, createRoot present)
+ok 02  register  — alice-muo26xhh + bob-muo26xhh
+ok 03  create chat  — 679fe68c-bfa2-4d99-a457-e33947d05593 (group) "TG-012 验收群 muo26xhh"
+ok 04  WS send → broadcast echo  — message_id a59e1934-6b50-4784-8bba-fb8cd6133bad
+ok 05  REST persistence  — GET /api/chats/:id/messages contains a59e1934-6b50-4784-8bba-fb8cd6133bad
+ok 06  refresh persistence  — reconnect replayed "第一条消息，经由 WS 发送"
+ok 07  second browser receives live  — bob got message_id 4db3a409-0af8-4859-9447-9a5725bcae4b
+ok 08  draft_updated frame  — delivered to the drafting account’s own connection
+
+TG-012 acceptance probe: all 8 steps passed against http://127.0.0.1:3123
