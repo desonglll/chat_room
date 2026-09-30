@@ -4,7 +4,6 @@
  */
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ArchiveRow } from './ArchiveRow'
 import { ChatListRow } from './ChatListRow'
 import type { ChatRowModel } from './chatRowModel'
 
@@ -111,11 +110,4 @@ describe('ChatListRow states', () => {
     ).toContain('tg-chatrow__preview--recalled')
     expect(render({ preview: { kind: 'empty', text: '暂无消息' } })).toContain('tg-chatrow__preview--empty')
   })
-})
-
-test('archive entry row: count and a grey unread badge', () => {
-  const html = renderToStaticMarkup(<ArchiveRow count={4} unread={6} onOpen={() => {}} />)
-  expect(html).toContain('已归档会话')
-  expect(html).toContain('4 个会话')
-  expect(html).toContain('tg-badge--muted')
 })

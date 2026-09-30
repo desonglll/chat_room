@@ -15,6 +15,7 @@ export type ChatListIconName =
   | 'check'
   | 'checks'
   | 'archive'
+  | 'unarchive'
   | 'photo'
   | 'video'
   | 'gif'
@@ -46,6 +47,12 @@ const PATHS: Record<ChatListIconName, ReactNode> = {
     <>
       <rect x="3.5" y="4.5" width="17" height="4" rx="1" />
       <path d="M5 8.5v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-10M10 12.5h4" />
+    </>
+  ),
+  unarchive: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="4" rx="1" />
+      <path d="M5 8.5v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-10M12 17v-5.5m-2.5 2.5 2.5-2.5 2.5 2.5" />
     </>
   ),
   photo: (

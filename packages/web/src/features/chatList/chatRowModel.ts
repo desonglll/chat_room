@@ -38,7 +38,7 @@ export interface RowContext {
 }
 
 /** Avatar field: an uploaded avatar is a same-origin `/api/...` URL, otherwise an emoji. */
-function avatarParts(value: string): { src: string | undefined; initials: string | undefined } {
+export function avatarParts(value: string): { src: string | undefined; initials: string | undefined } {
   if (value.startsWith('/api/')) return { src: value, initials: undefined }
   return { src: undefined, initials: value || undefined }
 }

@@ -5,7 +5,7 @@
  * framework-free and tested on its own; this hook only owns the React lifetime.
  */
 import { useEffect } from 'react'
-import { chatListStore, messageStore, uiStore } from '@tg/core'
+import { authStore, chatListStore, messageStore, uiStore } from '@tg/core'
 import { apiClient } from '../../app/client'
 import { accountSocketUrl, browserClock, createBrowserSocket } from '../../app/platform'
 import { startAccountFeed } from './accountFeed'
@@ -32,6 +32,7 @@ export function useChatListSync(token: string): void {
       clock: browserClock,
       store: chatListStore,
       activeChatId: () => uiStore.getState().activeChatId,
+      currentUserId: () => authStore.getState().session?.user.id ?? '',
       resync,
     })
     const stopMirror = mirrorTimelines(messageStore, chatListStore)

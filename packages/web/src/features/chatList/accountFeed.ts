@@ -8,6 +8,7 @@
  */
 import type { AccountChatState, AccountMessageEvent, ChatListStore, CoreClock, CoreSocketFactory } from '@tg/core'
 import { reconnectDelayMs } from '@tg/core'
+import { applyUnarchiveRule } from './archiveActions'
 
 export interface AccountFeedOptions {
   url: string
@@ -16,6 +17,8 @@ export interface AccountFeedOptions {
   clock: CoreClock
   store: ChatListStore
   activeChatId: () => string
+  /** The signed-in user; own messages never unarchive (the socket skips them anyway). */
+  currentUserId?: (() => string) | undefined
   /** Reload the list: after a reconnect (missed events) and when an unknown chat appears. */
   resync: () => void
 }
@@ -43,7 +46,10 @@ export function startAccountFeed(options: AccountFeedOptions): () => void {
     if (frame.type === 'new_message') {
       const event = frame as AccountMessageEvent
       if (!state.conversations.some((conversation) => conversation.room_id === event.room_id)) options.resync()
-      else state.applyAccountMessage(event, options.activeChatId())
+      else {
+        state.applyAccountMessage(event, options.activeChatId())
+        applyUnarchiveRule(options.store, event, options.currentUserId?.() ?? '', options.clock.now())
+      }
     } else if (frame.type === 'unread_counts') {
       const chats = (frame as { chats: AccountChatState[] }).chats
       const known = new Set(state.conversations.map((conversation) => conversation.room_id))

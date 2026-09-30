@@ -10,6 +10,7 @@
 @import url('./login.css');
 @import url('./shell.css');
 @import url('./chatList.css');
+@import url('../features/chatList/chatArchive.css');
 @import url('./chat.css');
 @import url('../features/message/message.css');
 @import url('../features/composer/composer.css');

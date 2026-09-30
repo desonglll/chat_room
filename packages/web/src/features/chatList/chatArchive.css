@@ -1,0 +1,152 @@
+/*
+ * TG-502 archive: the entry row (collapsed avatar stack / expanded chat-height row), the
+ * swipe-to-archive strip behind a chat row, and the context-menu wrappers.
+ */
+
+/* ContextMenu renders an inline <span>; the rows are block-level. */
+.tg-archive__menu-region,
+.tg-chatrow-menu {
+  display: block;
+}
+
+/* ── Entry row ───────────────────────────────────────────────────────────── */
+
+.tg-archive--collapsed {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tg-touch-min);
+  padding: var(--tg-space-1-5) var(--tg-space-2-5) var(--tg-space-1-5) var(--tg-space-3);
+  border: 0;
+  border-radius: var(--tg-radius-lg);
+  background: transparent;
+  color: var(--tg-text-secondary);
+  font: inherit;
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tg-archive--collapsed:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-archive--collapsed:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+}
+
+.tg-archive__stack {
+  display: inline-flex;
+  flex: none;
+}
+
+.tg-archive__stack-avatar {
+  box-shadow: 0 0 0 var(--tg-space-0-5) var(--tg-surface);
+  font-size: var(--tg-type-badge-size);
+}
+
+.tg-archive__stack-avatar + .tg-archive__stack-avatar {
+  margin-inline-start: calc(-1 * var(--tg-space-2));
+}
+
+.tg-archive__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--tg-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-archive__names {
+  color: var(--tg-text-secondary);
+}
+
+.tg-archive__name--unread {
+  color: var(--tg-text-primary);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-archive__glyph {
+  position: relative;
+}
+
+.tg-archive__glyph-badge {
+  position: absolute;
+  inset-block-start: calc(-1 * var(--tg-space-0-5));
+  inset-inline-end: calc(-1 * var(--tg-space-0-5));
+}
+
+/* ── Swipe to archive ────────────────────────────────────────────────────── */
+
+.tg-swipe {
+  --tg-swipe-progress: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--tg-radius-lg);
+  touch-action: pan-y;
+}
+
+.tg-swipe__action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-inline-end: var(--tg-space-5);
+  background: var(--tg-badge-muted-bg);
+  color: var(--tg-text-on-accent);
+  font-size: var(--tg-type-meta-size);
+  line-height: var(--tg-type-meta-line);
+  visibility: hidden;
+}
+
+.tg-swipe__action--unarchive {
+  background: var(--tg-accent);
+}
+
+.tg-swipe[data-swiping] .tg-swipe__action {
+  visibility: visible;
+}
+
+.tg-swipe__action-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tg-space-0-5);
+  transform: scale(calc(0.6 + 0.4 * var(--tg-swipe-progress)));
+  opacity: calc(0.4 + 0.6 * var(--tg-swipe-progress));
+  transition: transform var(--tg-transition-press);
+}
+
+.tg-swipe[data-armed] .tg-swipe__action-inner {
+  transform: scale(1.1);
+}
+
+.tg-swipe__content {
+  position: relative;
+  background: var(--tg-surface);
+  will-change: transform;
+}
+
+.tg-swipe:not([data-swiping]) .tg-swipe__content {
+  will-change: auto;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-archive--collapsed,
+  .tg-swipe__action-inner {
+    transition: none;
+  }
+
+  .tg-swipe[data-armed] .tg-swipe__action-inner {
+    transform: none;
+  }
+}
