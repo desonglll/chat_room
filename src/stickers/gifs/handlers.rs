@@ -111,7 +111,7 @@ pub async fn upload(
 }
 
 /// Authorized like an attachment upload (chat exists, chat password, session, the full
-/// `message.send` decision), then persisted and broadcast like one.
+/// `message.send_sticker` decision), then persisted and broadcast like one.
 async fn deliver(
     state: &SharedState,
     room_id: Uuid,
@@ -120,7 +120,8 @@ async fn deliver(
     reply_to: Option<Uuid>,
     client_message_id: Option<Uuid>,
 ) -> Result<(StatusCode, Json<StoredMessage>), StickerError> {
-    let (chat, user) = authorize_upload(state, room_id, headers).await?;
+    // Telegram grants stickers and GIFs together ("Send Stickers & GIFs").
+    let (chat, user) = authorize_upload(state, room_id, headers, "message.send_sticker").await?;
     let _permit = state
         .work_queue()
         .message()
