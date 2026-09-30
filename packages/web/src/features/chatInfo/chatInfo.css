@@ -1,0 +1,184 @@
+@import url('./chatInfoShared.css');
+
+/*
+ * TG-106 info panel. The shell (styles/shell.css) decides WHERE `.tg-info` sits: a grid
+ * column from 1276px up, an overlay below. This file decides how it moves and looks.
+ *
+ * Push-in: the column is allocated at once (one width change for the message list, whose
+ * anchor is held across it) and the panel slides in over it with the spring token. Nothing
+ * animates layout per frame. Exit: the shell gives the column back at once; the panel is
+ * lifted out of the grid (`[data-closing]`) and slides away on top.
+ */
+
+.tg-chatinfo {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--tg-surface);
+  border-left: 1px solid var(--tg-divider);
+  animation: tg-chatinfo-in var(--tg-duration-spring) var(--tg-ease-spring) both;
+  overflow: hidden;
+}
+
+.tg-shell > .tg-chatinfo[data-closing] {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 3;
+  inline-size: min(var(--tg-column-width), 100%);
+  animation: tg-chatinfo-out var(--tg-duration-exit) var(--tg-ease-accelerate) both;
+  pointer-events: none;
+}
+
+@keyframes tg-chatinfo-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes tg-chatinfo-out {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes tg-chatinfo-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tg-chatinfo-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-chatinfo {
+    animation-name: tg-chatinfo-fade-in;
+  }
+
+  .tg-shell > .tg-chatinfo[data-closing] {
+    animation-name: tg-chatinfo-fade-out;
+  }
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+
+.tg-chatinfo__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  flex: none;
+  height: var(--tg-header-height);
+  padding: 0 var(--tg-space-2);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-chatinfo__heading {
+  flex: 1;
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+  line-height: var(--tg-type-header-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-chatinfo__body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Identity ────────────────────────────────────────────────────────────── */
+
+.tg-chatinfo__identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-6) var(--tg-space-4) var(--tg-space-4);
+  text-align: center;
+}
+
+.tg-chatinfo__title {
+  margin: var(--tg-space-2) 0 0;
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.tg-chatinfo__status {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-chatinfo__status[data-online] {
+  color: var(--tg-accent);
+}
+
+/* ── Details ─────────────────────────────────────────────────────────────── */
+
+.tg-chatinfo__details {
+  margin: 0;
+  padding: 0 var(--tg-space-2) var(--tg-space-2);
+  list-style: none;
+  border-bottom: var(--tg-space-2) solid var(--tg-bg-secondary);
+}
+
+.tg-chatinfo__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-4);
+  min-height: var(--tg-menu-row-height);
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-md);
+}
+
+.tg-chatinfo__row-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--tg-text-secondary);
+}
+
+.tg-chatinfo__row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-chatinfo__row-value {
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tg-chatinfo__row-label {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+  line-height: var(--tg-type-label-line);
+}
+
+.tg-chatinfo__toggle {
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-chatinfo__link {
+  color: var(--tg-text-link);
+  text-decoration: none;
+}
+
+.tg-chatinfo__link:hover {
+  text-decoration: underline;
+}
