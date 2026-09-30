@@ -87,6 +87,8 @@ fn broadcast_frame_serializes_unchanged() {
             content: "earlier".into(),
             attachment_file_name: None,
             recalled: false,
+            // TG-409 fields are omitted when empty, so this frame's bytes are unchanged.
+            ..Default::default()
         }),
         recalled_at: None,
         edited_at: Some(when()),

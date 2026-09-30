@@ -46,6 +46,18 @@ export function buildMessageMenu(message: BroadcastMessage, actions: MessageActi
     icon: <ReplyGlyph />,
     onSelect: actions.onReply,
   })
+  add(live && actions.onQuote !== undefined && message.content.trim() !== '', {
+    id: 'quote',
+    label: '引用',
+    icon: <ReplyGlyph />,
+    onSelect: actions.onQuote,
+  })
+  add(live && actions.onReplyElsewhere !== undefined, {
+    id: 'reply-elsewhere',
+    label: '在其他聊天中回复',
+    icon: <ReplyGlyph />,
+    onSelect: actions.onReplyElsewhere,
+  })
   add(live && actions.onEdit !== undefined, {
     id: 'edit',
     label: '编辑',

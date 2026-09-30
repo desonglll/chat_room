@@ -9,6 +9,8 @@ import { sendChatFrame } from './chatSessionRegistry'
 export interface ForwardRequest {
   fromChatId: string
   messageIds: string[]
+  /** TG-409: pick a chat to reply to this message from, instead of forwarding. */
+  replyTo?: { messageId: string; sender: string; text: string } | undefined
 }
 
 export interface DeleteRequest {
@@ -28,6 +30,14 @@ export const chatDialogsStore = createStore<ChatDialogsState>()(() => ({ forward
 export function requestForward(fromChatId: string, messageIds: string[]): void {
   if (messageIds.length === 0) return
   chatDialogsStore.setState({ forward: { fromChatId, messageIds } })
+}
+
+/** TG-409: the same chat picker, to reply to `source` from another chat. */
+export function requestReplyElsewhere(
+  fromChatId: string,
+  source: { messageId: string; sender: string; text: string },
+): void {
+  chatDialogsStore.setState({ forward: { fromChatId, messageIds: [source.messageId], replyTo: source } })
 }
 
 export function closeForward(): void {

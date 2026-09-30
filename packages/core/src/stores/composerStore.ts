@@ -13,6 +13,7 @@ import { createStore } from 'zustand/vanilla'
 import type { DraftUpdatedFrame } from '../types'
 import type { ComposerModeEvent, ComposerModeState, EditLayer, ForwardLayer } from '../domain/composerMode'
 import { transitionComposerMode } from '../domain/composerMode'
+import type { ReplyQuote } from '../types'
 
 export interface ComposerDraft {
   text: string
@@ -24,12 +25,34 @@ export interface ComposerDraft {
 
 export const EMPTY_DRAFT: ComposerDraft = { text: '', replyToMessageId: null, topicId: null, updatedAt: '' }
 
+/** TG-409: a reply to a message in another chat, as this chat's reply bar shows it. */
+export interface ReplySource {
+  chatId: string
+  chatTitle: string
+  sender: string
+  text: string
+}
+
+/**
+ * TG-409: what a reply carries beyond its target — a quoted slice and/or a source chat. Kept
+ * beside the drafts (not in them): the cloud draft (TG-008) syncs only the target, and these
+ * drop whenever the target changes.
+ */
+export interface ReplyExtras {
+  quote?: ReplyQuote | undefined
+  source?: ReplySource | undefined
+}
+
 export interface ComposerState {
   drafts: Record<string, ComposerDraft>
   /** The edit layer per chat: the message being edited and the edit text (never synced). */
   editing: Record<string, EditLayer>
   /** Messages queued to be forwarded into this chat. */
   forwarding: Record<string, ForwardLayer>
+  /** TG-409: the current reply's quote / source chat, per chat. */
+  replyExtras: Record<string, ReplyExtras>
+  /** TG-409: reply to `messageId` with a quote and/or from another chat (sets the target too). */
+  setReplyWithExtras(chatId: string, messageId: string, extras: ReplyExtras): void
   setDraftText(chatId: string, text: string): void
   setReplyTarget(chatId: string, messageId: string | null): void
   setTopic(chatId: string, topicId: string | null): void
@@ -59,6 +82,8 @@ export const createComposerStore = () =>
       const after = transitionComposerMode(before, event)
       if (after === before) return before
       set((state) => ({
+        replyExtras:
+          after.replyToMessageId === before.replyToMessageId ? state.replyExtras : without(state.replyExtras, chatId),
         drafts:
           after.replyToMessageId === before.replyToMessageId
             ? state.drafts
@@ -78,9 +103,17 @@ export const createComposerStore = () =>
       drafts: {},
       editing: {},
       forwarding: {},
+      replyExtras: {},
       dispatchMode,
+      setReplyWithExtras: (chatId, messageId, extras) => {
+        dispatchMode(chatId, { type: 'reply', messageId })
+        set((state) => ({ replyExtras: { ...state.replyExtras, [chatId]: extras } }))
+      },
       setDraftText: (chatId, text) => patch(chatId, { text }),
-      setReplyTarget: (chatId, messageId) => patch(chatId, { replyToMessageId: messageId }),
+      setReplyTarget: (chatId, messageId) => {
+        patch(chatId, { replyToMessageId: messageId })
+        set((state) => ({ replyExtras: without(state.replyExtras, chatId) }))
+      },
       setTopic: (chatId, topicId) => patch(chatId, { topicId }),
       applyDraftUpdated: (chatId, frame) =>
         set((state) => {
@@ -105,7 +138,7 @@ export const createComposerStore = () =>
       clearDraft: (chatId) =>
         set((state) => {
           const { [chatId]: _removed, ...rest } = state.drafts
-          return { drafts: rest }
+          return { drafts: rest, replyExtras: without(state.replyExtras, chatId) }
         }),
     }
   })

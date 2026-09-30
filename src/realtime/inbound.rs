@@ -66,6 +66,8 @@ pub async fn handle_client_message(
             entities,
             topic_id,
             silent,
+            reply_quote,
+            reply_to_chat_id,
         } => {
             // TG-204: the forum topic it lands in; a closed or unknown topic drops the frame,
             // like any refused WebSocket send.
@@ -83,6 +85,10 @@ pub async fn handle_client_message(
             };
             let entities = state
                 .accept_message_entities(&content, leading_trim, entities)
+                .await;
+            // TG-409: the quote and cross-chat reply (an unreadable source degrades to plain).
+            let (reply_to, reply_extra) = state
+                .reply_or_plain(room_id, user.id, reply_to, reply_to_chat_id, reply_quote)
                 .await;
             let Ok(_permit) = state.work_queue().message().await else {
                 tracing::warn!(%room_id, user_id = %user.id, "message write queue timed out");
@@ -112,6 +118,7 @@ pub async fn handle_client_message(
                     &entities,
                     topic_id,
                     silent,
+                    &reply_extra,
                 )
                 .await
             {

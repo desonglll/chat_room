@@ -32,19 +32,37 @@ export function replySnippet(reply: ReplyPreview): string {
 export function ReplyQuote({
   reply,
   onJumpTo,
+  onOpenSource,
 }: {
   reply: ReplyPreview
   onJumpTo?: ((id: string) => void) | undefined
+  /** TG-409: a cross-chat reply opens its source chat instead of jumping in this one. */
+  onOpenSource?: ((chatId: string, messageId: string) => void) | undefined
 }) {
+  const crossChat = reply.chat_id !== undefined
   const body = (
     <>
-      <span className="tg-bubble__reply-sender">{reply.sender}</span>
-      <span className="tg-bubble__reply-text" data-recalled={reply.recalled ? '' : undefined}>
-        {replySnippet(reply)}
+      <span className="tg-bubble__reply-sender">
+        {reply.sender}
+        {crossChat && reply.chat_title ? <span className="tg-bubble__reply-chat"> · {reply.chat_title}</span> : null}
       </span>
+      <span
+        className="tg-bubble__reply-text"
+        data-recalled={reply.recalled ? '' : undefined}
+        data-quote={reply.quote ? '' : undefined}
+      >
+        {reply.quote && !reply.recalled ? reply.quote.text : replySnippet(reply)}
+      </span>
+      {reply.quote_modified ? <span className="tg-bubble__reply-modified">已修改</span> : null}
     </>
   )
-  if (onJumpTo === undefined) return <div className="tg-bubble__reply">{body}</div>
+  const open =
+    crossChat && reply.chat_id !== undefined && onOpenSource
+      ? () => onOpenSource(reply.chat_id as string, reply.message_id)
+      : crossChat
+        ? undefined
+        : onJumpTo && (() => onJumpTo(reply.message_id))
+  if (open === undefined) return <div className="tg-bubble__reply">{body}</div>
   return (
     <button
       type="button"
@@ -52,7 +70,7 @@ export function ReplyQuote({
       aria-label={`跳转到 ${reply.sender} 的消息`}
       onClick={(event) => {
         event.stopPropagation()
-        onJumpTo(reply.message_id)
+        open()
       }}
     >
       {body}

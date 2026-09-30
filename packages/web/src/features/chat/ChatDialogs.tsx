@@ -24,11 +24,24 @@ export function ForwardDialog() {
 
   function pick(targetChatId: string) {
     if (!request) return
-    composerStore.getState().dispatchMode(targetChatId, {
-      type: 'forward',
-      messageIds: request.messageIds,
-      fromChatId: request.fromChatId,
-    })
+    if (request.replyTo) {
+      // TG-409: a reply in the picked chat to a message of this one (a cross-chat reply).
+      const source = conversations.find((row) => row.room_id === request.fromChatId)
+      composerStore.getState().setReplyWithExtras(targetChatId, request.replyTo.messageId, {
+        source: {
+          chatId: request.fromChatId,
+          chatTitle: source ? source.alias || source.title : '',
+          sender: request.replyTo.sender,
+          text: request.replyTo.text,
+        },
+      })
+    } else {
+      composerStore.getState().dispatchMode(targetChatId, {
+        type: 'forward',
+        messageIds: request.messageIds,
+        fromChatId: request.fromChatId,
+      })
+    }
     closeForward()
     closeMediaViewer()
     setQuery('')
@@ -42,7 +55,7 @@ export function ForwardDialog() {
         closeForward()
         setQuery('')
       }}
-      title="转发到…"
+      title={request?.replyTo ? '在哪个会话中回复？' : '转发到…'}
       size="sm"
     >
       <div className="tg-forward">

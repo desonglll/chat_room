@@ -23,6 +23,19 @@ export interface ReplyPreview {
   content: string
   attachment_file_name: string | null
   recalled: boolean
+  /** TG-409: the snippet the sender quoted; omitted for an ordinary reply. */
+  quote?: ReplyQuote
+  /** TG-409: the original changed after it was quoted. */
+  quote_modified?: boolean
+  /** TG-409: set for a reply to a message in another chat (which the viewer may not open). */
+  chat_id?: string
+  chat_title?: string
+}
+
+/** TG-409: a quoted slice of the replied-to message; `offset` in UTF-16 code units. */
+export interface ReplyQuote {
+  text: string
+  offset: number
 }
 
 export interface ForwardedFrom {

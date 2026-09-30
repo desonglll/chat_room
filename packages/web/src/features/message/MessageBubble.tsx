@@ -80,7 +80,9 @@ function ChatBubble({
       >
         {showName ? <SenderName name={message.sender} /> : null}
         {forward === null ? null : <ForwardHeader from={forward} />}
-        {reply === null ? null : <ReplyQuote reply={reply} onJumpTo={actions.onJumpTo} />}
+        {reply === null ? null : (
+          <ReplyQuote reply={reply} onJumpTo={actions.onJumpTo} onOpenSource={actions.onOpenReplySource} />
+        )}
         <Content
           message={message}
           ctx={ctx}

@@ -121,13 +121,32 @@ pub struct ChatFilePage {
 }
 
 /// Stable excerpt of the message referenced by a reply.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct ReplyPreview {
     pub message_id: Uuid,
     pub sender: String,
     pub content: String,
     pub attachment_file_name: Option<String>,
     pub recalled: bool,
+    /// TG-409: the snippet the sender quoted; omitted for an ordinary reply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote: Option<ReplyQuote>,
+    /// TG-409: the original was edited after it was quoted (Telegram marks the quote).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub quote_modified: bool,
+    /// TG-409: set for a reply to a message in ANOTHER chat — the source chat, which the
+    /// viewer may not be able to open; `content` is then the sender's snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_title: Option<String>,
+}
+
+/// TG-409: a quoted snippet of the replied-to message; `offset` is in UTF-16 code units.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ReplyQuote {
+    pub text: String,
+    pub offset: i64,
 }
 
 /// The newest message a chat participant has viewed.
