@@ -83,6 +83,16 @@ pub(crate) async fn dispatch_batch(
                 continue;
             }
         }
+        // TG-204: a muted forum topic is silent even when its chat is not.
+        if let Some(message_id) = notification.message_id {
+            if state
+                .message_topic_muted(job.recipient_id, message_id)
+                .await?
+            {
+                state.complete_push_job(&job.id, &claim_token).await?;
+                continue;
+            }
+        }
         let payload = payload_for(&notification, job.show_details);
         match sender.send(&job, &payload).await {
             PushSendOutcome::Delivered => state.complete_push_job(&job.id, &claim_token).await?,

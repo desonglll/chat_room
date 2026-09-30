@@ -104,6 +104,7 @@ fn broadcast_frame_serializes_unchanged() {
         sticker: None,
         poll: None,
         entities: Vec::new(),
+        topic_id: None,
     };
     assert_wire(
         &full,
@@ -164,6 +165,7 @@ fn broadcast_frame_serializes_unchanged() {
         sticker: None,
         poll: None,
         entities: Vec::new(),
+        topic_id: None,
     };
     assert_wire(
         &minimal,

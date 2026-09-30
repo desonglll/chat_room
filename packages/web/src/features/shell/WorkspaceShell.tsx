@@ -30,7 +30,7 @@ import { useSidebarLayout } from './useSidebarLayout'
 export function WorkspaceShell() {
   const token = useStore(authStore, selectToken)
   const infoOpen = useStore(uiStore, (state) => state.activePanel === 'chatInfo')
-  const chatOpen = useMatch('/chat/:chatId') !== null
+  const chatOpen = useMatch('/chat/:chatId/*') !== null
   const mobile = useMobileLayout()
   const { layout, preview, commit, toggleCollapsed } = useSidebarLayout()
 

@@ -69,6 +69,9 @@ pub enum ChatMessage {
         /// TG-304: optional formatted ranges of `content` (docs/devlog/TG-304.md).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-204: the forum topic to post into; absent = General (docs/devlog/TG-204.md).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topic_id: Option<Uuid>,
     },
 
     /// Client -> Server: replace the content of a message sent by this account. TG-304: the
@@ -148,6 +151,9 @@ pub enum ChatMessage {
         /// TG-304: omitted unless the message has entities.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         entities: Vec<MessageEntity>,
+        /// TG-204: the forum topic; omitted for General (and every non-forum chat).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topic_id: Option<Uuid>,
     },
 
     /// Server -> Client: one member added or removed an emoji response.

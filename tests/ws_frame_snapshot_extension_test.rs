@@ -269,6 +269,7 @@ fn topic_views_and_poll_skeletons_serialize_as_frozen() {
                 icon_emoji: "📌".into(),
                 closed: false,
                 pinned: true,
+                ..Default::default()
             },
         }),
         json!({ "type": "topic_updated", "topic": { "id": id(30), "title": "release plan",

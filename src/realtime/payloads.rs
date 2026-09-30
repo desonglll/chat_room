@@ -74,14 +74,29 @@ pub struct UserStatusEntry {
     pub status: UserStatus,
 }
 
-/// Forum-topic snapshot carried by `topic_updated`. Business logic lands in M2 (TG-204).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Forum-topic snapshot carried by `topic_updated` (TG-204, `docs/devlog/TG-204.md`).
+///
+/// TG-007 froze `id`/`title`/`icon_emoji`/`closed`/`pinned`; TG-204 grew it **additively**:
+/// every later field is omitted at its default, so the TG-007 snapshot is byte-for-byte stable.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TopicSummary {
     pub id: Uuid,
     pub title: String,
     pub icon_emoji: String,
     pub closed: bool,
     pub pinned: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_color: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_custom_emoji_id: Option<Uuid>,
+    /// General only: hidden from the topic list.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_general: bool,
+    /// The topic and its messages were deleted.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub deleted: bool,
 }
 
 /// One entry of the **batched** `message_views_updated` frame. One frame carries many ids;

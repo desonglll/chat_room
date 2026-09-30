@@ -71,6 +71,17 @@ pub async fn create_poll(
     if !may_send {
         return Err(PollError::Forbidden);
     }
+    let placement = state
+        .placement(room_id, sender.id, request.reply_to, request.topic_id)
+        .await
+        .map_err(|error| match error {
+            crate::chats::TopicError::NotFound => PollError::NotFound,
+            crate::chats::TopicError::Closed | crate::chats::TopicError::Forbidden => {
+                PollError::Forbidden
+            }
+            crate::chats::TopicError::Database(error) => PollError::Database(error),
+            _ => PollError::Invalid,
+        })?;
     let display_name = state.resolve_display_name(room_id, sender).await;
     let message_id = state
         .insert_poll_message(
@@ -78,7 +89,7 @@ pub async fn create_poll(
             sender,
             &display_name,
             &poll,
-            request.reply_to,
+            placement,
             request.client_message_id,
         )
         .await?

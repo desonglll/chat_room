@@ -79,5 +79,6 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     ...(message.entities?.length ? { entities: message.entities } : {}),
     ...(message.media_kind ? { media_kind: message.media_kind } : {}),
     ...(message.sticker ? { sticker: message.sticker } : {}),
+    ...(message.topic_id ? { topic_id: message.topic_id } : {}),
   }
 }

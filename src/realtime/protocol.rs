@@ -37,6 +37,7 @@ pub(crate) fn stored_message_to_chat(message: StoredMessage) -> ChatMessage {
         sticker: message.sticker,
         poll: message.poll,
         entities: message.entities,
+        topic_id: message.topic_id,
     }
 }
 

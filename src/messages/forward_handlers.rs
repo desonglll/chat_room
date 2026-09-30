@@ -79,6 +79,20 @@ pub async fn forward_messages(
                 });
                 continue;
             }
+            // TG-204: a forward lands in a forum's General topic, which may be closed.
+            if state
+                .resolve_post_topic(target_room_id, user.id, None)
+                .await
+                .is_err()
+            {
+                results.push(ForwardResult {
+                    message_id,
+                    target_room_id,
+                    forwarded_message_id: None,
+                    skipped_reason: Some("the target topic is closed".into()),
+                });
+                continue;
+            }
             let Ok(_permit) = state.work_queue().message().await else {
                 results.push(ForwardResult {
                     message_id,

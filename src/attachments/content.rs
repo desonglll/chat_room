@@ -11,7 +11,7 @@ use tokio::sync::{Mutex, OwnedMutexGuard};
 use uuid::Uuid;
 
 use crate::{
-    message_store::NewAttachment,
+    message_store::{MessagePlacement, NewAttachment},
     models::{Attachment, StoredMessage, User},
     state::{with_pool, AppState},
 };
@@ -53,7 +53,7 @@ impl AppState {
         sender_display_name: &str,
         upload: NewAttachment,
         content: &str,
-        reply_to: Option<Uuid>,
+        placement: MessagePlacement,
     ) -> Result<StoredMessage> {
         let NewAttachment {
             file_name,
@@ -87,7 +87,7 @@ impl AppState {
             size_bytes,
             is_sensitive,
             content,
-            reply_to,
+            placement,
             content_hash,
             storage_key,
         )
@@ -106,7 +106,7 @@ impl AppState {
         mime_type: String,
         is_sensitive: bool,
         content: &str,
-        reply_to: Option<Uuid>,
+        placement: MessagePlacement,
         expected_hash: Option<&str>,
         streamed_hash: Option<&str>,
     ) -> Result<StoredMessage> {
@@ -147,7 +147,7 @@ impl AppState {
             size_bytes,
             is_sensitive,
             content,
-            reply_to,
+            placement,
             content_hash,
             storage_key,
         )
@@ -168,7 +168,7 @@ impl AppState {
         size_bytes: i64,
         is_sensitive: bool,
         content: &str,
-        reply_to: Option<Uuid>,
+        placement: MessagePlacement,
         content_hash: String,
         storage_key: String,
     ) -> Result<StoredMessage> {
@@ -181,7 +181,7 @@ impl AppState {
             size_bytes,
             is_sensitive,
             content,
-            reply_to,
+            placement,
             content_hash,
             storage_key,
         )
@@ -239,7 +239,7 @@ impl AppState {
         size_bytes: i64,
         is_sensitive: bool,
         content: &str,
-        reply_to: Option<Uuid>,
+        placement: MessagePlacement,
         content_hash: String,
         storage_key: String,
     ) -> Result<StoredMessage> {
@@ -247,7 +247,7 @@ impl AppState {
         let access_key = Uuid::new_v4();
         let message_id = Uuid::new_v4();
         let created_at = Utc::now();
-        let reply_to = self.reply_preview(room_id, reply_to).await?;
+        let reply_to = self.reply_preview(room_id, placement.reply_to).await?;
         let persisted: Result<(), sqlx::Error> = with_pool!(self, |pool| {
             async {
                 let mut transaction = pool.begin().await?;
@@ -286,8 +286,8 @@ impl AppState {
                 .await?;
                 sqlx::query(
                     "INSERT INTO messages \
-                     (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, created_at) \
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                     (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, created_at, \
+                     topic_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
                 )
                 .bind(message_id)
                 .bind(room_id)
@@ -297,6 +297,7 @@ impl AppState {
                 .bind(attachment_id)
                 .bind(reply_to.as_ref().map(|reply| reply.message_id))
                 .bind(created_at)
+                .bind(placement.topic_id)
                 .execute(&mut *transaction)
                 .await?;
                 sqlx::query(
@@ -337,8 +338,7 @@ impl AppState {
             recalled_at: None,
             edited_at: None,
             created_at,
-            favorite_id: None,
-            forwarded_from: None,
+            topic_id: placement.topic_id,
             ..Default::default()
         })
     }

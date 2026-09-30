@@ -9,6 +9,7 @@
 import { useState, type ReactNode } from 'react'
 import type { ChatAdminApi, ChatMemberEntry } from '@tg/core'
 import { Button, IconButton, ScrollArea, Spinner } from '@tg/ui'
+import { ForumToggle } from '../forum/ForumToggle'
 import { AdminEditor } from './AdminEditor'
 import { adminCapabilities, CHAT_TYPE_LABEL, chatTypeNote, memberName } from './chatAdminModel'
 import { DefaultPermissionsPage } from './DefaultPermissionsPage'
@@ -127,6 +128,7 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
           ) : null}
           <NavRow label="成员" value={String(view.member_count)} onOpen={() => open({ id: 'members' })} />
         </ul>
+        <ForumToggle chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
       </>
     )
   } else if (page.id === 'defaults') {

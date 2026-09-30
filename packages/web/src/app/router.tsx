@@ -9,7 +9,7 @@ import { authStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { LoginPage } from '../features/auth/LoginPage'
-import { ChatPane } from '../features/chat/ChatPane'
+import { ForumChatRoute, ForumTopicRoute } from '../features/forum/ForumRoutes'
 import { EmptyChatState } from '../features/shell/EmptyChatState'
 import { WorkspaceShell } from '../features/shell/WorkspaceShell'
 import { StickerSetLinkRoute } from '../features/sticker/StickerSetLinkRoute'
@@ -41,7 +41,8 @@ export const appRouter = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <EmptyChatState /> },
-      { path: '/chat/:chatId', element: <ChatPane /> },
+      { path: '/chat/:chatId', element: <ForumChatRoute /> },
+      { path: '/chat/:chatId/topic/:topicId', element: <ForumTopicRoute /> },
       { path: '/addstickers/:shortName', element: <StickerSetLinkRoute /> },
     ],
   },

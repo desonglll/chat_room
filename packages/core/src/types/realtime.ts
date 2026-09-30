@@ -81,6 +81,8 @@ export interface BroadcastFrame {
   media_kind?: string
   /** TG-302: omitted unless `media_kind === 'sticker'`. */
   sticker?: MessageSticker
+  /** TG-204: the forum topic; omitted (or null) for General and non-forum chats. */
+  topic_id?: string | null
 }
 
 export interface TypingFrame {
@@ -97,6 +99,12 @@ export interface TopicSummary {
   icon_emoji: string
   closed: boolean
   pinned: boolean
+  /** TG-204 additions, each omitted at its default. */
+  icon_color?: number
+  icon_custom_emoji_id?: string | null
+  hidden?: boolean
+  is_general?: boolean
+  deleted?: boolean
 }
 
 export interface MessageViewCount {
@@ -184,7 +192,15 @@ export type ServerFrameType = ServerFrame['type']
 export type ClientFrame =
   | { type: 'join'; token: string }
   | { type: 'auth'; token: string; password: string }
-  | { type: 'message'; content: string; reply_to?: string; client_message_id?: string; entities?: MessageEntity[] }
+  | {
+      type: 'message'
+      content: string
+      reply_to?: string
+      client_message_id?: string
+      entities?: MessageEntity[]
+      /** TG-204: the forum topic to post into; omitted for General. */
+      topic_id?: string
+    }
   | { type: 'edit'; message_id: string; content: string; entities?: MessageEntity[] }
   | { type: 'read'; message_id: string }
   | { type: 'recall'; message_id: string }

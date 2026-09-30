@@ -16,6 +16,7 @@ import {
   setSendAsFiles,
 } from '@tg/core'
 import { browserFetch } from '../../app/platform'
+import { activeTopicId } from '../forum/activeTopic'
 import type { ComposerController } from './composerController'
 import { sendPendingBatch } from './sendPendingBatch'
 import { uploadAttachment } from './uploadClient'
@@ -94,7 +95,15 @@ export function usePendingBatch(chatId: string, controller: ComposerController, 
           read: () => batchRef.current,
           update,
           upload: (file, caption, reply, onProgress) =>
-            uploadAttachment(browserFetch, { chatId, token, file, caption, replyTo: reply, onProgress }),
+            uploadAttachment(browserFetch, {
+              chatId,
+              token,
+              file,
+              caption,
+              replyTo: reply,
+              topicId: activeTopicId(chatId),
+              onProgress,
+            }),
           uploadStarted: (item) => controller.uploadStarted(item.kind),
           uploadFinished: () => controller.uploadFinished(),
         },
