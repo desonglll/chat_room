@@ -20,6 +20,8 @@ export interface SendVideoNoteInput {
   /** A small JPEG (≤ 16 KiB), the first frame. */
   thumbnail?: Blob | null
   replyTo?: string | null
+  /** TG-204: the forum topic to post into; absent = General. */
+  topicId?: string | null
   signal?: AbortSignal
 }
 
@@ -41,6 +43,7 @@ export async function sendVideoNote(fetchImpl: FetchLike, input: SendVideoNoteIn
   form.append('duration_ms', String(Math.max(1, Math.round(input.durationMs))))
   if (input.thumbnail) form.append('thumbnail', input.thumbnail, 'thumbnail.jpg')
   if (input.replyTo) form.append('reply_to', input.replyTo)
+  if (input.topicId) form.append('topic_id', input.topicId)
   const response = await fetchImpl(path, {
     method: 'POST',
     cache: 'no-store',

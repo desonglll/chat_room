@@ -13,6 +13,7 @@ import { browserVideoEnv } from './browserVideoEnv'
 import { sendVideoNote, VIDEO_NOTE_MAX_MS } from './videoNoteApi'
 import { videoNoteErrorText } from './videoNoteErrors'
 import { createVideoNoteRecorder, videoNoteFileName, type VideoNoteRecorder } from './videoRecorder'
+import { activeTopicId } from '../forum/activeTopic'
 
 export interface VideoNoteRecordingOptions {
   chatId: string
@@ -61,6 +62,7 @@ export function useVideoNoteRecording(options: VideoNoteRecordingOptions): Video
           durationMs: recording.durationMs,
           thumbnail: recording.thumbnail,
           replyTo: latest.current.replyTo,
+          topicId: activeTopicId(chatId),
         })
       },
       onSent: () => latest.current.onSent?.(),

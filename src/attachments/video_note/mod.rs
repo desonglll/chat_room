@@ -19,6 +19,7 @@ use std::sync::Arc;
 use axum::{extract::DefaultBodyLimit, routing::post, Router};
 use uuid::Uuid;
 
+use crate::attachments::voice::model::VoiceError;
 use crate::attachments::voice::{authorize_voice_send, model::DurationSource, probe};
 use crate::models::{ChatMessage, StoredMessage, User};
 use crate::realtime::protocol::stored_message_to_chat;
@@ -62,6 +63,8 @@ pub struct VideoNoteUpload {
     /// Already validated by [`model::validate_thumbnail`].
     pub thumbnail: Option<Vec<u8>>,
     pub reply_to: Option<Uuid>,
+    /// TG-204: the forum topic to post into; `None` = General.
+    pub topic_id: Option<Uuid>,
 }
 
 /// Who may send a video note: exactly who may send a voice message (TG-401).
@@ -83,6 +86,11 @@ pub async fn send_video_note(
     upload: VideoNoteUpload,
 ) -> Result<StoredMessage, VideoNoteError> {
     authorize_video_note_send(state, room_id, sender).await?;
+    // TG-204: the same topic gate as every other send path.
+    let topic_id = state
+        .resolve_post_topic(room_id, sender.id, upload.topic_id)
+        .await
+        .map_err(|error| VideoNoteError::from(VoiceError::from_topic(error)))?;
     if let Some(thumbnail) = &upload.thumbnail {
         validate_thumbnail(thumbnail)?;
     }
@@ -139,6 +147,7 @@ pub async fn send_video_note(
                 duration_source,
                 thumbnail: upload.thumbnail,
                 reply_to: upload.reply_to,
+                topic_id,
             },
         )
         .await?;

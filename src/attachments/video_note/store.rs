@@ -24,6 +24,7 @@ pub(crate) struct NewVideoNote {
     pub duration_source: DurationSource,
     pub thumbnail: Option<Vec<u8>>,
     pub reply_to: Option<Uuid>,
+    pub topic_id: Option<Uuid>,
 }
 
 impl AppState {
@@ -85,8 +86,8 @@ impl AppState {
                 .await?;
                 sqlx::query(
                     "INSERT INTO messages (id, room_id, sender_id, sender, content, \
-                     attachment_id, reply_to_id, media_kind, created_at) \
-                     VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)",
+                     attachment_id, reply_to_id, media_kind, created_at, topic_id) \
+                     VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8, $9)",
                 )
                 .bind(message_id)
                 .bind(room_id)
@@ -96,6 +97,7 @@ impl AppState {
                 .bind(reply_to.as_ref().map(|reply| reply.message_id))
                 .bind(MEDIA_KIND_VIDEO_NOTE)
                 .bind(created_at)
+                .bind(note.topic_id)
                 .execute(&mut *tx)
                 .await?;
                 sqlx::query(
