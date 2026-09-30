@@ -33,10 +33,15 @@ pub async fn handle_client_message(
     user: &User,
     message: ChatMessage,
 ) {
-    let active = state
-        .has_chat_permission(room_id, user.id, "message.send")
-        .await
-        .unwrap_or(false);
+    // TG-201: marking read is reading — a member restricted from sending still does it.
+    let active = if matches!(message, ChatMessage::Read { .. }) {
+        state.can_read_chat(room_id, user.id).await
+    } else {
+        state
+            .has_chat_permission(room_id, user.id, "message.send")
+            .await
+    }
+    .unwrap_or(false);
     if !active {
         return;
     }

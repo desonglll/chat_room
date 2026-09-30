@@ -182,8 +182,9 @@ async fn authorize(
         .await
         .map_err(database_error)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    // TG-201: listing a chat's files is a read; membership is the gate.
     let allowed = state
-        .has_chat_permission(room_id, user.id, "message.send")
+        .can_read_chat(room_id, user.id)
         .await
         .map_err(database_error)?;
     if !allowed {

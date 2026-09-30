@@ -34,8 +34,9 @@ pub(super) async fn authorize(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    // TG-201: uploading is sending media.
     if !state
-        .has_chat_permission(room_id, user.id, "message.send")
+        .has_chat_permission(room_id, user.id, "message.send_media")
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {

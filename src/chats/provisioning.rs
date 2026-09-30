@@ -5,41 +5,19 @@
 //! `POST /api/chats` and a private chat opened by `chats::private_chats` go through them
 //! (TG-208), so the two kinds of chat cannot drift apart in how they are provisioned.
 //!
-//! The permission sets below are the registry rows `chat_role_permissions` points at.
-//! `docs/tg/architecture.md` §4.4 hands the M2 expansion of this list to TG-201; the key
-//! *values* (`room.settings`, `room.delete`) are frozen data that clients already consume.
+//! The permission sets are the registry rows `chat_role_permissions` points at; since TG-201
+//! they come from `chats::permissions`. The key *values* (`room.settings`, `room.delete`) are
+//! frozen data that clients already consume.
 
 use chrono::{DateTime, Utc};
 use sqlx::{Database, Encode, Executor, IntoArguments, Type};
 use uuid::Uuid;
 
+use super::permissions::{
+    admin_role_grants, member_role_grants, owner_role_grants, DEFAULT_MEMBER_PERMISSIONS,
+};
 use crate::models::Chat;
 use crate::state::{with_pool, AppState};
-
-pub(crate) const MEMBER_PERMISSIONS: &[&str] =
-    &["message.send", "message.edit_own", "message.recall_own"];
-const ADMIN_PERMISSIONS: &[&str] = &[
-    "message.send",
-    "message.edit_own",
-    "message.recall_own",
-    "message.pin",
-    "room.settings",
-    "members.review",
-    "members.invite",
-    "members.remove",
-];
-const OWNER_PERMISSIONS: &[&str] = &[
-    "message.send",
-    "message.edit_own",
-    "message.recall_own",
-    "message.pin",
-    "room.settings",
-    "room.delete",
-    "members.review",
-    "members.invite",
-    "members.remove",
-    "members.roles",
-];
 
 impl AppState {
     pub async fn create_chat_with_owner(
@@ -49,14 +27,13 @@ impl AppState {
     ) -> Result<(), sqlx::Error> {
         with_pool!(self, |pool| {
             let mut transaction = pool.begin().await?;
-            // member_count is seeded to 1 in the same transaction that inserts the owner's
-            // membership: the projection is only trustworthy if it never lags the row that
-            // created it.
-            insert_chat_row(&mut *transaction, &chat, Some(owner_id), 1).await?;
+            // member_count starts at 0: the chat_members triggers (TG-201) count the owner's
+            // membership below inside this same transaction.
+            insert_chat_row(&mut *transaction, &chat, Some(owner_id)).await?;
             let roles = [
-                ("owner", OWNER_PERMISSIONS),
-                ("admin", ADMIN_PERMISSIONS),
-                ("member", MEMBER_PERMISSIONS),
+                ("owner", owner_role_grants()),
+                ("admin", admin_role_grants()),
+                ("member", member_role_grants(DEFAULT_MEMBER_PERMISSIONS)),
             ];
             for (name, permissions) in roles {
                 let role_id = system_role_id(chat.id, name);
@@ -88,13 +65,12 @@ pub(crate) fn system_role_id(chat_id: Uuid, name: &str) -> String {
     format!("{}:{name}", chat_id.simple())
 }
 
-/// Insert the `chats` row. `member_count` must equal the memberships the same transaction
-/// inserts, so the projection never lags the rows that created it.
+/// Insert the `chats` row with `member_count = 0`. The membership triggers from migration
+/// `20261101000002` count every active membership the same transaction inserts afterwards.
 pub(crate) async fn insert_chat_row<'c, E, DB>(
     executor: E,
     chat: &Chat,
     creator_user_id: Option<Uuid>,
-    member_count: i64,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = DB>,
@@ -103,14 +79,13 @@ where
     for<'q> Uuid: Encode<'q, DB> + Type<DB>,
     for<'q> Option<Uuid>: Encode<'q, DB> + Type<DB>,
     for<'q> &'q str: Encode<'q, DB> + Type<DB>,
-    for<'q> i64: Encode<'q, DB> + Type<DB>,
     for<'q> DateTime<Utc>: Encode<'q, DB> + Type<DB>,
 {
     sqlx::query(
         "INSERT INTO chats \
          (id, chat_type, title, password_hash, creator_user_id, join_policy, avatar_emoji, \
           description, access_hash, member_count, created_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10)",
     )
     .bind(chat.id)
     .bind(chat.chat_type.as_str())
@@ -121,7 +96,6 @@ where
     .bind(chat.avatar_emoji.as_str())
     .bind(chat.description.as_str())
     .bind(chat.access_hash.as_str())
-    .bind(member_count)
     .bind(chat.created_at)
     .execute(executor)
     .await

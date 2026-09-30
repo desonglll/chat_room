@@ -114,6 +114,12 @@ pub async fn get_chat(
     dialect: ApiDialect,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
+    // Refresh the cached projections (type, member count) from the row first; they can
+    // change outside the membership handlers (an account deletion cascades).
+    state
+        .sync_chat_projection(id, false)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut chat = state.chat(id).await.ok_or(StatusCode::NOT_FOUND)?;
     chat.membership_status = None;
     chat.membership_role = None;

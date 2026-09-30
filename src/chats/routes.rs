@@ -8,8 +8,8 @@ use std::sync::Arc;
 use axum::{routing::get, Router};
 
 use super::{
-    drafts, handlers, lifecycle_handlers, membership_handlers, message_history,
-    query_handlers as chat_query_handlers,
+    admin_handlers, drafts, handlers, lifecycle_handlers, membership_handlers, message_history,
+    query_handlers as chat_query_handlers, roster_handlers,
 };
 use crate::{
     ai_extractions, ai_governance, ai_suggestions, attachment_handlers, attachment_upload_handlers,
@@ -98,7 +98,27 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
         )
         .route(
             &path("/:id/members/:user_id"),
-            axum::routing::patch(membership_handlers::update_member),
+            get(roster_handlers::get_member).patch(membership_handlers::update_member),
+        )
+        .route(
+            &path("/:id/members/page"),
+            get(roster_handlers::list_member_page),
+        )
+        .route(
+            &path("/:id/members/:user_id/admin"),
+            axum::routing::put(admin_handlers::put_admin).delete(admin_handlers::delete_admin),
+        )
+        .route(
+            &path("/:id/members/:user_id/restrictions"),
+            axum::routing::put(admin_handlers::put_restrictions),
+        )
+        .route(
+            &path("/:id/permissions"),
+            get(roster_handlers::get_permissions),
+        )
+        .route(
+            &path("/:id/default-permissions"),
+            axum::routing::put(roster_handlers::put_default_permissions),
         )
         .route(
             &path("/:id/join-requests"),

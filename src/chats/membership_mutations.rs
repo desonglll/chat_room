@@ -72,6 +72,7 @@ impl AppState {
         if changed == 0 {
             return Ok(None);
         }
+        self.settle_membership_change(room_id).await?;
         self.chat_membership(room_id, user_id).await
     }
 
@@ -112,6 +113,12 @@ impl AppState {
         })?;
         if changed == 0 {
             return Ok(None);
+        }
+        // The legacy role switch appoints with the default rights (the shared `admin` role)
+        // or dismisses: either way an explicit selection and a custom title no longer apply.
+        self.reset_admin_appointment(room_id, user_id).await?;
+        if role == "admin" {
+            self.lift_member_restrictions(room_id, user_id).await?;
         }
         self.chat_membership(room_id, user_id).await
     }
@@ -199,6 +206,7 @@ impl AppState {
                 self.cache_updated_chat(chat).await;
             }
         }
+        self.sync_chat_projection(room_id, false).await?;
         Ok(Some(membership))
     }
 }

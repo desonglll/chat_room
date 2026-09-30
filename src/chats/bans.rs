@@ -95,6 +95,7 @@ impl AppState {
                 .await?;
             transaction.commit().await
         })?;
+        self.sync_chat_projection(room_id, false).await?;
         membership.status = "banned".into();
         Ok(Some(membership))
     }

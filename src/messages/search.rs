@@ -232,8 +232,9 @@ async fn authorized_viewer(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    // TG-201: the read gate is membership; a member restricted from sending still searches.
     if !state
-        .has_chat_permission(room_id, user.id, "message.send")
+        .can_read_chat(room_id, user.id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {

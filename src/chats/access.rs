@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use super::chat_projection::upgrade_outgrown_group;
 use crate::models::{Chat, ChatMembership, User};
 use crate::state::{with_pool, AppState};
 
@@ -34,10 +35,15 @@ impl AppState {
         chats: &mut [Chat],
         user_id: Uuid,
     ) -> Result<(), sqlx::Error> {
-        let rows: Vec<(Uuid, String, String)> = with_pool!(self, |pool| {
+        // The chat's own projections (type, member count) are read from the row, not trusted
+        // from the cache: a membership can change outside this module (an account deletion
+        // cascades), and the database triggers keep the row right in every case.
+        let rows: Vec<(Uuid, String, String, String, i64)> = with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT chat_members.room_id, chat_members.status, chat_roles.name \
+                "SELECT chat_members.room_id, chat_members.status, chat_roles.name, \
+             chats.chat_type, CAST(chats.member_count AS BIGINT) \
              FROM chat_members JOIN chat_roles ON chat_roles.id = chat_members.role_id \
+             JOIN chats ON chats.id = chat_members.room_id \
              WHERE chat_members.user_id = $1",
             )
             .bind(user_id)
@@ -46,7 +52,9 @@ impl AppState {
         })?;
         let identities: HashMap<_, _> = rows
             .into_iter()
-            .map(|(room_id, status, role)| (room_id, (status, role)))
+            .map(|(room_id, status, role, chat_type, member_count)| {
+                (room_id, (status, role, chat_type, member_count))
+            })
             .collect();
         for chat in chats.iter_mut() {
             // Always overwrite, never only conditionally set: `chats` may come
@@ -56,8 +64,14 @@ impl AppState {
             // must not inherit those stale values, or every chat would look
             // joined (and private chats would leak into everyone's listing).
             let identity = identities.get(&chat.id);
-            chat.membership_status = identity.map(|(status, _)| status.clone());
-            chat.membership_role = identity.map(|(_, role)| role.clone());
+            chat.membership_status = identity.map(|(status, ..)| status.clone());
+            chat.membership_role = identity.map(|(_, role, ..)| role.clone());
+            if let Some((_, _, chat_type, member_count)) = identity {
+                if let Ok(chat_type) = chat_type.parse() {
+                    chat.chat_type = chat_type;
+                }
+                chat.member_count = *member_count;
+            }
         }
         let unread: HashMap<_, _> = self
             .chat_unread_counts(user_id)
@@ -182,15 +196,18 @@ impl AppState {
                     .execute(&mut *transaction)
                     .await?;
             }
+            let upgraded = upgrade_outgrown_group!(&mut *transaction, room_id)?;
             transaction.commit().await?;
-            Ok::<_, sqlx::Error>(became_owner)
+            Ok::<_, sqlx::Error>((became_owner, upgraded))
         })?;
+        let (became_owner, upgraded) = became_owner;
         if became_owner {
             if let Some(mut chat) = self.chat(room_id).await {
                 chat.creator_user_id = Some(user_id);
                 self.cache_updated_chat(chat).await;
             }
         }
+        self.sync_chat_projection(room_id, upgraded).await?;
         self.chat_membership(room_id, user_id)
             .await?
             .ok_or(sqlx::Error::RowNotFound)

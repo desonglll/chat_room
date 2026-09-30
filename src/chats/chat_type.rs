@@ -108,8 +108,13 @@ impl ChatType {
                     | "members.remove"
                     | "members.review"
                     | "members.roles"
+                    | "members.ban"
+                    | "members.promote"
                     | "room.settings"
                     | "room.delete"
+                    | "chat.info"
+                    | "chat.anonymous"
+                    | "chat.call"
                     | "message.post"
                     | "chat.topics"
             ),
@@ -214,8 +219,11 @@ mod tests {
             "members.remove",
             "members.review",
             "members.roles",
+            "members.ban",
+            "members.promote",
             "room.settings",
             "room.delete",
+            "chat.info",
         ] {
             assert!(!ChatType::Private.permits(key), "{key} should be denied");
             assert!(ChatType::Group.permits(key), "{key} should be allowed");

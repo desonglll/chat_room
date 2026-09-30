@@ -52,8 +52,15 @@ pub async fn update_chat(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
+    // TG-201: the title, avatar and description are `chat.info` (a member-toggleable key);
+    // the password and join policy stay behind the administrative `room.settings`.
+    let permission = if req.new_password.is_some() || req.join_policy.is_some() {
+        "room.settings"
+    } else {
+        "chat.info"
+    };
     if !state
-        .has_chat_permission(id, user.id, "room.settings")
+        .has_chat_permission(id, user.id, permission)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
