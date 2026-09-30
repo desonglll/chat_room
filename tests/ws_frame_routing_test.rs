@@ -54,8 +54,16 @@ async fn draft_updated_reaches_only_the_drafting_accounts_connections() {
         assert_eq!(draft["text"], "unsent thought");
         assert_eq!(draft["user_id"], alice_id.to_string());
     }
-    let (marker, skipped) = collect_until(&mut bob, "system").await;
-    assert_eq!(marker["content"], "marker");
+    // Bob's own `joined the room` system frame races the marker (it is broadcast after
+    // `auth_ok` and history replay), so skip system frames until the marker itself.
+    let mut skipped = Vec::new();
+    loop {
+        let (frame, mut before) = collect_until(&mut bob, "system").await;
+        skipped.append(&mut before);
+        if frame["content"] == "marker" {
+            break;
+        }
+    }
     assert!(
         !skipped.iter().any(|kind| kind == "draft_updated"),
         "another account's draft leaked to bob: {skipped:?}"
