@@ -113,12 +113,12 @@ jobs:
         working-directory: web
         run: bun test
 
+      # The frozen Vue client is still built so that "it stays independently
+      # runnable until TG-602" is verified rather than assumed. Its size is no
+      # longer budget-checked: nobody edits it, so it cannot regress.
       - name: Build web client
         working-directory: web
         run: bun run build
-
-      - name: Check web entry bundle size
-        run: python3 scripts/check_web_bundle.py
 
       - name: Check packages formatting
         run: bun run -F '@tg/*' lint
@@ -140,6 +140,13 @@ jobs:
       - name: Build React client
         working-directory: packages/web
         run: bun run build
+
+      # Must follow the React build: this measures packages/web/dist, which is
+      # what the server embeds. It previously ran after the Vue build and
+      # measured web/dist/assets/app.js, so the budget was enforced on a client
+      # that no longer ships.
+      - name: Check web bundle transfer size
+        run: python3 scripts/check_web_bundle.py
 
       - name: Run desktop tests
         working-directory: desktop
