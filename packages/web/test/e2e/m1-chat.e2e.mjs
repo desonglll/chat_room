@@ -1,6 +1,8 @@
 /**
  * TG-100 end-to-end check of the wired M1 chat against a REAL server, two accounts in two
  * browser contexts. Not part of `bun test` (needs a server, Chromium and ~1 minute).
+ * TG-110 added: live poll votes, the quiz radio, no edit on polls, the info-panel toggle, and
+ * the settings panel (desktop + phone).
  *
  * Run (see docs/devlog/TG-100.md "E2E"):
  *   (cd packages/web && bun run build)            # the bundle the server embeds
@@ -8,15 +10,16 @@
  *     --database-type sqlite --database /tmp/tg100-e2e.db
  *   BASE_URL=http://127.0.0.1:3917 node packages/web/test/e2e/m1-chat.e2e.mjs
  *
- * Env: BASE_URL (required), SHOTS (default /tmp/tg-shots/TG-100), PLAYWRIGHT (module path,
+ * Env: BASE_URL (required), SHOTS (default /tmp/tg-shots/TG-110), PLAYWRIGHT (module path,
  * default /tmp/pw/node_modules/playwright/index.mjs), SEED (older messages, default 300).
  * Exit code 0 = every step passed; each step prints `ok <n> <name>` or throws.
  */
 import { mkdirSync } from 'node:fs'
+import { runBatch2Steps } from './batch2.steps.mjs'
 
 const BASE_URL = process.env.BASE_URL
 if (!BASE_URL) throw new Error('BASE_URL is required, e.g. http://127.0.0.1:3917')
-const SHOTS = process.env.SHOTS ?? '/tmp/tg-shots/TG-100'
+const SHOTS = process.env.SHOTS ?? '/tmp/tg-shots/TG-110'
 const SEED = Number(process.env.SEED ?? 300)
 const { chromium } = await import(process.env.PLAYWRIGHT ?? '/tmp/pw/node_modules/playwright/index.mjs')
 mkdirSync(SHOTS, { recursive: true })
@@ -251,6 +254,8 @@ try {
     await b.locator('.tg-bubble__forward').first().waitFor({ timeout: 10_000 })
     await shot(b, 'b-forwarded')
   })
+
+  await runBatch2Steps({ a, b, check, shot, BASE_URL, ALICE, chatId: () => chatId })
 
   await check('narrow screen: the back button sits in the chat header and returns to the list', async () => {
     await b.setViewportSize({ width: 390, height: 780 })

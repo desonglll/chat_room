@@ -68,7 +68,7 @@ impl AppState {
             .bind(forwarder.id)
             .bind(&forwarder_display_name)
             .bind(created_at)
-            .bind(&attribution_override)
+            .bind(attribution_override)
             .execute(&mut *transaction)
             .await?
             .rows_affected()

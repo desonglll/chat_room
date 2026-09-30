@@ -29,6 +29,7 @@ import {
   getChat,
   listChatMessages,
 } from '@tg/core'
+import { applyPollFrame, type PollStore } from '../poll/pollStore'
 
 /** Server cap: message ≤ 4096 chars (`src/realtime/auth.rs`). */
 export const MAX_MESSAGE_CHARS = 4096
@@ -38,6 +39,8 @@ export interface ChatSessionStores {
   presence: PresenceStore
   composer: ComposerStore
   chatList: ChatListStore
+  /** Live poll tallies (TG-406). `poll_updated` frames are dropped when absent. */
+  poll?: PollStore | undefined
 }
 
 export interface ChatSessionOptions {
@@ -205,6 +208,9 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('reaction_changed', (frame) => stores.message.getState().applyReaction(chatId, frame)),
         socket.on('chat_updated', (frame) => stores.chatList.getState().applyChatUpdated(frame.chat)),
         socket.on('draft_updated', (frame) => acceptRemoteDraft(frame)),
+        socket.on('poll_updated', (frame) => {
+          if (stores.poll) applyPollFrame(frame, stores.poll)
+        }),
       )
       socket.connect()
       options.draftsApi

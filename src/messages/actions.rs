@@ -22,6 +22,9 @@ impl AppState {
     /// Replace a sender-owned message while retaining its identity and edit timestamp.
     /// Also un-recalls the message: a sender can always re-edit their own recalled
     /// draft (only they could see it), and doing so republishes it to everyone.
+    /// A poll message is never editable (Telegram): its question and options live in
+    /// `polls`, and rewriting `content` would desynchronise the bubble from the tally.
+    /// Such an edit matches no row and answers `None`, like an edit of someone else's message.
     pub async fn edit_message(
         &self,
         room_id: Uuid,
@@ -34,6 +37,7 @@ impl AppState {
             sqlx::query_scalar(
                 "UPDATE messages SET content = $1, edited_at = $2, recalled_at = NULL \
              WHERE id = $3 AND room_id = $4 AND sender_id = $5 \
+             AND NOT EXISTS (SELECT 1 FROM polls WHERE polls.message_id = messages.id) \
              RETURNING attachment_id",
             )
             .bind(content)

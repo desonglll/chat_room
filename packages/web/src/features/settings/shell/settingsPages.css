@@ -1,0 +1,99 @@
+/*
+ * TG-110 settings pages that ship with the shell: the «即将推出» placeholder, 设备 and 我的账号.
+ * Semantic tokens only; no motion here (the panel owns every transition).
+ */
+
+.tg-settings__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-danger-soft);
+}
+
+.tg-settings__confirm-text {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--tg-type-label-size);
+}
+
+/* ── Placeholder («即将推出») ─────────────────────────────────────────────── */
+
+.tg-settings__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-12) var(--tg-space-6);
+  color: var(--tg-text-secondary);
+  text-align: center;
+}
+
+.tg-settings__placeholder-title {
+  margin: 0;
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-title-size);
+  line-height: var(--tg-type-title-line);
+  font-weight: var(--tg-weight-medium);
+}
+
+/* ── 设备 ─────────────────────────────────────────────────────────────────── */
+
+.tg-settings-devices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.tg-settings-device {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  min-block-size: var(--tg-menu-row-height);
+}
+
+.tg-settings-device__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-avatar-sm);
+  block-size: var(--tg-avatar-sm);
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-accent-soft);
+  color: var(--tg-accent);
+}
+
+.tg-settings-device__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.tg-settings-device__name {
+  overflow: hidden;
+  font-size: var(--tg-type-subtitle-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-settings-device__meta {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
+
+/* ── 我的账号 ─────────────────────────────────────────────────────────────── */
+
+.tg-settings-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+/* Pages that fill the body themselves (TG-505 privacy) keep their own background. */
+.tg-settings__body--bare > .tg-privacy {
+  flex: 1;
+}

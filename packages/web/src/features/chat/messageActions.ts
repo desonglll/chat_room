@@ -4,7 +4,8 @@
  * perform is left undefined, which hides its menu row / button in the bubble.
  *
  * Rules (mirroring the server, `src/messages/actions.rs` + `src/messages/pins.rs`):
- * - edit / delete (recall): own messages only; edit needs text to edit;
+ * - edit / delete (recall): own messages only; edit needs text to edit and is never offered
+ *   on a poll (the server refuses it: the question lives in the poll, not in `content`);
  * - pin: private chats, or owner/admin role (`message.pin` permission);
  * - reply / forward / react / pin need a server id — the bubble already hides them on
  *   pending rows, the binder simply offers them;
@@ -42,7 +43,7 @@ export function bindMessageActions(message: DisplayMessage, deps: MessageActionD
   return {
     onReply: () => deps.dispatchMode(deps.chatId, { type: 'reply', messageId: id }),
     onEdit:
-      own && server && text.trim() !== ''
+      own && server && text.trim() !== '' && !message.poll
         ? () => deps.dispatchMode(deps.chatId, { type: 'edit', messageId: id, text })
         : undefined,
     onDelete: own && server ? () => deps.requestDelete([id]) : undefined,

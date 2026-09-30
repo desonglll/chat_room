@@ -232,12 +232,6 @@
   gap: var(--tg-space-1-5);
 }
 
-/* The ring is painted over the (transparent) native input in @tg/ui's Radio, so without this
-   a click on the visible ring never reaches the input. Scoped here; reported to the lead. */
-.tg-poll-create__option .tg-radio__dot {
-  pointer-events: none;
-}
-
 .tg-poll-create__option .tg-radio {
   gap: 0;
 }

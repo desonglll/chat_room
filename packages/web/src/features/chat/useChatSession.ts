@@ -12,6 +12,7 @@ import { browserClock, chatSocketUrl, createBrowserSocket, onPageVisible, pageVi
 import type { ChatSession } from './chatSession'
 import { createChatSession } from './chatSession'
 import { registerChatSession } from './chatSessionRegistry'
+import { pollStore } from '../poll/pollStore'
 
 export interface ChatSessionHandle {
   connection: ChatSocketStatus
@@ -43,6 +44,7 @@ export function useChatSession(chatId: string): ChatSessionHandle {
         presence: presenceStore,
         composer: composerStore,
         chatList: chatListStore,
+        poll: pollStore,
       },
     })
     sessionRef.current = session

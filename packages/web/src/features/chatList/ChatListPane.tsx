@@ -11,6 +11,7 @@ import { authStore, chatListStore, selectToken, settingsStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { ScrollArea, Skeleton } from '@tg/ui'
 import { apiClient } from '../../app/client'
+import { openSettings } from '../settings/shell/settingsNavigation'
 import { browserStorage } from '../../app/platform'
 import { signOut } from '../../app/session'
 import { ArchiveRow } from './ArchiveRow'
@@ -67,6 +68,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
       disabled: view.archivedCount === 0,
       onSelect: () => setFolder('archive'),
     },
+    { id: 'settings', label: '设置', onSelect: () => openSettings() },
     { id: 'night', label: '夜间模式', onSelect: toggleNightMode },
     ...(onToggleCollapsed
       ? [{ id: 'collapse', label: collapsed ? '展开侧栏' : '收起侧栏', onSelect: onToggleCollapsed }]

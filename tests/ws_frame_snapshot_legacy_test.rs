@@ -1,10 +1,8 @@
-//! Serialization snapshots for every pre-TG-007 WebSocket frame.
-//!
-//! TG-007 was the one deliberate breaking window for the WS protocol. Everything in this file
-//! is pinned to serialise exactly as it did at the TG-007 base commit (d12aae2): if one of
-//! these assertions moves, a frozen client (Vue, PySide6, ratatui) breaks. The frames TG-007
-//! deliberately extended (`typing`, `auth_ok`) and the new frames live in
-//! `ws_frame_snapshot_extension_test.rs`.
+//! Serialization snapshots for every pre-TG-007 WebSocket frame. TG-007 was the one deliberate
+//! breaking window for the WS protocol; everything here is pinned to serialise exactly as it did
+//! at the TG-007 base commit (d12aae2): if one of these assertions moves, a frozen client (Vue,
+//! PySide6, ratatui) breaks. The frames TG-007 extended (`typing`, `auth_ok`) and the new frames
+//! live in `ws_frame_snapshot_extension_test.rs`.
 
 use chrono::{DateTime, Utc};
 use serde_json::json;
