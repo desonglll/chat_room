@@ -2,6 +2,7 @@
 import type { StickerEngine } from './engineTypes'
 import type { TickerHost, TickerStats } from './frameTicker'
 import type { PageSignals } from './pageSignals'
+import type { MotionView, MotionViewOptions } from './motionViews'
 import type { Blit } from './stickerGroup'
 import type { StickerSource } from './stickerSource'
 import type { ViewportWatcher } from './viewportWatcher'
@@ -61,9 +62,14 @@ export interface ManagerStats extends TickerStats {
   groups: number
   runningGroups: number
   parsed: number
+  /** WebM (browser-animated) stickers registered, and how many of them may play. */
+  motionViews: number
+  playingMotionViews: number
 }
 
 export interface StickerRenderManager {
   attach(options: StickerViewOptions): StickerView
+  /** A sticker the browser animates (WebM): same viewport/hidden/reduced-motion policy and cap. */
+  attachMotion(options: MotionViewOptions): MotionView
   stats(): ManagerStats
 }

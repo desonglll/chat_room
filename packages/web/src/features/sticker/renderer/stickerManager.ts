@@ -8,7 +8,7 @@
  * view on its static first frame.
  *
  * Framework-free and DOM-free apart from the injected services, so it is unit-tested with
- * fakes and can back the WebP/WebM sticker kinds TG-306 adds behind the same entry.
+ * fakes. WebM stickers (TG-306) join the same policy as motion views (`motionViews.ts`).
  */
 import type { LoadedSticker, StickerEngine } from './engineTypes'
 import { createFrameTicker, type FrameTicker } from './frameTicker'
@@ -19,6 +19,7 @@ import type {
   StickerViewOptions,
   StickerViewState,
 } from './managerTypes'
+import { createMotionViews } from './motionViews'
 import { admitPlayback } from './playbackPolicy'
 import { createRefCountedCache } from './refCountedCache'
 import { StickerGroup, type GroupMember } from './stickerGroup'
@@ -75,6 +76,12 @@ export function createStickerRenderManager(services: ManagerServices, policy: Ma
   let nextId = 1
   let visibleCounter = 0
   let planQueued = false
+  const motion = createMotionViews({
+    viewport: services.viewport,
+    nextId: () => nextId++,
+    nextVisible: () => ++visibleCounter,
+    schedulePlan: () => schedulePlan(),
+  })
 
   const setState = (view: ViewRecord, patch: Partial<StickerViewState>) => {
     if (view.destroyed) return
@@ -110,6 +117,7 @@ export function createStickerRenderManager(services: ManagerServices, policy: Ma
         playing: view.playing,
         visibleSince: view.visibleSince,
       }))
+      .concat(motion.candidates())
     const admitted = admitPlayback(candidates, {
       hidden: services.signals.hidden(),
       reducedMotion,
@@ -120,6 +128,7 @@ export function createStickerRenderManager(services: ManagerServices, policy: Ma
       if (view.group && (reducedMotion || (view.playing && view.group.key !== groupKeyOf(view)))) leaveGroup(view)
       if (view.playing && !view.group && !view.joining) joinGroup(view)
     }
+    motion.apply(admitted, reducedMotion)
     for (const [key, group] of groups) {
       const running = [...group.members].some((member) => (member as ViewRecord).playing) && !group.ended
       if (running) {
@@ -298,8 +307,10 @@ export function createStickerRenderManager(services: ManagerServices, policy: Ma
         },
       }
     },
+    attachMotion: (options) => motion.attach(options),
     stats() {
       const all = [...views.values()]
+      const motionCount = motion.count()
       return {
         ...ticker.stats(),
         views: all.length,
@@ -308,6 +319,8 @@ export function createStickerRenderManager(services: ManagerServices, policy: Ma
         groups: groups.size,
         runningGroups: ticker.size,
         parsed: parsed.size,
+        motionViews: motionCount.views,
+        playingMotionViews: motionCount.playing,
       }
     },
   }

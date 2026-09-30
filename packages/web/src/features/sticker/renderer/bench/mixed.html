@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN" data-tg-theme="day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG-306 mixed-format stickers</title>
+    <!--
+      Dev-only fixture page (never in the shipped bundle): TGS, WebP and WebM stickers mixed in
+      one panel through `<Sticker>`. Driven by ./mixedShots.mjs. Manual use:
+
+        cd packages/web && bunx vite
+        open http://localhost:5174/src/features/sticker/renderer/bench/mixed.html?webm=off
+
+      Query: webm=auto|off (off forces the Safari fallback path)
+    -->
+  </head>
+  <body>
+    <div id="mixed"></div>
+    <script type="module" src="./mixedFixture.tsx"></script>
+  </body>
+</html>

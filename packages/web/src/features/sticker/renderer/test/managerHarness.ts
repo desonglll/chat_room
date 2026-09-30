@@ -124,5 +124,23 @@ export function harness(policy: Partial<ManagerPolicy> = {}, frames = 60) {
     return { view, canvas, states, errors, setVisible, phase: () => states.at(-1)?.phase }
   }
 
-  return { manager, calls, mount, tick, flush, setSignal, blits, ticking: () => queued !== null }
+  /** A WebM-style motion view; records every playback decision the manager hands it. */
+  const mountMotion = (key: string, options: { loop?: boolean; autoplay?: boolean } = {}) => {
+    const element = {}
+    const decisions: Array<{ playing: boolean; reducedMotion: boolean }> = []
+    const view = manager.attachMotion({
+      element: element as Element,
+      key,
+      loop: options.loop ?? true,
+      autoplay: options.autoplay ?? true,
+      onPlayback: (playing, reducedMotion) => decisions.push({ playing, reducedMotion }),
+    })
+    const setVisible = async (visible: boolean) => {
+      visibility.get(element)?.(visible)
+      await flush()
+    }
+    return { view, decisions, setVisible, playing: () => decisions.at(-1)?.playing ?? null }
+  }
+
+  return { manager, calls, mount, mountMotion, tick, flush, setSignal, blits, ticking: () => queued !== null }
 }

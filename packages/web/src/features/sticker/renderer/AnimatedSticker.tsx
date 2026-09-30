@@ -21,23 +21,23 @@ type SourceProps =
   | {
       data: Uint8Array | ArrayBuffer
       /** Stable identity for `data`, so equal bytes share one parse; defaults to object identity. */
-      cacheKey?: string
+      cacheKey?: string | undefined
       src?: never
     }
 
 export type AnimatedStickerProps = SourceProps & {
   /** Rendered size in CSS pixels (square). */
-  size?: number
-  loop?: boolean
-  autoplay?: boolean
+  size?: number | undefined
+  loop?: boolean | undefined
+  autoplay?: boolean | undefined
   /** Static thumbnail shown until the first frame is ready. */
-  poster?: string
+  poster?: string | undefined
   /** Accessible name — usually the sticker's emoji. */
-  label?: string
-  className?: string
-  onError?: (error: unknown) => void
+  label?: string | undefined
+  className?: string | undefined
+  onError?: ((error: unknown) => void) | undefined
   /** Injection point for tests and the benchmark; defaults to the page-wide manager. */
-  manager?: StickerRenderManager
+  manager?: StickerRenderManager | undefined
 }
 
 export const DEFAULT_STICKER_SIZE = 160
