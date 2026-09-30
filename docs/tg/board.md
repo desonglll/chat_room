@@ -62,6 +62,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-404 定时与静默发送 | `3bd485f` → 合并提交 | 定时消息存独立 `scheduled_messages` 表、投递时才以同一 id 写入 `messages`——历史/搜索/未读/预览/通知/TG-502 弹出触发器都天然看不到它；重启与双实例下恰好投递一次（双适配器测试）。静默发送跳过提及/回复通知与 Web Push，仍计未读。暂不支持定时发送媒体/贴纸/投票/转发。合并冲突为三方追加（sticker/voice/silent 字段、restriction sweeper 与 scheduled dispatcher 两个后台任务、Composer 的 `ScheduledEntry`+带 `chatId` 的 `AttachMenu`）。 |
 | TG-401 语音消息 | `35ea6f4` → 合并提交 | 真实 Chromium 假麦克风 11 步 E2E 通过，并揪出两个真缺陷：`Permissions-Policy` 整体禁用了麦克风；MP4 时长解析错误。波形由录音端计算、服务端校验（100 点 0–31）并从容器读时长——纯 Rust 无法解码 Opus/AAC，决策见 devlog。合并冲突要点：`message.ts` 两个新接口块直接拼接会丢右花括号、`media_kind` 两侧各声明一次 → 负责人手工合并。**集成待办**：会话列表按扩展名把语音猜成「视频/音频」，需在最后消息摘要带 `media_kind`；转发语音进单聊不校验接收方语音隐私。 |
 | TG-201 超级群与权限体系 | `b764c43` → 合并提交 | 14 个新权限键（共 23）、按成员限制与管理员自有权限的判定读写双向生效、限制到期即失效且 30 s 清理、keyset 成员分页（20 万成员每页 SQLite 1–7 ms / PG 2–6 ms，OFFSET 同深度 73–121 ms）、四种触发的单向 supergroup 升级；**`member_count` 由触发器维护**（修复 TG-100/106 报告的「1 位成员」）。已注册未强制的键（post、编辑/删除他人、投票、链接预览）交 TG-202 等。合并时 TG-110 新增的 `poll_edit_test` 仍用旧 `edit_message` 签名（TG-304 加了 entities 参数）→ 负责人修正。 |
 | TG-505 合并后修复 ×2 | `73bac51`、`1eedac5` | ① presence 测试假设了服务端不保证的帧序 → 改为等待 owner 帧后再发 marker（仍证明 hidden 不可见）；② 间歇 500 = **内存 SQLite 在 WebSocket 中途取消查询时被连接池换成一个全新空库**（生产的文件 SQLite 与 PG 不受影响）→ 该套件改用文件 SQLite；源头修复交 TG-111。 |
@@ -157,8 +158,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | --- | --- | --- | --- | --- | --- |
 | TG-401 语音消息 | L | A | **merged** | — | M1 |
 | TG-402 圆形视频消息 | M | A | in-progress | — | TG-401 |
-| TG-403 相册 / 媒体组 | M | B | blocked | — | M1 |
-| TG-404 定时发送与静默发送 | M | B | in-progress | — | M1 |
+| TG-403 相册 / 媒体组 | M | B | in-progress | — | M1 |
+| TG-404 定时发送与静默发送 | M | B | **merged** | — | M1 |
 | TG-405 自毁计时器 | M | C | blocked | — | M1 |
 | TG-406 投票与测验 | L | C | **merged** `0b0c562` | — | M1 |
 | TG-407 位置与实时位置 ← 需选型确认 | M | D | blocked | — | M1 |
