@@ -6,7 +6,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 import type { BroadcastMessage, DisplayMessage } from '@tg/core'
-import { computeMessageLayout } from '@tg/core'
+import { computeMessageLayout, createMessageStore, selectTimeline } from '@tg/core'
 import type { MessageListState } from './messageListController'
 import {
   CONTEXT_WINDOW_SIZE,
@@ -294,4 +294,47 @@ test('a StrictMode dispose/resume cycle leaves the controller working', async ()
   controller.resume()
   await controller.loadOlder()
   expect(state().older.length).toBeGreaterThan(0)
+})
+
+describe('store-backed live window (prependLive, TG-100)', () => {
+  function storeSetup(total = 1_000, liveCount = 100) {
+    const server = fakeServer(total)
+    const timers = fakeTimers()
+    const store = createMessageStore()
+    for (const row of server.all.slice(total - liveCount)) store.getState().applyBroadcast('c', row, 'none')
+    const getLive = () => selectTimeline('c')(store.getState()).messages
+    const controller = createMessageListController({
+      api: server.api,
+      getLive,
+      timers: timers.port,
+      prependLive: (rows) => store.getState().prependHistory('c', rows),
+    })
+    const rows = () => visibleKeys(visibleWindow(controller.store.getState(), getLive()))
+    const absolute = (key: string) => controller.store.getState().firstItemIndex + rows().indexOf(key)
+    return { server, controller, store, rows, absolute, state: () => controller.store.getState() }
+  }
+
+  test('older pages go into the store, anchors hold, and live frames reach them', async () => {
+    const { controller, store, rows, absolute, state } = storeSetup()
+    const before = rows().map((key) => [key, absolute(key)] as const)
+    await controller.loadOlder()
+    expect(state().older).toHaveLength(0)
+    expect(selectTimeline('c')(store.getState()).messages).toHaveLength(100 + OLDER_PAGE_SIZE - 1)
+    for (const [key, index] of before) expect(absolute(key)).toBe(index)
+    store.getState().applyEdit('c', { type: 'message_edited', message_id: id(860), content: 'edited', edited_at: 'e' })
+    const edited = selectTimeline('c')(store.getState()).messages.find(
+      (row) => row.type === 'broadcast' && row.message_id === id(860),
+    )
+    expect(edited).toMatchObject({ content: 'edited' })
+  })
+
+  test('a jump window that joins live is folded into the store', async () => {
+    const { controller, store, state, rows } = storeSetup(1_000, 100)
+    await controller.jumpTo(id(880), null)
+    expect(state().mode).toBe('live')
+    expect(selectTimeline('c')(store.getState()).messages[0]).toMatchObject({
+      message_id: id(880 - CONTEXT_WINDOW_SIZE / 2),
+    })
+    expect(rows()).toContain(id(880))
+  })
 })

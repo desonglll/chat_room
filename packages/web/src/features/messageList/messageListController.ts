@@ -4,9 +4,10 @@
  * APIs. The view owns only DOM concerns (Virtuoso, measuring the return anchor).
  *
  * Two modes:
- * - `live`: rows are `older` (REST pages, strictly older than the store timeline) followed
- *   by the store timeline itself, so edits/recalls/reactions/optimistic sends from the
- *   chat session keep flowing into what is on screen.
+ * - `live`: rows are the store timeline, with older REST pages prepended INTO the store
+ *   (`prependLive` → `messageStore.prependHistory`, TG-100), so edits/recalls/reactions/
+ *   optimistic sends from the chat session reach every loaded row. Without `prependLive`
+ *   (unit tests) pages go to the private `older` array in front of the timeline instead.
  * - `detached`: a jump landed outside the loaded range; rows are one contiguous `detached`
  *   window fetched around the target. Paging newer grows it until it overlaps the live
  *   timeline, at which point it JOINS back into `live` without remounting the list.
@@ -59,8 +60,7 @@ export function createMessageListController(options: MessageListControllerOption
   const current = () => visibleWindow(get(), getLive())
 
   /** Apply a patch that may prepend rows, keeping Virtuoso's anchor: shift firstItemIndex. */
-  function setPreservingAnchor(patch: Partial<MessageListState>): void {
-    const before = current()
+  function setPreservingAnchor(patch: Partial<MessageListState>, before = current()): void {
     const previousFirst = before.all[before.hidden]
     const next = { ...get(), ...patch }
     const shift = previousFirst
@@ -114,15 +114,32 @@ export function createMessageListController(options: MessageListControllerOption
         detachedHasOlder: more && merged.added > 0,
         loadingOlder: false,
       })
+    } else if (options.prependLive) {
+      const before = current()
+      const added = options.prependLive(page)
+      setPreservingAnchor({ olderHasMore: more && added > 0, loadingOlder: false }, before)
     } else {
       const merged = mergeMessagePages(get().older, withoutLive(page, broadcastIds(getLive())))
       setPreservingAnchor({ older: merged.messages, olderHasMore: more && merged.added > 0, loadingOlder: false })
     }
   }
 
-  /** Fold a contiguous range that overlaps the live rows into `older` (live mode). */
+  /**
+   * Fold a contiguous range that overlaps the live rows into the live window. Writes the
+   * store when `prependLive` is set: callers capture `current()` BEFORE calling this.
+   */
   function joinIntoLive(range: BroadcastMessage[], rangeReachedStart: boolean): Partial<MessageListState> {
     const state = get()
+    if (options.prependLive) {
+      const added = options.prependLive(range)
+      return {
+        mode: 'live',
+        olderHasMore: added > 0 ? !rangeReachedStart : state.olderHasMore,
+        detached: [],
+        detachedHasOlder: false,
+        detachedHasNewer: false,
+      }
+    }
     const liveIds = broadcastIds(getLive())
     const merged = mergeMessagePages(state.older, withoutLive(range, liveIds))
     const rangeFirst = range[0]
@@ -156,7 +173,8 @@ export function createMessageListController(options: MessageListControllerOption
     const { reachedEnd } = splitContextWindow(context, cursor, CONTEXT_WINDOW_SIZE)
     const merged = mergeMessagePages(get().detached, context)
     if (reachedEnd || overlapsLive(merged.messages, broadcastIds(getLive()))) {
-      setPreservingAnchor({ ...joinIntoLive(merged.messages, !get().detachedHasOlder), loadingNewer: false })
+      const before = current()
+      setPreservingAnchor({ ...joinIntoLive(merged.messages, !get().detachedHasOlder), loadingNewer: false }, before)
       return
     }
     set({ detached: merged.messages, detachedHasNewer: merged.added > 0, loadingNewer: false })
@@ -195,7 +213,8 @@ export function createMessageListController(options: MessageListControllerOption
     const liveIds = broadcastIds(getLive())
     const joinsLive = overlapsLive(context, liveIds) || overlapsLive(context, broadcastIds(state.older)) || reachedEnd
     if (state.mode === 'live' && joinsLive) {
-      setPreservingAnchor({ ...joinIntoLive(context, reachedStart), jumping: false })
+      const before = current()
+      setPreservingAnchor({ ...joinIntoLive(context, reachedStart), jumping: false }, before)
     } else if (state.mode === 'detached' && overlapsLive(context, broadcastIds(state.detached))) {
       const merged = mergeMessagePages(state.detached, context)
       const extendsBack = merged.messages[0]?.message_id === context[0]?.message_id && merged.added > 0

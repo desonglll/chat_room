@@ -6,16 +6,18 @@
  * Layout ownership (TG-102): the sidebar width/collapse (drag + persisted), and the
  * mobile single-column switch. On mobile both columns stay mounted at full width and
  * the switch is a transform — no reflow, so no layout jump — and the hidden column is
- * `inert`. The info pane is a column on wide screens and an overlay below that.
+ * `inert`; the way back is the chat header's own back button. The info pane is a column
+ * on wide screens and an overlay below that. `ChatOverlays` (media viewer, forward
+ * picker, delete confirmation) is mounted once here, above every pane.
  */
 import type { CSSProperties } from 'react'
 import { Outlet, useMatch } from 'react-router-dom'
 import { authStore, selectToken, uiStore } from '@tg/core'
 import { useStore } from 'zustand/react'
+import { ChatOverlays } from '../chat/ChatOverlays'
 import { ChatListPane } from '../chatList/ChatListPane'
 import { useChatListSync } from '../chatList/useChatListSync'
 import { InfoPane } from './InfoPane'
-import { MobileBackButton } from './MobileBackButton'
 import { SIDEBAR_COLLAPSED_WIDTH } from './sidebarLayout'
 import { SidebarResizer } from './SidebarResizer'
 import { useMobileLayout } from './useMobileLayout'
@@ -48,10 +50,10 @@ export function WorkspaceShell() {
         {mobile ? null : <SidebarResizer layout={layout} onPreview={preview} onCommit={commit} />}
       </div>
       <section className="tg-shell__main" inert={mobile && !chatOpen}>
-        {chatOpen ? <MobileBackButton className="tg-shell__back" /> : null}
         <Outlet />
       </section>
       {infoOpen ? <InfoPane /> : null}
+      <ChatOverlays />
     </div>
   )
 }

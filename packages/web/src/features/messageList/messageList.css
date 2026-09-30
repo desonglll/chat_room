@@ -27,16 +27,15 @@
   scrollbar-color: var(--tg-scrollbar) transparent;
 }
 
+/* No vertical rhythm here: the bubble row (TG-103 `.tg-message`) owns the gap between
+   messages as its own padding-block-start (TG-100 wiring). */
 .tg-mlist__row {
-  padding: var(--tg-bubble-gap-group) var(--tg-space-6) 0;
+  padding: 0 var(--tg-space-6);
   transition: background-color var(--tg-transition-slide);
 }
 
-.tg-mlist__row[data-joined] {
-  padding-top: var(--tg-bubble-gap);
-}
-
-.tg-mlist__row[data-highlighted] {
+/* The band is for renderers without their own highlight; TG-103 rows draw a wash. */
+.tg-mlist__row[data-highlighted]:not(:has(.tg-message)) {
   background: var(--tg-message-highlight);
   transition: none;
 }

@@ -42,8 +42,8 @@ test('WorkspaceShell: sidebar width variable, resizer, mobile view follows the r
   expect(list).toContain('--tg-shell-sidebar-width:360px')
   expect(list).toContain('role="separator"')
   expect(list).toContain('data-mobile-view="list"')
-  expect(list).not.toContain('tg-shell__back')
   const chat = at('/chat/c1')
   expect(chat).toContain('data-mobile-view="chat"')
-  expect(chat).toContain('tg-shell__back')
+  // TG-100: the back button moved into the chat header (ChatHeader markup test).
+  expect(chat).not.toContain('tg-mobile-back')
 })
