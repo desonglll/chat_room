@@ -14,6 +14,7 @@ pub mod model_handlers;
 pub mod model_options;
 mod prompt;
 mod stream;
+mod translate;
 mod vision;
 
 pub use config::{AiConfig, AiRuntimeStatus};

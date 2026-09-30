@@ -20,6 +20,7 @@ import type {
   ForwardedFrom,
   MessageEntity,
   MessageReaction,
+  ContactCard,
   MessageSticker,
   ReadReceipt,
   ReplyPreview,
@@ -95,6 +96,8 @@ export interface BroadcastFrame {
   video_note?: VideoNote
   /** TG-404: true when sent without notifications; omitted otherwise. */
   silent?: boolean
+  /** TG-410: a shared contact card; omitted otherwise. */
+  contact?: ContactCard
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
   grouped_id?: string
 }

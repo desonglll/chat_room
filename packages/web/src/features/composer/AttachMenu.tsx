@@ -1,8 +1,8 @@
 /**
  * The paperclip: a menu of attachment kinds. Photo/video and file open the native file
  * picker; «投票» opens TG-406's creation dialog (lazy: the poll form only loads when used);
- * location and contact are present but DISABLED (not hidden) until their tasks (TG-407,
- * M4) enable them — Telegram's menu shape stays stable.
+ * «联系人» opens TG-410's friend picker; location is present but DISABLED (not hidden) until its task (TG-407,
+ * M4) enables it — Telegram's menu shape stays stable.
  */
 import { lazy, Suspense, useRef, useState, type ChangeEvent } from 'react'
 import type { MenuItem } from '@tg/ui'
@@ -18,10 +18,13 @@ export interface AttachMenuProps {
 }
 
 const PollCreateDialog = lazy(() => import('../poll/PollCreateDialog'))
+// TG-410: the friend picker loads only when «联系人» is used.
+const ContactPickerDialog = lazy(() => import('../contact/ContactPickerDialog'))
 
 export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProps) {
   const [open, setOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
+  const [contactOpen, setContactOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const mediaInput = useRef<HTMLInputElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -33,7 +36,9 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
     chatId
       ? { id: 'poll', label: '投票', icon: <PollGlyph />, onSelect: () => setPollOpen(true) }
       : { id: 'poll', label: '投票', icon: <PollGlyph />, disabled: true },
-    { id: 'contact', label: '联系人', icon: <ContactGlyph />, disabled: true },
+    chatId
+      ? { id: 'contact', label: '联系人', icon: <ContactGlyph />, onSelect: () => setContactOpen(true) }
+      : { id: 'contact', label: '联系人', icon: <ContactGlyph />, disabled: true },
   ]
 
   const pick = (asFiles: boolean) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -67,6 +72,11 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
       />
       <input ref={mediaInput} type="file" accept="image/*,video/*" multiple hidden onChange={pick(false)} />
       <input ref={fileInput} type="file" multiple hidden onChange={pick(true)} />
+      {contactOpen && chatId ? (
+        <Suspense fallback={null}>
+          <ContactPickerDialog chatId={chatId} onClose={() => setContactOpen(false)} />
+        </Suspense>
+      ) : null}
       {pollOpen && chatId ? (
         <Suspense fallback={null}>
           <PollCreateDialog open chatId={chatId} onClose={() => setPollOpen(false)} />
