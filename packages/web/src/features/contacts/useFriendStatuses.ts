@@ -1,31 +1,29 @@
 /**
- * TG-903: friends' presence for the contacts list — read on load, whenever the friend count
- * changes, and every 60 s (Telegram's list is live; a cheap poll keeps «N 分钟前» honest
- * without a per-friend socket subscription). A failed read keeps the last answer.
+ * Friends' presence for the contacts list. TG-1102: the account socket pushes
+ * `friend_statuses` whenever a friend's presence changes (same privacy rules as the REST read),
+ * so the list is live; the REST read covers the first paint and any time no push has arrived
+ * yet. A failed read keeps the last answer.
  */
 import { useEffect, useState } from 'react'
+import { useStore } from 'zustand/react'
 import type { SocialApi, UserStatusEntry } from '@tg/core'
-
-const REFRESH_MS = 60_000
+import { notificationsStore } from '../notifications/notificationsStore'
 
 export function useFriendStatuses(api: SocialApi, friendCount: number): UserStatusEntry[] {
-  const [statuses, setStatuses] = useState<UserStatusEntry[]>([])
+  const [fetched, setFetched] = useState<UserStatusEntry[]>([])
+  const pushed = useStore(notificationsStore, (state) => state.friendStatuses)
   useEffect(() => {
     if (typeof api.friendStatuses !== 'function') return
     let alive = true
-    const load = () =>
-      api.friendStatuses().then(
-        (next) => {
-          if (alive) setStatuses(next)
-        },
-        () => undefined,
-      )
-    void load()
-    const timer = setInterval(() => void load(), REFRESH_MS)
+    api.friendStatuses().then(
+      (next) => {
+        if (alive) setFetched(next)
+      },
+      () => undefined,
+    )
     return () => {
       alive = false
-      clearInterval(timer)
     }
   }, [api, friendCount])
-  return statuses
+  return pushed ?? fetched
 }
