@@ -16,3 +16,11 @@ test('other frames leave it alone', () => {
   applyAccountSignal({ type: 'notifications_changed', unread_count: 3 })
   expect(notificationsStore.getState().socialRevision).toBe(before)
 })
+
+test('TG-1102: a friend_statuses push lands in the store the contacts list reads', async () => {
+  const { applyAccountSignal, notificationsStore } = await import('../notifications/notificationsStore')
+  applyAccountSignal({ type: 'friend_statuses', statuses: [{ user_id: 'b', status: { kind: 'online' } }] })
+  expect(notificationsStore.getState().friendStatuses).toEqual([{ user_id: 'b', status: { kind: 'online' } }])
+  applyAccountSignal({ type: 'friend_statuses', statuses: 'garbage' })
+  expect(notificationsStore.getState().friendStatuses?.length).toBe(1)
+})

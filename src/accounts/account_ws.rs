@@ -43,6 +43,18 @@ struct SocialChanged {
     incoming_request_count: usize,
 }
 
+/// TG-1102: friends' presence for the contacts list, sent when it changes (same privacy rules
+/// as `GET /api/friends/statuses`).
+#[derive(Serialize)]
+struct FriendStatuses<'a> {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    statuses: &'a [crate::models::UserStatusEntry],
+}
+
+/// Presence is re-read every this many refresh ticks (~3 s), not on every 750 ms tick.
+const FRIEND_STATUS_EVERY: u32 = 4;
+
 #[derive(Serialize)]
 struct NotificationsChanged {
     #[serde(rename = "type")]
@@ -81,6 +93,8 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
     let mut previous = None;
     let mut previous_social = None;
     let mut previous_notifications = None;
+    let mut previous_presence: Option<String> = None;
+    let mut ticks: u32 = 0;
     let mut refresh = interval(Duration::from_millis(750));
     refresh.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
@@ -170,6 +184,22 @@ async fn handle_account_socket(mut socket: WebSocket, state: SharedState) {
                         continue;
                     }
                 };
+                ticks = ticks.wrapping_add(1);
+                if ticks % FRIEND_STATUS_EVERY == 1 {
+                    match state.friend_statuses(user.id, Utc::now()).await {
+                        Ok(statuses) => {
+                            let payload = FriendStatuses { kind: "friend_statuses", statuses: &statuses };
+                            let Ok(json) = serde_json::to_string(&payload) else { continue };
+                            if previous_presence.as_deref() != Some(json.as_str()) {
+                                if socket.send(Message::Text(json.clone())).await.is_err() {
+                                    break;
+                                }
+                                previous_presence = Some(json);
+                            }
+                        }
+                        Err(error) => tracing::warn!("load friend statuses failed: {error}"),
+                    }
+                }
                 if previous_notifications.as_ref() != Some(&notifications) {
                     previous_notifications = Some(notifications.clone());
                     let payload = NotificationsChanged {

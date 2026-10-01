@@ -39,7 +39,8 @@ impl AppState {
                              AND (user_low_id = $1 OR user_high_id = $1)) AS friends \
                      LEFT JOIN user_privacy_rules AS rules ON rules.user_id = friends.id \
                        AND rules.privacy_key = $2 \
-                     LEFT JOIN user_last_seen AS seen ON seen.user_id = friends.id",
+                     LEFT JOIN user_last_seen AS seen ON seen.user_id = friends.id \
+                     ORDER BY friends.id",
             )
             .bind(viewer)
             .bind(LAST_SEEN)
