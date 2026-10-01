@@ -12,6 +12,8 @@ import { countMembers, PANEL_HEADING, withKnownMembers } from './chatInfoModel'
 import { CloseIcon, SearchIcon } from './icons'
 import { ChatAdminEntry } from '../chatAdmin/ChatAdminEntry'
 import { ChatActions } from '../chatLifecycle'
+import { AuditLogEntry } from '../chatTasks/AuditLogEntry'
+import { TasksSection } from '../chatTasks/TasksSection'
 import { InfoDetails, InfoIdentity } from './InfoHeader'
 import { SharedSection } from './SharedSection'
 import type { ChatInfoSourceOverrides } from './useChatInfo'
@@ -89,6 +91,9 @@ export function ChatInfoPanel({
               showMembers={header.variant === 'group'}
               scrollerRef={scrollerRef}
             />
+            {/* TG-706: the chat's tasks, and its audit log for managers. */}
+            {header.variant === 'group' && chat?.chat_type !== 'channel' ? <TasksSection chatId={chatId} /> : null}
+            {header.variant === 'group' ? <AuditLogEntry chatId={chatId} /> : null}
             {/* TG-701: edit, invite, leave, delete. */}
             {chat ? <ChatActions chat={chat} /> : null}
           </>
