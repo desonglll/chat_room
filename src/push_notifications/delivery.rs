@@ -102,7 +102,7 @@ pub(crate) async fn dispatch_batch(
                 continue;
             }
         }
-        let mut payload = payload_for(&notification, job.show_details && preview);
+        let mut payload = super::payload::payload_for(&notification, job.show_details && preview);
         payload.silent = silent;
         match sender.send(&job, &payload).await {
             PushSendOutcome::Delivered => state.complete_push_job(&job.id, &claim_token).await?,
@@ -117,35 +117,6 @@ pub(crate) async fn dispatch_batch(
         }
     }
     Ok(count)
-}
-
-fn payload_for(
-    notification: &crate::notifications::NotificationView,
-    show_details: bool,
-) -> PushPayload {
-    let url = match notification.kind {
-        NotificationKind::FriendRequest => "/contacts".into(),
-        NotificationKind::AiRunCompleted => notification
-            .run_id
-            .map(|id| format!("/assistant?run={id}"))
-            .unwrap_or_else(|| "/assistant".into()),
-        _ => notification
-            .room_id
-            .map(|room_id| {
-                notification
-                    .message_id
-                    .map(|message_id| format!("/chats/{room_id}?message={message_id}"))
-                    .unwrap_or_else(|| format!("/chats/{room_id}"))
-            })
-            .unwrap_or_else(|| "/notifications".into()),
-    };
-    PushPayload {
-        title: "Echo Gate".into(),
-        body: show_details.then(|| notification.summary.clone()),
-        url,
-        tag: format!("notification:{}", notification.id),
-        silent: false,
-    }
 }
 
 #[cfg(test)]
@@ -238,7 +209,7 @@ mod tests {
                     .count(),
                 1
             );
-            assert!(payloads.iter().all(|payload| payload.url == "/contacts"));
+            assert!(payloads.iter().all(|payload| payload.url == "/"));
         }
         let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM push_delivery_jobs")
             .fetch_one(state.pool())

@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc --noEmit -p src/sw && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src/sw",
     "lint": "prettier --check src test index.html vite.config.ts",
     "format": "prettier --write src test index.html vite.config.ts",
     "test": "bun test"

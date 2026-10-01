@@ -2,6 +2,7 @@ pub mod config;
 pub mod delivery;
 pub mod handlers;
 mod models;
+mod payload;
 mod sender;
 mod store;
 

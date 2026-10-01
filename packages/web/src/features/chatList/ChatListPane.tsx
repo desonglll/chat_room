@@ -11,6 +11,7 @@ import type { MenuItem } from '@tg/ui'
 import { authStore, chatListStore, selectToken, settingsStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { ScrollArea, Skeleton } from '@tg/ui'
+import { promptInstall, pwaStore } from '../../app/pwa'
 import { apiClient } from '../../app/client'
 import { openSettings } from '../settings/shell/settingsNavigation'
 import { browserStorage } from '../../app/platform'
@@ -69,6 +70,8 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const activeFolder = useActiveFolder()
   // TG-504: while searching, a tab other than «聊天» replaces the chat rows with message results.
   const searchTab = useStore(searchStore, (state) => state.tab)
+  // TG-601: «安装应用» while the browser offers installation.
+  const canInstall = useStore(pwaStore, (state) => state.canInstall)
   const searching = query.trim() !== '' && !collapsed
   const messageTab = searching && searchTab !== 'chats'
   const custom = folder === 'main' ? activeFolder : undefined
@@ -111,6 +114,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
     ...(archiveMode === 'hidden' && view.archivedCount > 0
       ? [{ id: 'archive-show', label: t('w.chatList.bb986d'), onSelect: () => changeArchiveMode('collapsed') }]
       : []),
+    ...(canInstall ? [{ id: 'install', label: t('w.pwa.install'), onSelect: () => void promptInstall() }] : []),
     { id: 'settings', label: t('w.chatList.7debf9'), onSelect: () => openSettings() },
     { id: 'night', label: t('w.chatList.e32be0'), onSelect: toggleNightMode },
     ...(onToggleCollapsed

@@ -22,6 +22,7 @@ import { useChatListSync } from '../chatList/useChatListSync'
 import { SettingsHost } from '../settings/shell'
 import { StickerOverlays } from '../sticker/StickerOverlays'
 import { ChatWallpaper } from '../wallpaper/ChatWallpaper'
+import { UpdateBanner } from '../pwa/UpdateBanner'
 import { InfoPane } from './InfoPane'
 import { SIDEBAR_COLLAPSED_WIDTH } from './sidebarLayout'
 import { SidebarResizer } from './SidebarResizer'
@@ -64,6 +65,8 @@ export function WorkspaceShell() {
       <InfoPane />
       <ChatOverlays />
       <StickerOverlays />
+      {/* TG-601: «有新版本» when a new service worker is waiting. */}
+      <UpdateBanner />
     </div>
   )
 }

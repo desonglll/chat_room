@@ -23,6 +23,7 @@ import { messageList } from './messageList'
 import { poll } from './poll'
 import { presence } from './presence'
 import { profile } from './profile'
+import { pwa } from './pwa'
 import { savedMessages } from './savedMessages'
 import { scheduled } from './scheduled'
 import { search } from './search'
@@ -56,6 +57,7 @@ export const en: Catalog = {
   ...poll,
   ...presence,
   ...profile,
+  ...pwa,
   ...savedMessages,
   ...scheduled,
   ...search,
