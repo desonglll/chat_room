@@ -18,6 +18,7 @@ import { inviteLinks } from './inviteLinks'
 import { contactsPage } from './contactsPage'
 import { lifecycle } from './lifecycle'
 import { notificationsPage } from './notificationsPage'
+import { password } from './password'
 import { linkPreview } from './linkPreview'
 import { location } from './location'
 import { mediaViewer } from './mediaViewer'
@@ -55,6 +56,7 @@ export const zh: Catalog = {
   ...contactsPage,
   ...lifecycle,
   ...notificationsPage,
+  ...password,
   ...linkPreview,
   ...location,
   ...mediaViewer,
