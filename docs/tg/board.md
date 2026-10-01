@@ -239,6 +239,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **2026-10-01 TG-802 合并**（负责人主线程串行，agent 仍不可用）：服务端为会话摘要与账号 `new_message` 帧推导 `media_kind`（13 种），转发语音/圆形视频进单聊时校验对方 `voice_messages` 规则（`skipped_reason: voice_messages_restricted`，撤掉守卫后新测试在第 99 行失败、加回通过）。门禁：`cargo nextest run` 616/616、clippy 净、bun core 348 / web 783 / ui 119。顺手修了 TG-801 留在 `main` 上的 Prettier 漂移（lint 当时是红的）。首屏包 326158 B 仍超预算（既有问题），下一个任务处理。**自此 Rust 测试一律用 `cargo nextest run`（用户 2026-10-01 指示）。**
 - **2026-10-01 TG-806 合并**：首屏 326158 → **289003 B gzip**（预算 300000，未抬预算）。英文文案目录按需加载（启动语言就绪后才渲染，不闪中文）、信息面板及其管理/邀请链接页懒加载、5 个深链/次要路由懒加载、`ChatPane` 不再经带 CSS 副作用的 `chatAdmin` 桶文件导入。负责人用该 worktree 的服务器二进制做了真实浏览器检查 4/4（`packages/web/test/e2e/lazyChunks.e2e.mjs`）。
 - **2026-10-01 TG-803 合并**：`/files` 增加 `media|document|voice|gif` 服务端分类（先看 `media_kind` 再看 MIME）；新增 `GET /api/chats/:id/links` 与链接索引（迁移 `20270301000001` 双库），**读时按聊天增量建立**——首次读取即回填历史（每次最多 20×500 条），编辑重提取、撤回读时过滤。双库 fresh/upgrade 迁移测试与集成测试 7/7；`cargo nextest run` 626/626。成员游标分页（TG-201 已有）与 TG-106 遗留三项经核实早已完成。
+- **2026-10-01 TG-805 合并**：先审计——消息进入/自发飞入、反应弹出、菜单从锚点缩放、对话框、面板推入、输入中圆点、未读徽章、回到底部按钮、骨架屏均已由 TG-108/411 实现；只补缺的四项：会话行重排 FLIP 滑动、mic↔send 字形旋入、切换聊天时消息列表淡入上浮、会话行按压色。真实浏览器实测 FLIP 位移（+144/−72/−72 px）与各动画触发，均有 reduced-motion 回退。
 
 ## M8 缺陷收口与 Telegram 对标（4 路并行）
 
@@ -248,7 +249,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-802 会话列表媒体摘要与转发隐私 | S | **merged** `bd31980` | lead | — |
 | TG-803 共享内容分类与成员分页 | M | **merged** | lead | — |
 | TG-804 Telegram 对标走查（报告） | M | not-started | lead | — |
-| TG-805 动画对标 Telegram | M | not-started | lead | — |
+| TG-805 动画对标 Telegram | M | **merged** | lead | — |
 | TG-806 首屏包回到预算 | S | **merged** `a365d0a` | lead | — |
 
 ---
