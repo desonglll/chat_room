@@ -65,6 +65,9 @@ fn default_notification_level() -> String {
 pub struct ConversationGroup {
     #[serde(default)]
     pub has_password: bool,
+    /// TG-1103: `group`, `supergroup` or `channel` (folders filter by it).
+    #[serde(default)]
+    pub chat_type: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

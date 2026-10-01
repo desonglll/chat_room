@@ -47,6 +47,8 @@ pub enum PromptKind {
     AddContact,
     /// TG-907: the chat (by title) to forward this message to.
     Forward(Uuid),
+    /// TG-1103: option numbers to vote for in this poll message (empty retracts).
+    Vote(Uuid),
 }
 
 #[derive(Clone, Debug)]

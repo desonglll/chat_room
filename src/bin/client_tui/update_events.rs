@@ -16,7 +16,9 @@ impl App {
             AppEvent::Conversations(result) => match result {
                 Ok(items) => {
                     self.busy = false;
-                    self.conversations = items;
+                    // TG-1103: the list shows the current folder's share of all chats.
+                    self.social.all_conversations = items;
+                    self.conversations = self.social.visible_conversations();
                     self.sync_conversation_selection();
                     self.status = format!("{} conversations", self.conversations.len());
                     Vec::new()

@@ -25,7 +25,10 @@ fn conversation(room_id: Uuid, has_password: bool) -> Conversation {
         kind: "group".into(),
         title: "Project chat".into(),
         unread_count: 0,
-        group: Some(ConversationGroup { has_password }),
+        group: Some(ConversationGroup {
+            has_password,
+            chat_type: String::new(),
+        }),
         preferences: ConversationPreferences::default(),
         last_message: None,
     }
@@ -92,6 +95,7 @@ fn connected_send_appears_immediately_and_reaches_the_chat_channel() {
         recalled: false,
         edited: false,
         delivery: DeliveryState::Sent,
+        media: Default::default(),
     };
     app.apply_chat_event(room_id, ChatEvent::Message(echoed.clone()));
     app.apply_chat_event(room_id, ChatEvent::Message(echoed));

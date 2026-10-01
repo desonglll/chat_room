@@ -182,6 +182,11 @@ impl App {
                 return self.toggle_pin_selected()
             }
             KeyCode::Char('F') if self.focus == Focus::Content => self.prompt_forward_selected(),
+            // TG-1103: vote in the selected poll; cycle the chat list through the folders.
+            KeyCode::Char('V') if self.focus == Focus::Content => self.prompt_vote_selected(),
+            KeyCode::Char('o') if self.focus == Focus::List && super::navigation::is_plain(key) => {
+                return self.cycle_folder();
+            }
             _ => {}
         }
         Vec::new()

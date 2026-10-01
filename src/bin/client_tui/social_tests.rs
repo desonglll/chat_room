@@ -124,6 +124,7 @@ fn chat_app() -> (App, Uuid, Uuid) {
         recalled: false,
         edited: false,
         delivery: DeliveryState::Sent,
+        media: Default::default(),
     });
     (app, room, message)
 }
@@ -224,4 +225,107 @@ fn the_contacts_tab_and_the_pinned_title_are_drawn() {
         "{drawn}"
     );
     assert!(drawn.contains("pinned"), "{drawn}");
+}
+
+fn poll_message(app: &mut App) -> Uuid {
+    let message = Uuid::from_u128(40);
+    app.messages.push(ChatMessage {
+        id: message,
+        client_message_id: None,
+        sender: "bob".into(),
+        content: "Lunch?".into(),
+        attachment: None,
+        timestamp: "2026-10-01T09:00:00Z".into(),
+        recalled: false,
+        edited: false,
+        delivery: DeliveryState::Sent,
+        media: Box::new(crate::client_chat_media::MessageMedia {
+            poll: Some(crate::client_chat_media::Poll {
+                question: "Lunch?".into(),
+                closed: false,
+                total_voters: 0,
+                options: vec![
+                    crate::client_chat_media::PollOption {
+                        text: "Yes".into(),
+                        voters: 0,
+                    },
+                    crate::client_chat_media::PollOption {
+                        text: "No".into(),
+                        voters: 0,
+                    },
+                ],
+                multiple_choice: false,
+                quiz: false,
+                chosen: None,
+            }),
+            ..Default::default()
+        }),
+    });
+    app.message_index = app.messages.len() - 1;
+    message
+}
+
+#[test]
+fn shift_v_votes_in_the_selected_poll_with_one_based_numbers() {
+    let (mut app, _, _) = chat_app();
+    let message = poll_message(&mut app);
+    press_shift(&mut app, KeyCode::Char('V'));
+    assert!(
+        matches!(app.dialog, Some(Dialog::Prompt { kind: PromptKind::Vote(id), .. }) if id == message)
+    );
+    let actions = app.vote_action(message, "2");
+    assert!(matches!(
+        actions.as_slice(),
+        [Action::Social(SocialAction::Vote { options, .. })] if options == &vec![1]
+    ));
+    assert!(app.vote_action(message, "3").is_empty());
+    assert!(app.status.contains("between 1 and 2"));
+    let drawn = screen(&mut app);
+    assert!(drawn.contains("📊 Lunch?"), "{drawn}");
+    assert!(drawn.contains("2. [ ] No"), "{drawn}");
+}
+
+#[test]
+fn o_cycles_the_chat_list_through_folders() {
+    use crate::client_api::ConversationGroup;
+    let mut app = app();
+    let chat = |id: u128, kind: &str| Conversation {
+        room_id: Uuid::from_u128(id),
+        kind: kind.into(),
+        title: format!("chat {id}"),
+        unread_count: 0,
+        group: (kind == "group").then(|| ConversationGroup {
+            has_password: false,
+            chat_type: "group".into(),
+        }),
+        preferences: ConversationPreferences::default(),
+        last_message: None,
+    };
+    app.apply_event(AppEvent::Conversations(Ok(vec![
+        chat(1, "direct"),
+        chat(2, "group"),
+    ])));
+    assert_eq!(app.conversations.len(), 2);
+    let actions = press(&mut app, KeyCode::Char('o'));
+    assert!(matches!(
+        actions.as_slice(),
+        [Action::Social(SocialAction::LoadFolders)]
+    ));
+    app.apply_event(AppEvent::Social(SocialEvent::Folders(Ok(vec![
+        crate::client_api_polls_folders::ChatFolder {
+            id: Uuid::from_u128(9),
+            title: "Groups".into(),
+            emoji: String::new(),
+            include_types: vec!["groups".into()],
+            include_chat_ids: vec![],
+            exclude_chat_ids: vec![],
+            exclude_muted: false,
+            exclude_read: false,
+            exclude_archived: false,
+        },
+    ]))));
+    assert_eq!(app.conversations.len(), 1);
+    assert!(app.status.contains("Folder: Groups"));
+    press(&mut app, KeyCode::Char('o'));
+    assert_eq!(app.conversations.len(), 2, "back to all chats");
 }

@@ -25,6 +25,7 @@ impl App {
             recalled: false,
             edited: false,
             delivery: DeliveryState::Sending,
+            media: Default::default(),
         };
         self.update_conversation_preview(&message);
         self.messages.push(message);
@@ -188,6 +189,20 @@ impl App {
                 };
             }
             ChatEvent::Typing(username) => self.typing_user = username,
+            ChatEvent::PollUpdated { message_id, poll } => {
+                if let Some(message) = self.messages.iter_mut().find(|m| m.id == message_id) {
+                    // Chat-wide frames carry no `chosen`; keep the viewer's own choice.
+                    let chosen = message
+                        .media
+                        .poll
+                        .as_ref()
+                        .and_then(|old| old.chosen.clone());
+                    message.media.poll = Some(crate::client_chat_media::Poll {
+                        chosen: poll.chosen.clone().or(chosen),
+                        ..poll
+                    });
+                }
+            }
             ChatEvent::PinsChanged => {
                 return vec![Action::Social(super::social::SocialAction::LoadPins(
                     room_id,

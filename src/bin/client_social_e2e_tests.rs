@@ -77,7 +77,71 @@ async fn contacts_pins_and_forward_round_trip() {
     let group = create_group(&base, &alice, "tui forward target").await;
     let result = alice.forward(message, group).await.unwrap();
     assert!(result.forwarded_message_id.is_some(), "{result:?}");
+
+    // TG-1103: a poll arrives over the chat socket with its options, is voted on, and folders load.
+    let poll: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/api/chats/{group}/polls"))
+        .bearer_auth(client_token(&alice))
+        .json(&serde_json::json!({ "question": "Lunch?", "options": ["Yes", "No"] }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let poll_id: uuid::Uuid = poll["id"].as_str().unwrap().parse().unwrap();
+    let frame = history_frame(&base, &alice, group, poll_id).await;
+    let crate::client_chat_protocol::ServerMessage::Broadcast { media, .. } =
+        crate::client_chat_protocol::decode_server_message(&frame).unwrap()
+    else {
+        panic!("not a broadcast: {frame}");
+    };
+    assert_eq!(media.poll.as_ref().unwrap().options.len(), 2);
+    let voted = alice.vote(poll_id, &[1]).await.unwrap();
+    assert_eq!(voted.options[1].voters, 1);
+    assert_eq!(voted.chosen, Some(vec![1]));
+    let retracted = alice.vote(poll_id, &[]).await.unwrap();
+    assert_eq!(retracted.total_voters, 0);
+    reqwest::Client::new()
+        .post(format!("{base}/api/users/me/folders"))
+        .bearer_auth(client_token(&alice))
+        .json(
+            &serde_json::json!({ "title": "Work", "emoji": "", "include_types": ["groups"],
+            "include_chat_ids": [], "exclude_chat_ids": [], "exclude_muted": false,
+            "exclude_read": false, "exclude_archived": false }),
+        )
+        .send()
+        .await
+        .unwrap();
+    let folders = alice.folders().await.unwrap();
+    assert_eq!(folders.len(), 1);
+    assert_eq!(folders[0].include_types, ["groups"]);
     task.abort();
+}
+
+/// The `broadcast` frame of `message_id` from the chat socket's history replay.
+async fn history_frame(
+    base: &str,
+    client: &ApiClient,
+    room: uuid::Uuid,
+    message_id: uuid::Uuid,
+) -> String {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{connect_async, tungstenite::Message};
+    let (mut socket, _) = connect_async(format!("{}/ws/{room}", base.replacen("http", "ws", 1)))
+        .await
+        .unwrap();
+    let join = serde_json::json!({ "type": "join", "token": client_token(client) });
+    socket.send(Message::Text(join.to_string())).await.unwrap();
+    while let Some(Ok(frame)) = socket.next().await {
+        if let Message::Text(text) = frame {
+            let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            if value["type"] == "broadcast" && value["message_id"] == message_id.to_string() {
+                return text;
+            }
+        }
+    }
+    panic!("message {message_id} not replayed");
 }
 
 fn client_token(client: &ApiClient) -> uuid::Uuid {

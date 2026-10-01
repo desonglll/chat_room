@@ -30,6 +30,12 @@ pub enum SocialAction {
         target: Uuid,
         title: String,
     },
+    /// TG-1103: option indexes (0-based); empty retracts.
+    Vote {
+        message_id: Uuid,
+        options: Vec<u32>,
+    },
+    LoadFolders,
 }
 
 #[derive(Debug)]
@@ -51,6 +57,11 @@ pub enum SocialEvent {
         title: String,
         result: ApiResult<ForwardResult>,
     },
+    Voted {
+        message_id: Uuid,
+        result: ApiResult<crate::client_chat_media::Poll>,
+    },
+    Folders(ApiResult<Vec<crate::client_api_polls_folders::ChatFolder>>),
 }
 
 #[derive(Debug, Default)]
@@ -66,6 +77,57 @@ pub struct SocialState {
     pub index: usize,
     /// Pinned messages of the open chat, newest first (`(message id, one line)`).
     pub pins: Vec<(Uuid, String)>,
+    /// TG-1103: the account's chat folders, the one filtering the list (`None` = all chats),
+    /// and the unfiltered conversation list the filter is applied to.
+    pub folders: Vec<crate::client_api_polls_folders::ChatFolder>,
+    pub folder: Option<usize>,
+    pub all_conversations: Vec<crate::client_api::Conversation>,
+}
+
+impl SocialState {
+    /// The conversations the list shows under the current folder.
+    pub fn visible_conversations(&self) -> Vec<crate::client_api::Conversation> {
+        let now = chrono::Utc::now();
+        match self.folder.and_then(|index| self.folders.get(index)) {
+            None => self.all_conversations.clone(),
+            Some(folder) => self
+                .all_conversations
+                .iter()
+                .filter(|chat| folder.contains(chat, now))
+                .cloned()
+                .collect(),
+        }
+    }
+
+    pub fn folder_title(&self) -> Option<String> {
+        self.folder
+            .and_then(|index| self.folders.get(index))
+            .map(|folder| {
+                format!("{} {}", folder.emoji, folder.title)
+                    .trim()
+                    .to_string()
+            })
+    }
+}
+
+/// `"1, 3"` → `[0, 2]` (1-based input, de-duplicated); `None` when anything is not a number in
+/// `1..=count`. An empty input is an empty list (retract).
+pub fn parse_vote(input: &str, count: usize) -> Option<Vec<u32>> {
+    let mut options = Vec::new();
+    for part in input
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|p| !p.is_empty())
+    {
+        let number: usize = part.parse().ok()?;
+        if number == 0 || number > count {
+            return None;
+        }
+        let index = (number - 1) as u32;
+        if !options.contains(&index) {
+            options.push(index);
+        }
+    }
+    Some(options)
 }
 
 /// One row of the Contacts tab: requests first, then friends online-first.
@@ -162,6 +224,15 @@ pub fn pin_lines(mut pins: Vec<ChatPin>) -> Vec<(Uuid, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vote_input_is_one_based_and_validated() {
+        assert_eq!(parse_vote("1", 3), Some(vec![0]));
+        assert_eq!(parse_vote("1, 3 3", 3), Some(vec![0, 2]));
+        assert_eq!(parse_vote("", 3), Some(vec![]));
+        assert_eq!(parse_vote("4", 3), None);
+        assert_eq!(parse_vote("x", 3), None);
+    }
     use crate::client_api_social::{PinnedMessage, RequestUser};
 
     fn friend(id: u128, username: &str, remark: &str) -> Friend {

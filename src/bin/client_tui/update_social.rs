@@ -76,6 +76,70 @@ impl App {
         }
     }
 
+    /// `V` in the message pane: ask which options to vote for in the selected poll.
+    pub(super) fn prompt_vote_selected(&mut self) {
+        let Some(message) = self.selected_message() else {
+            return;
+        };
+        let Some(poll) = &message.media.poll else {
+            self.status = "The selected message is not a poll".into();
+            return;
+        };
+        let hint = if poll.multiple_choice {
+            "e.g. 1,3"
+        } else {
+            "e.g. 2"
+        };
+        self.dialog = Some(Dialog::Prompt {
+            title: format!("Vote ({hint}; empty retracts)"),
+            kind: PromptKind::Vote(message.id),
+            input: TextField::default(),
+        });
+    }
+
+    pub(super) fn vote_action(&mut self, message_id: Uuid, value: &str) -> Vec<Action> {
+        let count = self
+            .messages
+            .iter()
+            .find(|message| message.id == message_id)
+            .and_then(|message| message.media.poll.as_ref())
+            .map_or(0, |poll| poll.options.len());
+        match super::social::parse_vote(value, count) {
+            Some(options) => social(SocialAction::Vote {
+                message_id,
+                options,
+            }),
+            None => {
+                self.status = format!("Enter option numbers between 1 and {count}");
+                Vec::new()
+            }
+        }
+    }
+
+    /// `o` in the chat list: all chats → each folder in turn → all chats (Telegram's folder tabs).
+    pub(super) fn cycle_folder(&mut self) -> Vec<Action> {
+        if self.social.folders.is_empty() {
+            self.status = "Loading folders...".into();
+            return social(SocialAction::LoadFolders);
+        }
+        self.social.folder = match self.social.folder {
+            None => Some(0),
+            Some(index) if index + 1 < self.social.folders.len() => Some(index + 1),
+            Some(_) => None,
+        };
+        self.apply_folder();
+        Vec::new()
+    }
+
+    fn apply_folder(&mut self) {
+        self.conversations = self.social.visible_conversations();
+        self.conversation_index = 0;
+        self.status = match self.social.folder_title() {
+            Some(title) => format!("Folder: {title} ({} chats)", self.conversations.len()),
+            None => format!("All chats ({})", self.conversations.len()),
+        };
+    }
+
     pub(super) fn add_contact_action(&mut self, username: String) -> Vec<Action> {
         if username.trim().trim_start_matches('@').is_empty() {
             return Vec::new();
@@ -165,6 +229,30 @@ impl App {
                         reason.unwrap_or_else(|| "refused".into())
                     ),
                 };
+            }
+            SocialEvent::Voted {
+                message_id,
+                result: Ok(poll),
+            } => {
+                if let Some(message) = self.messages.iter_mut().find(|m| m.id == message_id) {
+                    message.media.poll = Some(poll);
+                }
+                self.status = "Vote recorded".into();
+            }
+            SocialEvent::Folders(Ok(folders)) => {
+                if folders.is_empty() {
+                    self.status = "No chat folders yet (create them in the web client)".into();
+                } else {
+                    self.social.folders = folders;
+                    self.social.folder = Some(0);
+                    self.apply_folder();
+                }
+            }
+            SocialEvent::Voted {
+                result: Err(error), ..
+            }
+            | SocialEvent::Folders(Err(error)) => {
+                self.status = error.to_string();
             }
             SocialEvent::Contacts(Err(error))
             | SocialEvent::ContactsChanged(Err(error))
