@@ -236,12 +236,14 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 - **2026-10-01 TG-801 合并**：用户报告「加了好友不可以聊天、显示慢速模式已开启」是真缺陷——`useSlowMode` 的陈旧 `now` 让无慢速模式的聊天出现永不倒数的假等待、发送键被锁；撤回修复时 E2E 第 6 步复现失败，加回后通过。另修联系人页实时刷新、搜索 400/429 静默、备注无法取消等 6 项。**既有问题**：`main` 首屏包 325131 B gzip 超出 300000 预算（非 TG-801 引入，+156 B），需单独懒加载任务。
 
+- **2026-10-01 TG-802 合并**（负责人主线程串行，agent 仍不可用）：服务端为会话摘要与账号 `new_message` 帧推导 `media_kind`（13 种），转发语音/圆形视频进单聊时校验对方 `voice_messages` 规则（`skipped_reason: voice_messages_restricted`，撤掉守卫后新测试在第 99 行失败、加回通过）。门禁：`cargo nextest run` 616/616、clippy 净、bun core 348 / web 783 / ui 119。顺手修了 TG-801 留在 `main` 上的 Prettier 漂移（lint 当时是红的）。首屏包 326158 B 仍超预算（既有问题），下一个任务处理。**自此 Rust 测试一律用 `cargo nextest run`（用户 2026-10-01 指示）。**
+
 ## M8 缺陷收口与 Telegram 对标（4 路并行）
 
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
 | TG-801 联系人修复与 Telegram 化 | M | **merged** `1de7f35` | lead | — |
-| TG-802 会话列表媒体摘要与转发隐私 | S | in-progress | agent | — |
+| TG-802 会话列表媒体摘要与转发隐私 | S | **merged** `bd31980` | lead | — |
 | TG-803 共享内容分类与成员分页 | M | in-progress | agent | — |
 | TG-804 Telegram 对标走查（报告） | M | in-progress | agent | — |
 
