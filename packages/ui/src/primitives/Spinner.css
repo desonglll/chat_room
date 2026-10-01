@@ -57,7 +57,7 @@
 .tg-spinner__track {
   inline-size: 100%;
   block-size: 100%;
-  animation: tg-spinner-rotate var(--tg-ui-loop-period) linear infinite;
+  animation: tg-spinner-rotate var(--tg-ui-loop-period) var(--tg-ease-linear) infinite;
 }
 
 .tg-spinner__arc {

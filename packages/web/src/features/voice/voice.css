@@ -72,7 +72,7 @@
   border-radius: var(--tg-radius-pill);
   background: var(--tg-msg-accent);
   opacity: 0.35;
-  transition: opacity var(--tg-duration-press) linear;
+  transition: opacity var(--tg-duration-press) var(--tg-ease-linear);
 }
 
 .tg-voice__bar[data-played] {
@@ -204,7 +204,7 @@
 
 .tg-voice-mic[data-recording] {
   box-shadow: 0 0 0 calc(var(--tg-space-1) + var(--tg-voice-level, 0) * var(--tg-space-5)) var(--tg-accent-soft-filled);
-  transition: box-shadow var(--tg-duration-press) linear;
+  transition: box-shadow var(--tg-duration-press) var(--tg-ease-linear);
 }
 
 .tg-voice-lock {

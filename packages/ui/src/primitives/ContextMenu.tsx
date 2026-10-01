@@ -57,6 +57,8 @@ export function ContextMenu({
   const holdTimer = useRef<number | null>(null)
   const holdOrigin = useRef<{ x: number; y: number } | null>(null)
   const [anchor, setAnchor] = useState<AnchorTarget>(null)
+  // TG-108: true while a touch hold is being timed, so the content can shrink under the finger.
+  const [holding, setHolding] = useState(false)
 
   const open = anchor !== null
 
@@ -77,6 +79,7 @@ export function ContextMenu({
     if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
     holdTimer.current = null
     holdOrigin.current = null
+    setHolding(false)
   }, [])
 
   const onContextMenu = (event: ReactMouseEvent<HTMLSpanElement>) => {
@@ -89,8 +92,10 @@ export function ContextMenu({
     if (disabled || items.length === 0 || event.pointerType !== 'touch') return
     const point = { x: event.clientX, y: event.clientY }
     holdOrigin.current = point
+    setHolding(true)
     holdTimer.current = window.setTimeout(() => {
       holdTimer.current = null
+      setHolding(false)
       show(point)
     }, longPressMs)
   }
@@ -117,6 +122,7 @@ export function ContextMenu({
       className={cx('tg-context-menu', className)}
       tabIndex={focusable ? 0 : undefined}
       data-tg-context-open={open ? '' : undefined}
+      data-tg-holding={holding ? '' : undefined}
       onContextMenu={onContextMenu}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

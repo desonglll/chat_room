@@ -188,6 +188,9 @@
   --tg-ease-spring-bounce: var(--tg-raw-ease-spring-bounce);
   --tg-ease-badge-in: var(--tg-raw-ease-badge-in);
   --tg-ease-badge-out: var(--tg-raw-ease-badge-out);
+  /* TG-108: constant-rate motion (spinner rotation, reduced-motion fades) still goes through a
+     token, so no component spells an easing keyword. */
+  --tg-ease-linear: var(--tg-raw-ease-linear);
 
   /* ══ Motion · composed transitions ═════════════════════════════════════
      Use these so a component never hard-codes a duration/easing pair.
@@ -204,6 +207,15 @@
   --tg-transition-spring-bounce: var(--tg-duration-spring-long)
     var(--tg-ease-spring-bounce);
   --tg-transition-slide: var(--tg-duration-slide) var(--tg-ease-decelerate);
+
+  /* TG-108 — one name per audited interaction, so tuning the feel is a one-line change here
+     and never a hunt through components. All springs; all collapse under reduced motion. */
+  --tg-motion-sidebar: var(--tg-transition-spring-smooth); /* sidebar collapse / expand */
+  --tg-motion-chat-switch: var(--tg-transition-spring-smooth); /* mobile list ↔ chat push */
+  --tg-motion-message-enter: var(--tg-transition-spring); /* a new message rises in */
+  --tg-motion-press: var(--tg-transition-spring-smooth); /* bubble shrink during long press */
+  --tg-motion-panel: var(--tg-transition-spring); /* info / settings panel push */
+  --tg-motion-modal: var(--tg-transition-spring); /* modal, sheet, popover appear */
 
   /* ══ Motion · spring parameters for the JS animation layer ══════════════
      `motion`/framer-motion takes mass, stiffness and damping in the same

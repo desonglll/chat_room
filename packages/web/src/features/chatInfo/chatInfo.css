@@ -16,7 +16,7 @@
   min-height: 0;
   background: var(--tg-surface);
   border-left: 1px solid var(--tg-divider);
-  animation: tg-chatinfo-in var(--tg-duration-spring) var(--tg-ease-spring) both;
+  animation: tg-chatinfo-in var(--tg-motion-panel) both;
   overflow: hidden;
 }
 

@@ -224,7 +224,7 @@
   .tg-compose__bar,
   .tg-compose__mentions,
   .tg-compose__format {
-    animation: tg-compose-fade var(--tg-duration-fade) linear;
+    animation: tg-compose-fade var(--tg-duration-fade) var(--tg-ease-linear);
   }
 
   .tg-compose__drop {
