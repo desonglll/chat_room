@@ -12,6 +12,7 @@ import { activeComposerBar, composerStore, evaluateArithmeticExpression, message
 import { IconButton, Popover } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { AttachMenu } from './AttachMenu'
+import { nextReplyTarget } from '../shortcuts/keymap'
 import { ComposerBar } from './ComposerBar'
 import { ComposerLinkPreview } from '../linkPreview/ComposerLinkPreview'
 import type { ComposerSessionApi } from './composerController'
@@ -46,6 +47,15 @@ export interface ComposerProps {
 
 /** A draft that is only arithmetic gets a «= 42 · Alt+Enter» hint (quick calculator). */
 const ARITHMETIC = /^[\d\s.+\-*/×÷()（）]*\d[\d\s.+\-*/×÷()（）]*[+\-*/×÷][\d\s.+\-*/×÷()（）]*\d[\s)）]*$/
+
+/** TG-606: messages a keyboard reply can target, oldest first. */
+function replyableIds(chatId: string): string[] {
+  return (messageStore.getState().timelines[chatId]?.messages ?? []).flatMap((message) =>
+    message.type === 'broadcast' && !message.recalled_at && !message.message_id.startsWith('pending:')
+      ? [message.message_id]
+      : [],
+  )
+}
 
 function lastOwnMessageId(chatId: string, userId: string): string | null {
   const list = messageStore.getState().timelines[chatId]?.messages ?? []
@@ -94,6 +104,13 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
     onEditLast: () => {
       const id = lastOwnMessageId(chatId, currentUserId)
       return id ? controller.edit(id) : false
+    },
+    onReplyStep: (step) => {
+      const current = composerStore.getState().drafts[chatId]?.replyToMessageId ?? null
+      const next = nextReplyTarget(replyableIds(chatId), current, step)
+      if (next) controller.reply(next)
+      else if (current) controller.cancel()
+      return next !== null || current !== null
     },
   })
 

@@ -62,6 +62,8 @@ export function ChatListHeader({
             type="search"
             placeholder={t('w.chatList.f04090')}
             aria-label={t('w.chatList.11b93c')}
+            // TG-606: announced to assistive tech (see features/shortcuts/keymap.ts).
+            aria-keyshortcuts="Control+K Meta+K /"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             onKeyDown={(event) => {

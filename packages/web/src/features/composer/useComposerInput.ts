@@ -5,6 +5,7 @@
  * come from `@tg/core` (`findMentionQuery`, `formatShortcut`, `applyFormat`,
  * `shouldCalculateExpression`); this hook only wires them to DOM events.
  */
+import { replyStep } from '../shortcuts/keymap'
 import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import type { ChatMember, FormatKind, SendShortcut, TextSelection } from '@tg/core'
 import {
@@ -27,6 +28,8 @@ export interface ComposerInputOptions {
   onSubmit(): void
   /** ↑ in an empty input: Telegram edits your last message. */
   onEditLast(): boolean
+  /** TG-606: Ctrl/⌘+↑/↓ — reply to an older (−1) or newer (+1) message; false = not handled. */
+  onReplyStep?(step: -1 | 1): boolean
 }
 
 export interface ComposerInputHandle {
@@ -161,6 +164,11 @@ export function useComposerInput(options: ComposerInputOptions): ComposerInputHa
     }
     if (event.key === 'Escape') {
       if (controller.cancel()) event.preventDefault()
+      return
+    }
+    const step = replyStep({ ...calculatorKey, editable: true })
+    if (step !== null) {
+      if (options.onReplyStep?.(step)) event.preventDefault()
       return
     }
     if (event.key === 'ArrowUp' && text === '' && !event.shiftKey && !event.altKey) {
