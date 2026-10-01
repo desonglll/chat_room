@@ -1,7 +1,7 @@
 # Echo Gate
 
 <p align="center">
-  <img src="web/public/brand/echo-gate.svg" alt="Echo Gate" width="96" height="96">
+  <img src="packages/web/public/brand/echo-gate.svg" alt="Echo Gate" width="96" height="96">
 </p>
 
 Echo Gate is a room-centered communication system for teams and private groups.
@@ -43,10 +43,6 @@ selects the safe built-in defaults. The first build runs `bun install
 not require PostgreSQL, Redis, Qdrant, object storage, an AI provider, or any
 secret.
 
-The previous Vue client in `web/` is frozen and no longer part of the Rust
-build. It stays independently runnable from its own lockfile (`cd web && bun
-install && bun run dev`) as a behavior reference until it is removed.
-
 For a local multi-service environment, start the infrastructure and run the
 server on the host:
 
@@ -61,14 +57,20 @@ The production container layout is documented in
 ## Architecture
 
 ```text
-React web client --------- HTTP / WebSocket -----------+
-PySide6 desktop client --- HTTP / WebSocket -----------+--> Axum domain modules
-                                                          |       |
-                                                          |       +--> SQLite or PostgreSQL
-                                                          |       +--> local files or OSS
-                                                          |       +--> optional Redis cache
-                                                          |       +--> optional AI + Qdrant
-                                                          +--> embedded web assets
+packages/web (React) ----+
+  packages/ui            |
+  packages/core ---------+-- HTTP /api/chats/* + WebSocket /ws/* --+
+PySide6 desktop ---------+                                         |
+ratatui CLI -------------+                                         v
+                                                          Axum domain modules
+                                                             |
+                                                             +--> SQLite or PostgreSQL
+                                                             +--> local files or OSS
+                                                             +--> optional Redis cache
+                                                             +--> optional AI + Qdrant
+                                                             +--> embedded packages/web build
+
+packages/core is platform-free (no DOM); hosts/node proves it runs in a non-DOM host.
 ```
 
 `Room` is the authorization and knowledge-isolation boundary. Relational data
@@ -107,14 +109,7 @@ bun run -F '*' test
 bun run -F '*' typecheck
 bun run -F '@tg/web' build
 
-# Only when changing the frozen Vue client; CI still gates it.
-cd web
-bun install --frozen-lockfile
-bun test
-bun run typecheck
-bun run build
-
-cd ../desktop
+cd desktop
 uv run pytest
 uv run ruff check src tests
 uv run ruff format --check src tests main.py
@@ -126,8 +121,7 @@ tests, and the complete CI release gate are described in
 
 ## Clients
 
-- [Browser client](packages/web) (React; the frozen Vue client and its notes remain in
-  [web/README.md](web/README.md))
+- [Browser client](packages/web) (React, with `packages/core` and `packages/ui`)
 - [Desktop client](desktop/README.md)
 - [Web/Desktop/CLI capability matrix](docs/client-capability-matrix.md)
 - [Brand and interface system](design/README.md)

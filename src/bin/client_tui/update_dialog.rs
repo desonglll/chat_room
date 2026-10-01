@@ -87,7 +87,7 @@ impl App {
                             };
                             if chat.membership_status.as_deref() == Some("active") {
                                 self.busy = true;
-                                self.status = format!("Connecting to {}...", chat.name);
+                                self.status = format!("Connecting to {}...", chat.title);
                                 return vec![Action::ConnectChat {
                                     room_id: chat.id,
                                     password: self.chat_passwords.get(&chat.id).cloned(),
@@ -100,14 +100,14 @@ impl App {
                             }
                             if chat.has_password {
                                 self.dialog = Some(Dialog::Prompt {
-                                    title: format!("Password for {}", chat.name),
+                                    title: format!("Password for {}", chat.title),
                                     kind: PromptKind::ChatJoinPassword(chat.id),
                                     input: super::input::TextField::password(),
                                 });
                                 return Vec::new();
                             }
                             self.busy = true;
-                            self.status = format!("Joining {}...", chat.name);
+                            self.status = format!("Joining {}...", chat.title);
                             (
                                 false,
                                 vec![Action::JoinChat {

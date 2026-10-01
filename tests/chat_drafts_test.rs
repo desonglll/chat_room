@@ -1,6 +1,4 @@
-//! TG-008 HTTP contract: `PUT`/`GET /api/chats/:id/draft`, its idempotence, its validation,
-//! and the deprecated `/api/rooms/:id/draft` alias (asserted the way
-//! `tests/chat_api_alias_test.rs` does: same status, same body, both prefixes).
+//! TG-008 HTTP contract: `PUT`/`GET /api/chats/:id/draft`, its idempotence and its validation.
 
 use std::sync::Arc;
 
@@ -156,37 +154,6 @@ async fn a_draft_survives_the_round_trip_and_the_identical_put_is_idempotent() {
     )
     .await;
     assert_eq!(status, 200);
-}
-
-#[tokio::test]
-async fn the_deprecated_rooms_alias_serves_the_same_draft() {
-    let (base, _state, _task) = start_server().await;
-    let token = session_token(&base, "draft-alias-owner").await;
-    let chat_id = create_chat(&base, &token, "draft-alias-chat").await;
-
-    // Write through the alias, read through the canonical path — one resource.
-    let (status, via_alias) = put_draft(
-        &base,
-        "/api/rooms",
-        &chat_id,
-        &token,
-        serde_json::json!({ "text": "drafted on the alias" }),
-    )
-    .await;
-    assert_eq!(status, 200);
-    let (canonical_status, canonical) = get_draft(&base, "/api/chats", &chat_id, &token).await;
-    let (alias_status, aliased) = get_draft(&base, "/api/rooms", &chat_id, &token).await;
-    assert_eq!(canonical_status, 200);
-    assert_eq!(
-        canonical_status, alias_status,
-        "/api/chats/:id/draft and /api/rooms/:id/draft disagree on status"
-    );
-    assert_eq!(
-        canonical, aliased,
-        "the two prefixes must serve identical draft bodies"
-    );
-    assert_eq!(canonical, via_alias);
-    assert_eq!(canonical["text"], "drafted on the alias");
 }
 
 #[tokio::test]

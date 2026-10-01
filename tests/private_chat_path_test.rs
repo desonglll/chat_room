@@ -153,10 +153,14 @@ async fn unified_path_scenario(state: Arc<AppState>) {
     assert_eq!(filtered.as_array().unwrap().len(), 1);
     assert_eq!(filtered[0]["id"], private_id.as_str());
 
-    let (_, legacy) = get_json(&client, format!("{base}/api/rooms"), &alice.token).await;
-    let legacy = legacy.as_array().unwrap();
-    assert!(legacy.iter().all(|chat| chat["id"] != private_id.as_str()));
-    assert!(legacy.iter().any(|chat| chat["id"] == group_id.as_str()));
+    // TG-602: the pre-rename `/api/rooms` alias is gone.
+    let response = client
+        .get(format!("{base}/api/rooms"))
+        .bearer_auth(&alice.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::NOT_FOUND);
 
     let (_, discover) = get_json(
         &client,

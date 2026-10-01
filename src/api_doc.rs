@@ -145,7 +145,6 @@ use utoipa::OpenApi;
         admin_services::VectorProbeMatch,
         admin_services::VectorProbeResult,
         models::Chat,
-        models::ChatCompatView,
         chats::ChatType,
         chats::channel_handlers::UpdateChannelRequest,
         chats::channel_handlers::ViewPostsRequest,
@@ -260,4 +259,9 @@ impl OpenApi for ApiDoc {
         document.merge(crate::api_doc_tg::TgApiDoc::openapi());
         document
     }
+}
+
+/// Serve the OpenAPI JSON spec at /api-docs/openapi.json.
+pub async fn openapi_json() -> axum::Json<utoipa::openapi::OpenApi> {
+    axum::Json(ApiDoc::openapi())
 }

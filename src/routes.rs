@@ -29,7 +29,6 @@ pub(crate) fn api_routes(
         .merge(crate::messages::scheduled::routes())
         .merge(crate::messages::albums::routes())
         .merge(chats::routes::canonical(multipart_body_limit))
-        .merge(chats::routes::deprecated_alias(multipart_body_limit))
         .merge(chats::invite_links::routes())
         .route("/api/config", get(config::public_config))
         .route(

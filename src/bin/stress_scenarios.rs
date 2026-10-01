@@ -107,7 +107,7 @@ pub async fn prepare(client: &Client, base: &str, run_id: &str) -> Result<(Strin
         .context("registration response has no token")?
         .to_string();
     let response = client
-        .post(format!("{base}/api/rooms"))
+        .post(format!("{base}/api/chats"))
         .bearer_auth(&token)
         .json(&json!({
             "name": format!("stress-{}", &run_id[..12]),
@@ -142,7 +142,7 @@ pub async fn run_http_worker(
         let path = if sequence.is_multiple_of(2) {
             "/api/config"
         } else {
-            "/api/rooms"
+            "/api/chats"
         };
         let started = Instant::now();
         match client
@@ -286,7 +286,7 @@ pub async fn run_upload_worker(
         let response = target
             .client
             .post(format!(
-                "{}/api/rooms/{}/attachments",
+                "{}/api/chats/{}/attachments",
                 target.base, target.room_id
             ))
             .bearer_auth(&target.token)

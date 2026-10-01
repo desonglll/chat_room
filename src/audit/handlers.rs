@@ -25,8 +25,7 @@ pub struct AuditEventQuery {
 }
 
 /// The deployment-wide half. The chat-scoped half is registered by
-/// `routes::chat_scoped_routes` so that it gets the deprecated `/api/rooms/*` alias like every
-/// other chat-scoped endpoint.
+/// `routes::chat_scoped_routes` with every other chat-scoped endpoint.
 pub fn routes() -> Router<SharedState> {
     Router::new().route("/api/admin/audit-events", get(list_system))
 }

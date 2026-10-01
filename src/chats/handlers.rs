@@ -3,14 +3,14 @@
 use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
-    response::Response,
+    response::{IntoResponse, Response},
     Json,
 };
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use super::{ApiDialect, ChatType};
+use super::ChatType;
 use crate::admin_system_lock::require_chat_rooms_unlocked;
 use crate::models::{Chat, CreateChatRequest};
 use crate::state::SharedState;
@@ -71,7 +71,6 @@ fn generate_access_hash() -> String {
 )]
 pub async fn create_chat(
     State(state): State<SharedState>,
-    dialect: ApiDialect,
     headers: HeaderMap,
     Json(req): Json<CreateChatRequest>,
 ) -> Result<(StatusCode, Response), StatusCode> {
@@ -148,7 +147,7 @@ pub async fn create_chat(
     };
 
     match state.create_chat_with_owner(chat.clone(), creator.id).await {
-        Ok(()) => Ok((StatusCode::CREATED, dialect.chat(chat))),
+        Ok(()) => Ok((StatusCode::CREATED, Json(chat).into_response())),
         Err(sqlx::Error::Database(error)) if error.is_unique_violation() => {
             Err(StatusCode::CONFLICT)
         }

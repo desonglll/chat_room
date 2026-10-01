@@ -2,7 +2,7 @@
  * Chat lifecycle + membership endpoints, canonical dialect only (`/api/chats/*`,
  * TG-004 devlog §5). Rewritten from the chat half of `web/src/api.ts` (TG-011): requests
  * send `title` (never the alias-only `name`), responses are the canonical `Chat`
- * descriptor. The deprecated `/api/rooms/*` alias is for the frozen clients, not for us.
+ * descriptor.
  */
 import type { Chat, ChatMembership, CreateChatRequest, JoinPolicy, MembershipRole, UpdateChatRequest } from '../types'
 import type { ApiClient } from './http'

@@ -17,7 +17,12 @@ pub struct UserIdentity {
 #[derive(Clone, Debug, Deserialize)]
 pub struct ChatSummary {
     pub id: Uuid,
-    pub name: String,
+    /// `/api/chats` calls it `title`; older servers also sent `name`.
+    #[serde(alias = "name")]
+    pub title: String,
+    /// TG-602: `/api/chats` lists private chats too; the client filters on this.
+    #[serde(default)]
+    pub chat_type: Option<String>,
     #[serde(default)]
     pub has_password: bool,
     #[serde(default)]

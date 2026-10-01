@@ -19,8 +19,8 @@ pub struct Chat {
     #[serde(default)]
     #[sqlx(try_from = "String")]
     pub chat_type: ChatType,
-    /// Display title. Stored in `chats.title`; the pre-TG-006 wire name was `name` and
-    /// `ChatCompatView` still emits it for the deprecated `/api/rooms/*` alias.
+    /// Display title. Stored in `chats.title`; the pre-TG-006 wire name `name` is still
+    /// accepted on input.
     #[serde(alias = "name")]
     pub title: String,
     /// SHA-256 hex digest — empty string means the chat is public.
@@ -114,30 +114,6 @@ impl Default for Chat {
             membership_role: None,
             unread_count: 0,
             created_at: DateTime::UNIX_EPOCH,
-        }
-    }
-}
-
-/// The chat descriptor as the pre-TG-006 clients expect it: every field of [`Chat`] plus the
-/// deprecated `name` duplicate of `title`.
-///
-/// Served by the `/api/rooms/*` alias and by `/api/conversations`, which has no alias of its
-/// own and is still read by the frozen Vue, PySide6 and ratatui clients. Delete this struct in
-/// M6 together with those clients; nothing else has to change when it goes.
-#[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct ChatCompatView {
-    #[serde(flatten)]
-    pub chat: Chat,
-    /// Deprecated pre-TG-006 spelling of `title`.
-    #[schema(deprecated)]
-    pub name: String,
-}
-
-impl From<Chat> for ChatCompatView {
-    fn from(chat: Chat) -> Self {
-        Self {
-            name: chat.title.clone(),
-            chat,
         }
     }
 }

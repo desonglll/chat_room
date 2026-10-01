@@ -41,7 +41,7 @@ use model::{
 };
 use store::{ScheduledPatch, ScheduledRow};
 
-/// Canonical prefix only: the frozen `/api/rooms` clients know nothing of scheduling.
+/// The scheduled-message routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route(

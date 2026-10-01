@@ -56,7 +56,7 @@ pub async fn upload(
         .mime_str(mime_type.as_ref())
         .context("prepare upload content type")?;
     let mut request = reqwest::Client::new()
-        .post(format!("{http_base}/api/rooms/{room_id}/attachments"))
+        .post(format!("{http_base}/api/chats/{room_id}/attachments"))
         .bearer_auth(token)
         .multipart(reqwest::multipart::Form::new().part("file", part));
     if let Some(password) = password {

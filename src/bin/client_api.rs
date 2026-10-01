@@ -107,14 +107,19 @@ impl ApiClient {
         .await
     }
 
+    /// Groups and channels. TG-602: `/api/chats` also lists private chats, which this client
+    /// shows from `/api/conversations` instead.
     pub async fn chats(&self) -> ApiResult<Vec<ChatSummary>> {
-        self.json(self.auth(Method::GET, "/api/rooms")?, "load chats")
-            .await
+        let mut chats: Vec<ChatSummary> = self
+            .json(self.auth(Method::GET, "/api/chats")?, "load chats")
+            .await?;
+        chats.retain(|chat| chat.chat_type.as_deref() != Some("private"));
+        Ok(chats)
     }
 
     pub async fn discover_chats(&self) -> ApiResult<Vec<ChatSummary>> {
         self.json(
-            self.auth(Method::GET, "/api/rooms/discover")?,
+            self.auth(Method::GET, "/api/chats/discover")?,
             "discover chats",
         )
         .await
@@ -122,9 +127,9 @@ impl ApiClient {
 
     pub async fn create_chat(&self, name: &str, password: Option<&str>) -> ApiResult<ChatSummary> {
         self.json(
-            self.auth(Method::POST, "/api/rooms")?
+            self.auth(Method::POST, "/api/chats")?
                 .json(&serde_json::json!({
-                    "name": name,
+                    "title": name,
                     "password": password.filter(|value| !value.is_empty()),
                     "join_policy": "open",
                     "avatar_emoji": "",
@@ -141,7 +146,7 @@ impl ApiClient {
         password: Option<&str>,
     ) -> ApiResult<ChatMembership> {
         self.json(
-            self.auth(Method::POST, &format!("/api/rooms/{room_id}/join-requests"))?
+            self.auth(Method::POST, &format!("/api/chats/{room_id}/join-requests"))?
                 .json(&serde_json::json!({ "password": password })),
             "join chat",
         )

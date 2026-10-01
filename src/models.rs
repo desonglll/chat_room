@@ -8,8 +8,8 @@ use uuid::Uuid;
 /// The chat-domain types live in `crate::chats::models`, beside the module that owns them
 /// (`AGENTS.md`), and are re-exported here so existing `crate::models::…` imports keep working.
 pub use crate::chats::models::{
-    Chat, ChatCompatView, ChatMember, ChatMembership, CreateChatRequest, InviteMemberRequest,
-    JoinChatRequest, UpdateChatRequest, UpdateMembershipRequest, UpdateNicknameRequest,
+    Chat, ChatMember, ChatMembership, CreateChatRequest, InviteMemberRequest, JoinChatRequest,
+    UpdateChatRequest, UpdateMembershipRequest, UpdateNicknameRequest,
 };
 
 /// The WebSocket protocol lives in `crate::realtime` (TG-007), which owns the frames, and is

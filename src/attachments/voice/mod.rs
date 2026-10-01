@@ -26,8 +26,7 @@ use crate::state::{AppState, SharedState};
 use model::{DurationSource, VoiceError, MAX_VOICE_BYTES, MAX_VOICE_DURATION_MS, WAVEFORM_SAMPLES};
 use store::NewVoice;
 
-/// The voice routes. Canonical prefix only: the deprecated `/api/rooms` alias serves frozen
-/// clients that know no voice messages.
+/// The voice routes.
 pub fn routes(multipart_body_limit: usize) -> Router<Arc<AppState>> {
     Router::new()
         .route(

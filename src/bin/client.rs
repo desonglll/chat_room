@@ -83,7 +83,7 @@ async fn lookup_chat(http_base: &str, name: &str) -> Result<Option<Uuid>> {
     chats.extend(api.discover_chats().await?);
     Ok(chats
         .into_iter()
-        .find(|chat| chat.name == name)
+        .find(|chat| chat.title == name)
         .map(|chat| chat.id))
 }
 
@@ -101,7 +101,7 @@ async fn list_chats(http_base: &str) -> Result<()> {
         } else {
             "public"
         };
-        println!("[{access}] {}  {}", chat.name, chat.id);
+        println!("[{access}] {}  {}", chat.title, chat.id);
     }
     Ok(())
 }
@@ -116,7 +116,7 @@ async fn create_chat(http_base: &str, name: &str, password: Option<&str>) -> Res
     } else {
         "public"
     };
-    println!("Created {access} chat '{}' ({})", chat.name, chat.id);
+    println!("Created {access} chat '{}' ({})", chat.title, chat.id);
     Ok(())
 }
 

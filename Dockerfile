@@ -30,12 +30,9 @@ RUN --mount=type=cache,id=chatroom-bun,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
 
 COPY src ./src
-# build.rs builds packages/web; packages/core and packages/ui are needed because
-# @tg/web's build runs `tsc --noEmit` across its workspace imports first.
+# build.rs builds packages/web (its public/ holds the files src/web.rs embeds); packages/core
+# and packages/ui are needed because @tg/web's build runs `tsc --noEmit` across them first.
 COPY packages ./packages
-# The eight files under web/public that src/web.rs still embeds by fixed path. The rest of
-# web/ (the frozen Vue client) is not part of the Rust build any more.
-COPY web/public ./web/public
 
 FROM source AS builder
 

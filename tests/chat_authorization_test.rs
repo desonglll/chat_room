@@ -77,7 +77,7 @@ async fn every_chat_read_path_refuses_a_non_member_on_both_the_contract_and_the_
 
     for suffix in AUTHORIZED_READ_SUFFIXES {
         let suffix = suffix.replace("{id}", &chat_id.to_string());
-        for prefix in ["/api/chats", "/api/rooms"] {
+        for prefix in ["/api/chats"] {
             let path = format!("{prefix}{suffix}");
             let refused = status(&base, &path, &outsider).await;
             assert_eq!(

@@ -1,8 +1,5 @@
 //! HTTP surface of channels (TG-202). Handlers translate protocol data and call
 //! `chats::channels` / `chats::channel_views`; they hold no domain rule of their own.
-//!
-//! Mounted on the canonical `/api/chats` prefix only: the frozen clients behind the deprecated
-//! `/api/rooms` alias know no channels.
 
 use std::sync::Arc;
 
