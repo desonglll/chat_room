@@ -1,0 +1,15 @@
+/* TG-601: the update banner. */
+.tg-pwa-update {
+  position: fixed;
+  inset-block-end: var(--tg-space-4);
+  inset-inline-start: 50%;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-2) var(--tg-space-2) var(--tg-space-2) var(--tg-space-4);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-menu);
+  transform: translateX(-50%);
+}

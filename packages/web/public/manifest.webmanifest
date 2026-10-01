@@ -2,14 +2,17 @@
   "id": "/",
   "name": "Echo Gate",
   "short_name": "Echo Gate",
-  "description": "Private room conversations and focused collaboration.",
+  "description": "Echo Gate — chats, groups and channels.",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f7f9f8",
-  "theme_color": "#176b59",
-  "categories": ["social", "productivity"],
+  "background_color": "#ffffff",
+  "theme_color": "#3390ec",
+  "categories": [
+    "social",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/pwa-192.png",

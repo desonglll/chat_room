@@ -4,6 +4,7 @@
  * on purpose — every dependency is a parameter, so `bun test` drives the whole lifecycle
  * with a fake storage and a fake fetch (`session.test.ts`).
  */
+import { clearOfflineData } from './pwa'
 import type { ApiClient, AuthSession, AuthStore, CoreStorage } from '@tg/core'
 import { ApiError, getCurrentUser, loginUser, logoutUser, registerUser } from '@tg/core'
 
@@ -85,6 +86,8 @@ export async function signOut({ client, storage, store }: SessionDeps): Promise<
   const token = store.getState().session?.token
   storage.removeItem(SESSION_STORAGE_KEY)
   store.getState().clearSession()
+  // TG-601: nothing of this account stays readable offline.
+  clearOfflineData()
   if (!token) return
   try {
     await logoutUser(client, token)

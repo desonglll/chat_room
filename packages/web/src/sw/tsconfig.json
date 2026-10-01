@@ -1,0 +1,9 @@
+{
+  "//": "TG-601: the service worker typechecks against the WebWorker lib, not the DOM.",
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "WebWorker"],
+    "types": []
+  },
+  "include": ["sw.ts", "cachePolicy.ts"]
+}

@@ -10,6 +10,8 @@ import { browserStorage } from './app/platform'
 import { hydrateSession, revalidateSession } from './app/session'
 import { bindLanguage } from './app/language'
 import { LocaleRoot } from './app/LocaleRoot'
+import { appRouter } from './app/router'
+import { registerPwa } from './app/pwa'
 import { bindTheme } from './app/theme'
 // TG-406: registers the poll bubble body with the message content registry.
 import './features/poll/register'
@@ -51,6 +53,8 @@ settingsStore.getState().hydrate(browserStorage)
 bindTheme(settingsStore)
 // TG-510: interface language (no reload on switch; see app/LocaleRoot).
 bindLanguage(settingsStore)
+// TG-601: service worker (production builds), update prompt, install, push deep links.
+registerPwa(settingsStore, (url) => void appRouter.navigate(url))
 hydrateSession({ storage: browserStorage, store: authStore }, Date.now())
 void revalidateSession({ client: apiClient, storage: browserStorage, store: authStore })
 

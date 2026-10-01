@@ -13,6 +13,7 @@ import {
   type NotificationSettings,
 } from './notificationSettingsApi'
 import { t } from '../../../i18n/index'
+import { PushToggle } from '../../pwa/PushToggle'
 
 function soundLabel(id: string | null | undefined): string {
   return SOUNDS.find((sound) => sound.id === id)?.label ?? t('w.settings.c8d09c')
@@ -36,6 +37,8 @@ export function NotificationSettingsPage() {
 
   return (
     <div className="tg-notify-settings">
+      {/* TG-601: this browser's Web Push subscription. */}
+      <PushToggle />
       {settings.defaults.map((defaults) => (
         <section key={defaults.scope} className="tg-notify-settings__card" aria-label={SCOPE_LABEL[defaults.scope]}>
           <h3 className="tg-notify-settings__title">{SCOPE_LABEL[defaults.scope]}</h3>
