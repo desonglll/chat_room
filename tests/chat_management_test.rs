@@ -119,14 +119,15 @@ async fn public_chat_can_be_renamed_and_deleted() {
     let chat_url = format!("{}/api/chats/{}", base, first["id"].as_str().unwrap());
     let client = reqwest::Client::new();
 
-    let conflict = client
+    // TG-1210: titles may repeat, so renaming into another chat's title succeeds.
+    let shared_title = client
         .patch(&chat_url)
         .bearer_auth(owner_token)
         .json(&serde_json::json!({ "name": "taken" }))
         .send()
         .await
         .unwrap();
-    assert_eq!(conflict.status(), 409);
+    assert_eq!(shared_title.status(), 200);
 
     let updated: serde_json::Value = client
         .patch(&chat_url)

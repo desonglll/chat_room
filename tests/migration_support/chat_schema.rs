@@ -197,7 +197,11 @@ pub async fn assert_sqlite_chat_schema(pool: &SqlitePool) {
             .await
             .unwrap();
     assert_eq!(name_column, 0, "chats.name was not renamed to title");
-    for index in ["chats_title_active_idx", "chats_username_active_idx"] {
+    // TG-1210 (`20271001000001`) dropped the title uniqueness: titles may repeat, handles not.
+    for (index, expected) in [
+        ("chats_title_active_idx", 0),
+        ("chats_username_active_idx", 1),
+    ] {
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = $1",
         )
@@ -205,7 +209,7 @@ pub async fn assert_sqlite_chat_schema(pool: &SqlitePool) {
         .fetch_one(pool)
         .await
         .unwrap();
-        assert_eq!(count, 1, "index {index} is missing");
+        assert_eq!(count, expected, "index {index}: expected {expected}");
     }
 }
 
@@ -292,7 +296,11 @@ pub async fn assert_postgres_chat_schema(pool: &PgPool) {
     .await
     .unwrap();
     assert_eq!(name_column, 0, "chats.name was not renamed to title");
-    for index in ["chats_title_active_idx", "chats_username_active_idx"] {
+    // TG-1210 (`20271001000001`) dropped the title uniqueness: titles may repeat, handles not.
+    for (index, expected) in [
+        ("chats_title_active_idx", 0),
+        ("chats_username_active_idx", 1),
+    ] {
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1",
         )
@@ -300,7 +308,7 @@ pub async fn assert_postgres_chat_schema(pool: &PgPool) {
         .fetch_one(pool)
         .await
         .unwrap();
-        assert_eq!(count, 1, "index {index} is missing");
+        assert_eq!(count, expected, "index {index}: expected {expected}");
     }
 }
 

@@ -13,6 +13,7 @@ mod client_api_social;
 mod client_auth;
 mod client_chat;
 mod client_chat_extras;
+mod client_chat_lookup;
 mod client_chat_media;
 mod client_chat_protocol;
 mod client_media;
@@ -88,12 +89,11 @@ struct JoinArgs {
 async fn lookup_chat(http_base: &str, name: &str) -> Result<Option<Uuid>> {
     let config = require_session()?;
     let api = ApiClient::new(http_base, config.token);
+    // Only chats the caller is in, plus discoverable public ones: both lists are already
+    // filtered by what the server lets this user see, so an ambiguity never leaks a chat.
     let mut chats = api.chats().await?;
     chats.extend(api.discover_chats().await?);
-    Ok(chats
-        .into_iter()
-        .find(|chat| chat.title == name)
-        .map(|chat| chat.id))
+    client_chat_lookup::resolve_chat_title(chats, name)
 }
 
 async fn list_chats(http_base: &str) -> Result<()> {
