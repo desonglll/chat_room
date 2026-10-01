@@ -13,7 +13,7 @@
  * picker, delete confirmation) is mounted once here, above every pane.
  */
 import type { CSSProperties } from 'react'
-import { Outlet, useMatch } from 'react-router-dom'
+import { Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { authStore, selectToken, uiStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { ChatOverlays } from '../chat/ChatOverlays'
@@ -23,6 +23,7 @@ import { SettingsHost } from '../settings/shell'
 import { StickerOverlays } from '../sticker/StickerOverlays'
 import { ChatWallpaper } from '../wallpaper/ChatWallpaper'
 import { UpdateBanner } from '../pwa/UpdateBanner'
+import { useGlobalShortcuts } from '../shortcuts/useGlobalShortcuts'
 import { InfoPane } from './InfoPane'
 import { SIDEBAR_COLLAPSED_WIDTH } from './sidebarLayout'
 import { SidebarResizer } from './SidebarResizer'
@@ -38,6 +39,9 @@ export function WorkspaceShell() {
   const { layout, preview, commit, toggleCollapsed } = useSidebarLayout()
 
   useChatListSync(token)
+  // TG-606: Ctrl/⌘+K search, Alt+↑/↓ chats, Ctrl/⌘+Shift+1…9 folders, Ctrl/⌘+, settings.
+  const navigate = useNavigate()
+  useGlobalShortcuts(navigate)
 
   const collapsed = layout.collapsed && !mobile
   const style = {

@@ -40,7 +40,7 @@
   --tg-text-on-accent: #ffffff; /* [web] --badge-text-color */
   --tg-scan-surface: var(--tg-raw-white); /* [ours] TG-511: a QR code needs a light background in every theme */
   --tg-text-link: #00488f; /* [web] link-color — 9.04:1, this is why Telegram's links are not the accent */
-  --tg-text-danger: #df3f40; /* [web] danger-color */
+  --tg-text-danger: #dc2e2f; /* [derived] TG-606: tweb's danger #df3f40 is 4.27:1 as text; HSL lightness −4 reaches 4.69:1. The danger FILL (--tg-danger) keeps Telegram's value */
   --tg-text-success: #3e7138; /* [ours] green-700, 5.79:1. Telegram's own #70b768 is 2.42:1 and is only used as a dot, see --tg-online */
 
   /* ══ Accent ════════════════════════════════════════════════════════════

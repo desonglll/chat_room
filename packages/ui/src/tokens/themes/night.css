@@ -41,7 +41,7 @@
   --tg-text-disabled: #707579; /* [web] night secondary-color */
   --tg-text-on-accent: #ffffff;
   --tg-scan-surface: var(--tg-raw-white); /* [ours] TG-511: a QR code needs a light background in every theme */
-  --tg-text-link: #8774e1; /* [web] night link-color — resolves to the accent, unlike day */
+  --tg-text-link: #9585e5; /* [derived] TG-606: tweb's night link is the accent #8774e1 (4.31:1 on the surface); HSL lightness +4 keeps the hue and reaches 5.19:1, as body text must */
   --tg-text-danger: #ff595a; /* [web] night danger-color */
   --tg-text-success: #5cc85e; /* [web] night green-color — 7.57:1, passes on dark where day's green does not on light */
 
