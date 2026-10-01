@@ -1,23 +1,19 @@
 /**
  * Where each shared-content tab reads its pages from. Every source is an authorised
- * chat-scoped endpoint (active member, re-checked per request server-side):
+ * chat-scoped endpoint (active member, re-checked per request server-side), classified and
+ * paged on the server (TG-803), so every page is a full page of that tab:
  *
- *   media  `/api/chats/:id/files?kind=all`   photos + videos, GIFs excluded
- *   files  `/api/chats/:id/files?kind=all`   documents (not image/video/audio)
- *   voice  `/api/chats/:id/files?kind=file`  `audio/*`
- *   gif    `/api/chats/:id/files?kind=image` `image/gif`
- *   links  `/api/chats/:id/messages/search?q=http`, URLs extracted client-side
- *
- * The server's `kind` filter knows only all/image/video/file, so voice/GIF/media are
- * narrowed here with `filteredSource`. The gap (no `kind=media|voice|gif`, no link
- * index) is written up for the M2/M4 owners in docs/devlog/TG-106.md.
+ *   media  `/api/chats/:id/files?kind=media`     photos + videos (no GIFs, stickers, round videos)
+ *   files  `/api/chats/:id/files?kind=document`  everything else that is not voice/GIF/sticker
+ *   voice  `/api/chats/:id/files?kind=voice`     voice + round video messages
+ *   gif    `/api/chats/:id/files?kind=gif`
+ *   links  `/api/chats/:id/links`                the server's link index (text + hidden links)
  */
 import type { ApiClient, Attachment, ChatFileItem } from '@tg/core'
-import { listChatFiles, searchChatMessages } from '@tg/core'
-import { attachmentKind } from '../message/content/attachmentKind'
+import { listChatFiles } from '@tg/core'
+import { listChatLinks } from './chatInfoApi'
 import { extractLinks } from './linkExtract'
 import type { FetchSharedPage, SharedPage } from './sharedPager'
-import { filteredSource } from './sharedPager'
 import { t } from '../../i18n/index'
 
 export type SharedTabId = 'media' | 'files' | 'links' | 'voice' | 'gif'
@@ -93,17 +89,13 @@ export interface SharedSources {
   links: FetchSharedPage<SharedLink>
 }
 
-const mime = (file: SharedFile) => file.attachment.mime_type.toLowerCase()
-export const isGif = (file: SharedFile) => mime(file) === 'image/gif'
-export const isVoice = (file: SharedFile) => mime(file).startsWith('audio/')
-export const isMedia = (file: SharedFile) => attachmentKind(file.attachment) !== 'file' && !isGif(file)
-export const isDocument = (file: SharedFile) => attachmentKind(file.attachment) === 'file' && !isVoice(file)
-
-/** Server maximum; most raw rows of a mixed page are filtered away on the narrower tabs. */
-export const FILES_PAGE_SIZE = 100
+export const FILES_PAGE_SIZE = 50
 export const LINKS_PAGE_SIZE = 50
-/** The link search needle: the server matches it case-insensitively inside `content`. */
-export const LINK_NEEDLE = 'http'
+
+/** The link's host as the row shows it (`www.` dropped), or the URL when it cannot parse. */
+export function linkHost(url: string): string {
+  return extractLinks(url)[0]?.host ?? url
+}
 
 export function toSharedFile(item: ChatFileItem): SharedFile {
   return {
@@ -122,7 +114,7 @@ export interface SharedSourceDeps {
 
 export function createSharedSources(chatId: string, deps: SharedSourceDeps): SharedSources {
   const files =
-    (kind: 'all' | 'image' | 'file'): FetchSharedPage<SharedFile> =>
+    (kind: 'media' | 'document' | 'voice' | 'gif'): FetchSharedPage<SharedFile> =>
     async (cursor) => {
       const page = await listChatFiles(
         deps.client,
@@ -136,32 +128,19 @@ export function createSharedSources(chatId: string, deps: SharedSourceDeps): Sha
     }
 
   const links: FetchSharedPage<SharedLink> = async (cursor): Promise<SharedPage<SharedLink>> => {
-    const rows = await searchChatMessages(
-      deps.client,
-      chatId,
-      LINK_NEEDLE,
-      { token: deps.token() },
-      cursor ?? '',
-      LINKS_PAGE_SIZE,
-    )
-    const items = rows.flatMap((row) =>
-      extractLinks(row.content).map((link, index) => ({
-        key: `${row.id}:${index}`,
-        messageId: row.id,
+    const page = await listChatLinks(deps.client, deps.token(), chatId, cursor, LINKS_PAGE_SIZE)
+    return {
+      items: page.items.map((row) => ({
+        key: `${row.message_id}:${row.position}`,
+        messageId: row.message_id,
         createdAt: row.created_at,
         sender: row.sender,
-        ...link,
+        url: row.url,
+        host: linkHost(row.url),
       })),
-    )
-    const last = rows.at(-1)
-    return { items, next: rows.length < LINKS_PAGE_SIZE || !last ? null : last.id }
+      next: page.next ?? null,
+    }
   }
 
-  return {
-    media: filteredSource(files('all'), isMedia),
-    files: filteredSource(files('all'), isDocument),
-    voice: filteredSource(files('file'), isVoice),
-    gif: filteredSource(files('image'), isGif),
-    links: filteredSource(links, () => true),
-  }
+  return { media: files('media'), files: files('document'), voice: files('voice'), gif: files('gif'), links }
 }

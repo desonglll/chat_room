@@ -1,6 +1,6 @@
 /** Every tab owns its cursor: paging one never moves another (TG-106 acceptance). */
 import { expect, test } from 'bun:test'
-import { createSharedPager, filteredSource } from '../sharedPager'
+import { createSharedPager } from '../sharedPager'
 import type { SharedFile, SharedLink, SharedSources } from '../sharedSources'
 import { createChatInfoPagers } from '../useChatInfo'
 import { fakeClient, fileItem, member } from './fixtures'
@@ -97,23 +97,6 @@ test('a failed page keeps the cursor so a retry asks for the same page', async (
   await pager.getState().loadMore()
   expect(calls).toEqual([null, 'p2', 'p2'])
   expect(pager.getState()).toMatchObject({ error: '', done: true, items: ['first', 'p2'] })
-})
-
-test('filteredSource keeps fetching raw pages until enough items survive, bounded by maxRounds', async () => {
-  const cursors: Array<string | null> = []
-  const raw = async (cursor: string | null) => {
-    cursors.push(cursor)
-    const n = cursor === null ? 0 : Number(cursor)
-    return { items: [n, n + 1, n + 2], next: String(n + 3) }
-  }
-  const evens = filteredSource(raw, (value: number) => value % 2 === 0, { minItems: 4, maxRounds: 10 })
-  const page = await evens(null)
-  expect(page.items).toEqual([0, 2, 4, 6, 8]) // whole raw pages: never splits one
-  expect(page.next).toBe('9')
-  const bounded = filteredSource(raw, () => false, { minItems: 1, maxRounds: 3 })
-  cursors.length = 0
-  expect(await bounded('0')).toEqual({ items: [], next: '9' })
-  expect(cursors).toEqual(['0', '3', '6'])
 })
 
 test('members page client-side over the one-shot listing: owner, admins, online, then name', async () => {

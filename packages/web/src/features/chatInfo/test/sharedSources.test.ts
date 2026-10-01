@@ -1,102 +1,67 @@
-/** Each tab reads its own endpoint + filter; links come from the chat's message search. */
+/** TG-803: each tab reads its own server-classified endpoint; links come from the link index. */
 import { expect, test } from 'bun:test'
-import type { StoredMessage } from '@tg/core'
 import { extractLinks } from '../linkExtract'
-import { createSharedSources, LINK_NEEDLE, LINKS_PAGE_SIZE } from '../sharedSources'
+import { createSharedSources, FILES_PAGE_SIZE, LINKS_PAGE_SIZE, linkHost } from '../sharedSources'
 import { fakeClient, fileItem } from './fixtures'
 
-const mixed = [
-  fileItem('png', 'image/png'),
-  fileItem('gif', 'image/gif'),
-  fileItem('mp4', 'video/mp4'),
-  fileItem('svg', 'image/svg+xml'),
-  fileItem('ogg', 'audio/ogg'),
-  fileItem('pdf', 'application/pdf'),
-]
-
-function filesClient() {
-  return fakeClient((call) => {
-    const kind = call.query.kind
-    const items = mixed.filter((item) => {
-      const mime = item.attachment.mime_type
-      if (kind === 'image') return mime.startsWith('image/')
-      if (kind === 'video') return mime.startsWith('video/')
-      if (kind === 'file') return !mime.startsWith('image/') && !mime.startsWith('video/')
-      return true
-    })
-    return { items, next_before: null }
-  })
-}
-
-test('media / files / voice / GIF split one mixed listing without overlap', async () => {
-  const { client, calls } = filesClient()
+test('media / files / voice / GIF each ask the server for their own kind', async () => {
+  const { client, calls } = fakeClient((call) => ({
+    items: [fileItem(String(call.query.kind), 'application/octet-stream')],
+    next_before: null,
+  }))
   const sources = createSharedSources('c1', { client, token: () => 't' })
-  const ids = async (tab: 'media' | 'files' | 'voice' | 'gif') =>
-    (await sources[tab](null)).items.map((file) => file.attachment.id)
-  expect(await ids('media')).toEqual(['png', 'mp4'])
-  expect(await ids('files')).toEqual(['svg', 'pdf'])
-  expect(await ids('voice')).toEqual(['ogg'])
-  expect(await ids('gif')).toEqual(['gif'])
-  expect(calls.map((call) => [call.path, call.query.kind])).toEqual([
-    ['/api/chats/c1/files', 'all'],
-    ['/api/chats/c1/files', 'all'],
-    ['/api/chats/c1/files', 'file'],
-    ['/api/chats/c1/files', 'image'],
+  for (const tab of ['media', 'files', 'voice', 'gif'] as const) {
+    const page = await sources[tab](null)
+    expect(page.items).toHaveLength(1)
+    expect(page.next).toBeNull()
+  }
+  expect(calls.map((call) => [call.path, call.query.kind, call.query.limit])).toEqual([
+    ['/api/chats/c1/files', 'media', String(FILES_PAGE_SIZE)],
+    ['/api/chats/c1/files', 'document', String(FILES_PAGE_SIZE)],
+    ['/api/chats/c1/files', 'voice', String(FILES_PAGE_SIZE)],
+    ['/api/chats/c1/files', 'gif', String(FILES_PAGE_SIZE)],
   ])
 })
 
-test('a file source passes its own cursor as `before`', async () => {
+test('a file source passes its own cursor as `before` and returns the server cursor', async () => {
   const { client, calls } = fakeClient(() => ({ items: [fileItem('a', 'image/png')], next_before: 'm-a' }))
   const sources = createSharedSources('c1', { client, token: () => 't' })
-  await sources.gif('m-older')
+  expect((await sources.gif('m-older')).next).toBe('m-a')
   expect(calls[0]?.query.before).toBe('m-older')
 })
 
-function stored(id: string, content: string): StoredMessage {
-  return {
-    id,
-    room_id: 'c1',
-    client_message_id: null,
+test('links: one row per indexed link, keyed by message + position, server cursor', async () => {
+  const row = (id: string, position: number, url: string) => ({
+    message_id: id,
+    position,
+    url,
     sender_id: 'u1',
     sender: 'alice',
-    sender_avatar: '',
-    content,
-    attachment: null,
-    reply_to: null,
-    recalled_at: null,
-    edited_at: null,
     created_at: '2026-09-01T00:00:00Z',
-    favorite_id: null,
-    forwarded_from: null,
-    reactions: [],
-  }
-}
-
-test('links: searched with the needle, one row per URL, cursor = last message of a full page', async () => {
-  const full = Array.from({ length: LINKS_PAGE_SIZE }, (_, i) =>
-    stored(
-      `m${i}`,
-      i === 0 ? 'a https://a.io/x and http://www.b.com.' : i % 2 ? `https://c.dev/${i}` : 'mentions http only',
-    ),
-  )
-  const { client, calls } = fakeClient(() => full)
+  })
+  const { client, calls } = fakeClient(() => ({
+    items: [row('m2', 0, 'https://www.b.com/'), row('m1', 0, 'https://a.io/x'), row('m1', 1, 'http://c.dev/')],
+    next: 'm1:1',
+  }))
   const sources = createSharedSources('c1', { client, token: () => 't' })
-  const page = await sources.links(null)
-  expect(calls[0]).toMatchObject({ path: '/api/chats/c1/messages/search', query: { q: LINK_NEEDLE } })
-  expect(page.items.slice(0, 3).map((link) => [link.url, link.host])).toEqual([
-    ['https://a.io/x', 'a.io'],
-    ['http://www.b.com', 'b.com'],
-    ['https://c.dev/1', 'c.dev'],
+  const page = await sources.links('m3:0')
+  expect(calls[0]).toMatchObject({
+    path: '/api/chats/c1/links',
+    query: { before: 'm3:0', limit: String(LINKS_PAGE_SIZE) },
+  })
+  expect(page.items.map((link) => [link.key, link.host])).toEqual([
+    ['m2:0', 'b.com'],
+    ['m1:0', 'a.io'],
+    ['m1:1', 'c.dev'],
   ])
-  expect(page.items).toHaveLength(2 + LINKS_PAGE_SIZE / 2)
-  expect(calls).toHaveLength(1) // enough links in one page: no extra round trip
-  expect(page.next).toBe(`m${LINKS_PAGE_SIZE - 1}`)
+  expect(page.next).toBe('m1:1')
 
-  const { client: short } = fakeClient(() => [stored('z', 'https://z.dev')])
-  expect((await createSharedSources('c1', { client: short, token: () => 't' }).links('m9')).next).toBeNull()
+  const { client: last } = fakeClient(() => ({ items: [] }))
+  expect((await createSharedSources('c1', { client: last, token: () => 't' }).links(null)).next).toBeNull()
 })
 
-test('extractLinks: http(s) only, trailing punctuation dropped, duplicates collapsed', () => {
+test('linkHost and extractLinks: http(s) only, www. dropped, duplicates collapsed', () => {
+  expect(linkHost('https://www.example.com/a')).toBe('example.com')
   expect(extractLinks('see https://x.io/a, https://x.io/a and javascript:alert(1) or ftp://y.z')).toEqual([
     { url: 'https://x.io/a', host: 'x.io' },
   ])

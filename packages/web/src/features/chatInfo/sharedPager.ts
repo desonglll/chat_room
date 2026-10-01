@@ -66,27 +66,3 @@ export function createSharedPager<T>(fetchPage: FetchSharedPage<T>, keyOf: (item
   }))
   return store
 }
-
-/**
- * Wraps a raw source whose pages are filtered client-side (e.g. GIFs out of the `image`
- * listing): keeps fetching raw pages until `minItems` survive the filter, the source ends,
- * or `maxRounds` requests were spent — so one "load more" never returns an empty page
- * just because a raw page had no matches, and never spins unbounded either.
- */
-export function filteredSource<T>(
-  fetchRaw: FetchSharedPage<T>,
-  keep: (item: T) => boolean,
-  { minItems = 12, maxRounds = 4 }: { minItems?: number; maxRounds?: number } = {},
-): FetchSharedPage<T> {
-  return async (cursor) => {
-    const items: T[] = []
-    let next = cursor
-    for (let round = 0; round < maxRounds; round += 1) {
-      const page = await fetchRaw(next)
-      items.push(...page.items.filter(keep))
-      next = page.next
-      if (next === null || items.length >= minItems) break
-    }
-    return { items, next }
-  }
-}

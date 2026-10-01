@@ -16,5 +16,6 @@ pub mod reply_quotes;
 pub mod scheduled;
 pub mod search;
 mod search_pattern;
+pub mod shared_links;
 pub mod store;
 mod text_store;
