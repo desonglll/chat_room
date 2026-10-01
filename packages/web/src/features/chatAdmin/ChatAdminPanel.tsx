@@ -21,6 +21,7 @@ import { MemberRow } from './MemberRow'
 import { RestrictionEditor } from './RestrictionEditor'
 import type { ChatAdminState } from './useChatAdmin'
 import { InviteLinksEntry } from '../inviteLinks/InviteLinksEntry'
+import { DiscussionLinkEditor } from '../channel/comments/DiscussionLinkEditor'
 import { useChatAdmin } from './useChatAdmin'
 import './chatAdmin.css'
 
@@ -145,6 +146,8 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
           current={publicUsername}
           myPermissions={view.my_permissions}
         />
+        {/* TG-203: a channel's discussion group (comments). */}
+        <DiscussionLinkEditor chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
         {/* TG-205: `overlay` — a second sheet inside this one fights it for focus. */}
         <InviteLinksEntry chatId={chatId} variant="overlay" />
       </>

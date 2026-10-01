@@ -71,6 +71,9 @@ pub struct StoredMessage {
     /// TG-202: a signed channel post's author; omitted when unsigned.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post_author: Option<String>,
+    /// TG-203: a channel post's live comment count; omitted unless the post has a comment thread.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comments: Option<i64>,
     /// TG-401: present exactly when the message is a voice message (`docs/devlog/TG-401.md`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice: Option<crate::attachments::voice::model::VoiceNote>,

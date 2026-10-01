@@ -100,8 +100,17 @@ impl AppState {
 
     pub(crate) async fn invalidate_message_cache(&self, room_id: uuid::Uuid) {
         if let Some(cache) = self.redis_cache() {
-            if let Err(error) = cache.invalidate_message_history(room_id).await {
-                tracing::warn!(%room_id, "invalidate Redis message cache failed: {error:#}");
+            // TG-203: a channel post write also changes its discussion group (database triggers
+            // copy, recall and edit the post there), so that group's history goes stale too.
+            let linked = self
+                .chat(room_id)
+                .await
+                .filter(|chat| chat.chat_type == crate::chats::ChatType::Channel)
+                .and_then(|chat| chat.linked_chat_id);
+            for room_id in std::iter::once(room_id).chain(linked) {
+                if let Err(error) = cache.invalidate_message_history(room_id).await {
+                    tracing::warn!(%room_id, "invalidate Redis message cache failed: {error:#}");
+                }
             }
         }
     }

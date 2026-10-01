@@ -90,6 +90,8 @@ export interface BroadcastFrame {
   views?: number
   /** TG-202: a signed channel post's author; omitted when unsigned. */
   post_author?: string
+  /** TG-203: a channel post's comment count; omitted unless the post has a comment thread. */
+  comments?: number
   /** TG-401: present exactly when the message is a voice message; omitted otherwise. */
   voice?: VoiceNote
   /** TG-402: present exactly when the message is a round video message; omitted otherwise. */

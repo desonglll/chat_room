@@ -4,6 +4,7 @@
  * upload placeholder, and real messages the full bubble assembled here from the registry's
  * content, the decorations, the meta and the menu.
  */
+import { PostCommentsEntry } from '../channel/comments/PostCommentsEntry'
 import type { BroadcastMessage } from '@tg/core'
 import type { MessageActions, MessageBubbleProps } from './types'
 import { computeBubbleLayout } from './bubbleLayout'
@@ -100,6 +101,8 @@ function ChatBubble({
         )}
         <MessageMeta parts={parts} overlay={layout.metaMode === 'overlay'} dateTime={message.timestamp} />
       </BubbleFrame>
+      {/* TG-203: a channel post's comments entry, under the bubble. */}
+      {message.comments === undefined ? null : <PostCommentsEntry message={message} />}
       {selectionMode ? null : (
         <HoverActions
           items={items}

@@ -19,6 +19,8 @@ pub(crate) mod chat_projection;
 pub mod chat_type;
 pub mod compat;
 pub mod default_permissions;
+pub mod discussion;
+pub mod discussion_handlers;
 pub mod drafts;
 pub mod folders;
 pub mod governance_handlers;
