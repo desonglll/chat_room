@@ -813,7 +813,7 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Acceptance** 回归测试：AI 关闭时零嵌入请求；Redis 不可达/慢时请求延迟有上界并有测试。
 
 ## TG-1208 走查遗留缺陷与英文标点 · S（来源 TG-1204 记录；等 TG-1203、TG-1206 合并后开工）
-- **Work** (1) 刚打开会话立即回车偶发静默丢弃（约 1/3，文字留在输入框）——查根因（会话/socket 未就绪时的发送路径），修复或排队发送；(2) 聊天头部显示「离线」而会话列表同一好友显示在线——统一在线状态来源；(3) 会话信息里未静音时也显示「取消静音」等时长选项；(5) 应用 TG-1206 devlog 遗留补丁第 4、6、7 项：会话行与成员列表显示 `EmojiStatus`，设置里加「设置表情状态」入口；(4) `englishUi.test.ts` 白名单中 10 处硬编码中文标点（composer、message、album、location、videoNote、chatInfo、messageList）改走 i18n，修一处删一条白名单。
+- **Work** (1) 刚打开会话立即回车偶发静默丢弃（约 1/3，文字留在输入框）——查根因（会话/socket 未就绪时的发送路径），修复或排队发送；(2) 聊天头部显示「离线」而会话列表同一好友显示在线——统一在线状态来源；(3) 会话信息里未静音时也显示「取消静音」等时长选项；(5) 应用 TG-1206 devlog 遗留补丁第 4、6、7 项：会话行与成员列表显示 `EmojiStatus`，设置里加「设置表情状态」入口；(6) 只有封禁权（无 `members.review`）的管理员打开「已封禁的用户」显示读取失败——读接口应接受 `members.ban`；(7) 刚打开聊天、历史未加载完时发出的消息显示在历史上方（刷新恢复），与 (1) 同属「会话未就绪时发送」路径；(4) `englishUi.test.ts` 白名单中 10 处硬编码中文标点（composer、message、album、location、videoNote、chatInfo、messageList）改走 i18n，修一处删一条白名单。
 - **Allowed** 上述功能目录、`packages/web/test/**`、对应测试。
 - **Acceptance** 每个缺陷有回归测试；白名单清空；两账号浏览器复验 (1)(2)。
 
@@ -821,3 +821,8 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Work** CSP `img-src` 只允许同源，导致线上地图瓦片（D-010：可配置瓦片，默认 OSM）与链接预览外部图片全部被拦。瓦片：按配置的瓦片 URL 模板推导主机并只放行它；链接预览图：服务端抓取时一并抓取并缓存图片，经同源接口提供（复用 TG-408 的 SSRF 防护与大小上限），不放开任意外部图片。
 - **Allowed** `src/security/**`、`src/link_preview/**`（或实际所在模块）、`packages/web/src/features/{linkPreview,location}/**`、迁移（若需缓存表，按前缀递增并双库成对）、对应测试。
 - **Acceptance** 响应头测试覆盖瓦片主机推导与未配置时的默认；预览图经同源 URL 返回且鉴权正确；浏览器实测地图瓦片与预览图都显示。**SSRF 相关改动需负责人评审后合并。**
+
+## TG-1210 群名允许重名 · S（来源 TG-1203；负责人按 Telegram 行为决定）
+- **Work** Telegram 群/频道名不唯一。前向迁移去掉 `chats_title_active_idx`（双库成对，按前缀递增）；`client join --room-name` 重名时报错并列出候选（id、成员数），不随便挑一个；更新 `tests/integration_test.rs` 中断言重名 409 的测试为新契约；检查所有按标题查找聊天的服务端路径。
+- **Allowed** `migrations/`、`migrations-postgres/`（新文件）、`src/chats/**`、`src/bin/client*`、`tests/**`。
+- **Acceptance** 双库 fresh/upgrade 迁移测试；重名创建成功；CLI 重名提示测试。
