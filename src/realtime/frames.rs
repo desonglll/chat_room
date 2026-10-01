@@ -303,6 +303,11 @@ pub enum ChatMessage {
     #[serde(rename = "message_views_updated")]
     MessageViewsUpdated { views: Vec<MessageViewCount> },
 
+    /// Server -> Client: the chat's pinned messages changed (a pin or an unpin); clients
+    /// re-read `GET /api/chats/:id/pins`. TG-901.
+    #[serde(rename = "pins_changed")]
+    PinsChanged { message_id: Uuid, pinned: bool },
+
     /// Server -> Client: poll results changed. M4.
     #[serde(rename = "poll_updated")]
     PollUpdated { message_id: Uuid, poll: PollState },

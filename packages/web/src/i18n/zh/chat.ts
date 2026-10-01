@@ -20,4 +20,7 @@ export const chat: Catalog = {
   'w.chat.f02e94': '取消选择',
   'w.chat.f0e0fb': '已选消息',
   'w.chat.f24ddc': '已选',
+  'w.chat.pinnedMessage': '置顶消息',
+  'w.chat.pinnedNth': '置顶消息 #{0}',
+  'w.chat.unpin': '取消置顶',
 }

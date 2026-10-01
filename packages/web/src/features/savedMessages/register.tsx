@@ -4,6 +4,7 @@
  * It writes a `favorites` row (the one source of truth); Saved Messages shows it.
  */
 import { registerMessageMenuItem } from '../message'
+import { BookmarkGlyph } from '../message/icons'
 import { favoritesApi } from './savedMessagesApi'
 import { t } from '../../i18n/index'
 import './savedMessages.css'
@@ -14,6 +15,7 @@ registerMessageMenuItem('save-to-favorites', (message) =>
     : {
         id: 'save-to-favorites',
         label: t('w.savedMessages.dd6833'),
+        icon: <BookmarkGlyph />,
         onSelect: () => void favoritesApi.saveMessages([message.message_id]).catch(() => undefined),
       },
 )

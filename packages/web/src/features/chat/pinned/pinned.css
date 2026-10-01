@@ -1,0 +1,92 @@
+/* TG-901: the pinned-message bar under the chat header (Telegram Web A). */
+.tg-pinned {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-1);
+  flex: none;
+  min-height: 3rem;
+  padding: 0 var(--tg-space-2) 0 var(--tg-space-3);
+  background: var(--tg-surface);
+  border-bottom: 1px solid var(--tg-divider);
+  animation: tg-pinned-in var(--tg-duration-panel) var(--tg-ease-decelerate) both;
+}
+
+.tg-pinned__body {
+  display: flex;
+  align-items: stretch;
+  gap: var(--tg-space-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--tg-space-1) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-pinned__body:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  border-radius: var(--tg-radius-sm);
+}
+
+.tg-pinned__track {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+  inline-size: 2px;
+}
+
+.tg-pinned__segment {
+  flex: 1;
+  border-radius: 1px;
+  background: var(--tg-accent);
+  opacity: 0.35;
+}
+
+.tg-pinned__segment[data-active] {
+  opacity: 1;
+}
+
+.tg-pinned__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-pinned__title {
+  color: var(--tg-accent);
+  font-size: var(--tg-type-subtitle-size);
+  font-weight: var(--tg-weight-medium);
+  line-height: var(--tg-type-subtitle-line);
+}
+
+.tg-pinned__preview {
+  overflow: hidden;
+  color: var(--tg-text-primary);
+  font-size: var(--tg-type-subtitle-size);
+  line-height: var(--tg-type-subtitle-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes tg-pinned-in {
+  from {
+    opacity: 0;
+    transform: translateY(-25%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-pinned {
+    animation-name: tg-pinned-fade;
+  }
+}
+
+@keyframes tg-pinned-fade {
+  from {
+    opacity: 0;
+  }
+}

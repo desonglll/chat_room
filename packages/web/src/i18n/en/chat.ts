@@ -20,4 +20,7 @@ export const chat: Catalog = {
   'w.chat.f02e94': 'Clear selection',
   'w.chat.f0e0fb': 'Selected messages',
   'w.chat.f24ddc': 'Selected',
+  'w.chat.pinnedMessage': 'Pinned message',
+  'w.chat.pinnedNth': 'Pinned message #{0}',
+  'w.chat.unpin': 'Unpin',
 }

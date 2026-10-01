@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Avatar, Checkbox, ContextMenu, type MenuItem } from '@tg/ui'
 import type { MessageRenderContext } from './types'
+import { QuickReactionStrip } from './QuickReactionStrip'
 import { t } from '../../i18n/index'
 
 /** A message younger than this when its row mounts arrived live and rises in (TG-108). */
@@ -31,6 +32,7 @@ export function MessageRow({
   avatar,
   menuItems,
   onSelect,
+  onReact,
   sentAt,
   children,
 }: {
@@ -40,6 +42,8 @@ export function MessageRow({
   avatar: RowAvatar
   menuItems: readonly MenuItem[]
   onSelect?: (() => void) | undefined
+  /** TG-901: when set, the context menu opens with a quick-reaction strip. */
+  onReact?: ((emoji: string) => void) | undefined
   /** The message's timestamp; omitted for a local upload, which is always fresh. */
   sentAt?: string | undefined
   children: ReactNode
@@ -83,6 +87,18 @@ export function MessageRow({
         disabled={selectionMode}
         aria-label={t('w.message.9f2251')}
         className="tg-message__menu-region"
+        header={
+          onReact === undefined
+            ? undefined
+            : (close) => (
+                <QuickReactionStrip
+                  onPick={(emoji) => {
+                    close()
+                    onReact(emoji)
+                  }}
+                />
+              )
+        }
       >
         <div className="tg-message__column">{children}</div>
       </ContextMenu>

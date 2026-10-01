@@ -59,6 +59,13 @@ export const PinGlyph = () => (
   </Glyph>
 )
 
+/** TG-901: «保存到收藏夹» — Telegram's Saved Messages bookmark. */
+export const BookmarkGlyph = () => (
+  <Glyph>
+    <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z" />
+  </Glyph>
+)
+
 export const SelectGlyph = () => (
   <Glyph>
     <circle cx="12" cy="12" r="8" />

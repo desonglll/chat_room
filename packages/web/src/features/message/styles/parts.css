@@ -192,6 +192,18 @@ button.tg-bubble__reply:hover::before {
   pointer-events: auto;
 }
 
+/* TG-901: while the right-click menu is open the bar would sit under it — hide it. */
+.tg-message:has([data-tg-context-open]) .tg-bubble__actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The context menu's quick reactions sit above its items, divided like a menu group. */
+.tg-message__menu-reactions {
+  border-bottom: 1px solid var(--tg-divider);
+  margin-bottom: var(--tg-space-1);
+}
+
 /* Touch-only devices use the long-press menu; a hover bar there would never go away. */
 @media (hover: none) {
   .tg-bubble__actions {

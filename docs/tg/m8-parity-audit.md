@@ -18,7 +18,7 @@
 
 | # | 问题 | 复现 | 截图 | 可能的文件 |
 | --- | --- | --- | --- | --- |
-| P1-1 | **消息没有右键菜单**。右键只出现悬浮工具条（表情/回复/⋮），完整菜单要再点 ⋮；Telegram 右键在指针处直接弹出「反应条 + 操作列表」。手机长按同理需核对。 | 群聊中右键任一气泡 | `d03-message-menu.png` | `features/chat/ChatMessage.tsx`、`features/message/messageMenu.tsx`、`features/messageList/MessageListOverlays.tsx` |
+| P1-1 | **（更正，见 TG-901 devlog：右键菜单其实存在，走查时点到了气泡外的空白处。真实缺口是菜单顶部缺快速反应条、「保存到收藏夹」缺图标、菜单打开时悬浮工具条仍显示——已由 TG-901 修复。）** ~~消息没有右键菜单~~。右键只出现悬浮工具条（表情/回复/⋮），完整菜单要再点 ⋮；Telegram 右键在指针处直接弹出「反应条 + 操作列表」。手机长按同理需核对。 | 群聊中右键任一气泡 | `d03-message-menu.png` | `features/chat/ChatMessage.tsx`、`features/message/messageMenu.tsx`、`features/messageList/MessageListOverlays.tsx` |
 | P1-2 | **没有置顶消息条**。服务端有置顶（`GET /api/chats/:id/pins` 返回该消息），菜单也有「置顶」，但聊天头部下方没有 Telegram 的置顶条（点击跳转、多条时循环、可取消置顶）。 | 置顶一条消息后打开该群 | `d02-group-chat.png` | 新建 `features/chat/pinned/*`；挂在 `ChatPane.tsx` 头部下方 |
 | P1-3 | **设置面板几何错误**。桌面端覆盖层宽 343 px 而侧栏列 360 px，右侧露出会话列表的蓝色选中条；列表行无左内边距，图标贴边 x=0。手机端宽约 370/390，右侧露出底层。 | 打开 设置（Ctrl+,） | `d12-settings.png`、`m05-settings.png` | `features/settings/shell/settings.css`、`SettingsHost` |
 | P1-4 | **手机端聊天的浮层越界与遮挡**。390 px 下右缘露出半个圆形按钮（回到底部按钮/悬浮工具条定位越界）；粘性日期「今天」压在首条可见气泡的文字上。 | 手机宽度打开群聊 | `m02-chat.png` | `features/messageList/messageList.css`、`MessageListOverlays.tsx` |

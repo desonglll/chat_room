@@ -36,6 +36,9 @@ import type { ChatRenderOptions } from './ChatMessage'
 import { createChatRenderer } from './ChatMessage'
 import { canDeleteAll } from './messageActions'
 import { pinMessage } from './pinMessage'
+import { PinnedBar } from './pinned/PinnedBar'
+import { pinnedStore, refreshPins, selectPins } from './pinned/pinnedStore'
+import { unpinMessage } from './pinned/pinnedApi'
 import { SelectionBar } from './SelectionBar'
 import { useChatSession } from './useChatSession'
 import { useMessageSelection } from './useMessageSelection'
@@ -94,6 +97,8 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
     (state) => selectionMode && canDeleteAll(selectTimeline(chatId)(state).messages, selected, currentUserId),
   )
 
+  const pins = useStore(pinnedStore, selectPins(chatId))
+  const pinnedIds = useMemo(() => new Set(pins.map((pin) => pin.messageId)), [pins])
   const deps = useMemo<ChatRenderOptions['deps']>(
     () => ({
       chatId,
@@ -106,7 +111,14 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
       requestDelete: (ids) => void requestDelete(chatId, ids),
       requestForward: (ids) => requestForward(chatId, ids),
       pin: (messageId) =>
-        void pinMessage(apiClient, selectToken(authStore.getState()), chatId, messageId).catch(() => {}),
+        void pinMessage(apiClient, selectToken(authStore.getState()), chatId, messageId)
+          .then(() => refreshPins(chatId))
+          .catch(() => {}),
+      pinnedIds,
+      unpin: (messageId) =>
+        void unpinMessage(apiClient, selectToken(authStore.getState()), chatId, messageId)
+          .then(() => refreshPins(chatId))
+          .catch(() => {}),
       copy: (text) => void copyText(text),
       quote: (messageId, content) => {
         // TG-409: the selection must be a slice of this message; a JS string index is the
@@ -123,7 +135,7 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
       openChatAt: (target, messageId) =>
         void navigate(`/chat/${encodeURIComponent(target)}?message=${encodeURIComponent(messageId)}`),
     }),
-    [chatId, currentUserId, canPin, sendFrame, toggleSelected, navigate],
+    [chatId, currentUserId, canPin, sendFrame, toggleSelected, navigate, pinnedIds],
   )
   const renderMessage = useMemo(
     () => createChatRenderer({ deps, peerReadAt, selectionMode, groupIdentity }),
@@ -141,6 +153,8 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
   return (
     <div className="tg-chat">
       {topic ? topic.header : <ChatHeader chatId={chatId} connection={connection} />}
+      {/* TG-901: the pinned-message bar (not inside a forum topic, which has its own header). */}
+      {topic ? null : <PinnedBar chatId={chatId} canUnpin={canPin} />}
       <MessageList
         key={topic ? `${chatId}:${topic.id}` : chatId}
         chatId={chatId}

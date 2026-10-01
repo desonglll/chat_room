@@ -77,6 +77,12 @@ export function buildMessageMenu(message: BroadcastMessage, actions: MessageActi
     icon: <PinGlyph />,
     onSelect: actions.onPin,
   })
+  add(live && actions.onUnpin !== undefined, {
+    id: 'unpin',
+    label: t('w.chat.unpin'),
+    icon: <PinGlyph />,
+    onSelect: actions.onUnpin,
+  })
   add(live && actions.onForward !== undefined, {
     id: 'forward',
     label: t('w.message.0d5a8a'),

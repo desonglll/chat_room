@@ -221,6 +221,8 @@ export type ServerFrame =
   | { type: 'member_updated'; member: ChatMembership }
   | { type: 'topic_updated'; topic: TopicSummary }
   | { type: 'message_views_updated'; views: MessageViewCount[] }
+  /** TG-901: a pin or unpin in this chat; re-read `GET /api/chats/:id/pins`. */
+  | { type: 'pins_changed'; message_id: string; pinned: boolean }
   | { type: 'poll_updated'; message_id: string; poll: PollState }
   /** TG-408: a message's link card arrived, or was hidden (`preview: null`). */
   | { type: 'link_preview_updated'; message_id: string; preview: LinkPreview | null }
