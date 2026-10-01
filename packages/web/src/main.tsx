@@ -54,7 +54,7 @@ import './features/album/register'
 settingsStore.getState().hydrate(browserStorage)
 bindTheme(settingsStore)
 // TG-510: interface language (no reload on switch; see app/LocaleRoot).
-bindLanguage(settingsStore)
+const language = bindLanguage(settingsStore)
 // TG-601: service worker (production builds), update prompt, install, push deep links.
 registerPwa(settingsStore, (url) => void appRouter.navigate(url))
 hydrateSession({ storage: browserStorage, store: authStore }, Date.now())
@@ -63,10 +63,14 @@ void revalidateSession({ client: apiClient, storage: browserStorage, store: auth
 const container = document.getElementById('root')
 if (!container) throw new Error('index.html is missing the #root mount point')
 
-createRoot(container).render(
-  <StrictMode>
-    <LocaleRoot>
-      <App />
-    </LocaleRoot>
-  </StrictMode>,
+// TG-806: the English catalog is its own chunk; render once the boot locale is loaded
+// (immediate for zh-CN).
+void language.ready.then(() =>
+  createRoot(container).render(
+    <StrictMode>
+      <LocaleRoot>
+        <App />
+      </LocaleRoot>
+    </StrictMode>,
+  ),
 )

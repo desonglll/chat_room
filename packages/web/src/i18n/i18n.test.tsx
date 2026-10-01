@@ -1,10 +1,12 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, beforeAll, describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { catalogKeys, setLocale, translate } from '@tg/core'
 import { SearchTabs } from '../features/search/SearchTabs'
 import { en } from './en/index'
 import { zh } from './zh/index'
-import './index'
+import { loadLocale } from './index'
+
+beforeAll(() => loadLocale('en'))
 
 afterEach(() => setLocale('zh-CN'))
 
