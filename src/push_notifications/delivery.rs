@@ -209,7 +209,7 @@ mod tests {
                     .count(),
                 1
             );
-            assert!(payloads.iter().all(|payload| payload.url == "/"));
+            assert!(payloads.iter().all(|payload| payload.url == "/contacts"));
         }
         let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM push_delivery_jobs")
             .fetch_one(state.pool())

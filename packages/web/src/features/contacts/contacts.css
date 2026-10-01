@@ -1,0 +1,73 @@
+/* TG-702: the contacts page in the main pane. */
+.tg-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+  inline-size: 100%;
+  max-inline-size: 42rem;
+  margin: 0 auto;
+  padding: var(--tg-space-4);
+  overflow-y: auto;
+  background: var(--tg-surface);
+}
+
+.tg-contacts__header h2 {
+  margin: 0 0 var(--tg-space-2);
+  font-size: var(--tg-type-header-size);
+}
+
+.tg-contacts__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-1);
+}
+
+.tg-contacts__tabs button {
+  padding: var(--tg-space-1-5) var(--tg-space-3);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-bg-secondary);
+  color: var(--tg-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-contacts__tabs button[aria-selected='true'] {
+  background: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+}
+
+.tg-contacts__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-contacts__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-3);
+  padding: var(--tg-space-2) 0;
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-contacts__name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-contacts__handle,
+.tg-contacts__empty {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-contacts__actions,
+.tg-contacts__search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-space-1);
+}

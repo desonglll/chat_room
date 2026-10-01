@@ -4,6 +4,7 @@
  * `domain/messageDeepLink`'s default). The server SPA-fallbacks every unmatched path to
  * `index.html`, so these history-mode URLs survive refresh.
  */
+import { lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import { authStore } from '@tg/core'
 import { useStore } from 'zustand/react'
@@ -27,6 +28,8 @@ function AnonymousOnly({ children }: { children: ReactNode }) {
   const authenticated = useStore(authStore, (state) => state.session !== null)
   return authenticated ? <Navigate to="/" replace /> : children
 }
+
+const ContactsPage = lazy(() => import('../features/contacts/ContactsPage'))
 
 export const appRouter = createBrowserRouter([
   {
@@ -52,6 +55,15 @@ export const appRouter = createBrowserRouter([
       { path: '/public/:username', element: <PublicChatRoute /> },
       { path: '/add/:username', element: <AddContactRoute /> },
       { path: '/saved', element: <SavedMessagesRoute /> },
+      // TG-702: friends, requests, blocklist.
+      {
+        path: '/contacts',
+        element: (
+          <Suspense fallback={null}>
+            <ContactsPage />
+          </Suspense>
+        ),
+      },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

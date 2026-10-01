@@ -8,7 +8,9 @@ pub(super) fn payload_for(notification: &NotificationView, show_details: bool) -
     // TG-601: the React client's routes. A chat notification opens the chat at the message
     // (`/chat/:id?message=` jumps there); anything without a chat opens the app.
     let url = match notification.kind {
-        NotificationKind::FriendRequest | NotificationKind::AiRunCompleted => "/".into(),
+        // TG-702: the contacts page holds the request.
+        NotificationKind::FriendRequest => "/contacts".into(),
+        NotificationKind::AiRunCompleted => "/".into(),
         _ => notification
             .room_id
             .map(|room_id| {
@@ -60,6 +62,6 @@ mod tests {
         assert_eq!(chat.url, format!("/chat/{room_id}"));
         assert!(chat.body.is_none(), "no details unless the device opted in");
         let friend = payload_for(&view(NotificationKind::FriendRequest, None, None), true);
-        assert_eq!(friend.url, "/");
+        assert_eq!(friend.url, "/contacts");
     }
 }
