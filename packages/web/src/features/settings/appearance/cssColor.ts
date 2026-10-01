@@ -10,6 +10,10 @@ export function toHexColor(value: string): string {
   const long = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(text)
   if (long) return `#${long[1]}`
   const rgb = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/.exec(text)
-  if (rgb) return `#${rgb.slice(1, 4).map((part) => Math.min(255, Number(part)).toString(16).padStart(2, '0')).join('')}`
+  if (rgb)
+    return `#${rgb
+      .slice(1, 4)
+      .map((part) => Math.min(255, Number(part)).toString(16).padStart(2, '0'))
+      .join('')}`
   return ''
 }

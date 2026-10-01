@@ -114,7 +114,28 @@ const composer = (page) => page.locator('.tg-compose__input')
 async function send(page, chatId, text) {
   await page.goto(`${BASE}/chat/${chatId}`)
   await composer(page).fill(text)
-  await page.keyboard.press('Enter')
+  // Enter right after opening a chat is ignored while its socket connects (the text stays in the
+  // composer, no feedback — reported to the lead). Retry only while the text is still there.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await composer(page).press('Enter')
+    const sent = await page
+      .locator('.tg-message', { hasText: text })
+      .first()
+      .waitFor({ timeout: 2500 })
+      .then(
+        () => true,
+        () => false,
+      )
+    if (sent) return
+    if (
+      !(
+        await composer(page)
+          .inputValue()
+          .catch(() => '')
+      ).includes(text)
+    )
+      break
+  }
   await page.locator('.tg-message', { hasText: text }).first().waitFor({ timeout: 6000 })
 }
 
@@ -254,12 +275,30 @@ await step(a, 'privacy-last-seen-nobody', async () => {
   await a.getByRole('radio', { name: '没有人' }).check()
   await a.waitForTimeout(800)
 })
-await step(b, 'privacy-observed-by-bob', async () => {
-  await b.goto(`${BASE}/contacts`)
-  const row = b.locator('.tg-contacts__row', { hasText: `@${alice.username}` })
+// Obscured tiers only (TG-505): a brand-new account with no activity before today reads
+// «很久以前» by design — the tier never reacts to today, so it cannot leak an online moment.
+const contactStatus = async (page, account) => {
+  await page.goto(`${BASE}/contacts`)
+  const row = page.locator('.tg-contacts__item', { hasText: account.username })
   await row.waitFor()
-  const text = await row.innerText()
-  if (/在线|online/.test(text) && !/最近|recently/.test(text)) throw new Error(`bob still sees "${text}"`)
+  await page.waitForTimeout(1500)
+  return row.innerText()
+}
+await step(b, 'privacy-observed-by-bob', async () => {
+  const text = await contactStatus(b, alice)
+  if (!/最近上线|一周内|一个月内|很久以前/.test(text) || /在线|\d{1,2}:\d{2}/.test(text))
+    throw new Error(`bob sees "${text.replace(/\n/g, ' | ')}" instead of an obscured tier`)
+})
+await step(a, 'privacy-exception-always-share-bob', async () => {
+  await a.locator('.tg-privacy').getByText('添加用户').first().click()
+  await a.locator('.tg-privacy__picker input').fill(bob.username)
+  await a.locator('.tg-privacy__user--pick', { hasText: bob.username }).click()
+  await a.locator('.tg-privacy', { hasText: bob.username }).waitFor({ timeout: 5000 })
+  await a.waitForTimeout(800)
+})
+await step(b, 'privacy-exception-observed-by-bob', async () => {
+  const text = await contactStatus(b, alice)
+  if (!/在线/.test(text)) throw new Error(`bob sees "${text.replace(/\n/g, ' | ')}" despite the exception`)
 })
 
 // ---- avatars and QR card
@@ -305,26 +344,35 @@ await step(a, 'storage-persists', async () => {
 })
 
 // ---- account switch in one tab: nothing of alice's stays
+// Sign out and in again WITHOUT a page load — a reload would reset every in-memory store and
+// hide exactly the leak this step guards (verified: with goto() it passed on the unfixed build).
+async function switchAccount(page, account) {
+  await menu(page).click()
+  await page.getByRole('menuitem', { name: '退出登录' }).click()
+  await page.locator('input[name="username"]').fill(account.username)
+  await page.locator('input[name="password"]').fill(account.password)
+  await page.getByRole('button', { name: /^(登录|Log in|Sign in)$/ }).click()
+  await menu(page).waitFor()
+  await page.waitForTimeout(1200)
+}
 await step(a, 'account-switch-isolation', async () => {
   await a.goto(`${BASE}/`)
-  await menu(a).click()
-  await a.getByRole('menuitem', { name: '退出登录' }).click()
-  await a.locator('input[name="username"]').waitFor()
-  await login(a, bob)
-  await a.waitForTimeout(1000)
-  if (await a.getByRole('tab', { name: /^Work/ }).count()) throw new Error("alice's folder tab shows for bob")
-  const box = a.getByRole('searchbox').or(a.getByPlaceholder(/搜索/)).first()
-  await box.click()
-  await a.waitForTimeout(500)
-  if (await a.getByText('hello', { exact: true }).count()) throw new Error("alice's recent search shows for bob")
-  await a.goto(`${BASE}/chat/${dmId}`)
+  await menu(a).waitFor()
+  await switchAccount(a, bob)
+  const leaks = []
+  if (await a.getByRole('tab', { name: /^Work/ }).count()) leaks.push('folder tab')
+  await a.getByPlaceholder(/搜索/).first().fill('h')
+  await a.waitForTimeout(600)
+  if (await a.locator('.tg-search__chip', { hasText: 'hello' }).count()) leaks.push('recent search')
+  await a.getByPlaceholder(/搜索/).first().fill('')
+  await a.keyboard.press('Escape')
+  await chatRow(a, alice.username).click()
   await composer(a).waitFor()
-  await a.waitForTimeout(800)
-  if (await a.locator('.tg-wallpaper[data-tg-wallpaper="sunset"]').count())
-    throw new Error("alice's wallpaper shows for bob")
-  await menu(a).click()
-  await a.getByRole('menuitem', { name: '退出登录' }).click()
-  await login(a, alice)
+  await a.waitForTimeout(1000)
+  if (await a.locator('.tg-wallpaper[data-tg-wallpaper="sunset"]').count()) leaks.push('wallpaper')
+  await a.screenshot({ path: `${SHOTS}/${String(n).padStart(2, '0')}-as-bob.png` })
+  await switchAccount(a, alice)
+  if (leaks.length) throw new Error(`alice's ${leaks.join(', ')} shown to bob in the same tab`)
 })
 
 // ---- English UI: no Chinese left in chrome (user content is ASCII in this run)
