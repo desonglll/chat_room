@@ -200,10 +200,48 @@ async fn private_chats_honour_the_voice_messages_privacy_rule(server: &TestServe
     assert_eq!(status, StatusCode::CREATED);
 }
 
+/// TG-1301: over plain http there is no microphone, so the web client sends a system
+/// recorder's file — converted to 16 kHz mono PCM WAV when it is in no recorder container.
+async fn a_wav_from_a_system_recorder_is_a_voice_message(server: &TestServer) {
+    let owner = server.account("vm-wav").await;
+    let group = server.create_group(&owner, "vm-wav-group").await;
+    // RIFF/WAVE, PCM 16 kHz mono 16-bit (32 000 B/s), 1.5 s of silence.
+    let mut fmt = vec![1, 0, 1, 0];
+    fmt.extend_from_slice(&16_000u32.to_le_bytes());
+    fmt.extend_from_slice(&32_000u32.to_le_bytes());
+    fmt.extend_from_slice(&[2, 0, 16, 0]);
+    let mut body = b"WAVEfmt ".to_vec();
+    body.extend_from_slice(&16u32.to_le_bytes());
+    body.extend(fmt);
+    body.extend_from_slice(b"data");
+    body.extend_from_slice(&48_000u32.to_le_bytes());
+    body.extend(vec![0u8; 48_000]);
+    let mut bytes = b"RIFF".to_vec();
+    bytes.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    bytes.extend(body);
+
+    let form = VoiceForm {
+        bytes,
+        mime: "audio/wav",
+        waveform: waveform_field(&waveform()),
+        duration_ms: Some(9_999),
+    };
+    let (status, body) = send_voice(server, group, &owner, form).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert_eq!(body["media_kind"], "voice");
+    assert_eq!(
+        body["voice"]["duration_ms"], 1_500,
+        "the WAV header's duration wins"
+    );
+    assert_eq!(body["attachment"]["mime_type"], "audio/wav");
+    assert_eq!(body["attachment"]["file_name"], "voice.wav");
+}
+
 async fn run_all(server: &TestServer) {
     a_voice_message_carries_its_waveform_and_container_duration(server).await;
     malformed_voice_messages_are_refused(server).await;
     private_chats_honour_the_voice_messages_privacy_rule(server).await;
+    a_wav_from_a_system_recorder_is_a_voice_message(server).await;
 }
 
 #[tokio::test]

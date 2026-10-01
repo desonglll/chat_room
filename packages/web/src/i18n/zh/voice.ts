@@ -20,4 +20,8 @@ export const voice: Catalog = {
   'w.voice.d821bd': '未收听',
   'w.voice.ed7ef4': '播放语音',
   'w.voice.fbd8f0': '播放速度 {0}x，点击切换',
+  'w.voice.eec4bc': '需要通过 HTTPS 打开本站才能录制语音：当前地址不安全，浏览器已禁用麦克风',
+  'w.voice.c72649': '没有找到麦克风',
+  'w.voice.a056b7': '无法识别该录音格式',
+  'w.voice.4a05b0': '通过 HTTP 访问时将使用系统录音机',
 }

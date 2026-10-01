@@ -6,9 +6,13 @@
  * The web component reads its palette only from a `.light`/`.dark` class on itself, so
  * a MutationObserver mirrors TG-009's `data-tg-theme` onto it; the colours themselves
  * are routed through `--tg-*` tokens in composer.css.
+ *
+ * TG-1301: over plain http on a LAN address the picker's data checksum needs `crypto.subtle`,
+ * which the browser withholds outside a secure context; `ensureSubtleDigest` fills that gap.
  */
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../../i18n/index'
+import { ensureSubtleDigest } from './sha1Shim'
 
 export interface EmojiPanelProps {
   onPick(emoji: string): void
@@ -40,6 +44,7 @@ export function EmojiPanel({ onPick }: EmojiPanelProps) {
       if (emoji) pickRef.current(emoji)
     }
 
+    ensureSubtleDigest()
     Promise.all([import('emoji-picker-element'), import('emoji-picker-element/i18n/zh_CN')])
       .then(([module, zh]) => {
         if (cancelled || !hostRef.current) return

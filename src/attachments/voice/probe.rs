@@ -13,6 +13,11 @@
 //!   by `tfhd`/`trex`), at the track's `mdhd` timescale;
 //!   a plain file uses `mvhd`, else the track's `mdhd`.
 //!
+//! - **WAV** (TG-1301): the `data` chunk's size over the `fmt ` chunk's byte rate. The web
+//!   client converts a system recorder's file to 16 kHz mono PCM WAV when it is in none of the
+//!   three recorder containers (an MP3 from an Android recorder, say), which is how voice works
+//!   over plain http, where the browser grants no microphone.
+//!
 //! The sniffed container also decides the stored MIME type, so a client can never label an
 //! arbitrary file as audio.
 
@@ -22,6 +27,7 @@ pub enum Container {
     Ogg,
     WebM,
     Mp4,
+    Wav,
 }
 
 impl Container {
@@ -30,6 +36,7 @@ impl Container {
             Container::Ogg => "audio/ogg",
             Container::WebM => "audio/webm",
             Container::Mp4 => "audio/mp4",
+            Container::Wav => "audio/wav",
         }
     }
 
@@ -38,6 +45,7 @@ impl Container {
             Container::Ogg => "ogg",
             Container::WebM => "webm",
             Container::Mp4 => "m4a",
+            Container::Wav => "wav",
         }
     }
 }
@@ -55,6 +63,7 @@ pub fn probe(bytes: &[u8]) -> Option<Probe> {
         Container::Ogg => ogg_duration_ms(bytes),
         Container::WebM => webm_duration_ms(bytes),
         Container::Mp4 => mp4_duration_ms(bytes),
+        Container::Wav => wav::wav_duration_ms(bytes),
     }
     .filter(|ms| *ms > 0);
     Some(Probe {
@@ -68,7 +77,7 @@ pub fn probe(bytes: &[u8]) -> Option<Probe> {
 /// Ogg never carries the recorder's video.
 pub fn has_video_track(bytes: &[u8], container: Container) -> bool {
     match container {
-        Container::Ogg => false,
+        Container::Ogg | Container::Wav => false,
         // `Tracks` precede the first `Cluster`: look for a `CodecID` (0x86) element there.
         Container::WebM => {
             let head = &bytes[..bytes.len().min(64 * 1024)];
@@ -90,6 +99,8 @@ pub fn sniff(bytes: &[u8]) -> Option<Container> {
         Some(Container::WebM)
     } else if bytes.get(4..8) == Some(b"ftyp") {
         Some(Container::Mp4)
+    } else if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WAVE") {
+        Some(Container::Wav)
     } else {
         None
     }
@@ -232,6 +243,9 @@ fn webm_duration_ms(bytes: &[u8]) -> Option<u32> {
 
 #[path = "probe_mp4.rs"]
 mod mp4;
+
+#[path = "probe_wav.rs"]
+mod wav;
 use mp4::mp4_duration_ms;
 
 #[cfg(test)]

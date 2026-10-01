@@ -25,4 +25,8 @@ export const location: Catalog = {
   'w.location.db9cc6': 'Location permission was not granted',
   'w.location.e3a482': 'Stop sharing',
   'w.location.f213c0': 'Open in map',
+  'w.location.a14d34': 'Location needs this site opened over HTTPS: the browser blocks location on an insecure address',
+  'w.location.175289': 'Drag the map until the pin is on the place to send',
+  'w.location.704cff': 'Send this place',
+  'w.location.466085': 'Live location needs the device position, which is not available now',
 }

@@ -4,7 +4,8 @@
  * `MediaRecorder.isTypeSupported`, injected so the fallback branch is testable anywhere.
  */
 
-export type VoiceContainer = 'webm' | 'ogg' | 'mp4'
+/** `wav` is never recorded: TG-1301 converts a system recorder's file to it over plain http. */
+export type VoiceContainer = 'webm' | 'ogg' | 'mp4' | 'wav'
 
 export interface RecorderFormat {
   /** What `new MediaRecorder(stream, { mimeType })` is asked for. */

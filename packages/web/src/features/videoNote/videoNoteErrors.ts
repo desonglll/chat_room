@@ -5,8 +5,10 @@ import { t } from '../../i18n/index'
 
 export function videoNoteErrorText(error: unknown): string {
   if (error instanceof RecorderError) {
+    if (error.reason === 'insecure') return t('w.videoNote.7660f2')
     if (error.reason === 'unsupported') return t('w.videoNote.a27161')
     if (error.reason === 'permission') return t('w.videoNote.3c2113')
+    if (error.reason === 'nodevice') return t('w.videoNote.554443')
     return t('w.videoNote.cf010b')
   }
   if (error instanceof ApiError) {

@@ -100,7 +100,9 @@ pub async fn send_video_note(
     let (mime_type, extension) = match probed.container {
         probe::Container::WebM => ("video/webm", "webm"),
         probe::Container::Mp4 => ("video/mp4", "mp4"),
-        probe::Container::Ogg => return Err(VideoNoteError::UnsupportedMedia),
+        probe::Container::Ogg | probe::Container::Wav => {
+            return Err(VideoNoteError::UnsupportedMedia)
+        }
     };
     let (duration_ms, duration_source) = match (probed.duration_ms, upload.client_duration_ms) {
         (Some(ms), _) => (ms, DurationSource::Container),

@@ -19,6 +19,7 @@ import {
   type GestureOutcome,
   type GestureState,
 } from './recordGesture'
+import { MediaFileError } from './voiceFile'
 import { RecorderError, type VoiceRecording } from './voiceRecorder'
 import { t } from '../../i18n/index'
 
@@ -69,6 +70,8 @@ export interface RecordControllerDeps<T = VoiceRecording> {
   maxMs?: number
   /** Error copy; voice's `recordErrorText` by default. */
   errorText?(error: unknown): string
+  /** TG-1301: a recording from a file the system recorder/camera made (no live microphone). */
+  fromFile?(file: Blob): Promise<T>
 }
 
 export interface RecordController {
@@ -80,15 +83,20 @@ export interface RecordController {
   release(): void
   /** Hands-free mode's «发送». */
   send(): void
+  /** TG-1301: convert and upload a system recorder's file (`deps.fromFile`), like a recording. */
+  sendFile(file: Blob): void
   cancel(): void
   dismissError(): void
   dispose(): void
 }
 
 export function recordErrorText(error: unknown): string {
+  if (error instanceof MediaFileError) return error.reason === 'toolarge' ? t('w.voice.1544d5') : t('w.voice.a056b7')
   if (error instanceof RecorderError) {
+    if (error.reason === 'insecure') return t('w.voice.eec4bc')
     if (error.reason === 'unsupported') return t('w.voice.7fb030')
     if (error.reason === 'permission') return t('w.voice.10639e')
+    if (error.reason === 'nodevice') return t('w.voice.c72649')
     return t('w.voice.003f6b')
   }
   if (error instanceof ApiError) {
@@ -145,10 +153,13 @@ export function createRecordController<T = VoiceRecording>(deps: RecordControlle
     }
     teardown()
     set({ phase: 'sending', gesture: IDLE_GESTURE })
+    upload(active.stop())
+  }
+
+  const upload = (recording: Promise<T>) => {
     deps.actions.sendChatAction(deps.chatId, chatActions.uploading)
-    active
-      .stop()
-      .then((recording) => deps.upload(recording))
+    recording
+      .then((ready) => deps.upload(ready))
       .then(() => {
         deps.actions.sendChatAction(deps.chatId, 'cancel')
         deps.onSent?.()
@@ -210,6 +221,11 @@ export function createRecordController<T = VoiceRecording>(deps: RecordControlle
       apply(outcome)
     },
     send: finish,
+    sendFile(file) {
+      if (state.phase !== 'idle' || !deps.fromFile) return
+      set({ ...IDLE_RECORD_STATE, phase: 'sending' })
+      upload(deps.fromFile(file))
+    },
     cancel,
     dismissError: () => set({ error: null }),
     dispose() {

@@ -241,6 +241,12 @@
   color: var(--tg-text-danger);
 }
 
+/* TG-1301: the same bubble for an informational line (why the system recorder opened, «sent as
+   a regular video»). */
+.tg-voice-error[data-tone='info'] {
+  color: var(--tg-text-secondary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tg-voice-rec__dot {
     animation: none;

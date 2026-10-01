@@ -9,7 +9,7 @@
  */
 import type { RecorderSession } from '../voice/recordController'
 import { containerOf, type VoiceContainer } from '../voice/recorderFormat'
-import { RecorderError, type MediaRecorderLike, type MediaStreamLike } from '../voice/voiceRecorder'
+import { mediaFailure, RecorderError, type MediaRecorderLike, type MediaStreamLike } from '../voice/voiceRecorder'
 
 /** Side of the recorded square, in pixels (Telegram records 384×384 on mobile). */
 export const VIDEO_NOTE_SIDE = 384
@@ -126,8 +126,7 @@ export function createVideoNoteRecorder(env: VideoRecorderEnv): VideoNoteRecorde
       try {
         opened = await env.openCamera()
       } catch (error) {
-        const name = (error as { name?: string } | null)?.name
-        throw new RecorderError(name === 'NotAllowedError' || name === 'SecurityError' ? 'permission' : 'device')
+        throw new RecorderError(mediaFailure(error))
       }
       camera = opened
       if (cancelled) {

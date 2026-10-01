@@ -106,6 +106,7 @@ function controller(): RecordController {
     send: noop,
     cancel: noop,
     dismissError: noop,
+    sendFile: noop,
     dispose: noop,
   }
 }
