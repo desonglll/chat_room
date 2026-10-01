@@ -42,4 +42,6 @@ export const channel: Catalog = {
   'w.channel.fc6c92': '退订',
   'w.channel.fdaf57': '{0} 次浏览',
   'w.channel.ffc785': '回复',
+  // TG-1203
+  'w.channel.restricted': '管理员已限制你在此群组发送消息。',
 }

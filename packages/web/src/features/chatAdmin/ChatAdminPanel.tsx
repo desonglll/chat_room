@@ -6,11 +6,12 @@
  * Navigation is a small in-panel stack; the host decides where the panel lives
  * (`ChatAdminEntry` slides it in as a right sheet over the info panel).
  */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { ChatAdminApi, ChatMemberEntry } from '@tg/core'
 import { Button, IconButton, ScrollArea, Spinner } from '@tg/ui'
 import { ForumToggle } from '../forum/ForumToggle'
 import { AdminEditor } from './AdminEditor'
+import { BanMemberButton, BannedMembersPage } from './BannedMembers'
 import { adminCapabilities, CHAT_TYPE_LABEL, chatTypeNote, memberName } from './chatAdminModel'
 import { DefaultPermissionsPage } from './DefaultPermissionsPage'
 import { PublicLinkEditor } from '../chatPreview/PublicLinkEditor'
@@ -22,6 +23,7 @@ import { RestrictionEditor } from './RestrictionEditor'
 import type { ChatAdminState } from './useChatAdmin'
 import { InviteLinksEntry } from '../inviteLinks/InviteLinksEntry'
 import { DiscussionLinkEditor } from '../channel/comments/DiscussionLinkEditor'
+import { ChannelSignaturesToggle } from '../channel/ChannelSignaturesToggle'
 import { useChatAdmin } from './useChatAdmin'
 import { t } from '../../i18n/index'
 import './chatAdmin.css'
@@ -31,6 +33,7 @@ type Page =
   | { id: 'defaults' }
   | { id: 'admins' }
   | { id: 'restricted' }
+  | { id: 'banned' }
   | { id: 'members' }
   | { id: 'member'; entry: ChatMemberEntry }
   | { id: 'admin'; entry: ChatMemberEntry }
@@ -48,6 +51,9 @@ const PAGE_TITLE: Record<Page['id'], string> = {
   },
   get restricted() {
     return t('w.chatAdmin.15d54e')
+  },
+  get banned() {
+    return t('w.chatAdmin.bannedTitle')
   },
   get members() {
     return t('w.chatAdmin.c1ee9f')
@@ -105,8 +111,26 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
   const page = stack[stack.length - 1] ?? { id: 'home' }
   const open = (next: Page) => setStack((current) => [...current, next])
   const back = () => setStack((current) => (current.length > 1 ? current.slice(0, -1) : current))
-  const view = admin.view
+  // TG-1203: slow mode, a public link or topics upgrade a group to a supergroup while this panel
+  // is open. The `chat_updated` frame updates the chat list at once; the permissions view (read
+  // when the panel opened) is re-read, and the live type is shown meanwhile.
+  const liveType = useStore(chatListStore, (state) => state.chats.find((chat) => chat.id === chatId)?.chat_type)
+  const loadedType = admin.view?.chat_type
+  const { reload } = admin
+  useEffect(() => {
+    if (liveType && loadedType && liveType !== loadedType) void reload()
+  }, [liveType, loadedType, reload])
+  const view = admin.view && liveType ? { ...admin.view, chat_type: liveType } : admin.view
   const can = adminCapabilities(view)
+  // TG-1203: a channel has subscribers, no member rules and no per-member restrictions.
+  const isChannel = view?.chat_type === 'channel'
+  const peopleLabel = isChannel ? t('w.chatAdmin.subscribers') : t('w.chatAdmin.c1ee9f')
+  const heading =
+    page.id === 'home' && isChannel
+      ? t('w.chatAdmin.manageChannel')
+      : page.id === 'members' && isChannel
+        ? peopleLabel
+        : PAGE_TITLE[page.id]
 
   const afterWrite = (ok: boolean) => {
     if (ok) back()
@@ -138,33 +162,34 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
         <section className="tg-chatadmin__type" aria-label={t('w.chatAdmin.b98234')}>
           <span className="tg-chatadmin__type-label">{CHAT_TYPE_LABEL[view.chat_type]}</span>
           <span className="tg-chatadmin__type-count">
-            {view.member_count} {t('w.chatAdmin.b8d0b7')}
+            {view.member_count} {isChannel ? t('w.chatAdmin.subscriberUnit') : t('w.chatAdmin.b8d0b7')}
           </span>
           {chatTypeNote(view.chat_type) ? <p className="tg-chatadmin__note">{chatTypeNote(view.chat_type)}</p> : null}
         </section>
         <ul className="tg-chatadmin__navlist">
-          <NavRow
-            label={t('w.chatAdmin.24a78e')}
-            value={`${view.default_permissions.length}/9`}
-            onOpen={() => open({ id: 'defaults' })}
-          />
+          {isChannel ? null : (
+            <NavRow
+              label={t('w.chatAdmin.24a78e')}
+              value={`${view.default_permissions.length}/9`}
+              onOpen={() => open({ id: 'defaults' })}
+            />
+          )}
           <NavRow
             label={t('w.chatAdmin.ef84e7')}
             value={String(admin.admins.length)}
             onOpen={() => open({ id: 'admins' })}
           />
-          {can.ban ? (
+          {can.ban && !isChannel ? (
             <NavRow
               label={t('w.chatAdmin.15d54e')}
               value={String(admin.restricted.length)}
               onOpen={() => open({ id: 'restricted' })}
             />
           ) : null}
-          <NavRow
-            label={t('w.chatAdmin.c1ee9f')}
-            value={String(view.member_count)}
-            onOpen={() => open({ id: 'members' })}
-          />
+          {can.ban ? (
+            <NavRow label={t('w.chatAdmin.bannedTitle')} value="" onOpen={() => open({ id: 'banned' })} />
+          ) : null}
+          <NavRow label={peopleLabel} value={String(view.member_count)} onOpen={() => open({ id: 'members' })} />
         </ul>
         <ForumToggle chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
         <PublicLinkEditor
@@ -173,6 +198,8 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
           current={publicUsername}
           myPermissions={view.my_permissions}
         />
+        {/* TG-1203: the signature switch existed only in the creation dialog. */}
+        <ChannelSignaturesToggle chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
         {/* TG-203: a channel's discussion group (comments). */}
         <DiscussionLinkEditor chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
         {/* TG-205: `overlay` — a second sheet inside this one fights it for focus. */}
@@ -201,6 +228,8 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
     body = list(admin.admins, t('w.chatAdmin.948163'))
   } else if (page.id === 'restricted') {
     body = list(admin.restricted, t('w.chatAdmin.d13ab5'))
+  } else if (page.id === 'banned') {
+    body = <BannedMembersPage chatId={chatId} />
   } else if (page.id === 'members') {
     body = (
       <>
@@ -231,6 +260,16 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
             <Button variant="tonal" onClick={() => open({ id: 'restrict', entry })}>
               {t('w.chatAdmin.c7439b')}
             </Button>
+          ) : null}
+          {can.ban ? (
+            <BanMemberButton
+              chatId={chatId}
+              userId={entry.user_id}
+              onBanned={() => {
+                void admin.reload()
+                setStack([{ id: 'home' }, { id: 'members' }])
+              }}
+            />
           ) : null}
         </div>
       </div>
@@ -271,14 +310,14 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
   }
 
   return (
-    <section className="tg-chatadmin" aria-label={t('w.chatAdmin.924751')}>
+    <section className="tg-chatadmin" aria-label={isChannel ? t('w.chatAdmin.manageChannel') : t('w.chatAdmin.924751')}>
       <header className="tg-chatadmin__bar">
         {stack.length > 1 ? (
           <IconButton label={t('w.chatAdmin.11d024')} variant="plain" onClick={back}>
             <BackIcon />
           </IconButton>
         ) : null}
-        <h2 className="tg-chatadmin__heading">{PAGE_TITLE[page.id]}</h2>
+        <h2 className="tg-chatadmin__heading">{heading}</h2>
         <Button variant="text" size="sm" onClick={onClose}>
           {t('w.chatAdmin.6c14bd')}
         </Button>

@@ -1,6 +1,10 @@
 /**
  * What a channel shows in place of the composer for anyone who may not post (Telegram's
  * bottom bar): «订阅» for a visitor, «静音 / 取消静音» plus «退订» for a subscriber.
+ *
+ * TG-1203: the chat pane shows this whenever `useChannelPublisher` says the viewer may not
+ * write, which now includes a group member restricted from sending; they get Telegram's
+ * «管理员已限制你在此群组发送消息» bar instead of a composer the server ignores.
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -53,6 +57,14 @@ export function ChannelFooterView(props: ChannelFooterViewProps) {
   )
 }
 
+export function RestrictedFooter() {
+  return (
+    <div className="tg-channel-footer" role="status">
+      <p className="tg-channel-footer__note">{t('w.channel.restricted')}</p>
+    </div>
+  )
+}
+
 export function ChannelFooter({ chatId }: { chatId: string }) {
   const token = useStore(authStore, selectToken)
   const chat = useStore(chatListStore, selectChatById(chatId))
@@ -70,6 +82,7 @@ export function ChannelFooter({ chatId }: { chatId: string }) {
       .finally(() => setBusy(false))
   }
 
+  if (chat && chat.chat_type !== 'channel') return <RestrictedFooter />
   return (
     <ChannelFooterView
       subscribed={chat?.membership_status === 'active'}

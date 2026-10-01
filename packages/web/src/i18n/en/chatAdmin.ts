@@ -61,4 +61,15 @@ export const chatAdmin: Catalog = {
   'w.chatAdmin.fadf24': 'Save',
   'w.chatAdmin.ff3beb': 'Owner',
   'w.chatAdmin.ffa17c': 'Lift restrictions',
+  // TG-1203: bans
+  'w.chatAdmin.banMember': 'Ban and remove from group',
+  'w.chatAdmin.banWarning': 'They will be removed and cannot rejoin by link or public username until unbanned.',
+  'w.chatAdmin.banConfirm': 'Ban',
+  'w.chatAdmin.banCancel': 'Cancel',
+  'w.chatAdmin.bannedTitle': 'Removed users',
+  'w.chatAdmin.noBanned': 'No removed users.',
+  'w.chatAdmin.unban': 'Unban',
+  'w.chatAdmin.manageChannel': 'Manage channel',
+  'w.chatAdmin.subscribers': 'Subscribers',
+  'w.chatAdmin.subscriberUnit': 'subscribers',
 }

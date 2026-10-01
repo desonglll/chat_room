@@ -25,9 +25,11 @@ pub async fn update_member(
 ) -> Result<Json<ChatMembership>, StatusCode> {
     reject_private_chat(&state, room_id).await?;
     let actor = session_user(&state, &headers).await?;
+    // TG-1203: banning is the «封禁与限制成员» right (Telegram's "Ban users"), not removal.
     let permission = match request.action.as_str() {
         "approve" | "reject" => "members.review",
-        "remove" | "ban" | "unban" => "members.remove",
+        "remove" => "members.remove",
+        "ban" | "unban" => "members.ban",
         "set_role" => "members.roles",
         _ => return Err(StatusCode::BAD_REQUEST),
     };
@@ -39,9 +41,13 @@ pub async fn update_member(
     }
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::NOT_FOUND)?;
-    if previous.role == "owner"
-        || (matches!(request.action.as_str(), "remove" | "ban") && actor.id == target_id)
-    {
+    let removing = matches!(request.action.as_str(), "remove" | "ban");
+    if previous.role == "owner" || (removing && actor.id == target_id) {
+        return Err(StatusCode::CONFLICT);
+    }
+    // TG-1203: only the owner removes or bans an administrator — another administrator holding
+    // the removal right must not be able to throw out a peer (restrictions already refuse it).
+    if removing && previous.role == "admin" && !actor_is_owner(&state, room_id, actor.id).await? {
         return Err(StatusCode::CONFLICT);
     }
 
@@ -67,6 +73,18 @@ pub async fn update_member(
         disconnect_removed(&state, room_id, target_id, &updated, &request.action).await?;
     }
     Ok(Json(updated))
+}
+
+async fn actor_is_owner(
+    state: &SharedState,
+    room_id: Uuid,
+    actor_id: Uuid,
+) -> Result<bool, StatusCode> {
+    let identity = state
+        .membership_identity(room_id, actor_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(matches!(identity, Some((status, role)) if status == "active" && role == "owner"))
 }
 
 fn event_type(action: &str) -> Result<&'static str, StatusCode> {

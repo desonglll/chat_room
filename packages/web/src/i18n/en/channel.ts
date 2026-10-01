@@ -42,4 +42,6 @@ export const channel: Catalog = {
   'w.channel.fc6c92': 'Unsubscribe',
   'w.channel.fdaf57': { one: '{0} view', other: '{0} views' },
   'w.channel.ffc785': 'Reply',
+  // TG-1203
+  'w.channel.restricted': 'The admins of this group have restricted you from sending messages.',
 }
