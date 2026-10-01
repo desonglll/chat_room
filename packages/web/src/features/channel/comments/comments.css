@@ -1,0 +1,119 @@
+/* TG-203: the comments entry under a channel post, the thread sheet and the link editor. */
+.tg-comments-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-space-1-5);
+  margin-block-start: var(--tg-space-1);
+  padding: var(--tg-space-1) var(--tg-space-3);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-surface);
+  color: var(--tg-text-link);
+  font: inherit;
+  font-size: var(--tg-type-subtitle-size);
+  cursor: pointer;
+  box-shadow: var(--tg-shadow-section);
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-comments-entry:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-comments-entry:focus-visible,
+.tg-comments__reply:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-comments__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-comments__item {
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-bg-secondary);
+}
+
+.tg-comments__sender {
+  color: var(--tg-text-link);
+  font-weight: 500;
+}
+
+.tg-comments__answers {
+  margin-inline-start: var(--tg-space-2);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-comments__text {
+  margin: var(--tg-space-1) 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tg-comments__reply {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tg-text-link);
+  font: inherit;
+  font-size: var(--tg-type-meta-size);
+  cursor: pointer;
+}
+
+.tg-comments__empty,
+.tg-comments__replying,
+.tg-discussion-link__note {
+  margin: 0;
+  color: var(--tg-text-secondary);
+}
+
+.tg-comments__composer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-2);
+  align-items: flex-end;
+}
+
+.tg-comments__composer > :first-child:not(.tg-comments__replying),
+.tg-comments__composer .tg-textfield {
+  flex: 1;
+}
+
+.tg-comments__replying {
+  flex-basis: 100%;
+  display: flex;
+  gap: var(--tg-space-2);
+}
+
+.tg-discussion-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-4);
+}
+
+.tg-discussion-link__title {
+  margin: 0;
+  font-size: var(--tg-type-label-size);
+  color: var(--tg-text-secondary);
+}
+
+.tg-discussion-link__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+}

@@ -60,10 +60,13 @@ impl AppState {
             query.build_query_as().fetch_all(pool).await
         })?;
         let mut by_id: HashMap<Uuid, PostRow> = rows.into_iter().map(|row| (row.id, row)).collect();
+        // TG-203: and the comment count of every post that has a thread.
+        let comments = self.comment_counts(&ids).await?;
         for message in messages.iter_mut() {
             if let Some(row) = by_id.remove(&message.id) {
                 message.views = Some(row.views_count);
                 message.post_author = row.post_author;
+                message.comments = comments.get(&message.id).copied();
             }
         }
         Ok(())

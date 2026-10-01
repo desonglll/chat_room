@@ -196,6 +196,8 @@ pub(crate) fn canonical(multipart_body_limit: usize) -> Router<Arc<AppState>> {
     chat_scoped_routes(CHAT_PREFIX, multipart_body_limit)
         // TG-202: channels exist only on the canonical prefix.
         .merge(super::channel_handlers::routes())
+        // TG-203: channel comments, canonical prefix only.
+        .merge(super::discussion_handlers::routes())
 }
 
 /// `/api/rooms/*` — the same tree, plus the one layer that tells the chat-descriptor handlers

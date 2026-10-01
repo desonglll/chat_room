@@ -171,6 +171,9 @@ pub enum ChatMessage {
         /// TG-202: a signed channel post's author; omitted when unsigned.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         post_author: Option<String>,
+        /// TG-203: a channel post's comment count; omitted unless it has a comment thread.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        comments: Option<i64>,
         /// TG-401: optional, omitted unless the message is a voice message (docs/devlog/TG-401.md).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         voice: Option<VoiceNote>,
