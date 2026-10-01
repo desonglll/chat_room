@@ -73,7 +73,7 @@ python3 scripts/check_migration_parity.py && python3 scripts/check_file_sizes.py
 Frontend-only tasks may skip `cargo test`, but `cargo clippy` also builds the web
 bundle through `build.rs`, so run it at least once at the end.
 
-If the bundle budget in `scripts/check_web_bundle.py` is exceeded, prefer
+If the bundle budgets in `scripts/check_web_bundle.py` (initial ≤300 KB, total ≤1.5 MB gzip) are exceeded, prefer
 lazy-loading (`import()`) the heavy feature; do not raise the budget yourself —
 report the numbers and the lead decides.
 
@@ -108,3 +108,14 @@ Workspace-member artifacts from different worktrees collide in a shared target
 dir, so your tests can link against another worktree's `chat_room` library.
 Therefore every task uses its own `CARGO_TARGET_DIR=/home/mike/workspace/.cargo-target/<task-id>`
 (D-007's shared dir is suspended on this machine; the lead records this).
+
+## Taking over an interrupted task
+
+Some agents were cut off by an API error mid-task. If your prompt says you are
+taking over, the worktree `.claude/worktrees/<task>` ALREADY EXISTS with the
+previous owner's work (possibly uncommitted). Do NOT run `tg-worktree.sh new`.
+Instead: `cd` into it, read `docs/devlog/<TASK>.md` (Decisions, Progress log,
+Handoff snapshot), `git status`, `git diff`, `git log main..HEAD`, and the task
+card; reconstruct what is done vs missing; then finish the task to the same
+"Done means" bar. Never discard the previous owner's changes without reading
+them. Record the takeover in the devlog Progress log.

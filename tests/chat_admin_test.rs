@@ -94,7 +94,7 @@ async fn administration_scenario(state: Arc<AppState>) {
         .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 
-    // Carol restricts Bob from sending for two seconds.
+    // Carol restricts Bob from sending for a few seconds.
     // Long enough that a loaded CI machine still reads it before it lapses (TG-111 flake).
     let until = Utc::now() + chrono::Duration::seconds(6);
     let (status, bob_entry) = server
