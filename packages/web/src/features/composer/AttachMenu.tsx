@@ -7,6 +7,7 @@ import { lazy, Suspense, useRef, useState, type ChangeEvent } from 'react'
 import type { MenuItem } from '@tg/ui'
 import { IconButton, Menu } from '@tg/ui'
 import { ContactGlyph, FileGlyph, LocationGlyph, PaperclipGlyph, PhotoGlyph, PollGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 export interface AttachMenuProps {
   disabled?: boolean
@@ -32,23 +33,29 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
   const fileInput = useRef<HTMLInputElement>(null)
 
   const items: MenuItem[] = [
-    { id: 'media', label: '图片或视频', icon: <PhotoGlyph />, onSelect: () => mediaInput.current?.click() },
-    { id: 'file', label: '文件', icon: <FileGlyph />, onSelect: () => fileInput.current?.click() },
+    { id: 'media', label: t('w.composer.ad02cb'), icon: <PhotoGlyph />, onSelect: () => mediaInput.current?.click() },
+    { id: 'file', label: t('w.composer.49deaf'), icon: <FileGlyph />, onSelect: () => fileInput.current?.click() },
     chatId
       ? {
           id: 'location',
-          label: '位置',
+          label: t('w.composer.88c344'),
           icon: <LocationGlyph />,
           separatorBefore: true,
           onSelect: () => setLocationOpen(true),
         }
-      : { id: 'location', label: '位置', icon: <LocationGlyph />, disabled: true, separatorBefore: true },
+      : {
+          id: 'location',
+          label: t('w.composer.88c344'),
+          icon: <LocationGlyph />,
+          disabled: true,
+          separatorBefore: true,
+        },
     chatId
-      ? { id: 'poll', label: '投票', icon: <PollGlyph />, onSelect: () => setPollOpen(true) }
-      : { id: 'poll', label: '投票', icon: <PollGlyph />, disabled: true },
+      ? { id: 'poll', label: t('w.composer.ad7aca'), icon: <PollGlyph />, onSelect: () => setPollOpen(true) }
+      : { id: 'poll', label: t('w.composer.ad7aca'), icon: <PollGlyph />, disabled: true },
     chatId
-      ? { id: 'contact', label: '联系人', icon: <ContactGlyph />, onSelect: () => setContactOpen(true) }
-      : { id: 'contact', label: '联系人', icon: <ContactGlyph />, disabled: true },
+      ? { id: 'contact', label: t('w.composer.2425bd'), icon: <ContactGlyph />, onSelect: () => setContactOpen(true) }
+      : { id: 'contact', label: t('w.composer.2425bd'), icon: <ContactGlyph />, disabled: true },
   ]
 
   const pick = (asFiles: boolean) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +68,7 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
     <>
       <IconButton
         ref={triggerRef}
-        label="添加附件"
+        label={t('w.composer.dba9e8')}
         className="tg-compose__tool"
         disabled={disabled}
         aria-haspopup="menu"
@@ -78,7 +85,7 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
         placement="top-end"
         offset={8}
         items={items}
-        aria-label="附件类型"
+        aria-label={t('w.composer.6855b8')}
       />
       <input ref={mediaInput} type="file" accept="image/*,video/*" multiple hidden onChange={pick(false)} />
       <input ref={fileInput} type="file" multiple hidden onChange={pick(true)} />

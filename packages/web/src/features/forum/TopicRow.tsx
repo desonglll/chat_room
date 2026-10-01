@@ -11,6 +11,7 @@ import { formatChatListTime } from '../chatList/chatTime'
 import { TopicIcon } from './TopicIcon'
 import type { TopicAction, TopicRowView } from './topicListModel'
 import { TOPIC_ACTION_LABEL, topicActions, topicPreview } from './topicListModel'
+import { t } from '../../i18n/index'
 
 export interface TopicRowProps {
   row: TopicRowView
@@ -45,7 +46,12 @@ export function TopicRow({ row, href, canManage, now, onAction }: TopicRowProps)
 
   return (
     <li className="tg-topicrow__item">
-      <ContextMenu items={items} disabled={items.length === 0} aria-label="话题操作" className="tg-topicrow__menu">
+      <ContextMenu
+        items={items}
+        disabled={items.length === 0}
+        aria-label={t('w.forum.4d6376')}
+        className="tg-topicrow__menu"
+      >
         <Link
           to={href}
           className="tg-topicrow"
@@ -58,12 +64,12 @@ export function TopicRow({ row, href, canManage, now, onAction }: TopicRowProps)
             <span className="tg-topicrow__top">
               <span className="tg-topicrow__title">{topic.title}</span>
               {topic.is_closed ? (
-                <span className="tg-topicrow__glyph" role="img" aria-label="已关闭">
+                <span className="tg-topicrow__glyph" role="img" aria-label={t('w.forum.f62876')}>
                   <LockGlyph />
                 </span>
               ) : null}
               {topic.muted ? (
-                <span className="tg-topicrow__glyph" role="img" aria-label="已静音">
+                <span className="tg-topicrow__glyph" role="img" aria-label={t('w.forum.a074ec')}>
                   <ChatListIcon name="muted" size={14} />
                 </span>
               ) : null}
@@ -77,7 +83,7 @@ export function TopicRow({ row, href, canManage, now, onAction }: TopicRowProps)
               {topic.unread_count > 0 ? (
                 <Badge count={topic.unread_count} variant={topic.muted ? 'muted' : 'accent'} />
               ) : topic.is_pinned ? (
-                <span className="tg-topicrow__glyph" role="img" aria-label="已置顶">
+                <span className="tg-topicrow__glyph" role="img" aria-label={t('w.forum.d7d970')}>
                   <ChatListIcon name="pin" size={16} />
                 </span>
               ) : null}

@@ -16,6 +16,7 @@ import { ClockGlyph, FailedGlyph, TickGlyph } from './icons'
 import { ChannelPostMeta } from '../channel/ChannelPostMeta'
 import type { ChannelPostParts } from '../channel/channelModel'
 import { channelPostLabel, channelPostOf } from '../channel/channelModel'
+import { t } from '../../i18n/index'
 
 const timeFormat = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 
@@ -30,10 +31,18 @@ export function resolveDelivery(message: BroadcastMessage, explicit: DeliverySta
 }
 
 const DELIVERY_LABEL: Record<DeliveryStatus, string> = {
-  sending: '发送中',
-  sent: '已发送',
-  read: '已读',
-  failed: '发送失败',
+  get sending() {
+    return t('w.message.d948e6')
+  },
+  get sent() {
+    return t('w.message.afb629')
+  },
+  get read() {
+    return t('w.message.642ec8')
+  },
+  get failed() {
+    return t('w.message.e767d3')
+  },
 }
 
 export interface MetaParts {
@@ -54,7 +63,7 @@ export function metaParts(message: BroadcastMessage, outgoing: boolean, delivery
   const post = channelPostOf(message)
   const label = [
     post ? channelPostLabel(post) : '',
-    edited ? '已编辑' : '',
+    edited ? t('w.message.c36776') : '',
     time,
     shown === null ? '' : DELIVERY_LABEL[shown],
   ]
@@ -73,7 +82,7 @@ function MetaInner({ parts, visible = false }: { parts: MetaParts; visible?: boo
   return (
     <>
       {parts.post ? <ChannelPostMeta post={parts.post} report={visible} /> : null}
-      {parts.edited ? <span className="tg-bubble__edited">已编辑</span> : null}
+      {parts.edited ? <span className="tg-bubble__edited">{t('w.message.c36776')}</span> : null}
       <time className="tg-bubble__time">{parts.time}</time>
       {parts.delivery === null ? null : (
         <span className="tg-bubble__delivery" data-delivery={parts.delivery}>

@@ -9,6 +9,7 @@ import { Avatar, Button, Spinner } from '@tg/ui'
 import { formatWhen, linkName, linkSummary } from './inviteLinksModel'
 import { LinkShareBox } from './LinkShareBox'
 import type { LinkPeople } from './useInviteLinks'
+import { t } from '../../i18n/index'
 
 export interface InviteLinkDetailProps {
   link: InviteLink
@@ -37,7 +38,9 @@ function PersonRow({ person, children }: { person: InviteLinkMember; children?: 
       <span className="tg-invite__person-text">
         <span className="tg-invite__person-name">{personName(person)}</span>
         <span className="tg-invite__meta">
-          {when ? `${person.status === 'pending' ? '申请于' : '加入于'} ${formatWhen(when)}` : `@${person.username}`}
+          {when
+            ? `${person.status === 'pending' ? t('w.inviteLinks.2af85c') : t('w.inviteLinks.c5d3fe')} ${formatWhen(when)}`
+            : `@${person.username}`}
         </span>
       </span>
       {children}
@@ -70,8 +73,8 @@ export function InviteLinkDetail(props: InviteLinkDetailProps) {
         <p className="tg-invite__meta">{linkSummary(link)}</p>
         <p className="tg-invite__meta">
           {link.creator_name
-            ? `由 ${link.creator_name} 创建于 ${formatWhen(link.created_at)}`
-            : `创建于 ${formatWhen(link.created_at)}`}
+            ? t('w.inviteLinks.897fae', link.creator_name, formatWhen(link.created_at))
+            : t('w.inviteLinks.be5695', formatWhen(link.created_at))}
         </p>
       </section>
       <LinkShareBox token={link.token} live={link.state === 'active'} origin={props.origin} />
@@ -79,39 +82,41 @@ export function InviteLinkDetail(props: InviteLinkDetailProps) {
         <div className="tg-invite__actions" data-stack="">
           {live && !link.is_primary ? (
             <Button variant="tonal" onClick={props.onEdit} disabled={busy}>
-              编辑链接
+              {t('w.inviteLinks.48513c')}
             </Button>
           ) : null}
           {live && !confirming ? (
             <Button variant="danger" onClick={() => setConfirming(true)} disabled={busy}>
-              撤销链接
+              {t('w.inviteLinks.4e4919')}
             </Button>
           ) : null}
           {live && confirming ? (
-            <div className="tg-invite__confirm" role="group" aria-label="确认撤销">
-              <span>{link.is_primary ? '撤销后旧链接立即失效，并生成新的主链接。' : '撤销后该链接立即失效。'}</span>
+            <div className="tg-invite__confirm" role="group" aria-label={t('w.inviteLinks.f7e81a')}>
+              <span>{link.is_primary ? t('w.inviteLinks.ea10df') : t('w.inviteLinks.fe46dc')}</span>
               <Button variant="danger" onClick={props.onRevoke} loading={busy}>
-                确认撤销
+                {t('w.inviteLinks.f7e81a')}
               </Button>
               <Button variant="text" onClick={() => setConfirming(false)}>
-                取消
+                {t('w.inviteLinks.4d0b46')}
               </Button>
             </div>
           ) : null}
           {!live ? (
             <Button variant="danger" onClick={props.onDelete} disabled={busy}>
-              删除链接
+              {t('w.inviteLinks.5f8cb7')}
             </Button>
           ) : null}
         </div>
       ) : null}
       {!people ? (
-        <Spinner label="正在加载" />
+        <Spinner label={t('w.inviteLinks.3667cb')} />
       ) : (
         <>
           {people.pending.length > 0 ? (
-            <section aria-label="加入申请">
-              <h4 className="tg-invite__section-title tg-invite__list-title">加入申请 · {people.pending.length}</h4>
+            <section aria-label={t('w.inviteLinks.ff7bac')}>
+              <h4 className="tg-invite__section-title tg-invite__list-title">
+                {t('w.inviteLinks.7ac0f4')} {people.pending.length}
+              </h4>
               <ul className="tg-invite__people">
                 {people.pending.map((person) => (
                   <PersonRow key={person.user_id} person={person}>
@@ -123,7 +128,7 @@ export function InviteLinkDetail(props: InviteLinkDetailProps) {
                           disabled={busy}
                           onClick={() => void props.onSettle(person.user_id, true)}
                         >
-                          通过
+                          {t('w.inviteLinks.dcc423')}
                         </Button>
                         <Button
                           size="sm"
@@ -131,7 +136,7 @@ export function InviteLinkDetail(props: InviteLinkDetailProps) {
                           disabled={busy}
                           onClick={() => void props.onSettle(person.user_id, false)}
                         >
-                          拒绝
+                          {t('w.inviteLinks.03e210')}
                         </Button>
                       </span>
                     ) : null}
@@ -140,10 +145,12 @@ export function InviteLinkDetail(props: InviteLinkDetailProps) {
               </ul>
             </section>
           ) : null}
-          <section aria-label="已加入">
-            <h4 className="tg-invite__section-title tg-invite__list-title">通过此链接加入 · {people.joined.length}</h4>
+          <section aria-label={t('w.inviteLinks.7def19')}>
+            <h4 className="tg-invite__section-title tg-invite__list-title">
+              {t('w.inviteLinks.0db793')} {people.joined.length}
+            </h4>
             {people.joined.length === 0 ? (
-              <p className="tg-invite__note">还没有人通过此链接加入。</p>
+              <p className="tg-invite__note">{t('w.inviteLinks.d5fea3')}</p>
             ) : (
               <ul className="tg-invite__people">
                 {people.joined.map((person) => (

@@ -8,6 +8,7 @@ import { authStore, selectToken } from '@tg/core'
 import { Avatar, Button } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import type { MessageContentProps } from '../message'
+import { t } from '../../i18n/index'
 
 export function ContactContent({ message, metaSpacer }: MessageContentProps) {
   const navigate = useNavigate()
@@ -24,14 +25,14 @@ export function ContactContent({ message, metaSpacer }: MessageContentProps) {
     apiClient
       .json<{ room_id: string }>('POST', '/api/direct-chats', { ...token(), body: { user_id: card.user_id } })
       .then((chat) => void navigate(`/chat/${encodeURIComponent(chat.room_id)}`))
-      .catch(() => setNote('先加为好友才能发消息'))
+      .catch(() => setNote(t('w.contact.a04666')))
   }
   const addFriend = () => {
     if (!card.user_id) return
     apiClient
       .json('POST', '/api/friend-requests', { ...token(), body: { user_id: card.user_id } })
-      .then(() => setNote('好友申请已发送'))
-      .catch(() => setNote('无法发送好友申请'))
+      .then(() => setNote(t('w.contact.b2af4e')))
+      .catch(() => setNote(t('w.contact.79ff65')))
   }
   return (
     <div className="tg-contact-card">
@@ -45,10 +46,10 @@ export function ContactContent({ message, metaSpacer }: MessageContentProps) {
       {card.user_id && !self ? (
         <div className="tg-contact-card__actions">
           <Button variant="text" onClick={openChat}>
-            发消息
+            {t('w.contact.78345b')}
           </Button>
           <Button variant="text" onClick={addFriend}>
-            添加好友
+            {t('w.contact.8192c3')}
           </Button>
         </div>
       ) : null}

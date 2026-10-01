@@ -17,7 +17,7 @@ import { browserStorage } from '../../app/platform'
 import { signOut } from '../../app/session'
 import { ArchivableChatRow } from './ArchivableChatRow'
 import { setChatArchived } from './archiveActions'
-import { ARCHIVE_TITLE, ArchiveRow } from './ArchiveRow'
+import { archiveTitle, ArchiveRow } from './ArchiveRow'
 import type { ArchiveRowMode } from './archiveRowMode'
 import { readArchiveRowMode, writeArchiveRowMode } from './archiveRowMode'
 import { archiveBadge, archivePreviewChats } from './archiveRules'
@@ -32,6 +32,7 @@ import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
 import { SavedMessagesRow } from '../savedMessages/SavedMessagesRow'
 import { FolderTabs, useActiveFolder } from '../folders/FolderTabs'
 import { MessageSearchResults, SearchTabs, searchStore } from '../search'
+import { t } from '../../i18n/index'
 
 export interface ChatListPaneProps {
   collapsed?: boolean | undefined
@@ -98,26 +99,32 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'new-group', label: '新建群组', onSelect: () => setCreating(true) },
-    { id: 'new-channel', label: '新建频道', onSelect: () => setCreatingChannel(true) },
+    { id: 'new-group', label: t('w.chatList.07285a'), onSelect: () => setCreating(true) },
+    { id: 'new-channel', label: t('w.chatList.b0e811'), onSelect: () => setCreatingChannel(true) },
     {
       id: 'archive',
-      label: ARCHIVE_TITLE,
+      label: archiveTitle(),
       hint: badge.count > 0 ? String(badge.count) : undefined,
       disabled: view.archivedCount === 0,
       onSelect: () => setFolder('archive'),
     },
     ...(archiveMode === 'hidden' && view.archivedCount > 0
-      ? [{ id: 'archive-show', label: '在列表顶部显示归档', onSelect: () => changeArchiveMode('collapsed') }]
+      ? [{ id: 'archive-show', label: t('w.chatList.bb986d'), onSelect: () => changeArchiveMode('collapsed') }]
       : []),
-    { id: 'settings', label: '设置', onSelect: () => openSettings() },
-    { id: 'night', label: '夜间模式', onSelect: toggleNightMode },
+    { id: 'settings', label: t('w.chatList.7debf9'), onSelect: () => openSettings() },
+    { id: 'night', label: t('w.chatList.e32be0'), onSelect: toggleNightMode },
     ...(onToggleCollapsed
-      ? [{ id: 'collapse', label: collapsed ? '展开侧栏' : '收起侧栏', onSelect: onToggleCollapsed }]
+      ? [
+          {
+            id: 'collapse',
+            label: collapsed ? t('w.chatList.f4cbda') : t('w.chatList.ae1032'),
+            onSelect: onToggleCollapsed,
+          },
+        ]
       : []),
     {
       id: 'sign-out',
-      label: '退出登录',
+      label: t('w.chatList.094774'),
       danger: true,
       separatorBefore: true,
       onSelect: () => void signOut({ client: apiClient, storage: browserStorage, store: authStore }),
@@ -129,7 +136,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const empty = !loading && !failed && view.rows.length === 0 && !showArchiveRow
 
   return (
-    <nav className="tg-chatlist" aria-label="会话列表" data-collapsed={collapsed || undefined}>
+    <nav className="tg-chatlist" aria-label={t('w.chatList.b77b64')} data-collapsed={collapsed || undefined}>
       <ChatListHeader
         folder={folder}
         collapsed={collapsed}
@@ -153,12 +160,10 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
             </div>
           ) : null}
           {!loading && failed && conversations.length === 0 ? (
-            <p className="tg-chatlist__empty">会话列表加载失败，请刷新重试</p>
+            <p className="tg-chatlist__empty">{t('w.chatList.c19516')}</p>
           ) : null}
           {empty && !collapsed && !messageTab ? (
-            <p className="tg-chatlist__empty">
-              {query.trim() ? '没有找到匹配的会话' : '还没有会话 — 建一个群，或等别人拉你进来'}
-            </p>
+            <p className="tg-chatlist__empty">{query.trim() ? t('w.chatList.39a166') : t('w.chatList.c40e5d')}</p>
           ) : null}
           {messageTab ? <MessageSearchResults query={query} /> : null}
           <ul className="tg-chatlist__items" hidden={messageTab}>

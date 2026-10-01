@@ -11,6 +11,7 @@ import { CustomEmojiGrid, type PickedCustomEmoji } from './CustomEmojiGrid'
 import { customEmojiServices } from './services'
 import { STATUS_DURATIONS, expiryFor } from './statusDurations'
 import { useInstalledCustomEmoji, type InstalledLoader } from './useInstalledCustomEmoji'
+import { t } from '../../i18n/index'
 
 export interface EmojiStatusPickerProps {
   onDone?: (() => void) | undefined
@@ -41,13 +42,13 @@ export function EmojiStatusPicker({ onDone, load }: EmojiStatusPickerProps) {
       }
       onDone?.()
     } catch {
-      setError('设置失败，请重试')
+      setError(t('w.customEmoji.ae0b2d'))
     }
   }
 
   return (
     <div className="tg-emoji-status-picker">
-      <div className="tg-emoji-status-picker__durations" role="radiogroup" aria-label="状态有效期">
+      <div className="tg-emoji-status-picker__durations" role="radiogroup" aria-label={t('w.customEmoji.1ac3f2')}>
         {STATUS_DURATIONS.map((choice, index) => (
           <button
             key={choice.label}
@@ -64,10 +65,12 @@ export function EmojiStatusPicker({ onDone, load }: EmojiStatusPickerProps) {
       {state.status === 'ready' ? (
         <CustomEmojiGrid sets={state.sets} onPick={(picked) => void apply(picked)} />
       ) : (
-        <p className="tg-custom-emoji-grid__empty">{state.status === 'loading' ? '加载中…' : '自定义表情加载失败'}</p>
+        <p className="tg-custom-emoji-grid__empty">
+          {state.status === 'loading' ? t('w.customEmoji.300ee3') : t('w.customEmoji.f094c1')}
+        </p>
       )}
       <button type="button" className="tg-emoji-status-picker__clear" onClick={() => void apply(null)}>
-        清除状态
+        {t('w.customEmoji.afa5f7')}
       </button>
       {error ? <p className="tg-emoji-status-picker__error">{error}</p> : null}
     </div>

@@ -13,6 +13,7 @@
  * to import at boot and the panel itself can be lazy-loaded.
  */
 import type { ComponentType, ReactNode } from 'react'
+import { t } from '../../../i18n/index'
 
 export type SettingsSectionId =
   | 'account'
@@ -33,14 +34,62 @@ export interface SettingsSection {
 
 /** Telegram's order. `folders` is TG-501's slot (Telegram lists «聊天文件夹» at the root). */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
-  { id: 'account', title: '我的账号', owner: 'TG-110 / TG-511' },
-  { id: 'notifications', title: '通知与声音', owner: 'TG-508' },
-  { id: 'privacy', title: '隐私与安全', owner: 'TG-505 / TG-506' },
-  { id: 'storage', title: '数据与存储', owner: 'TG-509' },
-  { id: 'appearance', title: '外观', owner: 'TG-507' },
-  { id: 'folders', title: '聊天文件夹', owner: 'TG-501' },
-  { id: 'language', title: '语言', owner: 'TG-510' },
-  { id: 'devices', title: '设备', owner: 'TG-110' },
+  {
+    id: 'account',
+    get title() {
+      return t('w.settings.ba7bbf')
+    },
+    owner: 'TG-110 / TG-511',
+  },
+  {
+    id: 'notifications',
+    get title() {
+      return t('w.settings.bea87e')
+    },
+    owner: 'TG-508',
+  },
+  {
+    id: 'privacy',
+    get title() {
+      return t('w.settings.4971ba')
+    },
+    owner: 'TG-505 / TG-506',
+  },
+  {
+    id: 'storage',
+    get title() {
+      return t('w.settings.0a9643')
+    },
+    owner: 'TG-509',
+  },
+  {
+    id: 'appearance',
+    get title() {
+      return t('w.settings.09b58a')
+    },
+    owner: 'TG-507',
+  },
+  {
+    id: 'folders',
+    get title() {
+      return t('w.settings.7aa0e7')
+    },
+    owner: 'TG-501',
+  },
+  {
+    id: 'language',
+    get title() {
+      return t('w.settings.cd99b2')
+    },
+    owner: 'TG-510',
+  },
+  {
+    id: 'devices',
+    get title() {
+      return t('w.settings.01f2c1')
+    },
+    owner: 'TG-110',
+  },
 ]
 
 export interface SettingsPageProps {

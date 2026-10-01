@@ -1,5 +1,6 @@
 /** Test and screenshot fixtures for invite links. */
 import type { InviteLink } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export const sampleLink = (id: string, extra: Partial<InviteLink> = {}): InviteLink => ({
   id,
@@ -7,7 +8,7 @@ export const sampleLink = (id: string, extra: Partial<InviteLink> = {}): InviteL
   token: `tok-${id}-aaaaaaaaaaaaaaaaaaaa`,
   title: '',
   creator_id: 'owner',
-  creator_name: '群主',
+  creator_name: t('w.inviteLinks.4fbe15'),
   expires_at: null,
   usage_limit: null,
   usage_count: 0,

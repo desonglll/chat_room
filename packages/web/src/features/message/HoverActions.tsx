@@ -8,6 +8,7 @@ import { useRef, useState } from 'react'
 import { IconButton, Menu, Popover, type MenuItem } from '@tg/ui'
 import { QUICK_REACTIONS } from '@tg/core'
 import { MoreGlyph, ReplyGlyph, SmileGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 export function HoverActions({
   items,
@@ -29,7 +30,7 @@ export function HoverActions({
     <div className="tg-bubble__actions" data-open={picker || more ? '' : undefined}>
       {onReact === undefined ? null : (
         <>
-          <IconButton ref={reactRef} label="添加回应" size="sm" onClick={() => setPicker(true)}>
+          <IconButton ref={reactRef} label={t('w.message.f98e94')} size="sm" onClick={() => setPicker(true)}>
             <SmileGlyph />
           </IconButton>
           <Popover
@@ -39,16 +40,16 @@ export function HoverActions({
             placement="top"
             surface="menu"
             focus="move"
-            aria-label="选择回应"
+            aria-label={t('w.message.483ee7')}
             insideRefs={[reactRef]}
           >
-            <div className="tg-bubble__reaction-picker" role="group" aria-label="快速回应">
+            <div className="tg-bubble__reaction-picker" role="group" aria-label={t('w.message.57e26d')}>
               {QUICK_REACTIONS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
                   className="tg-bubble__reaction-pick"
-                  aria-label={`回应 ${emoji}`}
+                  aria-label={t('w.message.0929b9', emoji)}
                   onClick={() => {
                     setPicker(false)
                     onReact(emoji)
@@ -62,13 +63,13 @@ export function HoverActions({
         </>
       )}
       {onReply === undefined ? null : (
-        <IconButton label="回复" size="sm" onClick={onReply}>
+        <IconButton label={t('w.message.ffc785')} size="sm" onClick={onReply}>
           <ReplyGlyph />
         </IconButton>
       )}
       {items.length === 0 ? null : (
         <>
-          <IconButton ref={moreRef} label="更多操作" size="sm" onClick={() => setMore(true)}>
+          <IconButton ref={moreRef} label={t('w.message.77836d')} size="sm" onClick={() => setMore(true)}>
             <MoreGlyph />
           </IconButton>
           <Menu
@@ -77,7 +78,7 @@ export function HoverActions({
             anchor={moreRef}
             items={items}
             placement="bottom-end"
-            aria-label="消息操作"
+            aria-label={t('w.message.9f2251')}
             triggerRef={moreRef}
           />
         </>

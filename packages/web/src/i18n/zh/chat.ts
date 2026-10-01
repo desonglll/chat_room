@@ -1,0 +1,23 @@
+import type { Catalog } from '@tg/core'
+
+export const chat: Catalog = {
+  'w.chat.043aa8': '消息将为所有人撤回，此操作无法撤销。',
+  'w.chat.0d5a8a': '转发',
+  'w.chat.11b93c': '搜索会话',
+  'w.chat.3699f8': '转发到…',
+  'w.chat.3755f5': '删除',
+  'w.chat.49a948': '查看会话信息',
+  'w.chat.4d0b46': '取消',
+  'w.chat.5744cd': '在哪个会话中回复？',
+  'w.chat.6b7446': '删除消息？',
+  'w.chat.836ffe': '会话',
+  'w.chat.9cc1b5': '连接已断开，正在重连…',
+  'w.chat.9d02d1': '连接中…',
+  'w.chat.b03ce1': '删除 {0} 条消息？',
+  'w.chat.bce2ef': '条',
+  'w.chat.e0d9b4': '无法进入会话',
+  'w.chat.e516b3': '没有可转发的会话',
+  'w.chat.f02e94': '取消选择',
+  'w.chat.f0e0fb': '已选消息',
+  'w.chat.f24ddc': '已选',
+}

@@ -10,6 +10,7 @@ import type { MessageContentProps } from '../message'
 import { LocationMap } from './LocationMap'
 import { LocationSheetBody } from './LocationSheet'
 import { effectiveLocation, liveLocationStore } from './liveLocationStore'
+import { t } from '../../i18n/index'
 
 export function LocationContent({ message, ctx, metaSpacer }: MessageContentProps) {
   const held = useStore(liveLocationStore, (state) => state.points[message.message_id])
@@ -19,10 +20,15 @@ export function LocationContent({ message, ctx, metaSpacer }: MessageContentProp
   const location = effectiveLocation(message.location, held)
   const now = Date.now()
   const live = location.live_until !== undefined
-  const label = location.title || (live ? '实时位置' : '位置')
+  const label = location.title || (live ? t('w.location.3b5fd7') : t('w.location.88c344'))
   return (
     <div className="tg-location">
-      <button type="button" className="tg-location__open" aria-label={`查看${label}`} onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="tg-location__open"
+        aria-label={t('w.location.1813aa', label)}
+        onClick={() => setOpen(true)}
+      >
         <LocationMap
           points={[
             {
@@ -40,7 +46,7 @@ export function LocationContent({ message, ctx, metaSpacer }: MessageContentProp
         {location.address ? <span className="tg-location__address">{location.address}</span> : null}
         {live ? (
           <span className="tg-location__live">
-            {isLiveLocation(location, now) ? liveRemaining(location, now) : '实时位置已结束'}
+            {isLiveLocation(location, now) ? liveRemaining(location, now) : t('w.location.26fd6a')}
           </span>
         ) : null}
         {metaSpacer}

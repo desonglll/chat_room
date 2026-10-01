@@ -5,12 +5,13 @@
 import { useNavigate } from 'react-router-dom'
 import { IconButton } from '@tg/ui'
 import { ChatListIcon } from '../chatList/chatListIcons'
+import { t } from '../../i18n/index'
 
 export function MobileBackButton({ className }: { className?: string }) {
   const navigate = useNavigate()
   return (
     <IconButton
-      label="返回会话列表"
+      label={t('w.shell.dcdc8d')}
       variant="plain"
       className={className ? `tg-mobile-back ${className}` : 'tg-mobile-back'}
       onClick={() => void navigate('/')}

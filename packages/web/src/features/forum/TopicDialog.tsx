@@ -19,6 +19,7 @@ import {
   TOPIC_EMOJI,
   validateTopicForm,
 } from './topicForm'
+import { t } from '../../i18n/index'
 
 export interface TopicDialogProps {
   chatId: string
@@ -64,23 +65,35 @@ export function TopicDialog({ chatId, api, topic = null, onClose, onSaved }: Top
   const footer = (
     <>
       <Button variant="text" onClick={onClose} disabled={saving}>
-        取消
+        {t('w.forum.4d0b46')}
       </Button>
       <Button onClick={() => submit()} loading={saving} disabled={touched && invalid !== null}>
-        {topic ? '保存' : '创建'}
+        {topic ? t('w.forum.fadf24') : t('w.forum.fcbd09')}
       </Button>
     </>
   )
 
   return (
-    <Modal open onClose={() => !saving && onClose()} title={topic ? '编辑话题' : '新建话题'} footer={footer} size="sm">
+    <Modal
+      open
+      onClose={() => !saving && onClose()}
+      title={topic ? t('w.forum.5ff368') : t('w.forum.0db199')}
+      footer={footer}
+      size="sm"
+    >
       <form className="tg-topicdialog" onSubmit={submit}>
         <div className="tg-topicdialog__preview">
-          <TopicIcon title={form.title || '话'} emoji={form.emoji} color={form.color} general={general} size={48} />
-          <span className="tg-topicdialog__preview-title">{form.title.trim() || '话题名称'}</span>
+          <TopicIcon
+            title={form.title || t('w.forum.9160ee')}
+            emoji={form.emoji}
+            color={form.color}
+            general={general}
+            size={48}
+          />
+          <span className="tg-topicdialog__preview-title">{form.title.trim() || t('w.forum.a2337d')}</span>
         </div>
         <TextField
-          label="话题名称"
+          label={t('w.forum.a2337d')}
           value={form.title}
           onChange={(event) => set({ title: event.target.value })}
           error={touched && invalid ? invalid : undefined}
@@ -92,14 +105,14 @@ export function TopicDialog({ chatId, api, topic = null, onClose, onSaved }: Top
         {general ? null : (
           <>
             {form.emoji ? null : (
-              <div className="tg-topicdialog__colors" role="group" aria-label="话题颜色">
+              <div className="tg-topicdialog__colors" role="group" aria-label={t('w.forum.5eb3bd')}>
                 {TOPIC_COLORS.map((color, index) => (
                   <button
                     key={color}
                     type="button"
                     className="tg-topicdialog__swatch"
                     style={{ '--topic-color': topicColorHex(color) } as CSSProperties}
-                    aria-label={`颜色 ${index + 1}`}
+                    aria-label={t('w.forum.7ae353', index + 1)}
                     aria-pressed={form.color === color}
                     disabled={saving}
                     onClick={() => set({ color })}
@@ -107,16 +120,16 @@ export function TopicDialog({ chatId, api, topic = null, onClose, onSaved }: Top
                 ))}
               </div>
             )}
-            <div className="tg-topicdialog__emoji" role="group" aria-label="话题图标">
+            <div className="tg-topicdialog__emoji" role="group" aria-label={t('w.forum.994b5f')}>
               <button
                 type="button"
                 className="tg-topicdialog__emoji-cell"
-                aria-label="不使用表情"
+                aria-label={t('w.forum.92ca31')}
                 aria-pressed={form.emoji === ''}
                 disabled={saving}
                 onClick={() => set({ emoji: '' })}
               >
-                <TopicIcon title={form.title || '话'} emoji="" color={form.color} size={26} />
+                <TopicIcon title={form.title || t('w.forum.9160ee')} emoji="" color={form.color} size={26} />
               </button>
               {TOPIC_EMOJI.map((emoji) => (
                 <button

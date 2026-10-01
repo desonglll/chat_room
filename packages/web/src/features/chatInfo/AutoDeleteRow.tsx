@@ -9,14 +9,15 @@ import { useStore } from 'zustand/react'
 import { authStore, chatListStore, selectToken } from '@tg/core'
 import { apiClient } from '../../app/client'
 import { TimerIcon } from './icons'
+import { t } from '../../i18n/index'
 
 export const AUTO_DELETE_CHOICES = [0, 86_400, 604_800, 2_592_000] as const
 
 export function autoDeleteLabel(seconds: number): string {
-  if (seconds === 86_400) return '1 天'
-  if (seconds === 604_800) return '1 周'
-  if (seconds === 2_592_000) return '1 个月'
-  return '关闭'
+  if (seconds === 86_400) return t('w.chatInfo.11f478')
+  if (seconds === 604_800) return t('w.chatInfo.03f320')
+  if (seconds === 2_592_000) return t('w.chatInfo.178802')
+  return t('w.chatInfo.6c14bd')
 }
 
 export function AutoDeleteRow({ chatId }: { chatId: string }) {
@@ -44,7 +45,7 @@ export function AutoDeleteRow({ chatId }: { chatId: string }) {
         if (current)
           chatListStore.getState().applyChatUpdated({ ...current, auto_delete_seconds: chat.auto_delete_seconds })
       })
-      .catch(() => setError('没有修改自动删除的权限'))
+      .catch(() => setError(t('w.chatInfo.2719b4')))
       .finally(() => setBusy(false))
   }
 
@@ -62,11 +63,11 @@ export function AutoDeleteRow({ chatId }: { chatId: string }) {
           disabled={busy}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className="tg-chatinfo__row-value">自动删除消息</span>
+          <span className="tg-chatinfo__row-value">{t('w.chatInfo.9aafa7')}</span>
           <span className="tg-chatinfo__row-label">{autoDeleteLabel(seconds)}</span>
         </button>
         {open ? (
-          <ul className="tg-chatinfo__autodelete-choices" role="listbox" aria-label="自动删除时间">
+          <ul className="tg-chatinfo__autodelete-choices" role="listbox" aria-label={t('w.chatInfo.8d8da2')}>
             {AUTO_DELETE_CHOICES.map((choice) => (
               <li key={choice}>
                 <button
@@ -83,7 +84,10 @@ export function AutoDeleteRow({ chatId }: { chatId: string }) {
           </ul>
         ) : null}
         {seconds > 0 ? (
-          <p className="tg-chatinfo__autodelete-note">此后发送的消息将在 {autoDeleteLabel(seconds)}后自动删除</p>
+          <p className="tg-chatinfo__autodelete-note">
+            {t('w.chatInfo.4d234b')} {autoDeleteLabel(seconds)}
+            {t('w.chatInfo.67f4d2')}
+          </p>
         ) : null}
         {error ? (
           <p className="tg-chatinfo__autodelete-note" role="alert">

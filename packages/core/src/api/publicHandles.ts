@@ -5,6 +5,7 @@
 import type { Chat, ChatMembership, ChatType } from '../types'
 import type { ApiClient } from './http'
 import { encodePathSegment, QueryParams } from './http'
+import { t } from '../i18n/t'
 
 export interface UsernameCheck {
   username: string
@@ -54,19 +55,35 @@ export function createPublicHandlesApi(client: ApiClient, token: () => string | 
 }
 
 const REASONS: Record<string, string> = {
-  too_short: '至少 5 个字符',
-  too_long: '最多 32 个字符',
-  invalid_characters: '只能使用 a–z、0–9 和下划线',
-  must_start_with_letter: '必须以字母开头',
-  invalid_underscores: '不能以下划线结尾，也不能连续使用下划线',
-  reserved: '这个名称已被保留',
-  taken: '这个名称已被占用',
-  password_protected: '设置了进群密码的群组不能公开',
+  get too_short() {
+    return t('c.api.7bb360')
+  },
+  get too_long() {
+    return t('c.api.cede6c')
+  },
+  get invalid_characters() {
+    return t('c.api.1ba38d')
+  },
+  get must_start_with_letter() {
+    return t('c.api.82aae8')
+  },
+  get invalid_underscores() {
+    return t('c.api.523a8a')
+  },
+  get reserved() {
+    return t('c.api.8195d8')
+  },
+  get taken() {
+    return t('c.api.dbd8c2')
+  },
+  get password_protected() {
+    return t('c.api.e226cd')
+  },
 }
 
 /** Telegram-style copy for a refused handle. */
 export function usernameReasonText(reason: string | undefined): string {
-  return (reason && REASONS[reason]) || '无法使用这个名称'
+  return (reason && REASONS[reason]) || t('c.api.b79dae')
 }
 
 /** The shareable link for a public chat, relative to the app's origin. */

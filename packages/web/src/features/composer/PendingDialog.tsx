@@ -8,6 +8,7 @@ import { pendingBatchTitle } from '@tg/core'
 import { Button, Checkbox, Modal } from '@tg/ui'
 import { CloseGlyph, FileGlyph } from './icons'
 import type { PendingBatchHandle } from './usePendingBatch'
+import { t } from '../../i18n/index'
 
 export interface PendingDialogProps {
   pending: PendingBatchHandle
@@ -41,7 +42,12 @@ function PendingItem({ item, pending }: { item: PendingAttachment<File>; pending
         </span>
       )}
       {item.status === 'uploading' ? (
-        <progress className="tg-compose__pending-progress" max={100} value={item.progress} aria-label="上传进度" />
+        <progress
+          className="tg-compose__pending-progress"
+          max={100}
+          value={item.progress}
+          aria-label={t('w.composer.211354')}
+        />
       ) : null}
       {item.status === 'failed' ? (
         <span className="tg-compose__pending-error" role="alert">
@@ -52,7 +58,7 @@ function PendingItem({ item, pending }: { item: PendingAttachment<File>; pending
         <button
           type="button"
           className="tg-compose__pending-remove"
-          aria-label={`移除 ${item.name}`}
+          aria-label={t('w.composer.6a13fa', item.name)}
           disabled={pending.sending}
           onClick={() => pending.remove(item.id)}
         >
@@ -79,15 +85,15 @@ export function PendingDialog({ pending }: PendingDialogProps) {
       footer={
         <>
           <Button variant="text" disabled={pending.sending} onClick={pending.clear}>
-            取消
+            {t('w.composer.4d0b46')}
           </Button>
           <Button variant="filled" loading={pending.sending} onClick={() => void pending.send()}>
-            {retry ? '重试' : '发送'}
+            {retry ? t('w.composer.e2d53a') : t('w.composer.1214d6')}
           </Button>
         </>
       }
     >
-      <ul className="tg-compose__pending-list" aria-label="待发送的文件">
+      <ul className="tg-compose__pending-list" aria-label={t('w.composer.278a4b')}>
         {batch.items.map((item) => (
           <PendingItem key={item.id} item={item} pending={pending} />
         ))}
@@ -101,13 +107,13 @@ export function PendingDialog({ pending }: PendingDialogProps) {
         checked={batch.sendAsFiles}
         onCheckedChange={pending.setSendAsFiles}
         disabled={pending.sending}
-        label="以文件形式发送"
+        label={t('w.composer.e02394')}
       />
       <input
         className="tg-compose__pending-caption"
         value={batch.caption}
-        placeholder="添加说明…"
-        aria-label="说明"
+        placeholder={t('w.composer.812512')}
+        aria-label={t('w.composer.26670d')}
         maxLength={4096}
         disabled={pending.sending}
         onChange={(event) => pending.setCaption(event.target.value)}

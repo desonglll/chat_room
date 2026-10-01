@@ -19,6 +19,7 @@ import { visibleTopics } from './topicListModel'
 import { TopicRow } from './TopicRow'
 import { topicsApi } from './topicsApi'
 import { useTopicList } from './useTopicList'
+import { t } from '../../i18n/index'
 import './forum.css'
 
 type Dialog = { kind: 'create' } | { kind: 'edit'; topic: ForumTopic } | { kind: 'delete'; topic: ForumTopic } | null
@@ -54,7 +55,7 @@ export function TopicListView({ api = topicsApi }: { api?: TopicsApi | undefined
   const rows = useMemo(() => (list ? visibleTopics(list) : []), [list])
   const canManage = list?.can_manage ?? false
   const title = chat?.title || '…'
-  const subtitle = CONNECTION_COPY[connection] ?? (list ? `${rows.length} 个话题` : '')
+  const subtitle = CONNECTION_COPY[connection] ?? (list ? t('w.forum.66c1eb', rows.length) : '')
 
   const onAction = (topic: ForumTopic) => (action: TopicAction) => {
     if (action === 'edit') setDialog({ kind: 'edit', topic })
@@ -74,7 +75,12 @@ export function TopicListView({ api = topicsApi }: { api?: TopicsApi | undefined
     <div className="tg-chat tg-forum">
       <header className="tg-chat__header">
         <MobileBackButton />
-        <button type="button" className="tg-chat__identity" onClick={() => toggleChatInfo()} aria-label="查看会话信息">
+        <button
+          type="button"
+          className="tg-chat__identity"
+          onClick={() => toggleChatInfo()}
+          aria-label={t('w.forum.49a948')}
+        >
           <Avatar label={title} initials={chat?.avatar_emoji || undefined} />
           <span className="tg-chat__titles">
             <span className="tg-chat__title">{title}</span>
@@ -83,7 +89,7 @@ export function TopicListView({ api = topicsApi }: { api?: TopicsApi | undefined
         </button>
         {list?.can_create ? (
           <Button variant="text" size="sm" className="tg-forum__create" onClick={() => setDialog({ kind: 'create' })}>
-            新建话题
+            {t('w.forum.0db199')}
           </Button>
         ) : null}
       </header>
@@ -96,13 +102,13 @@ export function TopicListView({ api = topicsApi }: { api?: TopicsApi | undefined
         {list === null ? (
           topics.error ? null : (
             <div className="tg-forum__loading">
-              <Spinner label="正在加载话题" />
+              <Spinner label={t('w.forum.22dde1')} />
             </div>
           )
         ) : rows.length === 0 ? (
-          <p className="tg-forum__empty">还没有话题</p>
+          <p className="tg-forum__empty">{t('w.forum.0737b4')}</p>
         ) : (
-          <ul className="tg-forum__list" aria-label="话题">
+          <ul className="tg-forum__list" aria-label={t('w.forum.df999a')}>
             {rows.map((row) => (
               <TopicRow
                 key={row.topic.id}
@@ -133,16 +139,16 @@ export function TopicListView({ api = topicsApi }: { api?: TopicsApi | undefined
         <Modal
           open
           size="sm"
-          title="删除话题"
-          description={`确定删除「${dialog.topic.title}」吗？话题中的所有消息都将被删除。`}
+          title={t('w.forum.e3b476')}
+          description={t('w.forum.a8c71c', dialog.topic.title)}
           onClose={() => !deleting && setDialog(null)}
           footer={
             <>
               <Button variant="text" disabled={deleting} onClick={() => setDialog(null)}>
-                取消
+                {t('w.forum.4d0b46')}
               </Button>
               <Button variant="danger" loading={deleting} onClick={() => confirmDelete(dialog.topic)}>
-                删除
+                {t('w.forum.3755f5')}
               </Button>
             </>
           }

@@ -4,6 +4,7 @@
  */
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { formatVoiceDuration, resampleWaveform, WAVEFORM_MAX } from './waveform'
+import { t } from '../../i18n/index'
 
 export interface VoiceWaveformProps {
   waveform: readonly number[]
@@ -67,7 +68,7 @@ export function VoiceWaveform({ waveform, bars, progress, durationMs, onSeek }: 
       className="tg-voice__wave"
       role="slider"
       tabIndex={0}
-      aria-label="播放进度"
+      aria-label={t('w.voice.7a5c0f')}
       aria-valuemin={0}
       aria-valuemax={seconds}
       aria-valuenow={now}

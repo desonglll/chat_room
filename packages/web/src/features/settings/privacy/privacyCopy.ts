@@ -3,6 +3,7 @@
  * purpose: accounts in this product have no phone numbers.
  */
 import type { PrivacyKey, PrivacyRule, PrivacyTier } from '@tg/core'
+import { t } from '../../../i18n/index'
 
 export interface PrivacyKeyCopy {
   /** Row title in the privacy list and header of the editor. */
@@ -19,47 +20,102 @@ export interface PrivacyKeyCopy {
 
 export const PRIVACY_KEY_COPY: Record<PrivacyKey, PrivacyKeyCopy> = {
   last_seen: {
-    title: '最后上线时间',
-    question: '谁可以看到我的最后上线时间和在线状态？',
-    footnote:
-      '如果你不分享自己的最后上线时间，你也将无法看到他人的最后上线时间。对方看到的将是模糊的时间（如“最近上线”），且只按天更新。',
-    allowTitle: '总是分享给',
-    denyTitle: '永不分享给',
+    get title() {
+      return t('w.settings.450b4a')
+    },
+    get question() {
+      return t('w.settings.2769bb')
+    },
+    get footnote() {
+      return t('w.settings.87d1fd')
+    },
+    get allowTitle() {
+      return t('w.settings.d19582')
+    },
+    get denyTitle() {
+      return t('w.settings.6df240')
+    },
   },
   profile_photo: {
-    title: '头像',
-    question: '谁可以看到我的头像？',
-    footnote: '无权查看的人会看到由你名字首字生成的默认头像。',
-    allowTitle: '总是分享给',
-    denyTitle: '永不分享给',
+    get title() {
+      return t('w.settings.4ceeeb')
+    },
+    get question() {
+      return t('w.settings.246986')
+    },
+    get footnote() {
+      return t('w.settings.69db81')
+    },
+    get allowTitle() {
+      return t('w.settings.d19582')
+    },
+    get denyTitle() {
+      return t('w.settings.6df240')
+    },
   },
   forwards: {
-    title: '转发消息',
-    question: '转发我的消息时，谁可以显示我的名字？',
-    footnote: '无权显示的人转发你的消息时，署名将显示为“隐藏的账号”。',
-    allowTitle: '总是允许',
-    denyTitle: '永不允许',
+    get title() {
+      return t('w.settings.d646f7')
+    },
+    get question() {
+      return t('w.settings.32eb48')
+    },
+    get footnote() {
+      return t('w.settings.67a0fe')
+    },
+    get allowTitle() {
+      return t('w.settings.a0f208')
+    },
+    get denyTitle() {
+      return t('w.settings.5a60f5')
+    },
   },
   group_invites: {
-    title: '群组邀请',
-    question: '谁可以邀请我加入群组？',
-    footnote: '无权邀请的人无法把你加入群组。',
-    allowTitle: '总是允许',
-    denyTitle: '永不允许',
+    get title() {
+      return t('w.settings.3c1a11')
+    },
+    get question() {
+      return t('w.settings.8d3bfe')
+    },
+    get footnote() {
+      return t('w.settings.73d64d')
+    },
+    get allowTitle() {
+      return t('w.settings.a0f208')
+    },
+    get denyTitle() {
+      return t('w.settings.5a60f5')
+    },
   },
   voice_messages: {
-    title: '语音消息',
-    question: '谁可以在私聊中给我发送语音消息？',
-    footnote: '无权发送的人在与你的私聊中无法发送语音消息。',
-    allowTitle: '总是允许',
-    denyTitle: '永不允许',
+    get title() {
+      return t('w.settings.87053f')
+    },
+    get question() {
+      return t('w.settings.816584')
+    },
+    get footnote() {
+      return t('w.settings.59e166')
+    },
+    get allowTitle() {
+      return t('w.settings.a0f208')
+    },
+    get denyTitle() {
+      return t('w.settings.5a60f5')
+    },
   },
 }
 
 export const PRIVACY_TIER_COPY: Record<PrivacyTier, string> = {
-  everybody: '所有人',
-  contacts: '我的联系人',
-  nobody: '没有人',
+  get everybody() {
+    return t('w.settings.f40c84')
+  },
+  get contacts() {
+    return t('w.settings.e753a8')
+  },
+  get nobody() {
+    return t('w.settings.bd4206')
+  },
 }
 
 /** Which exception lists a tier makes meaningful (Telegram hides the other one). */

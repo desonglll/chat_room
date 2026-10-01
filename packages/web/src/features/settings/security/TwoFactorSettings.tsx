@@ -13,6 +13,7 @@ import { useStore } from 'zustand/react'
 import { apiClient } from '../../../app/client'
 import { ChangeForm, DisableForm, EmailForm, EnableForm } from './TwoFactorForms'
 import { securityErrorCopy, type SecurityView } from './securityRules'
+import { t } from '../../../i18n/index'
 
 export function TwoFactorSettings() {
   const token = useStore(authStore, selectToken)
@@ -53,9 +54,9 @@ export function TwoFactorSettings() {
     <section className="tg-security" aria-labelledby="tg-security-title">
       <header className="tg-security__header">
         <h2 id="tg-security-title" className="tg-security__title">
-          两步验证
+          {t('w.settings.b6c237')}
         </h2>
-        <p className="tg-security__lead">开启后，在新设备登录时除了账号密码，还需要输入你在这里设置的额外密码。</p>
+        <p className="tg-security__lead">{t('w.settings.39775f')}</p>
       </header>
       {error ? (
         <p className="tg-security__error" role="alert">
@@ -74,13 +75,13 @@ export function TwoFactorSettings() {
       ) : null}
       {status && view === 'overview' ? <Overview status={status} onOpen={open} /> : null}
       {status && view === 'enable' ? (
-        <EnableForm token={token} onDone={(next) => done(next, '两步验证已开启，其他设备已退出登录')} onCancel={back} />
+        <EnableForm token={token} onDone={(next) => done(next, t('w.settings.112678'))} onCancel={back} />
       ) : null}
       {status && view === 'change' ? (
         <ChangeForm
           token={token}
           currentHint={status.hint}
-          onDone={(next) => done(next, '两步验证已更新')}
+          onDone={(next) => done(next, t('w.settings.37da34'))}
           onCancel={back}
         />
       ) : null}
@@ -88,12 +89,12 @@ export function TwoFactorSettings() {
         <EmailForm
           token={token}
           pendingEmail={status.pending_recovery_email}
-          onDone={(next) => done(next, '恢复邮箱已验证')}
+          onDone={(next) => done(next, t('w.settings.59561f'))}
           onCancel={back}
         />
       ) : null}
       {status && view === 'disable' ? (
-        <DisableForm token={token} onDone={() => done(null, '两步验证已关闭')} onCancel={back} />
+        <DisableForm token={token} onDone={() => done(null, t('w.settings.ece294'))} onCancel={back} />
       ) : null}
     </section>
   )
@@ -103,9 +104,9 @@ function Overview({ status, onOpen }: { status: TwoFactorStatus; onOpen: (view: 
   if (!status.enabled) {
     return (
       <div className="tg-security__body">
-        <p className="tg-security__state">当前状态：未开启</p>
+        <p className="tg-security__state">{t('w.settings.a5e591')}</p>
         <Button onClick={() => onOpen('enable')} fullWidth>
-          设置两步验证密码
+          {t('w.settings.fc2484')}
         </Button>
       </div>
     )
@@ -113,33 +114,33 @@ function Overview({ status, onOpen }: { status: TwoFactorStatus; onOpen: (view: 
   const email = status.recovery_email
     ? status.recovery_email
     : status.pending_recovery_email
-      ? `${status.pending_recovery_email}（待验证）`
-      : '未设置'
+      ? t('w.settings.67c5f5', status.pending_recovery_email)
+      : t('w.settings.55a04b')
   return (
     <div className="tg-security__body">
       <dl className="tg-security__facts">
         <div className="tg-security__fact">
-          <dt>当前状态</dt>
-          <dd>已开启</dd>
+          <dt>{t('w.settings.045859')}</dt>
+          <dd>{t('w.settings.d78cde')}</dd>
         </div>
         <div className="tg-security__fact">
-          <dt>密码提示</dt>
-          <dd>{status.hint || '无'}</dd>
+          <dt>{t('w.settings.b5d94a')}</dt>
+          <dd>{status.hint || t('w.settings.720777')}</dd>
         </div>
         <div className="tg-security__fact">
-          <dt>恢复邮箱</dt>
+          <dt>{t('w.settings.9f8463')}</dt>
           <dd>{email}</dd>
         </div>
       </dl>
       <div className="tg-security__actions">
         <Button variant="tonal" onClick={() => onOpen('change')} fullWidth>
-          修改密码或提示
+          {t('w.settings.0ccab1')}
         </Button>
         <Button variant="tonal" onClick={() => onOpen('email')} fullWidth>
-          {status.recovery_email ? '更换恢复邮箱' : '设置恢复邮箱'}
+          {status.recovery_email ? t('w.settings.57e419') : t('w.settings.b0ed9c')}
         </Button>
         <Button variant="danger" onClick={() => onOpen('disable')} fullWidth>
-          关闭两步验证
+          {t('w.settings.f6901f')}
         </Button>
       </div>
     </div>

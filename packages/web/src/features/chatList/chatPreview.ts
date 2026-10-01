@@ -4,6 +4,7 @@
  * Pure — the row renders the result, tests assert it.
  */
 import type { ChatType, ConversationLastMessage } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export type PreviewMedia = 'photo' | 'video' | 'gif' | 'voice' | 'audio' | 'sticker' | 'file'
 
@@ -50,13 +51,25 @@ const MEDIA_BY_EXTENSION: Record<string, PreviewMedia> = {
 }
 
 export const MEDIA_LABEL: Record<PreviewMedia, string> = {
-  photo: '图片',
-  video: '视频',
+  get photo() {
+    return t('w.chatList.be8da6')
+  },
+  get video() {
+    return t('w.chatList.fa4e33')
+  },
   gif: 'GIF',
-  voice: '语音消息',
-  audio: '音频',
-  sticker: '贴纸',
-  file: '文件',
+  get voice() {
+    return t('w.chatList.87053f')
+  },
+  get audio() {
+    return t('w.chatList.461189')
+  },
+  get sticker() {
+    return t('w.chatList.f7c0f3')
+  },
+  get file() {
+    return t('w.chatList.49deaf')
+  },
 }
 
 /** Media kind from the attachment name (the list summary carries no MIME type). */
@@ -77,7 +90,7 @@ export const singleLine = (text: string): string => text.replace(/\s+/g, ' ').tr
 function senderPrefix(input: PreviewInput, message: ConversationLastMessage): string | null {
   if (input.chatType === 'private' || input.chatType === 'channel') return null
   if (message.sender_id === null) return null
-  if (message.sender_id === input.currentUserId) return '你'
+  if (message.sender_id === input.currentUserId) return t('w.chatList.5630b8')
   return message.sender || null
 }
 
@@ -86,8 +99,10 @@ export function buildChatPreview(input: PreviewInput): ChatPreview {
   const draft = singleLine(input.draftText)
   if (draft && !input.active) return { kind: 'draft', text: draft }
   const message = input.lastMessage
-  if (!message) return { kind: 'empty', text: input.chatType === 'private' ? '开始聊天' : '暂无消息' }
-  if (message.recalled) return { kind: 'message', sender: null, media: null, text: '消息已撤回', recalled: true }
+  if (!message)
+    return { kind: 'empty', text: input.chatType === 'private' ? t('w.chatList.d3f20d') : t('w.chatList.30dfbc') }
+  if (message.recalled)
+    return { kind: 'message', sender: null, media: null, text: t('w.chatList.26b4ea'), recalled: true }
   const media = mediaFromFileName(message.attachment_file_name)
   const caption = singleLine(message.content)
   const text = caption || (media === 'file' ? (message.attachment_file_name ?? '') : media ? MEDIA_LABEL[media] : '')

@@ -1,3 +1,4 @@
+import { t } from '../i18n/t'
 /**
  * TG-104: markdown formatting shortcuts and the selection toolbar's transforms.
  *
@@ -100,7 +101,7 @@ function formatCode(text: string, selection: TextSelection): FormattedText {
  */
 function formatLink(text: string, raw: TextSelection, url: string): FormattedText {
   const selection = trimSelection(text, raw)
-  const label = text.slice(selection.start, selection.end) || url || '链接'
+  const label = text.slice(selection.start, selection.end) || url || t('c.domain.715022')
   const target = url || 'https://'
   const link = `[${label}](${target})`
   const next = text.slice(0, selection.start) + link + text.slice(selection.end)

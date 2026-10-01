@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { GifPlayer } from '../GifPlayer'
 import { gifPanelLayout, type GifCell, type GifSection } from './gifPanelLayout'
 import { visibleBoxes } from './masonry'
+import { t } from '../../../i18n/index'
 
 export interface GifGridItem extends GifCell {
   src: string
@@ -101,7 +102,7 @@ export function GifGrid<T extends GifGridItem>({ sections, disabled, onPick, onM
                 inlineSize: cell.box.width,
                 blockSize: cell.box.height,
               }}
-              aria-label="发送 GIF"
+              aria-label={t('w.gif.f02ec6')}
               onClick={() => onPick(cell.item)}
               onContextMenu={menu(cell.item)}
             >

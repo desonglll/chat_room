@@ -11,6 +11,7 @@ import type { BroadcastMessage, DisplayMessage, UploadMessage } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { useMessageListActions } from './messageListActions'
 import type { MessageRenderContext } from './renderContract'
+import { t } from '../../i18n/index'
 
 const timeFormat = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
 
@@ -21,7 +22,7 @@ function timeOf(timestamp: string): string {
 
 function deliveryMark(message: BroadcastMessage): string {
   if (message.delivery_state === 'sending') return '⋯'
-  if (message.delivery_state === 'failed') return '未发送'
+  if (message.delivery_state === 'failed') return t('w.messageList.1701af')
   return ''
 }
 
@@ -61,7 +62,9 @@ function BroadcastBubble({ message, ctx }: { message: BroadcastMessage; ctx: Mes
       <div className="tg-msg__bubble">
         {ctx.showSenderName ? <span className="tg-msg__sender">{message.sender}</span> : null}
         {message.forwarded_from ? (
-          <span className="tg-mlist-default__forward">转发自 {message.forwarded_from.sender}</span>
+          <span className="tg-mlist-default__forward">
+            {t('w.messageList.f97f81')} {message.forwarded_from.sender}
+          </span>
         ) : null}
         {message.reply_to ? (
           <button
@@ -69,11 +72,12 @@ function BroadcastBubble({ message, ctx }: { message: BroadcastMessage; ctx: Mes
             className="tg-msg__reply tg-mlist-default__reply"
             onClick={() => jumpToMessage(message.reply_to?.message_id ?? '')}
           >
-            {message.reply_to.sender}：{message.reply_to.recalled ? '消息已撤回' : message.reply_to.content}
+            {message.reply_to.sender}：
+            {message.reply_to.recalled ? t('w.messageList.26b4ea') : message.reply_to.content}
           </button>
         ) : null}
         {message.recalled_at ? (
-          <span className="tg-msg__recalled">消息已撤回</span>
+          <span className="tg-msg__recalled">{t('w.messageList.26b4ea')}</span>
         ) : (
           <>
             <Attachment message={message} />
@@ -81,7 +85,7 @@ function BroadcastBubble({ message, ctx }: { message: BroadcastMessage; ctx: Mes
           </>
         )}
         <span className="tg-msg__meta">
-          {message.edited_at && !message.recalled_at ? <span>已编辑</span> : null}
+          {message.edited_at && !message.recalled_at ? <span>{t('w.messageList.c36776')}</span> : null}
           <time dateTime={message.timestamp}>{timeOf(message.timestamp)}</time>
           {mark ? <span data-state={message.delivery_state}>{mark}</span> : null}
         </span>
@@ -96,7 +100,9 @@ function UploadRow({ message }: { message: UploadMessage }) {
     <div className="tg-msg tg-msg--out tg-mlist-default">
       <div className="tg-msg__bubble">
         <span className="tg-msg__content">{message.file_name}</span>
-        <span className="tg-msg__meta">{message.status === 'failed' ? '上传失败' : `上传中 ${percent}%`}</span>
+        <span className="tg-msg__meta">
+          {message.status === 'failed' ? t('w.messageList.a6f805') : t('w.messageList.255859', percent)}
+        </span>
       </div>
     </div>
   )

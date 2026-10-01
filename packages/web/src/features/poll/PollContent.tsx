@@ -12,6 +12,7 @@ import type { MessageContentProps } from '../message'
 import { BulbGlyph, CheckGlyph, CrossGlyph } from './glyphs'
 import { describePoll, type PollOptionView } from './pollView'
 import { usePoll, type PollController } from './usePoll'
+import { t } from '../../i18n/index'
 
 const PollVotersDialog = lazy(() => import('./PollVotersDialog'))
 
@@ -102,17 +103,21 @@ export function PollBody({ poll: fromMessage, senderId, metaSpacer, controller }
               live.vote([...ticked].sort((a, b) => a - b))
             }}
           >
-            投票
+            {t('w.poll.ad7aca')}
           </button>
         ) : (
           <span className="tg-poll__count">{view.footer}</span>
         )}
         {poll.public_voters && view.showResults && poll.total_voters > 0 ? (
-          <FooterAction label="查看投票人" onClick={() => setVotersOpen(true)} />
+          <FooterAction label={t('w.poll.3205e1')} onClick={() => setVotersOpen(true)} />
         ) : null}
-        {view.canRetract ? <FooterAction label="撤回投票" disabled={busy} onClick={live.retract} /> : null}
+        {view.canRetract ? <FooterAction label={t('w.poll.5fb7fd')} disabled={busy} onClick={live.retract} /> : null}
         {!poll.closed && senderId !== null && senderId === live.viewerId ? (
-          <FooterAction label={poll.quiz ? '结束测验' : '结束投票'} disabled={busy} onClick={live.close} />
+          <FooterAction
+            label={poll.quiz ? t('w.poll.55e5eb') : t('w.poll.93324e')}
+            disabled={busy}
+            onClick={live.close}
+          />
         ) : null}
         {metaSpacer}
       </div>
@@ -150,11 +155,11 @@ function ResultRow({ option }: { option: PollOptionView }) {
   const barStyle = { '--poll-share': String(option.share) } as CSSProperties
   const label =
     option.mark === 'correct'
-      ? '正确答案'
+      ? t('w.poll.4e022c')
       : option.mark === 'wrong'
-        ? '你的答案（错误）'
+        ? t('w.poll.73b292')
         : option.mark === 'chosen'
-          ? '你的选择'
+          ? t('w.poll.191bde')
           : ''
   return (
     <li className="tg-poll__result" data-mark={option.mark === 'none' ? undefined : option.mark}>

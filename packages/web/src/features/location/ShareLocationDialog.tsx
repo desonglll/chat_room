@@ -10,8 +10,19 @@ import { Button, Modal, Toggle } from '@tg/ui'
 import { activeTopicId } from '../forum/activeTopic'
 import { locationsApi } from './locationApi'
 import { startSharing } from './liveSharing'
+import { t } from '../../i18n/index'
 
-const PERIOD_LABEL: Record<number, string> = { 900: '15 分钟', 3600: '1 小时', 28800: '8 小时' }
+const PERIOD_LABEL: Record<number, string> = {
+  get 900() {
+    return t('w.location.cfc1d0')
+  },
+  get 3600() {
+    return t('w.location.c8fb1c')
+  },
+  get 28800() {
+    return t('w.location.759ce5')
+  },
+}
 
 type Fix = { state: 'locating' } | { state: 'failed'; reason: string } | { state: 'ready'; point: LocationPointInput }
 
@@ -23,7 +34,7 @@ export default function ShareLocationDialog({ chatId, onClose }: { chatId: strin
   useEffect(() => {
     const geolocation = globalThis.navigator?.geolocation
     if (!geolocation) {
-      setFix({ state: 'failed', reason: '此浏览器不支持定位' })
+      setFix({ state: 'failed', reason: t('w.location.2332ee') })
       return
     }
     geolocation.getCurrentPosition(
@@ -36,7 +47,8 @@ export default function ShareLocationDialog({ chatId, onClose }: { chatId: strin
             accuracy_m: position.coords.accuracy,
           },
         }),
-      (failure) => setFix({ state: 'failed', reason: failure.code === 1 ? '未获得定位权限' : '无法获取当前位置' }),
+      (failure) =>
+        setFix({ state: 'failed', reason: failure.code === 1 ? t('w.location.db9cc6') : t('w.location.96fe75') }),
       { enableHighAccuracy: true, timeout: 15_000 },
     )
   }, [])
@@ -61,27 +73,28 @@ export default function ShareLocationDialog({ chatId, onClose }: { chatId: strin
           }
           onClose()
         },
-        () => setError('无法在这个会话中发送位置'),
+        () => setError(t('w.location.033789')),
       )
   }
 
   const accuracy = fix.state === 'ready' ? Math.round(approximate ? 1000 : (fix.point.accuracy_m ?? 0)) : 0
   return (
-    <Modal open onClose={onClose} title="发送位置">
+    <Modal open onClose={onClose} title={t('w.location.1184ec')}>
       <div className="tg-location-share">
-        {fix.state === 'locating' ? <p>正在获取当前位置…</p> : null}
+        {fix.state === 'locating' ? <p>{t('w.location.cd8727')}</p> : null}
         {fix.state === 'failed' ? <p role="alert">{fix.reason}</p> : null}
         {fix.state === 'ready' ? (
           <>
             <p className="tg-location-share__privacy">
-              这个会话里的所有成员都能看到{approximate ? '大致' : '精确'}位置（误差约 {accuracy} 米）。
-              实时位置只保留最新一点，结束后不再更新，也无法回看轨迹。
+              {t('w.location.2cfb94')}
+              {approximate ? t('w.location.8bdf2f') : t('w.location.be955b')}
+              {t('w.location.ce34f2')} {accuracy} {t('w.location.cb755e')}
             </p>
-            <Toggle label="模糊位置（约 1 公里）" checked={approximate} onCheckedChange={setApproximate} />
+            <Toggle label={t('w.location.28849a')} checked={approximate} onCheckedChange={setApproximate} />
             <Button fullWidth onClick={() => send()}>
-              发送当前位置
+              {t('w.location.8195a1')}
             </Button>
-            <p className="tg-location-share__label">共享实时位置</p>
+            <p className="tg-location-share__label">{t('w.location.c9ec06')}</p>
             <div className="tg-location-share__periods">
               {LIVE_LOCATION_PERIODS.map((seconds) => (
                 <Button key={seconds} variant="tonal" onClick={() => send(seconds)}>

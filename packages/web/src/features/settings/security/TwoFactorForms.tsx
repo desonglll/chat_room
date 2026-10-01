@@ -24,6 +24,7 @@ import {
   securityErrorCopy,
   type SecurityAction,
 } from './securityRules'
+import { t } from '../../../i18n/index'
 
 interface FormProps {
   token: string
@@ -80,7 +81,7 @@ function Frame(props: {
           {props.submitLabel}
         </Button>
         <Button variant="text" onClick={props.onCancel} disabled={props.busy} fullWidth>
-          取消
+          {t('w.settings.4d0b46')}
         </Button>
       </div>
     </form>
@@ -105,12 +106,12 @@ function PasswordField(props: { label: string; value: string; onChange: (value: 
 function HintField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <TextField
-      label="密码提示（可选）"
+      label={t('w.settings.f36cd5')}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       name="two-factor-hint"
       maxLength={MAX_HINT_CHARS}
-      hint="登录时会显示给输入账号密码正确的人，不要写密码本身"
+      hint={t('w.settings.1fc974')}
       fullWidth
     />
   )
@@ -123,24 +124,29 @@ export function EnableForm({ token, onDone, onCancel }: FormProps) {
   const [hint, setHint] = useState('')
   const { error, busy, run } = useSubmit('enable')
   const submit = () =>
-    run(accountPassword ? checkNewPassword({ password, confirm, hint }) : '请输入账号密码', async () => {
+    run(accountPassword ? checkNewPassword({ password, confirm, hint }) : t('w.settings.eb88e8'), async () => {
       onDone(
         await enableTwoFactor(apiClient, token, { account_password: accountPassword, password, hint: hint.trim() }),
       )
     })
   return (
     <Frame
-      title="设置两步验证密码"
-      note="开启后，除当前设备外，你的所有其他设备都会立即退出登录。"
+      title={t('w.settings.fc2484')}
+      note={t('w.settings.a1677d')}
       error={error}
       busy={busy}
-      submitLabel="开启两步验证"
+      submitLabel={t('w.settings.7b4039')}
       onSubmit={submit}
       onCancel={onCancel}
     >
-      <PasswordField label="账号密码" value={accountPassword} onChange={setAccountPassword} name="account-password" />
-      <PasswordField label="两步验证密码" value={password} onChange={setPassword} name="two-factor-new" />
-      <PasswordField label="再次输入两步验证密码" value={confirm} onChange={setConfirm} name="two-factor-confirm" />
+      <PasswordField
+        label={t('w.settings.d3ef11')}
+        value={accountPassword}
+        onChange={setAccountPassword}
+        name="account-password"
+      />
+      <PasswordField label={t('w.settings.4e69e7')} value={password} onChange={setPassword} name="two-factor-new" />
+      <PasswordField label={t('w.settings.9c186e')} value={confirm} onChange={setConfirm} name="two-factor-confirm" />
       <HintField value={hint} onChange={setHint} />
     </Frame>
   )
@@ -154,7 +160,7 @@ export function ChangeForm({ token, currentHint, onDone, onCancel }: FormProps &
   const { error, busy, run } = useSubmit('change')
   const changingPassword = password !== '' || confirm !== ''
   const localError = !current
-    ? '请输入当前两步验证密码'
+    ? t('w.settings.b70c9b')
     : changingPassword
       ? checkNewPassword({ password, confirm, hint })
       : checkHint(hint, current)
@@ -170,17 +176,17 @@ export function ChangeForm({ token, currentHint, onDone, onCancel }: FormProps &
     })
   return (
     <Frame
-      title="修改两步验证"
-      note="只改提示时，新密码两栏留空即可。"
+      title={t('w.settings.ab02dc')}
+      note={t('w.settings.9ee57c')}
       error={error}
       busy={busy}
-      submitLabel="保存"
+      submitLabel={t('w.settings.fadf24')}
       onSubmit={submit}
       onCancel={onCancel}
     >
-      <PasswordField label="当前两步验证密码" value={current} onChange={setCurrent} name="two-factor-current" />
-      <PasswordField label="新密码（可选）" value={password} onChange={setPassword} name="two-factor-new" />
-      <PasswordField label="再次输入新密码" value={confirm} onChange={setConfirm} name="two-factor-confirm" />
+      <PasswordField label={t('w.settings.499b6d')} value={current} onChange={setCurrent} name="two-factor-current" />
+      <PasswordField label={t('w.settings.95a1ae')} value={password} onChange={setPassword} name="two-factor-new" />
+      <PasswordField label={t('w.settings.e03274')} value={confirm} onChange={setConfirm} name="two-factor-confirm" />
       <HintField value={hint} onChange={setHint} />
     </Frame>
   )
@@ -196,7 +202,7 @@ export function EmailForm({ token, pendingEmail, onDone, onCancel }: FormProps &
   const busy = sender.busy || confirmer.busy
 
   const send = () =>
-    sender.run(current ? checkEmail(email) : '请输入当前两步验证密码', async () => {
+    sender.run(current ? checkEmail(email) : t('w.settings.b70c9b'), async () => {
       const mailed = await requestRecoveryEmail(apiClient, token, current, email.trim())
       setSentTo(mailed.email_pattern)
       setCode('')
@@ -208,19 +214,21 @@ export function EmailForm({ token, pendingEmail, onDone, onCancel }: FormProps &
 
   return (
     <Frame
-      title="恢复邮箱"
-      note="忘记两步验证密码时，可以用发送到这个邮箱的验证码重置；重置会让其他设备全部退出登录。"
+      title={t('w.settings.9f8463')}
+      note={t('w.settings.b2d9e8')}
       error={sentTo ? confirmer.error || sender.error : sender.error}
       busy={busy}
-      submitLabel={sentTo ? '验证邮箱' : '发送验证码'}
+      submitLabel={sentTo ? t('w.settings.95e8e7') : t('w.settings.42e8ed')}
       onSubmit={sentTo ? verify : send}
       onCancel={onCancel}
     >
       {sentTo ? (
         <>
-          <p className="tg-security__state">验证码已发送到 {sentTo}</p>
+          <p className="tg-security__state">
+            {t('w.settings.a6aadc')} {sentTo}
+          </p>
           <TextField
-            label="邮件验证码"
+            label={t('w.settings.6a7140')}
             value={code}
             onChange={(event) => setCode(event.target.value)}
             name="recovery-code"
@@ -230,14 +238,19 @@ export function EmailForm({ token, pendingEmail, onDone, onCancel }: FormProps &
             fullWidth
           />
           <Button variant="text" onClick={() => setSentTo('')} disabled={busy} fullWidth>
-            换一个邮箱或重新发送
+            {t('w.settings.b59bd5')}
           </Button>
         </>
       ) : (
         <>
-          <PasswordField label="当前两步验证密码" value={current} onChange={setCurrent} name="two-factor-current" />
+          <PasswordField
+            label={t('w.settings.499b6d')}
+            value={current}
+            onChange={setCurrent}
+            name="two-factor-current"
+          />
           <TextField
-            label="邮箱地址"
+            label={t('w.settings.b13dda')}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -256,22 +269,22 @@ export function DisableForm({ token, onDone, onCancel }: FormProps) {
   const [current, setCurrent] = useState('')
   const { error, busy, run } = useSubmit('disable')
   const submit = () =>
-    run(current ? '' : '请输入当前两步验证密码', async () => {
+    run(current ? '' : t('w.settings.b70c9b'), async () => {
       await disableTwoFactor(apiClient, token, current)
       onDone(null)
     })
   return (
     <Frame
-      title="关闭两步验证"
-      note="关闭后，只凭账号密码就能在新设备登录，恢复邮箱也会一并移除。"
+      title={t('w.settings.f6901f')}
+      note={t('w.settings.e72cb3')}
       error={error}
       busy={busy}
-      submitLabel="关闭两步验证"
+      submitLabel={t('w.settings.f6901f')}
       danger
       onSubmit={submit}
       onCancel={onCancel}
     >
-      <PasswordField label="当前两步验证密码" value={current} onChange={setCurrent} name="two-factor-current" />
+      <PasswordField label={t('w.settings.499b6d')} value={current} onChange={setCurrent} name="two-factor-current" />
     </Frame>
   )
 }

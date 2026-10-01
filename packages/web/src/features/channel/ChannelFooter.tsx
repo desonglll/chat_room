@@ -10,6 +10,7 @@ import { Button } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { channelApi } from './channelApi'
 import { leaveChannel, setChannelMuted, subscribeToChannel } from './channelActions'
+import { t } from '../../i18n/index'
 import './channel.css'
 
 export interface ChannelFooterViewProps {
@@ -26,21 +27,21 @@ export interface ChannelFooterViewProps {
 export function ChannelFooterView(props: ChannelFooterViewProps) {
   const { subscribed, muted, pending, busy, error } = props
   return (
-    <div className="tg-channel-footer" role="group" aria-label="频道操作">
+    <div className="tg-channel-footer" role="group" aria-label={t('w.channel.7e1aaf')}>
       {pending ? (
-        <p className="tg-channel-footer__note">订阅申请已提交，等待管理员审核</p>
+        <p className="tg-channel-footer__note">{t('w.channel.915b94')}</p>
       ) : subscribed ? (
         <>
           <Button variant="text" className="tg-channel-footer__main" loading={busy} onClick={props.onToggleMute}>
-            {muted ? '取消静音' : '静音'}
+            {muted ? t('w.channel.59bc75') : t('w.channel.afdbd1')}
           </Button>
           <Button variant="text" className="tg-channel-footer__leave" disabled={busy} onClick={props.onLeave}>
-            退订
+            {t('w.channel.fc6c92')}
           </Button>
         </>
       ) : (
         <Button variant="text" fullWidth loading={busy} onClick={props.onSubscribe}>
-          订阅
+          {t('w.channel.5319af')}
         </Button>
       )}
       {error ? (
@@ -77,16 +78,16 @@ export function ChannelFooter({ chatId }: { chatId: string }) {
       busy={busy}
       error={error}
       onSubscribe={() =>
-        run(async () => setPending((await subscribeToChannel(deps, chatId)) === 'pending'), '订阅失败，请稍后再试')
+        run(async () => setPending((await subscribeToChannel(deps, chatId)) === 'pending'), t('w.channel.3ac829'))
       }
       onToggleMute={() =>
-        run(() => setChannelMuted(deps, chatId, !(row && isConversationMuted(row, Date.now()))), '操作失败，请重试')
+        run(() => setChannelMuted(deps, chatId, !(row && isConversationMuted(row, Date.now()))), t('w.channel.51d3cb'))
       }
       onLeave={() =>
         run(async () => {
           await leaveChannel(deps, chatId)
           void navigate('/')
-        }, '退订失败，请稍后再试')
+        }, t('w.channel.c87b60'))
       }
     />
   )

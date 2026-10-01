@@ -8,6 +8,7 @@ import type { ChatFolder, ConversationSummary } from '@tg/core'
 import { folderUnread, settingsStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { folderStore, loadFolders, selectFolder } from './folderStore'
+import { t } from '../../i18n/index'
 
 export function FolderTabs({ conversations }: { conversations: readonly ConversationSummary[] }) {
   const { folders, activeId, loaded } = useStore(folderStore)
@@ -38,7 +39,7 @@ interface FolderStripProps {
 
 export function FolderStrip({ folders, activeId, layout, conversations, now, onSelect }: FolderStripProps) {
   if (folders.length === 0) return null
-  const tabs = [{ id: null as string | null, title: '全部', emoji: '', unread: 0 }].concat(
+  const tabs = [{ id: null as string | null, title: t('w.folders.778fc8'), emoji: '', unread: 0 }].concat(
     folders.map((folder) => ({
       id: folder.id,
       title: folder.title,
@@ -47,7 +48,7 @@ export function FolderStrip({ folders, activeId, layout, conversations, now, onS
     })),
   )
   return (
-    <div className="tg-folders" data-layout={layout} role="tablist" aria-label="聊天文件夹">
+    <div className="tg-folders" data-layout={layout} role="tablist" aria-label={t('w.folders.7aa0e7')}>
       {tabs.map((tab) => (
         <button
           key={tab.id ?? 'all'}

@@ -10,6 +10,7 @@ import { useStore } from 'zustand/react'
 import { commentsLabel } from './commentsModel'
 import { CommentsPanel } from './CommentsPanel'
 import { discussionApi } from './discussionApi'
+import { t } from '../../../i18n/index'
 import './comments.css'
 
 export function PostCommentsEntry({ message }: { message: BroadcastMessage }) {
@@ -24,7 +25,13 @@ export function PostCommentsEntry({ message }: { message: BroadcastMessage }) {
         <span aria-hidden="true">💬</span>
         <span>{commentsLabel(shown)}</span>
       </button>
-      <Sheet open={open} side="right" title="评论" onClose={() => setOpen(false)} className="tg-comments__sheet">
+      <Sheet
+        open={open}
+        side="right"
+        title={t('w.channel.cf5105')}
+        onClose={() => setOpen(false)}
+        className="tg-comments__sheet"
+      >
         {open ? (
           <CommentsPanel channelId={channelId} postId={message.message_id} api={discussionApi} onCount={setCount} />
         ) : null}

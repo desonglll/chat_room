@@ -12,6 +12,7 @@ import { Avatar, Button } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { loadChatList } from '../chatList/chatListController'
 import { publicHandlesApi } from './publicHandlesApi'
+import { t } from '../../i18n/index'
 
 export interface PublicChatRouteDeps {
   preview(username: string): Promise<PublicChatPreview>
@@ -31,7 +32,17 @@ type State =
   | { kind: 'missing' }
   | { kind: 'preview'; preview: PublicChatPreview; busy: boolean; requested: boolean; error: string }
 
-const TYPE_LABEL: Record<string, string> = { channel: '频道', supergroup: '超级群', group: '群组' }
+const TYPE_LABEL: Record<string, string> = {
+  get channel() {
+    return t('w.chatPreview.b76dfd')
+  },
+  get supergroup() {
+    return t('w.chatPreview.a06237')
+  },
+  get group() {
+    return t('w.chatPreview.4260ca')
+  },
+}
 
 export function PublicChatRoute({ deps = defaultDeps }: { deps?: PublicChatRouteDeps }) {
   const { username = '' } = useParams()
@@ -54,9 +65,12 @@ export function PublicChatRoute({ deps = defaultDeps }: { deps?: PublicChatRoute
   if (state.kind === 'missing') {
     return (
       <div className="tg-public">
-        <section className="tg-public__card" aria-label="公开链接">
-          <p className="tg-public__title">找不到 @{username}</p>
-          <p className="tg-public__meta">这个公开链接不存在，或已被管理员取消。</p>
+        <section className="tg-public__card" aria-label={t('w.chatPreview.093bb5')}>
+          <p className="tg-public__title">
+            {t('w.chatPreview.57811c')}
+            {username}
+          </p>
+          <p className="tg-public__meta">{t('w.chatPreview.ff5181')}</p>
         </section>
       </div>
     )
@@ -79,20 +93,22 @@ export function PublicChatRoute({ deps = defaultDeps }: { deps?: PublicChatRoute
         setState({ kind: 'preview', preview: joined, busy: false, requested: true, error: '' })
       }
     } catch {
-      setState({ ...state, busy: false, error: '无法加入，可能已被封禁。' })
+      setState({ ...state, busy: false, error: t('w.chatPreview.954537') })
     }
   }
   const members =
-    preview.chat_type === 'channel' ? `${preview.member_count} 位订阅者` : `${preview.member_count} 位成员`
+    preview.chat_type === 'channel'
+      ? t('w.chatPreview.2b75a3', preview.member_count)
+      : t('w.chatPreview.0ece20', preview.member_count)
   const action = preview.is_member
     ? preview.chat_type === 'channel'
-      ? '查看频道'
-      : '进入群组'
+      ? t('w.chatPreview.6a20f5')
+      : t('w.chatPreview.004846')
     : preview.requires_approval
-      ? '申请加入'
+      ? t('w.chatPreview.527fa6')
       : preview.chat_type === 'channel'
-        ? '订阅'
-        : '加入群组'
+        ? t('w.chatPreview.5319af')
+        : t('w.chatPreview.9542b3')
 
   return (
     <div className="tg-public">
@@ -100,12 +116,12 @@ export function PublicChatRoute({ deps = defaultDeps }: { deps?: PublicChatRoute
         <Avatar label={preview.title} initials={preview.avatar_emoji || undefined} size={96} />
         <p className="tg-public__title">{preview.title}</p>
         <p className="tg-public__meta">
-          {TYPE_LABEL[preview.chat_type] ?? '群组'} · {members} · @{preview.username}
+          {TYPE_LABEL[preview.chat_type] ?? t('w.chatPreview.4260ca')} · {members} · @{preview.username}
         </p>
         {preview.description ? <p className="tg-public__description">{preview.description}</p> : null}
         {state.requested ? (
           <p className="tg-public__meta" role="status">
-            已发送加入申请，管理员审核通过后你才会加入。
+            {t('w.chatPreview.ac52a2')}
           </p>
         ) : (
           <Button variant="filled" loading={state.busy} onClick={() => void open()}>

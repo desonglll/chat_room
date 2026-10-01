@@ -5,6 +5,7 @@
 import type { Chat } from '../types'
 import type { ApiClient } from './http'
 import { encodePathSegment } from './http'
+import { t } from '../i18n/t'
 
 export const SLOW_MODE_CHOICES = [0, 10, 30, 60, 300, 900, 3600] as const
 
@@ -36,10 +37,10 @@ export function createSlowModeApi(client: ApiClient, token: () => string | null)
 
 /** Telegram's labels: «关闭», «10 秒», «1 分钟», «1 小时». */
 export function slowModeLabel(seconds: number): string {
-  if (seconds <= 0) return '关闭'
-  if (seconds < 60) return `${seconds} 秒`
-  if (seconds < 3600) return `${seconds / 60} 分钟`
-  return `${seconds / 3600} 小时`
+  if (seconds <= 0) return t('c.api.6c14bd')
+  if (seconds < 60) return t('c.api.99598b', seconds)
+  if (seconds < 3600) return t('c.api.c16d73', seconds / 60)
+  return t('c.api.5247a4', seconds / 3600)
 }
 
 /** The countdown text: «0:42», «4:05», «59:59». */

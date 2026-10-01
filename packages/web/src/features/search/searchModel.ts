@@ -3,6 +3,7 @@
  * `content_type` filter so each tab pages on its own cursor.
  */
 import type { CoreStorage, GlobalSearchContentType } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export type SearchTabId = 'chats' | 'messages' | 'media' | 'links' | 'files' | 'music' | 'voice'
 
@@ -14,13 +15,55 @@ export interface SearchTab {
 }
 
 export const SEARCH_TABS: readonly SearchTab[] = [
-  { id: 'chats', label: '聊天', contentType: null },
-  { id: 'messages', label: '消息', contentType: 'all' },
-  { id: 'media', label: '媒体', contentType: 'media' },
-  { id: 'links', label: '链接', contentType: 'link' },
-  { id: 'files', label: '文件', contentType: 'document' },
-  { id: 'music', label: '音乐', contentType: 'music' },
-  { id: 'voice', label: '语音', contentType: 'voice' },
+  {
+    id: 'chats',
+    get label() {
+      return t('w.search.5358b2')
+    },
+    contentType: null,
+  },
+  {
+    id: 'messages',
+    get label() {
+      return t('w.search.dc6de3')
+    },
+    contentType: 'all',
+  },
+  {
+    id: 'media',
+    get label() {
+      return t('w.search.fe3330')
+    },
+    contentType: 'media',
+  },
+  {
+    id: 'links',
+    get label() {
+      return t('w.search.715022')
+    },
+    contentType: 'link',
+  },
+  {
+    id: 'files',
+    get label() {
+      return t('w.search.49deaf')
+    },
+    contentType: 'document',
+  },
+  {
+    id: 'music',
+    get label() {
+      return t('w.search.afb3c4')
+    },
+    contentType: 'music',
+  },
+  {
+    id: 'voice',
+    get label() {
+      return t('w.search.7a73e1')
+    },
+    contentType: 'voice',
+  },
 ]
 
 export const RECENT_SEARCH_KEY = 'tg.search.recent.v1'

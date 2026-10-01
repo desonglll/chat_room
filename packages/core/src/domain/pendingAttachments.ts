@@ -1,3 +1,4 @@
+import { t } from '../i18n/t'
 /**
  * TG-104: the list of attachments waiting to be sent — pasted images, dropped files, the
  * attachment menu's picks — with one caption for the batch, like Telegram's send dialog.
@@ -82,15 +83,15 @@ export function addPendingFiles<F>(
     const fingerprint = `${input.name}:${input.size}:${input.lastModified ?? 0}`
     if (items.some((item) => item.fingerprint === fingerprint)) continue
     if (input.size <= 0) {
-      rejected.push({ name: input.name, reason: '文件为空' })
+      rejected.push({ name: input.name, reason: t('c.domain.dfdb42') })
       continue
     }
     if (options.maxBytes !== undefined && input.size > options.maxBytes) {
-      rejected.push({ name: input.name, reason: '文件超出大小限制' })
+      rejected.push({ name: input.name, reason: t('c.domain.f9c82d') })
       continue
     }
     if (items.length >= MAX_PENDING_ATTACHMENTS) {
-      rejected.push({ name: input.name, reason: `一次最多发送 ${MAX_PENDING_ATTACHMENTS} 个文件` })
+      rejected.push({ name: input.name, reason: t('c.domain.decc4d', MAX_PENDING_ATTACHMENTS) })
       continue
     }
     const mimeType = input.mimeType || 'application/octet-stream'
@@ -148,9 +149,9 @@ export function sendablePendingFiles<F>(batch: PendingBatch<F>): PendingAttachme
 export function pendingBatchTitle<F>(batch: PendingBatch<F>): string {
   const count = batch.items.length
   if (count === 0) return ''
-  if (batch.items.every((item) => item.kind === 'photo')) return `发送 ${count} 张图片`
-  if (batch.items.every((item) => item.kind === 'video')) return `发送 ${count} 个视频`
-  return `发送 ${count} 个文件`
+  if (batch.items.every((item) => item.kind === 'photo')) return t('c.domain.c502d3', count)
+  if (batch.items.every((item) => item.kind === 'video')) return t('c.domain.ffd6d7', count)
+  return t('c.domain.51ccc1', count)
 }
 
 /** The typing action to announce while this item uploads (TG-107 `createChatActionSender`). */

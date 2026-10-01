@@ -13,6 +13,7 @@ import { browserClock } from '../../../app/platform'
 import { LazyStickerView as StickerView } from '../LazyStickerView'
 import { stickerLibrary } from '../stickerLibrary'
 import { createSuggestionController, NO_SUGGESTIONS, type Suggestions } from './suggestionController'
+import { t } from '../../../i18n/index'
 import '../sticker.css'
 
 export interface StickerSuggestionsProps {
@@ -64,7 +65,12 @@ export function StickerSuggestions({ draft, onPick, disabled = false }: StickerS
 
   if (shown.stickers.length === 0) return null
   return (
-    <div className="tg-sticker-suggest" role="listbox" aria-label={`${shown.emoji} 的贴纸`} data-emoji={shown.emoji}>
+    <div
+      className="tg-sticker-suggest"
+      role="listbox"
+      aria-label={t('w.sticker.7ab919', shown.emoji)}
+      data-emoji={shown.emoji}
+    >
       {shown.stickers.map((sticker) => (
         <button
           key={sticker.id}
@@ -73,7 +79,7 @@ export function StickerSuggestions({ draft, onPick, disabled = false }: StickerS
           aria-selected={false}
           className="tg-sticker-suggest__item"
           disabled={disabled}
-          aria-label={`发送贴纸 ${sticker.emoji}`}
+          aria-label={t('w.sticker.4c21b9', sticker.emoji)}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onPick(sticker)}
         >

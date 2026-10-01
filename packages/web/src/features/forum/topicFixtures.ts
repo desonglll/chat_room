@@ -1,13 +1,14 @@
 /** Test fixtures for the forum feature (not a test file itself). */
 import type { ForumTopic } from '@tg/core'
 import { TOPIC_COLORS } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export function makeTopic(id: string, extra: Partial<ForumTopic> = {}): ForumTopic {
   return {
     id,
     chat_id: 'chat-1',
     is_general: false,
-    title: `话题${id}`,
+    title: t('w.forum.c32a25', id),
     icon_emoji: '',
     icon_custom_emoji_id: null,
     icon_color: TOPIC_COLORS[0],

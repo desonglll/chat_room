@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 import type { MediaItem } from './mediaItem'
 import { stripWindow } from './mediaNavigation'
 import { PlayGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 /** Items rendered either side of the current one. */
 export const STRIP_RADIUS = 20
@@ -28,7 +29,7 @@ export function ThumbStrip({ items, index, onSelect, reduced }: ThumbStripProps)
   if (items.length < 2 || index < 0) return null
   const { start, end } = stripWindow(items.length, index, STRIP_RADIUS)
   return (
-    <nav className="tg-mv__strip" aria-label="本聊天的媒体" data-mv-chrome="">
+    <nav className="tg-mv__strip" aria-label={t('w.mediaViewer.9f1ed8')} data-mv-chrome="">
       {items.slice(start, end).map((item) => {
         const current = item.attachmentId === currentId
         return (
@@ -38,7 +39,7 @@ export function ThumbStrip({ items, index, onSelect, reduced }: ThumbStripProps)
             type="button"
             className="tg-mv__thumb"
             aria-current={current ? 'true' : undefined}
-            aria-label={`${item.kind === 'image' ? '图片' : '视频'} ${item.fileName}`}
+            aria-label={`${item.kind === 'image' ? t('w.mediaViewer.be8da6') : t('w.mediaViewer.fa4e33')} ${item.fileName}`}
             data-sensitive={item.isSensitive ? '' : undefined}
             onClick={() => onSelect(item.attachmentId)}
           >

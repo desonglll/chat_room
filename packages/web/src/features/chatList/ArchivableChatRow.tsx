@@ -7,6 +7,7 @@ import type { MenuItem } from '@tg/ui'
 import { ContextMenu } from '@tg/ui'
 import { ChatListIcon } from './chatListIcons'
 import { SwipeArchive } from './SwipeArchive'
+import { t } from '../../i18n/index'
 
 export interface ArchivableChatRowProps {
   archived: boolean
@@ -20,8 +21,8 @@ export function archiveMenuItems(archived: boolean, onToggleArchive: () => void)
   return [
     {
       id: archived ? 'unarchive' : 'archive',
-      label: archived ? '取消归档' : '归档',
-      textValue: archived ? '取消归档' : '归档',
+      label: archived ? t('w.chatList.18362b') : t('w.chatList.ddfde7'),
+      textValue: archived ? t('w.chatList.18362b') : t('w.chatList.ddfde7'),
       icon: <ChatListIcon name={archived ? 'unarchive' : 'archive'} size={20} />,
       onSelect: onToggleArchive,
     },
@@ -30,7 +31,11 @@ export function archiveMenuItems(archived: boolean, onToggleArchive: () => void)
 
 export function ArchivableChatRow({ archived, collapsed, onToggleArchive, children }: ArchivableChatRowProps) {
   return (
-    <ContextMenu items={archiveMenuItems(archived, onToggleArchive)} aria-label="会话菜单" className="tg-chatrow-menu">
+    <ContextMenu
+      items={archiveMenuItems(archived, onToggleArchive)}
+      aria-label={t('w.chatList.591f88')}
+      className="tg-chatrow-menu"
+    >
       <SwipeArchive archived={archived} onCommit={onToggleArchive} disabled={collapsed}>
         {children}
       </SwipeArchive>

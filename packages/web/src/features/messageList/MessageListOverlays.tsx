@@ -4,6 +4,7 @@
  * positioned so none of it takes part in Virtuoso's height measurement.
  */
 import { Badge, Spinner } from '@tg/ui'
+import { t } from '../../i18n/index'
 
 export function FloatingDate({ text, visible }: { text: string; visible: boolean }) {
   if (!text) return null
@@ -18,7 +19,7 @@ export function TopLoader({ active }: { active: boolean }) {
   if (!active) return null
   return (
     <div className="tg-mlist__top-loader">
-      <Spinner label="正在载入更早的消息" size="sm" />
+      <Spinner label={t('w.messageList.d9b3ce')} size="sm" />
     </div>
   )
 }
@@ -53,13 +54,13 @@ export function ScrollButton({ visible, returning, unread, busy, onClick }: Scro
       className="tg-mlist__fab"
       data-visible={visible || undefined}
       data-returning={returning || undefined}
-      aria-label={returning ? '返回原位置' : '回到最新消息'}
+      aria-label={returning ? t('w.messageList.71a148') : t('w.messageList.79ed68')}
       tabIndex={visible ? 0 : -1}
       aria-hidden={!visible}
       onClick={onClick}
     >
       {busy ? (
-        <Spinner label="正在载入" size="sm" />
+        <Spinner label={t('w.messageList.95b55a')} size="sm" />
       ) : (
         <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path

@@ -7,6 +7,7 @@ import { useState, type ReactNode } from 'react'
 import type { AutoDownloadKind } from '@tg/core'
 import { networkTypeOf, settingsStore, shouldAutoDownload } from '@tg/core'
 import { useStore } from 'zustand/react'
+import { t } from '../../../i18n/index'
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -44,7 +45,7 @@ export function AutoDownloadGate({
         ↓
       </span>
       <span>
-        {kind === 'video' ? '视频' : '图片'} · {formatSize(sizeBytes)}
+        {kind === 'video' ? t('w.settings.fa4e33') : t('w.settings.be8da6')} · {formatSize(sizeBytes)}
       </span>
     </button>
   )

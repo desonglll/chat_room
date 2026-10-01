@@ -5,6 +5,7 @@
  */
 import { CustomEmojiGrid, type PickedCustomEmoji } from './CustomEmojiGrid'
 import { useInstalledCustomEmoji, type InstalledLoader } from './useInstalledCustomEmoji'
+import { t } from '../../i18n/index'
 
 export interface CustomEmojiTabProps {
   onPick(emoji: PickedCustomEmoji): void
@@ -14,7 +15,7 @@ export interface CustomEmojiTabProps {
 
 export function CustomEmojiTab({ onPick, load }: CustomEmojiTabProps) {
   const state = useInstalledCustomEmoji(load)
-  if (state.status === 'loading') return <p className="tg-custom-emoji-grid__empty">加载中…</p>
-  if (state.status === 'failed') return <p className="tg-custom-emoji-grid__empty">自定义表情加载失败</p>
+  if (state.status === 'loading') return <p className="tg-custom-emoji-grid__empty">{t('w.customEmoji.300ee3')}</p>
+  if (state.status === 'failed') return <p className="tg-custom-emoji-grid__empty">{t('w.customEmoji.f094c1')}</p>
   return <CustomEmojiGrid sets={state.sets} onPick={onPick} />
 }

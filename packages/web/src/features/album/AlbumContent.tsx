@@ -14,6 +14,7 @@ import { layoutAlbum, type AlbumItemSize } from '@tg/core'
 import { MessageText, type MessageContentProps } from '../message'
 import { MediaFrame } from '../message/content/MediaFrame'
 import { albumItemsOf } from './albumCollapse'
+import { t } from '../../i18n/index'
 
 export const ALBUM_MAX_WIDTH = 420
 const ALBUM_OPTIONS = { maxWidth: ALBUM_MAX_WIDTH, minWidth: 100, spacing: 2 }
@@ -70,7 +71,7 @@ export function AlbumContent({ message, actions, metaSpacer }: MessageContentPro
               <MediaFrame
                 attachment={attachment}
                 actions={actions}
-                label={`${video ? '播放视频' : '查看图片'} ${attachment.file_name}（${index + 1}/${withMedia.length}）`}
+                label={`${video ? t('w.album.af7d6e') : t('w.album.9b1861')} ${attachment.file_name}（${index + 1}/${withMedia.length}）`}
               >
                 {video ? (
                   <video

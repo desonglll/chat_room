@@ -8,6 +8,7 @@ import type { ChatPresence, ConversationSummary } from '@tg/core'
 import { presenceStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { useTypingSummary } from '../presence'
+import { t } from '../../i18n/index'
 
 export interface ChatRowPresence {
   isOnline: boolean | undefined
@@ -28,10 +29,13 @@ export function deriveChatRowPresence(
   const typists = presence.typing.filter((indicator) => indicator.user_id !== currentUserId)
   let typingText: string | null = null
   if (typists.length > 0) {
-    if (conversation.kind === 'direct') typingText = '正在输入…'
+    if (conversation.kind === 'direct') typingText = t('w.chatList.bd19ae')
     else {
       const names = typists.map((indicator) => indicator.username).filter(Boolean)
-      typingText = names.length > 1 ? `${names.length} 人正在输入…` : `${names[0] ?? '有人'} 正在输入…`
+      typingText =
+        names.length > 1
+          ? t('w.chatList.8222dd', names.length)
+          : t('w.chatList.384831', names[0] ?? t('w.chatList.someone'))
     }
   }
   return { isOnline, typingText }

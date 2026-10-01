@@ -5,6 +5,7 @@
 import { lazy, Suspense } from 'react'
 import { Spinner } from '@tg/ui'
 import type { MediaPanelTabContext } from '../../sticker/panel/mediaPanelTabs'
+import { t } from '../../../i18n/index'
 
 const GifTab = lazy(() => import('./GifTab').then((module) => ({ default: module.GifTab })))
 
@@ -13,7 +14,7 @@ export function LazyGifTab(props: MediaPanelTabContext) {
     <Suspense
       fallback={
         <div className="tg-sticker-tab__state">
-          <Spinner size="md" label="正在加载 GIF" />
+          <Spinner size="md" label={t('w.gif.864bf0')} />
         </div>
       }
     >

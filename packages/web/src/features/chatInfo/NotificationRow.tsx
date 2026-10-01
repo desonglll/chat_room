@@ -8,13 +8,44 @@ import { authStore, selectToken } from '@tg/core'
 import { apiClient } from '../../app/client'
 import { notificationSettingsApi, SOUNDS } from '../settings/notifications/notificationSettingsApi'
 import { BellIcon } from './icons'
+import { t } from '../../i18n/index'
 
 const MUTE_CHOICES: { id: string; label: string; hours: number | null }[] = [
-  { id: 'unmute', label: '取消静音', hours: 0 },
-  { id: '1h', label: '1 小时', hours: 1 },
-  { id: '8h', label: '8 小时', hours: 8 },
-  { id: '2d', label: '2 天', hours: 48 },
-  { id: 'forever', label: '永久', hours: null },
+  {
+    id: 'unmute',
+    get label() {
+      return t('w.chatInfo.59bc75')
+    },
+    hours: 0,
+  },
+  {
+    id: '1h',
+    get label() {
+      return t('w.chatInfo.c8fb1c')
+    },
+    hours: 1,
+  },
+  {
+    id: '8h',
+    get label() {
+      return t('w.chatInfo.759ce5')
+    },
+    hours: 8,
+  },
+  {
+    id: '2d',
+    get label() {
+      return t('w.chatInfo.922916')
+    },
+    hours: 48,
+  },
+  {
+    id: 'forever',
+    get label() {
+      return t('w.chatInfo.409752')
+    },
+    hours: null,
+  },
 ]
 
 /** The preferences patch for a mute choice (pure, for tests). */
@@ -37,8 +68,8 @@ export function NotificationRow({ chatId }: { chatId: string }) {
         body: mutePatch(hours, Date.now()),
       })
       .then(
-        () => setNote(hours === 0 ? '已取消静音' : `已静音：${label}`),
-        () => setNote('设置失败'),
+        () => setNote(hours === 0 ? t('w.chatInfo.02ae7c') : t('w.chatInfo.e04e05', label)),
+        () => setNote(t('w.chatInfo.7f77f4')),
       )
   }
   return (
@@ -47,7 +78,7 @@ export function NotificationRow({ chatId }: { chatId: string }) {
         <BellIcon />
       </span>
       <div className="tg-chatinfo__notify">
-        <div className="tg-chatinfo__notify-choices" role="group" aria-label="静音时长">
+        <div className="tg-chatinfo__notify-choices" role="group" aria-label={t('w.chatInfo.97fb2c')}>
           {MUTE_CHOICES.map((choice) => (
             <button key={choice.id} type="button" onClick={() => mute(choice.hours, choice.label)}>
               {choice.label}
@@ -55,16 +86,16 @@ export function NotificationRow({ chatId }: { chatId: string }) {
           ))}
         </div>
         <label className="tg-chatinfo__notify-sound">
-          <span>声音</span>
+          <span>{t('w.chatInfo.ab9ff8')}</span>
           <select
             defaultValue=""
             onChange={(event) =>
               void notificationSettingsApi
                 .setException(chatId, event.target.value ? { sound: event.target.value } : {})
-                .then(() => setNote('已保存'))
+                .then(() => setNote(t('w.chatInfo.cdfab9')))
             }
           >
-            <option value="">跟随默认</option>
+            <option value="">{t('w.chatInfo.a34dc2')}</option>
             {SOUNDS.map((sound) => (
               <option key={sound.id} value={sound.id}>
                 {sound.label}

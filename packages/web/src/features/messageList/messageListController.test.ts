@@ -11,7 +11,7 @@ import type { MessageListState } from './messageListController'
 import {
   CONTEXT_WINDOW_SIZE,
   FIRST_ITEM_INDEX_BASE,
-  MESSAGE_NOT_FOUND_NOTICE,
+  messageNotFoundNotice,
   OLDER_PAGE_SIZE,
   createMessageListController,
   visibleKeys,
@@ -193,7 +193,7 @@ describe('jump to message', () => {
     const { controller, state } = setup()
     await controller.jumpTo('gone', null)
     expect(state().mode).toBe('live')
-    expect(state().notice).toBe(MESSAGE_NOT_FOUND_NOTICE)
+    expect(state().notice).toBe(messageNotFoundNotice())
   })
 
   test('a target just above the loaded range merges without a remount', async () => {

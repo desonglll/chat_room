@@ -5,6 +5,7 @@
  */
 import type { ForumTopic, ForumTopicList } from '@tg/core'
 import { ApiError, sortTopics } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export interface TopicRowView {
   topic: ForumTopic
@@ -37,9 +38,9 @@ export interface TopicPreview {
 
 export function topicPreview(topic: ForumTopic): TopicPreview {
   const last = topic.last_message
-  if (!last) return { sender: '', text: topic.is_general ? '' : '话题已创建' }
+  if (!last) return { sender: '', text: topic.is_general ? '' : t('w.forum.9bc52b') }
   const text = last.content.replace(/\s+/gu, ' ').trim()
-  return { sender: last.sender, text: text || '[媒体]' }
+  return { sender: last.sender, text: text || t('w.forum.ee62cf') }
 }
 
 export type TopicAction =
@@ -56,17 +57,39 @@ export type TopicAction =
   | 'delete'
 
 export const TOPIC_ACTION_LABEL: Record<TopicAction, string> = {
-  read: '标记为已读',
-  edit: '编辑话题',
-  close: '关闭话题',
-  reopen: '重新打开话题',
-  pin: '置顶',
-  unpin: '取消置顶',
-  mute: '静音',
-  unmute: '取消静音',
-  hide: '隐藏 General',
-  unhide: '显示 General',
-  delete: '删除话题',
+  get read() {
+    return t('w.forum.6cc55e')
+  },
+  get edit() {
+    return t('w.forum.5ff368')
+  },
+  get close() {
+    return t('w.forum.007435')
+  },
+  get reopen() {
+    return t('w.forum.1c2719')
+  },
+  get pin() {
+    return t('w.forum.7bcf18')
+  },
+  get unpin() {
+    return t('w.forum.cfb5cd')
+  },
+  get mute() {
+    return t('w.forum.afdbd1')
+  },
+  get unmute() {
+    return t('w.forum.59bc75')
+  },
+  get hide() {
+    return t('w.forum.1993c9')
+  },
+  get unhide() {
+    return t('w.forum.0fc3b6')
+  },
+  get delete() {
+    return t('w.forum.e3b476')
+  },
 }
 
 /** Telegram's row menu: edit/close for the creator or a manager, the rest for managers. */
@@ -82,15 +105,23 @@ export function topicActions(topic: ForumTopic, canManage: boolean): TopicAction
 }
 
 const ERROR_TEXT: Record<number, string> = {
-  400: '话题信息无效',
-  403: '没有权限执行此操作',
-  404: '话题不存在或已被删除',
-  409: '此群组未开启话题',
+  get 400() {
+    return t('w.forum.eec31b')
+  },
+  get 403() {
+    return t('w.forum.428d1f')
+  },
+  get 404() {
+    return t('w.forum.3499f4')
+  },
+  get 409() {
+    return t('w.forum.2661c8')
+  },
 }
 
 export function topicErrorText(error: unknown): string {
-  if (error instanceof ApiError) return ERROR_TEXT[error.status] ?? '操作失败，请重试'
-  return '网络异常，请重试'
+  if (error instanceof ApiError) return ERROR_TEXT[error.status] ?? t('w.forum.51d3cb')
+  return t('w.forum.00b4a5')
 }
 
 /** The first visible character of a title, for the coloured glyph. */

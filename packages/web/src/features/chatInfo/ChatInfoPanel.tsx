@@ -15,6 +15,7 @@ import { InfoDetails, InfoIdentity } from './InfoHeader'
 import { SharedSection } from './SharedSection'
 import type { ChatInfoSourceOverrides } from './useChatInfo'
 import { useChatInfo } from './useChatInfo'
+import { t } from '../../i18n/index'
 
 export interface ChatInfoPanelProps {
   chatId: string
@@ -50,19 +51,19 @@ export function ChatInfoPanel({
   return (
     <aside
       className="tg-info tg-chatinfo"
-      aria-label="会话信息"
+      aria-label={t('w.chatInfo.473797')}
       data-closing={closing || undefined}
       onAnimationEnd={(event) => {
         if (closing && event.target === event.currentTarget) onExited?.()
       }}
     >
       <header className="tg-chatinfo__bar">
-        <IconButton label="关闭信息面板" variant="plain" onClick={onClose}>
+        <IconButton label={t('w.chatInfo.5f589c')} variant="plain" onClick={onClose}>
           <CloseIcon />
         </IconButton>
-        <h2 className="tg-chatinfo__heading">{header ? PANEL_HEADING[header.variant] : '会话信息'}</h2>
+        <h2 className="tg-chatinfo__heading">{header ? PANEL_HEADING[header.variant] : t('w.chatInfo.473797')}</h2>
         {onSearchInChat ? (
-          <IconButton label="在此会话中搜索" variant="plain" onClick={() => onSearchInChat(chatId)}>
+          <IconButton label={t('w.chatInfo.ed1d79')} variant="plain" onClick={() => onSearchInChat(chatId)}>
             <SearchIcon />
           </IconButton>
         ) : null}

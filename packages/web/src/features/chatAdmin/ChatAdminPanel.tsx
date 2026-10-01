@@ -23,6 +23,7 @@ import type { ChatAdminState } from './useChatAdmin'
 import { InviteLinksEntry } from '../inviteLinks/InviteLinksEntry'
 import { DiscussionLinkEditor } from '../channel/comments/DiscussionLinkEditor'
 import { useChatAdmin } from './useChatAdmin'
+import { t } from '../../i18n/index'
 import './chatAdmin.css'
 
 type Page =
@@ -36,14 +37,30 @@ type Page =
   | { id: 'restrict'; entry: ChatMemberEntry }
 
 const PAGE_TITLE: Record<Page['id'], string> = {
-  home: '管理群组',
-  defaults: '成员权限',
-  admins: '管理员',
-  restricted: '被限制的成员',
-  members: '成员',
-  member: '成员',
-  admin: '管理员权限',
-  restrict: '限制成员',
+  get home() {
+    return t('w.chatAdmin.924751')
+  },
+  get defaults() {
+    return t('w.chatAdmin.24a78e')
+  },
+  get admins() {
+    return t('w.chatAdmin.ef84e7')
+  },
+  get restricted() {
+    return t('w.chatAdmin.15d54e')
+  },
+  get members() {
+    return t('w.chatAdmin.c1ee9f')
+  },
+  get member() {
+    return t('w.chatAdmin.c1ee9f')
+  },
+  get admin() {
+    return t('w.chatAdmin.df1ff6')
+  },
+  get restrict() {
+    return t('w.chatAdmin.c7439b')
+  },
 }
 
 export interface ChatAdminPanelProps {
@@ -114,30 +131,40 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
 
   let body: ReactNode = null
   if (!view) {
-    body = admin.loading ? <Spinner label="正在加载" /> : null
+    body = admin.loading ? <Spinner label={t('w.chatAdmin.3667cb')} /> : null
   } else if (page.id === 'home') {
     body = (
       <>
-        <section className="tg-chatadmin__type" aria-label="群类型">
+        <section className="tg-chatadmin__type" aria-label={t('w.chatAdmin.b98234')}>
           <span className="tg-chatadmin__type-label">{CHAT_TYPE_LABEL[view.chat_type]}</span>
-          <span className="tg-chatadmin__type-count">{view.member_count} 位成员</span>
+          <span className="tg-chatadmin__type-count">
+            {view.member_count} {t('w.chatAdmin.b8d0b7')}
+          </span>
           {chatTypeNote(view.chat_type) ? <p className="tg-chatadmin__note">{chatTypeNote(view.chat_type)}</p> : null}
         </section>
         <ul className="tg-chatadmin__navlist">
           <NavRow
-            label="成员权限"
+            label={t('w.chatAdmin.24a78e')}
             value={`${view.default_permissions.length}/9`}
             onOpen={() => open({ id: 'defaults' })}
           />
-          <NavRow label="管理员" value={String(admin.admins.length)} onOpen={() => open({ id: 'admins' })} />
+          <NavRow
+            label={t('w.chatAdmin.ef84e7')}
+            value={String(admin.admins.length)}
+            onOpen={() => open({ id: 'admins' })}
+          />
           {can.ban ? (
             <NavRow
-              label="被限制的成员"
+              label={t('w.chatAdmin.15d54e')}
               value={String(admin.restricted.length)}
               onOpen={() => open({ id: 'restricted' })}
             />
           ) : null}
-          <NavRow label="成员" value={String(view.member_count)} onOpen={() => open({ id: 'members' })} />
+          <NavRow
+            label={t('w.chatAdmin.c1ee9f')}
+            value={String(view.member_count)}
+            onOpen={() => open({ id: 'members' })}
+          />
         </ul>
         <ForumToggle chatId={chatId} chatType={view.chat_type} myPermissions={view.my_permissions} />
         <PublicLinkEditor
@@ -171,17 +198,17 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
       )
     }
   } else if (page.id === 'admins') {
-    body = list(admin.admins, '还没有管理员。')
+    body = list(admin.admins, t('w.chatAdmin.948163'))
   } else if (page.id === 'restricted') {
-    body = list(admin.restricted, '没有被限制的成员。')
+    body = list(admin.restricted, t('w.chatAdmin.d13ab5'))
   } else if (page.id === 'members') {
     body = (
       <>
-        {list(admin.members, '还没有成员。')}
+        {list(admin.members, t('w.chatAdmin.5c64fe'))}
         {admin.membersDone ? null : (
           <div className="tg-chatadmin__actions">
             <Button variant="text" onClick={() => void admin.loadMoreMembers()}>
-              加载更多
+              {t('w.chatAdmin.3a0fab')}
             </Button>
           </div>
         )}
@@ -197,12 +224,12 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
         <div className="tg-chatadmin__actions" data-stack="">
           {can.promote ? (
             <Button variant="tonal" onClick={() => open({ id: 'admin', entry })}>
-              设为管理员
+              {t('w.chatAdmin.150282')}
             </Button>
           ) : null}
           {can.ban ? (
             <Button variant="tonal" onClick={() => open({ id: 'restrict', entry })}>
-              限制成员
+              {t('w.chatAdmin.c7439b')}
             </Button>
           ) : null}
         </div>
@@ -244,16 +271,16 @@ export function ChatAdminPanel({ chatId, api, onClose, initial, initialPage = 'h
   }
 
   return (
-    <section className="tg-chatadmin" aria-label="管理群组">
+    <section className="tg-chatadmin" aria-label={t('w.chatAdmin.924751')}>
       <header className="tg-chatadmin__bar">
         {stack.length > 1 ? (
-          <IconButton label="返回" variant="plain" onClick={back}>
+          <IconButton label={t('w.chatAdmin.11d024')} variant="plain" onClick={back}>
             <BackIcon />
           </IconButton>
         ) : null}
         <h2 className="tg-chatadmin__heading">{PAGE_TITLE[page.id]}</h2>
         <Button variant="text" size="sm" onClick={onClose}>
-          关闭
+          {t('w.chatAdmin.6c14bd')}
         </Button>
       </header>
       {admin.error ? (

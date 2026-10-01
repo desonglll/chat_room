@@ -36,6 +36,7 @@ import type { RenderMessage } from './renderContract'
 import { usePrependAnchor } from './usePrependAnchor'
 import { usePrependOverscan } from './usePrependOverscan'
 import { captureAnchor, useMessageListController } from './useMessageListController'
+import { t } from '../../i18n/index'
 
 export const PREFETCH_ROWS = 20
 /** Median row height of a text message; Virtuoso's estimate before measuring. */
@@ -240,14 +241,14 @@ export function MessageList({
   if (!timeline.historyReady && state.mode === 'live') {
     return (
       <div className="tg-mlist tg-mlist--state">
-        <Spinner label="正在载入消息" />
+        <Spinner label={t('w.messageList.b298c8')} />
       </div>
     )
   }
   if (totalCount === 0) {
     return (
       <div className="tg-mlist tg-mlist--state">
-        <p className="tg-messages__empty-pill">还没有消息，说点什么吧</p>
+        <p className="tg-messages__empty-pill">{t('w.messageList.7bd220')}</p>
       </div>
     )
   }

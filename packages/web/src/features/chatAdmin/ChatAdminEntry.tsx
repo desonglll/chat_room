@@ -13,6 +13,7 @@ import { chatAdminApi } from './chatAdminApi'
 import { adminCapabilities, CHAT_TYPE_LABEL } from './chatAdminModel'
 import { ChatAdminPanel } from './ChatAdminPanel'
 import { useChatAdminAccess } from './useChatAdminAccess'
+import { t } from '../../i18n/index'
 import './chatAdmin.css'
 
 export interface ChatAdminEntryProps {
@@ -54,16 +55,18 @@ export function ChatAdminEntry({ chatId, api = chatAdminApi, initialView }: Chat
           <ShieldIcon />
         </span>
         <span className="tg-chatadmin__entry-text">
-          <span className="tg-chatadmin__entry-title">{manages ? '管理群组' : '群组权限'}</span>
+          <span className="tg-chatadmin__entry-title">
+            {manages ? t('w.chatAdmin.924751') : t('w.chatAdmin.e986f4')}
+          </span>
           <span className="tg-chatadmin__entry-sub">
-            {CHAT_TYPE_LABEL[view.chat_type]} · {view.member_count} 位成员
+            {CHAT_TYPE_LABEL[view.chat_type]} · {view.member_count} {t('w.chatAdmin.b8d0b7')}
           </span>
         </span>
       </button>
       <Sheet
         open={open}
         side="right"
-        ariaLabel="管理群组"
+        ariaLabel={t('w.chatAdmin.924751')}
         showClose={false}
         className="tg-chatadmin__sheet"
         onClose={() => {

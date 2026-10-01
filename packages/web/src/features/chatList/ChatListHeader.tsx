@@ -7,6 +7,7 @@ import type { MenuItem } from '@tg/ui'
 import { IconButton, Menu } from '@tg/ui'
 import type { ChatListFolder } from './chatListFilters'
 import { ChatListIcon } from './chatListIcons'
+import { t } from '../../i18n/index'
 
 export interface ChatListHeaderProps {
   folder: ChatListFolder
@@ -31,13 +32,13 @@ export function ChatListHeader({
 
   const leading =
     folder === 'archive' ? (
-      <IconButton label="返回会话列表" variant="plain" onClick={onCloseFolder}>
+      <IconButton label={t('w.chatList.dcdc8d')} variant="plain" onClick={onCloseFolder}>
         <ChatListIcon name="back" size={22} />
       </IconButton>
     ) : (
       <IconButton
         ref={triggerRef}
-        label="主菜单"
+        label={t('w.chatList.811290')}
         variant="plain"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
@@ -51,7 +52,7 @@ export function ChatListHeader({
     <header className="tg-chatlist__header">
       {leading}
       {collapsed ? null : folder === 'archive' ? (
-        <h2 className="tg-chatlist__folder-title">已归档的对话</h2>
+        <h2 className="tg-chatlist__folder-title">{t('w.chatList.52cb7a')}</h2>
       ) : (
         <label className="tg-chatlist__search">
           <ChatListIcon name="search" size={20} className="tg-chatlist__search-icon" />
@@ -59,8 +60,8 @@ export function ChatListHeader({
             ref={inputRef}
             className="tg-chatlist__search-input"
             type="search"
-            placeholder="搜索"
-            aria-label="搜索会话"
+            placeholder={t('w.chatList.f04090')}
+            aria-label={t('w.chatList.11b93c')}
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             onKeyDown={(event) => {
@@ -74,7 +75,7 @@ export function ChatListHeader({
             <button
               type="button"
               className="tg-chatlist__search-clear"
-              aria-label="清除搜索"
+              aria-label={t('w.chatList.318ea1')}
               onClick={() => {
                 onQueryChange('')
                 inputRef.current?.focus()
@@ -91,7 +92,7 @@ export function ChatListHeader({
         anchor={triggerRef}
         triggerRef={triggerRef}
         items={menuItems}
-        aria-label="主菜单"
+        aria-label={t('w.chatList.811290')}
       />
     </header>
   )

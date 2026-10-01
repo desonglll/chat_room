@@ -15,6 +15,7 @@ import { openStickerSet } from '../overlayStore'
 import { copyStickerSetLink } from './copyLink'
 import './manage.css'
 import { moveId, shortNameFromLink } from './setOrder'
+import { t } from '../../../i18n/index'
 
 function SetThumb({ set }: { set: StickerSet }) {
   const first = set.stickers[0]
@@ -45,10 +46,10 @@ export function StickerSetsSettings() {
   useEffect(() => {
     void stickerLibrary()
       .ensureLoaded()
-      .catch(() => setNotice('贴纸加载失败'))
+      .catch(() => setNotice(t('w.sticker.f9fd05')))
   }, [])
 
-  const guard = (promise: Promise<unknown>) => void promise.catch(() => setNotice('操作失败，请重试'))
+  const guard = (promise: Promise<unknown>) => void promise.catch(() => setNotice(t('w.sticker.51d3cb')))
   const move = (from: number, to: number) => {
     if (from === to || to < 0 || to >= active.length) return
     guard(
@@ -63,7 +64,7 @@ export function StickerSetsSettings() {
   }
   const share = (set: StickerSet) =>
     void copyStickerSetLink(set.short_name).then((ok) =>
-      setNotice(ok ? `已复制「${set.title}」的链接` : '无法访问剪贴板'),
+      setNotice(ok ? t('w.sticker.40896f', set.title) : t('w.sticker.91aaca')),
     )
 
   const onDrop = (event: DragEvent, index: number) => {
@@ -74,24 +75,24 @@ export function StickerSetsSettings() {
   const onAdd = (event: FormEvent) => {
     event.preventDefault()
     const name = shortNameFromLink(link)
-    if (!name) return setNotice('请输入贴纸包名称或 addstickers 链接')
+    if (!name) return setNotice(t('w.sticker.531c7a'))
     setLink('')
     openStickerSet(name)
   }
 
   return (
-    <section className="tg-sticker-manage" aria-label="贴纸包管理">
+    <section className="tg-sticker-manage" aria-label={t('w.sticker.2069bc')}>
       <form className="tg-sticker-manage__add" onSubmit={onAdd}>
         <TextField
           size="sm"
           fullWidth
           value={link}
-          placeholder="贴纸包名称或链接"
-          aria-label="贴纸包名称或链接"
+          placeholder={t('w.sticker.1f0113')}
+          aria-label={t('w.sticker.1f0113')}
           onChange={(event) => setLink(event.target.value)}
         />
         <Button type="submit" size="sm" variant="tonal">
-          查看
+          {t('w.sticker.f7acef')}
         </Button>
       </form>
       {notice ? (
@@ -99,8 +100,8 @@ export function StickerSetsSettings() {
           {notice}
         </p>
       ) : null}
-      <h3 className="tg-sticker-manage__heading">我的贴纸包</h3>
-      {active.length === 0 ? <p className="tg-sticker-manage__empty">还没有贴纸包</p> : null}
+      <h3 className="tg-sticker-manage__heading">{t('w.sticker.da2c24')}</h3>
+      {active.length === 0 ? <p className="tg-sticker-manage__empty">{t('w.sticker.42c27c')}</p> : null}
       <ol className="tg-sticker-manage__list">
         {active.map((set, index) => (
           <li
@@ -126,12 +127,14 @@ export function StickerSetsSettings() {
               <SetThumb set={set} />
               <span className="tg-sticker-manage__text">
                 <span className="tg-sticker-manage__title">{set.title}</span>
-                <span className="tg-sticker-manage__count">{set.stickers.length} 个贴纸</span>
+                <span className="tg-sticker-manage__count">
+                  {set.stickers.length} {t('w.sticker.fdb87b')}
+                </span>
               </span>
             </button>
             <IconButton
               size="sm"
-              label={`上移 ${set.title}`}
+              label={t('w.sticker.38e2f3', set.title)}
               disabled={index === 0}
               onClick={() => move(index, index - 1)}
             >
@@ -139,22 +142,22 @@ export function StickerSetsSettings() {
             </IconButton>
             <IconButton
               size="sm"
-              label={`下移 ${set.title}`}
+              label={t('w.sticker.451b58', set.title)}
               disabled={index === active.length - 1}
               onClick={() => move(index, index + 1)}
             >
               <ArrowDownGlyph />
             </IconButton>
-            <IconButton size="sm" label={`复制 ${set.title} 的链接`} onClick={() => share(set)}>
+            <IconButton size="sm" label={t('w.sticker.fe2d53', set.title)} onClick={() => share(set)}>
               <LinkGlyph />
             </IconButton>
             <Button size="sm" variant="text" onClick={() => guard(stickerLibrary().setArchived(set.id, true))}>
-              归档
+              {t('w.sticker.ddfde7')}
             </Button>
             <IconButton
               size="sm"
               variant="danger"
-              label={`移除 ${set.title}`}
+              label={t('w.sticker.6a13fa', set.title)}
               onClick={() => guard(stickerLibrary().uninstall(set.id))}
             >
               <CloseGlyph />
@@ -164,7 +167,7 @@ export function StickerSetsSettings() {
       </ol>
       {archived.length > 0 ? (
         <>
-          <h3 className="tg-sticker-manage__heading">已归档</h3>
+          <h3 className="tg-sticker-manage__heading">{t('w.sticker.5cfbea')}</h3>
           <ol className="tg-sticker-manage__list">
             {archived.map((set) => (
               <li key={set.id} className="tg-sticker-manage__row" data-archived="true">
@@ -176,16 +179,18 @@ export function StickerSetsSettings() {
                   <SetThumb set={set} />
                   <span className="tg-sticker-manage__text">
                     <span className="tg-sticker-manage__title">{set.title}</span>
-                    <span className="tg-sticker-manage__count">{set.stickers.length} 个贴纸</span>
+                    <span className="tg-sticker-manage__count">
+                      {set.stickers.length} {t('w.sticker.fdb87b')}
+                    </span>
                   </span>
                 </button>
                 <Button size="sm" variant="tonal" onClick={() => guard(stickerLibrary().setArchived(set.id, false))}>
-                  取消归档
+                  {t('w.sticker.18362b')}
                 </Button>
                 <IconButton
                   size="sm"
                   variant="danger"
-                  label={`移除 ${set.title}`}
+                  label={t('w.sticker.6a13fa', set.title)}
                   onClick={() => guard(stickerLibrary().uninstall(set.id))}
                 >
                   <CloseGlyph />

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatAdminApi, ChatMemberEntry, ChatPermissionsView } from '@tg/core'
 import { ApiError } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export const ROSTER_PAGE_SIZE = 50
 
@@ -43,9 +44,9 @@ const EMPTY: ChatAdminState = {
 }
 
 function message(error: unknown): string {
-  if (error instanceof ApiError && error.status === 403) return '没有权限执行此操作'
-  if (error instanceof ApiError && error.status === 409) return '不能对所有者、管理员或自己执行此操作'
-  return '操作失败，请重试'
+  if (error instanceof ApiError && error.status === 403) return t('w.chatAdmin.428d1f')
+  if (error instanceof ApiError && error.status === 409) return t('w.chatAdmin.3d779e')
+  return t('w.chatAdmin.51d3cb')
 }
 
 /** Replace `entry` in a list by user id, or drop it when `keep` says so. */

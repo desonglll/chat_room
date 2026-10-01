@@ -9,6 +9,7 @@ import { useLastSeenText } from '../presence'
 import { FileIcon, PlayIcon } from './icons'
 import { memberName } from './memberSource'
 import type { SharedFile, SharedLink } from './sharedSources'
+import { t } from '../../i18n/index'
 
 const when = (createdAt: string) => formatChatListTime(createdAt, new Date())
 
@@ -26,7 +27,11 @@ export function MediaTile({ chatId, file }: { chatId: string; file: SharedFile }
       type="button"
       className="tg-chatinfo__tile"
       data-veiled={revealed ? undefined : ''}
-      aria-label={revealed ? `${video ? '视频' : '照片'}：${attachment.file_name}` : '敏感内容，点击查看'}
+      aria-label={
+        revealed
+          ? `${video ? t('w.chatInfo.fa4e33') : t('w.chatInfo.48e9e5')}：${attachment.file_name}`
+          : t('w.chatInfo.976c5d')
+      }
       onClick={(event) => {
         if (!revealed) {
           setRevealed(true)
@@ -121,17 +126,30 @@ export function VoiceRow({ file }: { file: SharedFile }) {
   )
 }
 
-const ROLE_COPY: Record<ChatMembership['role'], string> = { owner: '群主', admin: '管理员', member: '' }
+const ROLE_COPY: Record<ChatMembership['role'], string> = {
+  get owner() {
+    return t('w.chatInfo.4fbe15')
+  },
+  get admin() {
+    return t('w.chatInfo.ef84e7')
+  },
+  member: '',
+}
 
 export function MemberRow({ member }: { member: ChatMembership }) {
   const lastSeen = useLastSeenText(member.user_id)
   const name = memberName(member)
   return (
     <li className="tg-chatinfo__item" data-kind="member">
-      <Avatar label={name} initials={member.avatar_emoji || undefined} size="md" online={lastSeen === '在线'} />
+      <Avatar
+        label={name}
+        initials={member.avatar_emoji || undefined}
+        size="md"
+        online={lastSeen === t('w.chatInfo.0373ff')}
+      />
       <span className="tg-chatinfo__item-text">
         <span className="tg-chatinfo__item-title">{name}</span>
-        <span className="tg-chatinfo__item-meta" data-online={lastSeen === '在线' || undefined}>
+        <span className="tg-chatinfo__item-meta" data-online={lastSeen === t('w.chatInfo.0373ff') || undefined}>
           {lastSeen}
         </span>
       </span>

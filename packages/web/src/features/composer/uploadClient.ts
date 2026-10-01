@@ -13,6 +13,7 @@
  */
 import type { FetchLike, StoredMessage } from '@tg/core'
 import { UPLOAD_CHUNK_SIZE } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export interface UploadSource {
   name: string
@@ -46,9 +47,15 @@ export class UploadError extends Error {
 }
 
 const CREATE_ERRORS: Record<number, string> = {
-  413: '文件超出大小限制',
-  409: '所选文件与未完成上传的内容不一致',
-  403: '没有在此会话发送文件的权限',
+  get 413() {
+    return t('w.composer.f9c82d')
+  },
+  get 409() {
+    return t('w.composer.c34ca0')
+  },
+  get 403() {
+    return t('w.composer.6a85fa')
+  },
 }
 
 function abortIfNeeded(signal?: AbortSignal): void {
@@ -80,7 +87,7 @@ export async function uploadAttachment(fetchImpl: FetchLike, request: UploadRequ
     }),
     ...(request.signal ? { signal: request.signal } : {}),
   })
-  if (!completed.ok) throw new UploadError('完成上传失败', completed.status)
+  if (!completed.ok) throw new UploadError(t('w.composer.abaa57'), completed.status)
   return (await completed.json()) as StoredMessage
 }
 
@@ -116,7 +123,7 @@ export async function uploadChunks(
       }),
     ),
   )
-  if (!created.ok) throw new UploadError(CREATE_ERRORS[created.status] ?? '创建上传失败', created.status)
+  if (!created.ok) throw new UploadError(CREATE_ERRORS[created.status] ?? t('w.composer.15ca5e'), created.status)
   const session = (await created.json()) as { upload_id: string; received_bytes: number }
   const uploadPath = `/api/attachments/uploads/${encodeURIComponent(session.upload_id)}`
   const chunkSize = request.chunkSize ?? UPLOAD_CHUNK_SIZE
@@ -135,11 +142,11 @@ export async function uploadChunks(
       const body = (await response.json()) as { received_bytes?: number }
       const received = body.received_bytes
       if (typeof received !== 'number' || received < 0 || received > file.size || received === offset) {
-        throw new UploadError('上传分片失败', 409)
+        throw new UploadError(t('w.composer.907e62'), 409)
       }
       offset = received
     } else if (!response.ok) {
-      throw new UploadError('上传分片失败', response.status)
+      throw new UploadError(t('w.composer.907e62'), response.status)
     } else {
       offset = ((await response.json()) as { received_bytes: number }).received_bytes
     }

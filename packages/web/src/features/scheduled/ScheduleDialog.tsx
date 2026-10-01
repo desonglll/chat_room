@@ -12,6 +12,7 @@ import {
   scheduleTimeError,
   toLocalInputValue,
 } from './scheduleTime'
+import { t } from '../../i18n/index'
 
 export interface ScheduleDialogProps {
   open: boolean
@@ -29,9 +30,9 @@ function quickPicks(now: Date): Array<{ label: string; at: Date }> {
   const inHour = defaultScheduleTime(now)
   const tonight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 0)
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0)
-  const picks = [{ label: '1 小时后', at: inHour }]
-  if (tonight.getTime() > inHour.getTime()) picks.push({ label: '今晚 21:00', at: tonight })
-  picks.push({ label: '明天 09:00', at: tomorrow })
+  const picks = [{ label: t('w.scheduled.9471dd'), at: inHour }]
+  if (tonight.getTime() > inHour.getTime()) picks.push({ label: t('w.scheduled.e6faa6'), at: tonight })
+  picks.push({ label: t('w.scheduled.2a0eb8'), at: tomorrow })
   return picks
 }
 
@@ -74,15 +75,15 @@ export function ScheduleDialog({ open, title, initial, allowSilent = false, onCl
       footer={
         <>
           <Button variant="text" onClick={onClose}>
-            取消
+            {t('w.scheduled.4d0b46')}
           </Button>
           <Button onClick={confirm} loading={busy} disabled={busy || invalid !== null}>
-            {at && !invalid ? formatScheduleLabel(at, now) : '定时发送'}
+            {at && !invalid ? formatScheduleLabel(at, now) : t('w.scheduled.a0974f')}
           </Button>
         </>
       }
     >
-      <div className="tg-schedule__picks" role="group" aria-label="快速选择">
+      <div className="tg-schedule__picks" role="group" aria-label={t('w.scheduled.c49358')}>
         {quickPicks(now).map((pick) => (
           <Button
             key={pick.label}
@@ -96,7 +97,7 @@ export function ScheduleDialog({ open, title, initial, allowSilent = false, onCl
       </div>
       <TextField
         type="datetime-local"
-        label="发送时间"
+        label={t('w.scheduled.98c64d')}
         value={value}
         min={toLocalInputValue(now)}
         fullWidth
@@ -107,7 +108,12 @@ export function ScheduleDialog({ open, title, initial, allowSilent = false, onCl
         }}
       />
       {allowSilent ? (
-        <Toggle label="静默发送" description="对方收到时不会有提醒" checked={silent} onCheckedChange={setSilent} />
+        <Toggle
+          label={t('w.scheduled.da1baa')}
+          description={t('w.scheduled.8b7652')}
+          checked={silent}
+          onCheckedChange={setSilent}
+        />
       ) : null}
     </Modal>
   )

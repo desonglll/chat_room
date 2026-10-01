@@ -12,6 +12,7 @@ import { Tabs, type TabItem } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { mediaPanelTabStore, type MediaPanelTabContext } from './mediaPanelTabs'
 import { StickerTab } from './StickerTab'
+import { t } from '../../../i18n/index'
 import '../sticker.css'
 import './panel.css'
 
@@ -28,7 +29,7 @@ export interface MediaPanelProps {
 let lastTab = 'emoji'
 
 function GifPlaceholder() {
-  return <p className="tg-sticker-tab__state">GIF 即将推出</p>
+  return <p className="tg-sticker-tab__state">{t('w.sticker.e7196a')}</p>
 }
 
 export function MediaPanel({ chatId, emoji, onSendSticker, canSend, onClose, initialTab }: MediaPanelProps) {
@@ -41,8 +42,8 @@ export function MediaPanel({ chatId, emoji, onSendSticker, canSend, onClose, ini
     stickers: <StickerTab onSend={onSendSticker} canSend={canSend} />,
   }
   const items: TabItem[] = [
-    { id: 'emoji', label: '表情' },
-    { id: 'stickers', label: '贴纸' },
+    { id: 'emoji', label: t('w.sticker.fecd66') },
+    { id: 'stickers', label: t('w.sticker.f7c0f3') },
   ]
   const tabs = extra.some((entry) => entry.id === 'gif')
     ? extra
@@ -64,7 +65,7 @@ export function MediaPanel({ chatId, emoji, onSendSticker, canSend, onClose, ini
           setTab(id)
         }}
         stretch
-        aria-label="表情与贴纸"
+        aria-label={t('w.sticker.7f5146')}
         className="tg-media-panel__tabs"
         panels={{ [current]: <div className="tg-media-panel__body">{bodies[current]}</div> }}
       />

@@ -3,6 +3,7 @@
  * `recall` recalls every item the caller sent in it.
  */
 import type { FetchLike, StoredMessage } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export interface SendAlbumInput {
   chatId: string
@@ -25,9 +26,15 @@ export class AlbumError extends Error {
 }
 
 const SEND_ERRORS: Record<number, string> = {
-  400: '相册无效（需要 2–10 个已上传完成的图片或视频）',
-  403: '没有在此会话发送媒体的权限',
-  409: '部分文件已发送，请重新选择',
+  get 400() {
+    return t('w.album.51412d')
+  },
+  get 403() {
+    return t('w.album.1655e4')
+  },
+  get 409() {
+    return t('w.album.8346a8')
+  },
 }
 
 export async function sendAlbum(
@@ -45,7 +52,7 @@ export async function sendAlbum(
       ...(input.topicId ? { topic_id: input.topicId } : {}),
     }),
   })
-  if (!response.ok) throw new AlbumError(SEND_ERRORS[response.status] ?? '发送相册失败', response.status)
+  if (!response.ok) throw new AlbumError(SEND_ERRORS[response.status] ?? t('w.album.2b5b43'), response.status)
   return (await response.json()) as { grouped_id: string; messages: StoredMessage[] }
 }
 
@@ -57,5 +64,5 @@ export async function recallAlbum(
     `/api/chats/${encodeURIComponent(input.chatId)}/albums/${encodeURIComponent(input.groupedId)}`,
     { method: 'DELETE', cache: 'no-store', headers: { Authorization: `Bearer ${input.token}` } },
   )
-  if (!response.ok) throw new AlbumError('删除相册失败', response.status)
+  if (!response.ok) throw new AlbumError(t('w.album.988da6'), response.status)
 }

@@ -10,11 +10,18 @@ import { useStore } from 'zustand/react'
 import { ChannelSubtitle } from '../channel/ChannelSubtitle'
 import { ChatHeaderStatus } from '../presence'
 import { MobileBackButton } from '../shell/MobileBackButton'
+import { t } from '../../i18n/index'
 
 export const CONNECTION_COPY: Partial<Record<ChatSocketStatus, string>> = {
-  connecting: '连接中…',
-  offline: '连接已断开，正在重连…',
-  failed: '无法进入会话',
+  get connecting() {
+    return t('w.chat.9d02d1')
+  },
+  get offline() {
+    return t('w.chat.9cc1b5')
+  },
+  get failed() {
+    return t('w.chat.e0d9b4')
+  },
 }
 
 /** Telegram: the header toggles the info panel — a second click closes it. */
@@ -40,7 +47,7 @@ export function ChatHeader({ chatId, connection }: { chatId: string; connection:
         type="button"
         className="tg-chat__identity"
         onClick={() => toggleChatInfo()}
-        aria-label="查看会话信息"
+        aria-label={t('w.chat.49a948')}
         aria-expanded={infoOpen}
       >
         <Avatar label={title} initials={emoji} />

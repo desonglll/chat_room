@@ -12,6 +12,7 @@ import type { PendingAttachment, PendingBatch } from '@tg/core'
 import { sendablePendingFiles, updatePendingFile } from '@tg/core'
 import type { SendBatchResult } from '../composer/sendPendingBatch'
 import type { UploadedSession, UploadSource } from '../composer/uploadClient'
+import { t } from '../../i18n/index'
 
 export const MIN_ALBUM_ITEMS = 2
 export const MAX_ALBUM_ITEMS = 10
@@ -38,7 +39,7 @@ export interface SendAlbumDeps<F extends UploadSource> {
 }
 
 function errorText(error: unknown): string {
-  return error instanceof Error && error.message ? error.message : '上传失败'
+  return error instanceof Error && error.message ? error.message : t('w.album.a6f805')
 }
 
 export async function sendPendingAlbum<F extends UploadSource>(

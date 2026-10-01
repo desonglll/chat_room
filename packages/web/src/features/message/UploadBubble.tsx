@@ -10,13 +10,24 @@ import { formatBytes } from './content/attachmentKind'
 import { MessageRow } from './MessageRow'
 import { ClockGlyph, FailedGlyph, FileGlyph } from './icons'
 import type { MessageRenderContext } from './types'
+import { t } from '../../i18n/index'
 
 const PHASE_LABEL: Record<UploadMessage['phase'], string> = {
-  queued: '排队中',
-  hashing: '校验中',
-  uploading: '上传中',
-  deduplicating: '去重中',
-  finalizing: '处理中',
+  get queued() {
+    return t('w.message.4dcbbc')
+  },
+  get hashing() {
+    return t('w.message.f64375')
+  },
+  get uploading() {
+    return t('w.message.6818eb')
+  },
+  get deduplicating() {
+    return t('w.message.280dad')
+  },
+  get finalizing() {
+    return t('w.message.fcb979')
+  },
 }
 
 export function uploadPercent(upload: UploadMessage): number {
@@ -39,7 +50,7 @@ export function UploadBubble({ upload, ctx }: { upload: UploadMessage; ctx: Mess
     hasReactions: false,
   })
   const status = failed
-    ? `上传失败${upload.error === '' ? '' : `：${upload.error}`}`
+    ? t('w.message.45b9b4', upload.error === '' ? '' : `：${upload.error}`)
     : `${PHASE_LABEL[upload.phase]} ${percent}%`
 
   const progress = (

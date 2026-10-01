@@ -1,0 +1,27 @@
+import type { Catalog } from '@tg/core'
+
+export const location: Catalog = {
+  'w.location.033789': '无法在这个会话中发送位置',
+  'w.location.1184ec': '发送位置',
+  'w.location.1813aa': '查看{0}',
+  'w.location.2332ee': '此浏览器不支持定位',
+  'w.location.26fd6a': '实时位置已结束',
+  'w.location.28849a': '模糊位置（约 1 公里）',
+  'w.location.2cfb94': '这个会话里的所有成员都能看到',
+  'w.location.3b5fd7': '实时位置',
+  'w.location.759ce5': '8 小时',
+  'w.location.8195a1': '发送当前位置',
+  'w.location.88c344': '位置',
+  'w.location.8bdf2f': '大致',
+  'w.location.96fe75': '无法获取当前位置',
+  'w.location.be955b': '精确',
+  'w.location.c8fb1c': '1 小时',
+  'w.location.c9ec06': '共享实时位置',
+  'w.location.cb755e': '米）。 实时位置只保留最新一点，结束后不再更新，也无法回看轨迹。',
+  'w.location.cd8727': '正在获取当前位置…',
+  'w.location.ce34f2': '位置（误差约',
+  'w.location.cfc1d0': '15 分钟',
+  'w.location.db9cc6': '未获得定位权限',
+  'w.location.e3a482': '停止共享',
+  'w.location.f213c0': '在地图中打开',
+}

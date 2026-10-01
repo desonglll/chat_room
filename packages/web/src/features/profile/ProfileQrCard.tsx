@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { authStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { addContactLink } from './profileApi'
+import { t } from '../../i18n/index'
 
 /** A token as the `#rrggbb` the QR library accepts, or undefined (the library's black/white). */
 function tokenHex(name: string): string | undefined {
@@ -38,12 +39,12 @@ export function ProfileQrCard() {
 
   if (!user) return null
   return (
-    <section className="tg-profile-qr" aria-label="我的二维码">
+    <section className="tg-profile-qr" aria-label={t('w.profile.de99c3')}>
       <div className="tg-profile-qr__card">
-        {image ? <img className="tg-profile-qr__image" src={image} alt={`@${user.username} 的二维码`} /> : null}
+        {image ? <img className="tg-profile-qr__image" src={image} alt={t('w.profile.d133af', user.username)} /> : null}
         <p className="tg-profile-qr__name">@{user.username}</p>
       </div>
-      <p className="tg-profile-qr__hint">让对方扫描二维码即可添加你为好友。</p>
+      <p className="tg-profile-qr__hint">{t('w.profile.a17215')}</p>
       <p className="tg-profile-qr__link">{link}</p>
     </section>
   )

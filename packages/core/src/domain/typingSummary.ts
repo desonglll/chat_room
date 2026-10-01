@@ -13,6 +13,7 @@
  *   person's action for the whole group would misdescribe the others.
  */
 import type { ChatType, TypingAction } from '../types'
+import { t } from '../i18n/t'
 
 /** The nine displayable actions (TG-007's ten minus the `cancel` clear). */
 export type ActiveTypingAction = Exclude<TypingAction, 'cancel'>
@@ -21,19 +22,38 @@ export type ActiveTypingAction = Exclude<TypingAction, 'cancel'>
 export const TYPING_TTL_MS = 5_000
 
 export const TYPING_ACTION_COPY: Readonly<Record<ActiveTypingAction, string>> = {
-  typing: '正在输入',
-  recording_voice: '正在录音',
-  recording_video_note: '正在录制视频消息',
-  uploading_photo: '正在发送图片',
-  uploading_video: '正在发送视频',
-  uploading_document: '正在发送文件',
-  uploading_voice: '正在发送语音',
-  choosing_sticker: '正在选择贴纸',
-  choosing_location: '正在选择位置',
+  get typing() {
+    return t('c.domain.86d1ab')
+  },
+  get recording_voice() {
+    return t('c.domain.fc731e')
+  },
+  get recording_video_note() {
+    return t('c.domain.8be901')
+  },
+  get uploading_photo() {
+    return t('c.domain.2e09bd')
+  },
+  get uploading_video() {
+    return t('c.domain.f7acdd')
+  },
+  get uploading_document() {
+    return t('c.domain.3c3920')
+  },
+  get uploading_voice() {
+    return t('c.domain.cad352')
+  },
+  get choosing_sticker() {
+    return t('c.domain.8d9591')
+  },
+  get choosing_location() {
+    return t('c.domain.0cc4ec')
+  },
 }
 
 /** Name used when a frame arrived without a username (TG-007 omits it when absent). */
-export const UNKNOWN_ACTOR_NAME = '有人'
+/** «有人» in the current language (a function: the language can change at runtime). */
+export const unknownActorName = () => t('c.domain.someone')
 
 export interface TypingActor {
   user_id: string
@@ -73,13 +93,13 @@ export function summarizeTyping(input: TypingSummaryInput): TypingSummary | null
   const action = actors.every((actor) => actor.action === first.action) ? first.action : 'typing'
   const verb = TYPING_ACTION_COPY[action]
   if (input.chatType === 'private') return { text: verb, action, count: actors.length }
-  const name = (actor: TypingActor) => actor.username.trim() || UNKNOWN_ACTOR_NAME
+  const name = (actor: TypingActor) => actor.username.trim() || unknownActorName()
   const second = actors[1]
   // Chinese spacing: a space separates a name from the verb, but "其他 N 人" is already a
   // counted phrase and joins the verb directly ("A 和其他 2 人正在输入").
   let text: string
   if (!second) text = `${name(first)} ${verb}`
-  else if (actors.length === 2) text = `${name(first)} 和 ${name(second)} ${verb}`
-  else text = `${name(first)} 和其他 ${actors.length - 1} 人${verb}`
+  else if (actors.length === 2) text = t('c.domain.2fe61d', name(first), name(second), verb)
+  else text = t('c.domain.f6ec68', name(first), actors.length - 1, verb)
   return { text, action, count: actors.length }
 }

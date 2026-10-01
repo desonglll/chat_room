@@ -10,6 +10,7 @@ import type { MenuItem } from '@tg/ui'
 import type { BroadcastMessage } from '@tg/core'
 import type { MessageActions } from './types'
 import { CopyGlyph, DeleteGlyph, EditGlyph, ForwardGlyph, PinGlyph, ReplyGlyph, SelectGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 export interface MenuFacts {
   /** The server has acknowledged the message (it has a real id). */
@@ -42,38 +43,43 @@ export function buildMessageMenu(message: BroadcastMessage, actions: MessageActi
 
   add(live && actions.onReply !== undefined, {
     id: 'reply',
-    label: '回复',
+    label: t('w.message.ffc785'),
     icon: <ReplyGlyph />,
     onSelect: actions.onReply,
   })
   add(live && actions.onQuote !== undefined && message.content.trim() !== '', {
     id: 'quote',
-    label: '引用',
+    label: t('w.message.23c0e1'),
     icon: <ReplyGlyph />,
     onSelect: actions.onQuote,
   })
   add(live && actions.onReplyElsewhere !== undefined, {
     id: 'reply-elsewhere',
-    label: '在其他聊天中回复',
+    label: t('w.message.b45d88'),
     icon: <ReplyGlyph />,
     onSelect: actions.onReplyElsewhere,
   })
   add(live && actions.onEdit !== undefined, {
     id: 'edit',
-    label: '编辑',
+    label: t('w.message.a7f814'),
     icon: <EditGlyph />,
     onSelect: actions.onEdit,
   })
   add(!recalled && actions.onCopy !== undefined && message.content.trim() !== '', {
     id: 'copy',
-    label: '复制文本',
+    label: t('w.message.4641d2'),
     icon: <CopyGlyph />,
     onSelect: actions.onCopy,
   })
-  add(live && actions.onPin !== undefined, { id: 'pin', label: '置顶', icon: <PinGlyph />, onSelect: actions.onPin })
+  add(live && actions.onPin !== undefined, {
+    id: 'pin',
+    label: t('w.message.7bcf18'),
+    icon: <PinGlyph />,
+    onSelect: actions.onPin,
+  })
   add(live && actions.onForward !== undefined, {
     id: 'forward',
-    label: '转发',
+    label: t('w.message.0d5a8a'),
     icon: <ForwardGlyph />,
     onSelect: actions.onForward,
   })
@@ -85,13 +91,13 @@ export function buildMessageMenu(message: BroadcastMessage, actions: MessageActi
   }
   add(actions.onSelect !== undefined, {
     id: 'select',
-    label: '选择',
+    label: t('w.message.70b208'),
     icon: <SelectGlyph />,
     onSelect: actions.onSelect,
   })
   add(!recalled && actions.onDelete !== undefined, {
     id: 'delete',
-    label: '删除',
+    label: t('w.message.3755f5'),
     icon: <DeleteGlyph />,
     danger: true,
     separatorBefore: items.length > 0,

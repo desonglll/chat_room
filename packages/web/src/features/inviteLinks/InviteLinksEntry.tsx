@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react'
 import { Sheet } from '@tg/ui'
 import { inviteLinksApi, type InviteLinksService } from './inviteLinksApi'
 import { InviteLinksPanel } from './InviteLinksPanel'
+import { t } from '../../i18n/index'
 import './inviteLinks.css'
 
 export interface InviteLinksEntryProps {
@@ -69,8 +70,8 @@ export function InviteLinksEntry({
           <LinkIcon />
         </span>
         <span className="tg-invite__row-text">
-          <span className="tg-invite__row-name">邀请链接</span>
-          <span className="tg-invite__meta">创建、分享与撤销邀请链接</span>
+          <span className="tg-invite__row-name">{t('w.inviteLinks.8a8f47')}</span>
+          <span className="tg-invite__meta">{t('w.inviteLinks.5f1bb4')}</span>
         </span>
       </button>
       {variant === 'overlay' ? (
@@ -83,7 +84,7 @@ export function InviteLinksEntry({
         <Sheet
           open={open}
           side="right"
-          ariaLabel="邀请链接"
+          ariaLabel={t('w.inviteLinks.8a8f47')}
           showClose={false}
           className="tg-invite__sheet"
           onClose={() => setOpen(false)}

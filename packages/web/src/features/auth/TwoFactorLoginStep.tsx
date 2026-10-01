@@ -12,6 +12,7 @@ import { apiClient } from '../../app/client'
 import { browserStorage } from '../../app/platform'
 import { isChallengeGone, secondStageErrorCopy, type SecondStageAction } from './twoFactorCopy'
 import { finishLogin } from './twoStepLogin'
+import { t } from '../../i18n/index'
 
 export interface TwoFactorLoginStepProps {
   challenge: TwoFactorChallenge
@@ -66,21 +67,19 @@ export function TwoFactorLoginStep({ challenge, onRestart }: TwoFactorLoginStepP
 
   return (
     <form className="tg-login__card" onSubmit={submit}>
-      <h1 className="tg-login__title">两步验证</h1>
-      <p className="tg-login__subtitle">
-        {recovering ? `验证码已发送到 ${mailedTo}` : '这个账号开启了两步验证，请输入你设置的额外密码'}
-      </p>
+      <h1 className="tg-login__title">{t('w.auth.b6c237')}</h1>
+      <p className="tg-login__subtitle">{recovering ? t('w.auth.3a6a21', mailedTo) : t('w.auth.061b54')}</p>
       {recovering ? (
         <>
           <TextField
-            label="邮件验证码"
+            label={t('w.auth.6a7140')}
             value={code}
             onChange={(event) => setCode(event.target.value)}
             name="recovery-code"
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
-            hint="验证通过后两步验证会被关闭，其他设备将全部退出登录"
+            hint={t('w.auth.828f74')}
             required
             fullWidth
             autoFocus
@@ -88,13 +87,13 @@ export function TwoFactorLoginStep({ challenge, onRestart }: TwoFactorLoginStepP
         </>
       ) : (
         <TextField
-          label="两步验证密码"
+          label={t('w.auth.4e69e7')}
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           name="two-factor-password"
           autoComplete="off"
-          hint={challenge.hint ? `提示：${challenge.hint}` : undefined}
+          hint={challenge.hint ? t('w.auth.e65485', challenge.hint) : undefined}
           required
           fullWidth
           autoFocus
@@ -106,19 +105,19 @@ export function TwoFactorLoginStep({ challenge, onRestart }: TwoFactorLoginStepP
         </p>
       ) : null}
       <Button type="submit" loading={busy} fullWidth size="lg">
-        {recovering ? '验证并登录' : '下一步'}
+        {recovering ? t('w.auth.008f66') : t('w.auth.ea0ef2')}
       </Button>
       <div className="tg-login__switch tg-two-factor-login__links">
         {!recovering && challenge.has_recovery_email ? (
           <Button variant="text" onClick={startRecovery} disabled={busy} fullWidth>
-            忘记密码？通过恢复邮箱重置
+            {t('w.auth.01abfd')}
           </Button>
         ) : null}
         {!recovering && !challenge.has_recovery_email ? (
-          <p className="tg-two-factor-login__note">未设置恢复邮箱：忘记两步验证密码将无法登录</p>
+          <p className="tg-two-factor-login__note">{t('w.auth.9baf44')}</p>
         ) : null}
         <Button variant="text" onClick={() => onRestart()} disabled={busy} fullWidth>
-          返回
+          {t('w.auth.11d024')}
         </Button>
       </div>
     </form>

@@ -5,6 +5,7 @@
 import { createElement, lazy } from 'react'
 import { authStore } from '@tg/core'
 import { registerSettingsPage } from '../settings/shell'
+import { t } from '../../i18n/index'
 import './profile.css'
 
 const AvatarCarousel = lazy(() => import('./AvatarCarousel').then((m) => ({ default: m.AvatarCarousel })))
@@ -12,7 +13,9 @@ const AvatarCarousel = lazy(() => import('./AvatarCarousel').then((m) => ({ defa
 registerSettingsPage({
   id: 'account.avatars',
   section: 'account',
-  title: '头像',
+  get title() {
+    return t('w.profile.4ceeeb')
+  },
   order: 20,
   component: () => createElement(AvatarCarousel, { userId: authStore.getState().session?.user.id ?? '' }),
 })
@@ -20,7 +23,9 @@ registerSettingsPage({
 registerSettingsPage({
   id: 'account.qr',
   section: 'account',
-  title: '我的二维码',
+  get title() {
+    return t('w.profile.de99c3')
+  },
   order: 30,
   component: lazy(() => import('./ProfileQrCard').then((m) => ({ default: m.ProfileQrCard }))),
 })

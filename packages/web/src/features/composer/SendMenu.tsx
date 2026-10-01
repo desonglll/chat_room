@@ -10,6 +10,7 @@ import { scheduledActions } from '../scheduled/useScheduled'
 import { scheduledErrorText } from '../scheduled/scheduledActions'
 import type { ComposerController } from './composerController'
 import { BellOffGlyph, CalendarGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 const ScheduleDialog = lazy(() =>
   import('../scheduled/ScheduleDialog').then((module) => ({ default: module.ScheduleDialog })),
@@ -33,17 +34,17 @@ export function SendMenu({ chatId, controller, enabled, children }: SendMenuProp
   const items: MenuItem[] = [
     {
       id: 'schedule',
-      label: '定时发送',
+      label: t('w.composer.a0974f'),
       icon: <CalendarGlyph />,
       disabled: controller.schedulePayload() === null,
       onSelect: () => setScheduling(true),
     },
-    { id: 'silent', label: '静默发送', icon: <BellOffGlyph />, onSelect: () => controller.submitSilent() },
+    { id: 'silent', label: t('w.composer.da1baa'), icon: <BellOffGlyph />, onSelect: () => controller.submitSilent() },
   ]
 
   const confirm = async (at: Date, silent: boolean) => {
     const payload = controller.schedulePayload()
-    if (!payload) throw new Error('没有可定时发送的内容')
+    if (!payload) throw new Error(t('w.composer.fe87c8'))
     try {
       await scheduledActions.schedule(chatId, { ...payload, at, silent })
     } catch (caught) {
@@ -66,7 +67,7 @@ export function SendMenu({ chatId, controller, enabled, children }: SendMenuProp
         <ContextMenu
           items={items}
           disabled={!enabled}
-          aria-label="发送选项"
+          aria-label={t('w.composer.53ab68')}
           onOpenChange={(open) => {
             if (open) openedAt.current = Date.now()
           }}
@@ -76,7 +77,13 @@ export function SendMenu({ chatId, controller, enabled, children }: SendMenuProp
       </span>
       {scheduling ? (
         <Suspense fallback={null}>
-          <ScheduleDialog open title="定时发送" allowSilent onClose={() => setScheduling(false)} onConfirm={confirm} />
+          <ScheduleDialog
+            open
+            title={t('w.composer.a0974f')}
+            allowSilent
+            onClose={() => setScheduling(false)}
+            onConfirm={confirm}
+          />
         </Suspense>
       ) : null}
     </>

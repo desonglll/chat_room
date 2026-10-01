@@ -7,17 +7,53 @@
  */
 import { useState, type MouseEvent } from 'react'
 import type { FormatKind } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export interface FormatToolbarProps {
   onFormat(kind: FormatKind, url?: string): void
 }
 
 const BUTTONS: ReadonlyArray<{ kind: Exclude<FormatKind, 'link'>; label: string; glyph: string; hint: string }> = [
-  { kind: 'bold', label: '粗体', glyph: 'B', hint: 'Ctrl+B' },
-  { kind: 'italic', label: '斜体', glyph: 'I', hint: 'Ctrl+I' },
-  { kind: 'underline', label: '下划线', glyph: 'U', hint: 'Ctrl+U' },
-  { kind: 'strike', label: '删除线', glyph: 'S', hint: 'Ctrl+Shift+X' },
-  { kind: 'code', label: '等宽', glyph: '</>', hint: 'Ctrl+Shift+M' },
+  {
+    kind: 'bold',
+    get label() {
+      return t('w.composer.67c6b7')
+    },
+    glyph: 'B',
+    hint: 'Ctrl+B',
+  },
+  {
+    kind: 'italic',
+    get label() {
+      return t('w.composer.af5a2c')
+    },
+    glyph: 'I',
+    hint: 'Ctrl+I',
+  },
+  {
+    kind: 'underline',
+    get label() {
+      return t('w.composer.9bc18a')
+    },
+    glyph: 'U',
+    hint: 'Ctrl+U',
+  },
+  {
+    kind: 'strike',
+    get label() {
+      return t('w.composer.c85de9')
+    },
+    glyph: 'S',
+    hint: 'Ctrl+Shift+X',
+  },
+  {
+    kind: 'code',
+    get label() {
+      return t('w.composer.c49fc6')
+    },
+    glyph: '</>',
+    hint: 'Ctrl+Shift+M',
+  },
 ]
 
 const keepSelection = (event: MouseEvent) => event.preventDefault()
@@ -31,7 +67,7 @@ export function FormatToolbar({ onFormat }: FormatToolbarProps) {
       <form
         className="tg-compose__format"
         role="toolbar"
-        aria-label="插入链接"
+        aria-label={t('w.composer.010ace')}
         onSubmit={(event) => {
           event.preventDefault()
           onFormat('link', url)
@@ -44,7 +80,7 @@ export function FormatToolbar({ onFormat }: FormatToolbarProps) {
           type="url"
           value={url}
           placeholder="https://"
-          aria-label="链接地址"
+          aria-label={t('w.composer.7223a5')}
           autoFocus
           onChange={(event) => setUrl(event.target.value)}
           onKeyDown={(event) => {
@@ -54,7 +90,7 @@ export function FormatToolbar({ onFormat }: FormatToolbarProps) {
             }
           }}
         />
-        <button type="submit" className="tg-compose__format-button" aria-label="确定">
+        <button type="submit" className="tg-compose__format-button" aria-label={t('w.composer.f526c8')}>
           ✓
         </button>
       </form>
@@ -62,7 +98,7 @@ export function FormatToolbar({ onFormat }: FormatToolbarProps) {
   }
 
   return (
-    <div className="tg-compose__format" role="toolbar" aria-label="文本格式">
+    <div className="tg-compose__format" role="toolbar" aria-label={t('w.composer.00986a')}>
       {BUTTONS.map((button) => (
         <button
           key={button.kind}
@@ -81,8 +117,8 @@ export function FormatToolbar({ onFormat }: FormatToolbarProps) {
         type="button"
         className="tg-compose__format-button"
         data-kind="link"
-        aria-label="链接"
-        title="链接 (Ctrl+K)"
+        aria-label={t('w.composer.715022')}
+        title={t('w.composer.7ba5c8')}
         onMouseDown={keepSelection}
         onClick={() => setLinkMode(true)}
       >

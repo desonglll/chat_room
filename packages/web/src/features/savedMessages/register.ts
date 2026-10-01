@@ -5,6 +5,7 @@
  */
 import { registerMessageMenuItem } from '../message'
 import { favoritesApi } from './savedMessagesApi'
+import { t } from '../../i18n/index'
 import './savedMessages.css'
 
 registerMessageMenuItem('save-to-favorites', (message) =>
@@ -12,7 +13,7 @@ registerMessageMenuItem('save-to-favorites', (message) =>
     ? null
     : {
         id: 'save-to-favorites',
-        label: '保存到收藏夹',
+        label: t('w.savedMessages.dd6833'),
         onSelect: () => void favoritesApi.saveMessages([message.message_id]).catch(() => undefined),
       },
 )

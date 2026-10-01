@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { inviteLinkUrl } from '@tg/core'
 import { Button } from '@tg/ui'
+import { t } from '../../i18n/index'
 
 export interface LinkShareBoxProps {
   token: string
@@ -26,15 +27,15 @@ export function LinkShareBox({ token, live, origin, children }: LinkShareBoxProp
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url)
-      setNote('链接已复制')
+      setNote(t('w.inviteLinks.3e1fac'))
     } catch {
-      setNote('无法访问剪贴板，请手动复制')
+      setNote(t('w.inviteLinks.7c71a9'))
     }
   }
   const share = async () => {
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: '邀请你加入群组', url })
+        await navigator.share({ title: t('w.inviteLinks.2b9bbf'), url })
         return
       } catch {
         // Dismissed or unsupported target: fall back to copying.
@@ -51,10 +52,10 @@ export function LinkShareBox({ token, live, origin, children }: LinkShareBoxProp
       {live ? (
         <div className="tg-invite__share-actions">
           <Button variant="filled" onClick={() => void copy()}>
-            复制链接
+            {t('w.inviteLinks.abb22b')}
           </Button>
           <Button variant="tonal" onClick={() => void share()}>
-            分享
+            {t('w.inviteLinks.7a9243')}
           </Button>
           {children}
         </div>

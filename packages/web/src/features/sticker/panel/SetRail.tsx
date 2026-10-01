@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react'
 import type { Sticker } from '@tg/core'
 import { ClockGlyph, GearGlyph, StarGlyph } from '../icons'
 import { StickerView } from '../StickerView'
+import { t } from '../../../i18n/index'
 
 export interface RailEntry {
   id: string
@@ -39,7 +40,7 @@ export function SetRail({ entries, active, onSelect, onSettings }: SetRailProps)
   }, [active])
 
   return (
-    <nav className="tg-sticker-rail" aria-label="贴纸包">
+    <nav className="tg-sticker-rail" aria-label={t('w.sticker.e0a6f3')}>
       <div className="tg-sticker-rail__list" ref={listRef}>
         {entries.map((entry) => (
           <button
@@ -73,8 +74,8 @@ export function SetRail({ entries, active, onSelect, onSettings }: SetRailProps)
         <button
           type="button"
           className="tg-sticker-rail__item"
-          aria-label="贴纸设置"
-          title="贴纸设置"
+          aria-label={t('w.sticker.323d63')}
+          title={t('w.sticker.323d63')}
           onClick={onSettings}
         >
           <GearGlyph />

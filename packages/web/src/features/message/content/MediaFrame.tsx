@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { Attachment } from '@tg/core'
 import type { MessageActions } from '../types'
+import { t } from '../../../i18n/index'
 
 /**
  * The clickable box around a photo or video. A sensitive attachment is blurred behind a
@@ -32,14 +33,14 @@ export function MediaFrame({
       type="button"
       className="tg-bubble__media"
       data-veiled={revealed ? undefined : ''}
-      aria-label={revealed ? label : '敏感内容，点击查看'}
+      aria-label={revealed ? label : t('w.message.976c5d')}
       onClick={(event) => {
         event.stopPropagation()
         open()
       }}
     >
       {children}
-      {revealed ? null : <span className="tg-bubble__veil">敏感内容 · 点击查看</span>}
+      {revealed ? null : <span className="tg-bubble__veil">{t('w.message.8c0540')}</span>}
     </button>
   )
 }

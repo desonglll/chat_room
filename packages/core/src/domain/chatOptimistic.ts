@@ -6,6 +6,7 @@
  */
 import type { ChatMember, ReplyPreview } from '../types'
 import type { BroadcastMessage, DisplayMessage } from './messageView'
+import { t } from '../i18n/t'
 
 interface OptimisticMessageInput {
   clientMessageId: string
@@ -39,7 +40,7 @@ export function createOptimisticMessage(input: OptimisticMessageInput): Broadcas
     message_id: `pending:${input.clientMessageId}`,
     client_message_id: input.clientMessageId,
     sender_id: input.currentUserId,
-    sender: sender?.username || '你',
+    sender: sender?.username || t('c.domain.5630b8'),
     sender_avatar: sender?.avatar_emoji || '',
     content: input.content,
     attachment: null,

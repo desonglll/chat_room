@@ -13,6 +13,7 @@ import {
   clampSidebarWidth,
   layoutForDrag,
 } from './sidebarLayout'
+import { t } from '../../i18n/index'
 
 export interface SidebarResizerProps {
   layout: SidebarLayout
@@ -67,7 +68,7 @@ export function SidebarResizer({ layout, onPreview, onCommit }: SidebarResizerPr
       className="tg-shell__resizer"
       role="separator"
       aria-orientation="vertical"
-      aria-label="调整侧栏宽度"
+      aria-label={t('w.shell.169df2')}
       aria-valuemin={SIDEBAR_MIN_WIDTH}
       aria-valuemax={SIDEBAR_MAX_WIDTH}
       aria-valuenow={layout.collapsed ? SIDEBAR_MIN_WIDTH : layout.width}

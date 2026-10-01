@@ -1,3 +1,4 @@
+import { t } from '../i18n/t'
 export interface CalculatorKeyEvent {
   key: string
   altKey: boolean
@@ -103,12 +104,12 @@ export function evaluateArithmeticExpression(expression: string): CalculationRes
     return { ok: true, value: formatResult(new ArithmeticParser(normalizeExpression(expression)).parse()) }
   } catch (error) {
     if (error instanceof CalculatorError && error.reason === 'division-zero') {
-      return { ok: false, error: '不能除以 0' }
+      return { ok: false, error: t('c.domain.df8785') }
     }
     if (error instanceof CalculatorError && error.reason === 'overflow') {
-      return { ok: false, error: '结果超出可计算范围' }
+      return { ok: false, error: t('c.domain.2d3d97') }
     }
-    return { ok: false, error: '无法计算这个算式' }
+    return { ok: false, error: t('c.domain.d4032c') }
   }
 }
 

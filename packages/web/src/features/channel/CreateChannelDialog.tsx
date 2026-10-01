@@ -9,6 +9,7 @@ import { ApiError, chatListStore } from '@tg/core'
 import { Button, Modal, TextField, Toggle } from '@tg/ui'
 import { loadConversations } from '../chatList/chatListController'
 import { apiClient } from '../../app/client'
+import { t } from '../../i18n/index'
 import './channel.css'
 
 export interface CreateChannelDialogProps {
@@ -20,9 +21,9 @@ export interface CreateChannelDialogProps {
 }
 
 export function createChannelError(failure: unknown): string {
-  if (failure instanceof ApiError && failure.status === 409) return '已有同名会话，换一个名字'
-  if (failure instanceof ApiError && failure.status === 400) return '名称或简介不合要求'
-  return '创建失败，请稍后再试'
+  if (failure instanceof ApiError && failure.status === 409) return t('w.channel.448caf')
+  if (failure instanceof ApiError && failure.status === 400) return t('w.channel.9bfe6d')
+  return t('w.channel.63598d')
 }
 
 export function CreateChannelDialog({ open, onClose, token, api, onCreated }: CreateChannelDialogProps) {
@@ -53,10 +54,10 @@ export function CreateChannelDialog({ open, onClose, token, api, onCreated }: Cr
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="新建频道" size="sm">
+    <Modal open={open} onClose={onClose} title={t('w.channel.b0e811')} size="sm">
       <form className="tg-new-channel" onSubmit={submit}>
         <TextField
-          label="频道名称"
+          label={t('w.channel.9c38b0')}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           error={error || undefined}
@@ -66,7 +67,7 @@ export function CreateChannelDialog({ open, onClose, token, api, onCreated }: Cr
           autoFocus
         />
         <TextField
-          label="简介（可选）"
+          label={t('w.channel.f859bf')}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           maxLength={300}
@@ -77,11 +78,11 @@ export function CreateChannelDialog({ open, onClose, token, api, onCreated }: Cr
         <Toggle
           checked={signatures}
           onCheckedChange={setSignatures}
-          label="消息署名"
-          description="在频道消息下显示发布者的名字"
+          label={t('w.channel.b90326')}
+          description={t('w.channel.f844d0')}
         />
         <Button type="submit" loading={busy} fullWidth>
-          创建频道
+          {t('w.channel.432320')}
         </Button>
       </form>
     </Modal>

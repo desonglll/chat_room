@@ -2,6 +2,7 @@
 import type { InvitePreview, InviteRefusal } from '@tg/core'
 import { Avatar, Button, Spinner } from '@tg/ui'
 import { REFUSAL_COPY } from './inviteLinksModel'
+import { t } from '../../i18n/index'
 
 export type JoinCardState =
   | { kind: 'loading' }
@@ -9,16 +10,24 @@ export type JoinCardState =
   | { kind: 'refused'; reason: InviteRefusal }
 
 const TYPE_LABEL: Record<InvitePreview['chat_type'], string> = {
-  private: '私聊',
-  group: '群组',
-  supergroup: '超级群',
-  channel: '频道',
+  get private() {
+    return t('w.inviteLinks.3adfdb')
+  },
+  get group() {
+    return t('w.inviteLinks.4260ca')
+  },
+  get supergroup() {
+    return t('w.inviteLinks.a06237')
+  },
+  get channel() {
+    return t('w.inviteLinks.b76dfd')
+  },
 }
 
 function actionLabel(preview: InvitePreview): string {
-  if (preview.membership_status === 'active') return '打开聊天'
-  if (preview.requires_approval) return '申请加入'
-  return preview.chat_type === 'channel' ? '加入频道' : '加入群组'
+  if (preview.membership_status === 'active') return t('w.inviteLinks.745cd2')
+  if (preview.requires_approval) return t('w.inviteLinks.527fa6')
+  return preview.chat_type === 'channel' ? t('w.inviteLinks.9cdcda') : t('w.inviteLinks.9542b3')
 }
 
 export function JoinChatCard({
@@ -32,14 +41,14 @@ export function JoinChatCard({
 }) {
   let content
   if (state.kind === 'loading') {
-    content = <Spinner label="正在打开邀请链接" />
+    content = <Spinner label={t('w.inviteLinks.f3cfa9')} />
   } else if (state.kind === 'refused') {
     content = (
       <>
         <p className="tg-join__title">{REFUSAL_COPY[state.reason]}</p>
-        <p className="tg-invite__meta">请向群管理员索取新的邀请链接。</p>
+        <p className="tg-invite__meta">{t('w.inviteLinks.2b9919')}</p>
         <Button variant="tonal" onClick={onDismiss}>
-          返回
+          {t('w.inviteLinks.11d024')}
         </Button>
       </>
     )
@@ -51,17 +60,17 @@ export function JoinChatCard({
         <Avatar label={preview.title} initials={preview.avatar_emoji || undefined} size="xl" />
         <p className="tg-join__title">{preview.title}</p>
         <p className="tg-invite__meta">
-          {TYPE_LABEL[preview.chat_type]} · {preview.member_count} 位成员
+          {TYPE_LABEL[preview.chat_type]} · {preview.member_count} {t('w.inviteLinks.b8d0b7')}
         </p>
         {preview.description ? <p className="tg-join__description">{preview.description}</p> : null}
         {pending ? (
           <p className="tg-join__pending" role="status">
-            已发送加入申请，等待管理员审核。
+            {t('w.inviteLinks.bd6821')}
           </p>
         ) : (
           <>
             {preview.requires_approval && preview.membership_status !== 'active' ? (
-              <p className="tg-invite__meta">管理员审核通过后你才会加入。</p>
+              <p className="tg-invite__meta">{t('w.inviteLinks.d452a9')}</p>
             ) : null}
             <Button variant="filled" loading={busy} disabled={busy} onClick={() => onJoin(preview)}>
               {actionLabel(preview)}
@@ -69,14 +78,14 @@ export function JoinChatCard({
           </>
         )}
         <Button variant="text" onClick={onDismiss}>
-          取消
+          {t('w.inviteLinks.4d0b46')}
         </Button>
       </>
     )
   }
   return (
     <div className="tg-join">
-      <section className="tg-join__card" aria-label="邀请链接" aria-busy={state.kind === 'loading'}>
+      <section className="tg-join__card" aria-label={t('w.inviteLinks.8a8f47')} aria-busy={state.kind === 'loading'}>
         {content}
       </section>
     </div>

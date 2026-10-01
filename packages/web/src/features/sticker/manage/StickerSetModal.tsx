@@ -11,6 +11,7 @@ import { useStore } from 'zustand/react'
 import { StickerGrid } from '../panel/StickerGrid'
 import { stickerLibrary } from '../stickerLibrary'
 import { copyStickerSetLink } from './copyLink'
+import { t } from '../../../i18n/index'
 import './manage.css'
 
 export interface StickerSetModalProps {
@@ -49,7 +50,7 @@ export function StickerSetModal({ shortName, onClose }: StickerSetModalProps) {
     setNotice('')
     action()
       .then(() => done && setNotice(done))
-      .catch(() => setNotice('操作失败，请重试'))
+      .catch(() => setNotice(t('w.sticker.51d3cb')))
       .finally(() => setBusy(false))
   }
 
@@ -58,23 +59,29 @@ export function StickerSetModal({ shortName, onClose }: StickerSetModalProps) {
       <Button
         variant="text"
         onClick={() =>
-          void copyStickerSetLink(set.short_name).then((ok) => setNotice(ok ? '链接已复制' : '无法访问剪贴板'))
+          void copyStickerSetLink(set.short_name).then((ok) =>
+            setNotice(ok ? t('w.sticker.3e1fac') : t('w.sticker.91aaca')),
+          )
         }
       >
-        复制链接
+        {t('w.sticker.abb22b')}
       </Button>
       {isInstalled && installed.archived ? (
         <Button variant="tonal" loading={busy} onClick={() => run(() => stickerLibrary().setArchived(set.id, false))}>
-          取消归档
+          {t('w.sticker.18362b')}
         </Button>
       ) : null}
       {isInstalled ? (
         <Button variant="danger" loading={busy} onClick={() => run(() => stickerLibrary().uninstall(set.id))}>
-          移除 {set.stickers.length} 个贴纸
+          {t('w.sticker.2f752c')} {set.stickers.length} {t('w.sticker.fdb87b')}
         </Button>
       ) : (
-        <Button variant="filled" loading={busy} onClick={() => run(() => stickerLibrary().install(set.id), '已添加')}>
-          添加 {set.stickers.length} 个贴纸
+        <Button
+          variant="filled"
+          loading={busy}
+          onClick={() => run(() => stickerLibrary().install(set.id), t('w.sticker.578286'))}
+        >
+          {t('w.sticker.94191c')} {set.stickers.length} {t('w.sticker.fdb87b')}
         </Button>
       )}
     </div>
@@ -84,8 +91,8 @@ export function StickerSetModal({ shortName, onClose }: StickerSetModalProps) {
     <Modal
       open
       onClose={onClose}
-      title={set?.title ?? '贴纸包'}
-      description={set ? `${set.stickers.length} 个贴纸 · ${set.short_name}` : undefined}
+      title={set?.title ?? t('w.sticker.e0a6f3')}
+      description={set ? t('w.sticker.438da3', set.stickers.length, set.short_name) : undefined}
       footer={footer}
       size="md"
       className="tg-sticker-set"
@@ -96,10 +103,12 @@ export function StickerSetModal({ shortName, onClose }: StickerSetModalProps) {
         </div>
       ) : load.state === 'loading' ? (
         <div className="tg-sticker-tab__state">
-          <Spinner size="md" label="正在加载贴纸包" />
+          <Spinner size="md" label={t('w.sticker.95e96f')} />
         </div>
       ) : (
-        <p className="tg-sticker-tab__state">{load.state === 'missing' ? '贴纸包不存在' : '贴纸包加载失败'}</p>
+        <p className="tg-sticker-tab__state">
+          {load.state === 'missing' ? t('w.sticker.5087b7') : t('w.sticker.4922b4')}
+        </p>
       )}
       {notice ? (
         <p className="tg-sticker-set__notice" role="status">

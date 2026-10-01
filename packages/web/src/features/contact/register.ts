@@ -5,6 +5,7 @@
 import { registerMessageContent, registerMessageMenuItem } from '../message'
 import { ContactContent } from './ContactContent'
 import { checkTranslationAvailability, translateMessage, translationStore } from './translation'
+import { t } from '../../i18n/index'
 import './contact.css'
 
 registerMessageContent('contact', ContactContent, {
@@ -15,6 +16,10 @@ registerMessageContent('contact', ContactContent, {
 checkTranslationAvailability()
 registerMessageMenuItem('translate', (message) =>
   translationStore.getState().available && message.content.trim() !== '' && !message.message_id.startsWith('pending:')
-    ? { id: 'translate', label: '翻译', onSelect: () => translateMessage(message.message_id, message.content) }
+    ? {
+        id: 'translate',
+        label: t('w.contact.231413'),
+        onSelect: () => translateMessage(message.message_id, message.content),
+      }
     : null,
 )

@@ -15,6 +15,7 @@ import type { BroadcastMessage } from '@tg/core'
 import { authStore, chatListStore, messageStore } from '@tg/core'
 import { MessageList } from '../MessageList'
 import type { MessageListApi } from '../messageListController'
+import { t } from '../../../i18n/index'
 
 const params = new URLSearchParams(location.search)
 const TOTAL = Number(params.get('total') ?? 100_000)
@@ -38,7 +39,7 @@ function synthetic(n: number): BroadcastMessage {
     type: 'broadcast',
     message_id: idOf(n),
     sender_id: sender,
-    sender: `用户${sender}`,
+    sender: t('w.messageList.03adb0', sender),
     sender_avatar: '',
     content: `#${n} ${content}`,
     attachment: null,
@@ -47,12 +48,18 @@ function synthetic(n: number): BroadcastMessage {
         ? {
             message_id: idOf(FAR_TARGET),
             sender: 'far',
-            content: '很久以前的消息',
+            content: t('w.messageList.8e3a21'),
             attachment_file_name: null,
             recalled: false,
           }
         : n % 17 === 0 && n > 50
-          ? { message_id: idOf(n - 40), sender: 'x', content: '引用', attachment_file_name: null, recalled: false }
+          ? {
+              message_id: idOf(n - 40),
+              sender: 'x',
+              content: t('w.messageList.23c0e1'),
+              attachment_file_name: null,
+              recalled: false,
+            }
           : null,
     recalled_at: null,
     edited_at: null,
@@ -138,13 +145,18 @@ window.tgBench = {
   total: TOTAL,
   requests,
   pushIncoming() {
-    const message = { ...synthetic(next++), sender_id: 'u3', sender: '用户u3', timestamp: new Date().toISOString() }
+    const message = {
+      ...synthetic(next++),
+      sender_id: 'u3',
+      sender: t('w.messageList.c3286f'),
+      timestamp: new Date().toISOString(),
+    }
     messageStore.getState().applyBroadcast(CHAT_ID, message, 'incoming')
   },
   pushOwnPending() {
     messageStore.getState().appendOptimistic(CHAT_ID, {
       clientMessageId: `c${next++}`,
-      content: '我发的消息',
+      content: t('w.messageList.acb4f3'),
       replyTo: '',
       currentUserId: ME,
       participants: [],

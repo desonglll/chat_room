@@ -21,6 +21,7 @@ import {
   visibleItems,
   type PanelSection,
 } from './panelLayout'
+import { t } from '../../../i18n/index'
 
 export interface StickerGridHandle {
   scrollToSection(sectionId: string): void
@@ -153,7 +154,7 @@ export function StickerGrid(props: StickerGridProps) {
                   className="tg-sticker-grid__cell"
                   style={{ width: cellWidth }}
                   data-sticker-id={sticker.id}
-                  aria-label={`贴纸 ${sticker.emoji}`}
+                  aria-label={t('w.sticker.3c8532', sticker.emoji)}
                   disabled={disabled}
                   onClick={() => onPick(sticker)}
                 >

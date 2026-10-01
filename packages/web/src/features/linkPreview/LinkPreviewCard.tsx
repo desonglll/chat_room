@@ -4,6 +4,7 @@
  * the link opens in a new tab without opener access.
  */
 import type { LinkPreview } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export function LinkPreviewCard({
   preview,
@@ -30,7 +31,12 @@ export function LinkPreviewCard({
         ) : null}
       </a>
       {onDismiss ? (
-        <button type="button" className="tg-link-card__dismiss" aria-label="不显示链接预览" onClick={onDismiss}>
+        <button
+          type="button"
+          className="tg-link-card__dismiss"
+          aria-label={t('w.linkPreview.2fab45')}
+          onClick={onDismiss}
+        >
           ×
         </button>
       ) : null}

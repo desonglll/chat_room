@@ -8,6 +8,7 @@ import { registerMessageContent, registerMessageMenuItem } from '../message'
 import { linkPreviewApi } from './linkPreviewApi'
 import { LinkPreviewContent } from './LinkPreviewContent'
 import { effectiveCard, linkPreviewStore } from './linkPreviewStore'
+import { t } from '../../i18n/index'
 import './linkPreview.css'
 
 const LINK = /https?:\/\//i
@@ -29,7 +30,7 @@ registerMessageMenuItem('hide-link-preview', (message) => {
   const chatId = uiStore.getState().activeChatId
   return {
     id: 'hide-link-preview',
-    label: '移除链接预览',
+    label: t('w.linkPreview.270391'),
     onSelect: () => void linkPreviewApi.hide(chatId, message.message_id).catch(() => undefined),
   }
 })
