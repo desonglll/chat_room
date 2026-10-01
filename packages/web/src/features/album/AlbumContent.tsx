@@ -13,6 +13,7 @@ import type { Attachment, BroadcastMessage } from '@tg/core'
 import { layoutAlbum, parenthetical, type AlbumItemSize } from '@tg/core'
 import { MessageText, type MessageContentProps } from '../message'
 import { MediaFrame } from '../message/content/MediaFrame'
+import { attachmentPreviewUrl, fallBackToOriginal } from '../message/content/attachmentPreview'
 import { albumItemsOf } from './albumCollapse'
 import { t } from '../../i18n/index'
 
@@ -90,7 +91,8 @@ export function AlbumContent({ message, actions, metaSpacer }: MessageContentPro
                 ) : (
                   <img
                     className="tg-album__media"
-                    src={attachment.download_url}
+                    src={attachmentPreviewUrl(attachment)}
+                    onError={fallBackToOriginal(attachment)}
                     alt={attachment.file_name}
                     loading="lazy"
                     decoding="async"

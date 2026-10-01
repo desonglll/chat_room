@@ -328,10 +328,15 @@ impl AppState {
             attachment: Some(Attachment {
                 id: attachment_id,
                 file_name,
-                mime_type,
                 size_bytes,
                 download_url: format!("/api/attachments/{attachment_id}?key={access_key}"),
                 is_sensitive,
+                thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
+                    attachment_id,
+                    &mime_type,
+                    access_key,
+                ),
+                mime_type,
             }),
             reply_to,
             recalled_at: None,

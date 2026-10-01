@@ -44,7 +44,7 @@ export function ThumbStrip({ items, index, onSelect, reduced }: ThumbStripProps)
             onClick={() => onSelect(item.attachmentId)}
           >
             {item.kind === 'image' ? (
-              <img src={item.url} alt="" loading="lazy" decoding="async" draggable={false} />
+              <img src={item.previewUrl} alt="" loading="lazy" decoding="async" draggable={false} />
             ) : (
               <>
                 <video src={item.url} preload="metadata" muted playsInline />

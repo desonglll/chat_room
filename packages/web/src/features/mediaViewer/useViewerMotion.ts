@@ -77,13 +77,14 @@ export function useViewerMotion({ request, current, mediaRef, onClosed }: Option
     const els = elements()
     if (!els) return
     const item = latest.current.current
-    const thumbnail = item ? findThumbnail(item.url) : null
-    if (item && thumbnail?.natural) naturals.current.set(item.attachmentId, thumbnail.natural)
+    const thumbnail = item ? findThumbnail(item.previewUrl) : null
+    const natural = item && thumbnail?.natural ? flightNatural(item, thumbnail.natural) : null
+    if (item && natural) naturals.current.set(item.attachmentId, natural)
     const source = request.sourceRect ?? thumbnail?.rect ?? null
     const src = snapshotOf(thumbnail?.frame ?? null)
-    if (!reduced && item && source && thumbnail?.natural && src) {
+    if (!reduced && item && thumbnail && source && natural && src) {
       const stageBox = rectOf(els.stage)
-      const to = centreIn(fitContain(thumbnail.natural, stageBox), stageBox)
+      const to = centreIn(fitContain(natural, stageBox), stageBox)
       setFlying(true)
       const flight = {
         src,
@@ -94,8 +95,10 @@ export function useViewerMotion({ request, current, mediaRef, onClosed }: Option
       }
       void play(fly(els, flight, false)).then(async (done) => {
         if (!done) return
-        // Swap only once the stage's copy can paint, or it would blink.
-        await mediaRef.current?.decode().catch(() => undefined)
+        // Swap only once the stage's copy can paint, or it would blink. With a thumbnail that
+        // copy is the preview layer (already cached) — waiting for the original instead would
+        // hold the flight mid-air for the whole download on a slow phone (TG-1302).
+        await (stagePreview(els.stage) ?? mediaRef.current)?.decode().catch(() => undefined)
         flushSync(() => setFlying(false))
         endFlight(els)
       })
@@ -119,7 +122,7 @@ export function useViewerMotion({ request, current, mediaRef, onClosed }: Option
       item?.kind === 'image'
         ? mediaRef.current
         : els.stage.querySelector<HTMLElement>('[data-offset="0"] [data-mv-video]')
-    const thumbnail = item ? findThumbnail(item.url) : null
+    const thumbnail = item ? findThumbnail(item.previewUrl) : null
     const src = snapshotOf(media)
     const backdropNow = Number.parseFloat(els.backdrop.style.opacity || '1')
     running.current?.stop()
@@ -184,9 +187,25 @@ export function useViewerMotion({ request, current, mediaRef, onClosed }: Option
   const naturalOf = (item: MediaItem): Size | null => {
     const known = naturals.current.get(item.attachmentId)
     if (known) return known
-    const thumbnail = findThumbnail(item.url)
+    const thumbnail = findThumbnail(item.previewUrl)
     return thumbnail ? naturalSize(thumbnail.frame.querySelector('video')) : null
   }
 
   return { refs, phase, flying, reduced, close, dragTrack, releaseTrack, naturalOf }
+}
+
+/**
+ * TG-1302: when the bubble shows a server thumbnail, its pixel size says nothing about the
+ * original's — only the aspect ratio carries over. Land the flight where the stage's preview
+ * layer fills (an aspect-only "huge" natural), which is where a photo larger than the screen
+ * ends up anyway, so the swap to the original does not jump.
+ */
+function flightNatural(item: MediaItem, natural: Size): Size {
+  if (item.previewUrl === item.url || natural.width <= 0 || natural.height <= 0) return natural
+  const scale = 100_000 / Math.max(natural.width, natural.height)
+  return { width: natural.width * scale, height: natural.height * scale }
+}
+
+function stagePreview(stage: HTMLElement): HTMLImageElement | null {
+  return stage.querySelector<HTMLImageElement>('.tg-mv__slide[data-offset="0"] .tg-mv__media--preview')
 }

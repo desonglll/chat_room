@@ -7,6 +7,7 @@ import { Avatar } from '@tg/ui'
 import { formatChatListTime } from '../chatList/chatTime'
 import { openMediaViewer } from '../mediaViewer'
 import { formatBytes } from '../message/content/attachmentKind'
+import { attachmentPreviewUrl, fallBackToOriginal } from '../message/content/attachmentPreview'
 import { useLastSeenText } from '../presence'
 import { FileIcon, PlayIcon } from './icons'
 import { memberName } from './memberSource'
@@ -56,7 +57,14 @@ export function MediaTile({ chatId, file }: { chatId: string; file: SharedFile }
           </span>
         </>
       ) : (
-        <img src={attachment.download_url} alt="" loading="lazy" decoding="async" draggable={false} />
+        <img
+          src={attachmentPreviewUrl(attachment)}
+          onError={fallBackToOriginal(attachment)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
       )}
     </button>
   )

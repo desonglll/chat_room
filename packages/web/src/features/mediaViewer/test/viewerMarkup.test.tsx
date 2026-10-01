@@ -148,3 +148,29 @@ describe('thumbnail strip', () => {
     expect(renderToStaticMarkup(<ThumbStrip items={[media(1)]} index={0} onSelect={noop} reduced />)).toBe('')
   })
 })
+
+describe('TG-1302 thumbnail first', () => {
+  const thumb = '/api/attachments/a1/thumbnail?key=k1'
+  test('the stage paints the thumbnail under the still-loading original', () => {
+    const html = renderToStaticMarkup(
+      <MediaSlide item={media(1, { previewUrl: thumb })} active revealed={false} onReveal={noop} />,
+    )
+    expect(html).toContain(`class="tg-mv__media tg-mv__media--preview" src="${thumb.replace('&', '&amp;')}"`)
+    expect(html).toContain('data-loading=""')
+    expect(html).toContain(`src="${media(1).url}"`)
+  })
+
+  test('without a thumbnail the original is the only image, shown at once', () => {
+    const html = renderToStaticMarkup(<MediaSlide item={media(1)} active revealed={false} onReveal={noop} />)
+    expect(count(html, '<img')).toBe(1)
+    expect(html).not.toContain('data-loading')
+  })
+
+  test('the strip shows thumbnails', () => {
+    const html = renderToStaticMarkup(
+      <ThumbStrip items={[media(1, { previewUrl: thumb }), media(2)]} index={0} onSelect={noop} reduced />,
+    )
+    expect(html).toContain(`src="${thumb}"`)
+    expect(html).not.toContain(`src="${media(1).url}"`)
+  })
+})

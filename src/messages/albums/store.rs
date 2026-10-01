@@ -165,6 +165,11 @@ impl AppState {
                         row.attachment_id, row.access_key
                     ),
                     is_sensitive: album.is_sensitive,
+                    thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
+                        row.attachment_id,
+                        &item.mime_type,
+                        row.access_key,
+                    ),
                 }),
                 reply_to: if index == 0 {
                     album.reply_to.clone()

@@ -12,6 +12,7 @@ export function media(n: number, overrides: Partial<MediaItem> = {}): MediaItem 
     messageId: `m${n}`,
     kind: 'image',
     url: `/api/attachments/a${n}?key=k${n}`,
+    previewUrl: `/api/attachments/a${n}?key=k${n}`,
     fileName: `photo-${n}.jpg`,
     mimeType: 'image/jpeg',
     sizeBytes: 1000,

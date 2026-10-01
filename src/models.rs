@@ -113,6 +113,10 @@ pub struct Attachment {
     pub size_bytes: i64,
     pub download_url: String,
     pub is_sensitive: bool,
+    /// TG-1302: a small server-generated preview for raster images, under the same capability
+    /// key as `download_url`. Absent for every other type; clients fall back to `download_url`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thumbnail_url: Option<String>,
 }
 
 /// One attachment-bearing message returned by the paginated chat file browser.

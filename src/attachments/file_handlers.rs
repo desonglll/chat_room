@@ -47,6 +47,11 @@ impl FileRow {
             attachment: Attachment {
                 id: self.attachment_id,
                 file_name: self.file_name,
+                thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
+                    self.attachment_id,
+                    &self.mime_type,
+                    self.access_key,
+                ),
                 mime_type: self.mime_type,
                 size_bytes: self.size_bytes,
                 download_url: format!(

@@ -103,15 +103,17 @@ impl MessageRow {
             .then_some(self.attachment_id)
             .flatten()
             .and_then(|id| {
+                let access_key = self.attachment_access_key?;
+                let mime_type = self.attachment_mime_type?;
                 Some(Attachment {
                     id,
                     file_name: self.attachment_file_name?,
-                    mime_type: self.attachment_mime_type?,
-                    size_bytes: self.attachment_size_bytes?,
-                    download_url: format!(
-                        "/api/attachments/{id}?key={}",
-                        self.attachment_access_key?
+                    thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
+                        id, &mime_type, access_key,
                     ),
+                    mime_type,
+                    size_bytes: self.attachment_size_bytes?,
+                    download_url: format!("/api/attachments/{id}?key={access_key}"),
                     is_sensitive: self.attachment_is_sensitive.unwrap_or(false),
                 })
             });

@@ -45,6 +45,7 @@ use utoipa::OpenApi;
         messages::link_previews::handlers::get_link_preview,
         messages::link_previews::handlers::hide_link_preview,
         messages::link_previews::images::get_link_preview_image,
+        attachments::thumbnails::download_thumbnail,
         messages::shared_links::handlers::list_shared_links,
         social::status_handlers::friend_statuses,
         admin::access::access,

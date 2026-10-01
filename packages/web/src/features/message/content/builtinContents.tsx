@@ -6,6 +6,7 @@ import type { MessageContentProps } from './contentTypes'
 import { MessageText } from './MessageText'
 import { MediaFrame } from './MediaFrame'
 import { BubbleImage } from './BubbleImage'
+import { attachmentPreviewUrl } from './attachmentPreview'
 import { AutoDownloadGate } from '../../settings/storage/AutoDownloadGate'
 import { formatBytes, hasCaption } from './attachmentKind'
 import { DeletedGlyph, FileGlyph, PlayGlyph } from '../icons'
@@ -29,7 +30,11 @@ export function ImageContent(props: MessageContentProps) {
     <>
       <MediaFrame attachment={attachment} actions={actions} label={t('w.message.d5948e', attachment.file_name)}>
         <AutoDownloadGate kind="photo" sizeBytes={attachment.size_bytes}>
-          <BubbleImage src={attachment.download_url} name={attachment.file_name} />
+          <BubbleImage
+            src={attachmentPreviewUrl(attachment)}
+            fallbackSrc={attachment.download_url}
+            name={attachment.file_name}
+          />
         </AutoDownloadGate>
       </MediaFrame>
       <Caption {...props} />

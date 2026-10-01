@@ -80,6 +80,7 @@ fn broadcast_frame_serializes_unchanged() {
             size_bytes: 42,
             download_url: "/api/attachments/x".into(),
             is_sensitive: false,
+            thumbnail_url: None,
         }),
         reply_to: Some(ReplyPreview {
             message_id: id(14),
