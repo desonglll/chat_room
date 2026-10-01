@@ -204,8 +204,9 @@ button.tg-bubble__reply:hover::before {
   margin-bottom: var(--tg-space-1);
 }
 
-/* Touch-only devices use the long-press menu; a hover bar there would never go away. */
-@media (hover: none) {
+/* Touch-only devices use the long-press menu; a hover bar there would never go away. Phone
+   widths have no room beside a bubble either (TG-902: the bar ran past the right edge). */
+@media (hover: none), (max-width: 599px) {
   .tg-bubble__actions {
     display: none;
   }

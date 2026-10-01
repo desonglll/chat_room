@@ -30,6 +30,7 @@ import { selectChatListView } from './chatListFilters'
 import { ConnectedChatRow } from './ConnectedChatRow'
 import { useFlipReorder } from './flipReorder'
 import { NewChatDialog } from './NewChatDialog'
+import { NewChatFab } from './NewChatFab'
 import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
 import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
@@ -230,6 +231,13 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
           </ul>
           {searching && !messageTab ? <PublicSearchResults query={query} /> : null}
         </ScrollArea>
+        {collapsed || searching ? null : (
+          <NewChatFab
+            onNewGroup={() => setCreating(true)}
+            onNewChannel={() => setCreatingChannel(true)}
+            onNewMessage={() => void navigate('/contacts')}
+          />
+        )}
       </div>
       <NewChatDialog
         open={creating}

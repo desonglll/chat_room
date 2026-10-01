@@ -73,4 +73,6 @@ export const chatList: Catalog = {
   'w.chatList.media.liveLocation': '实时位置',
   'w.chatList.media.contact': '联系人',
   'w.chatList.media.album': '相册',
+  'w.chatList.newChat': '新建',
+  'w.chatList.newMessage': '新私聊',
 }
