@@ -33,7 +33,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 ## 当前在飞的任务
 
-**在飞（M8，基线 `634edad`，2026-10-01 开工）**：TG-801 联系人修复、TG-802 会话摘要媒体类型、TG-803 共享内容分类、TG-804 对标走查。
+**M8 已全部合并**（TG-801…806，负责人主线程串行完成，agent 基础设施仍不可用）。**在飞：M9**（TG-901…906，见下方 M9 表）。
 
 历史：波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
 
@@ -248,9 +248,22 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-801 联系人修复与 Telegram 化 | M | **merged** `1de7f35` | lead | — |
 | TG-802 会话列表媒体摘要与转发隐私 | S | **merged** `bd31980` | lead | — |
 | TG-803 共享内容分类与成员分页 | M | **merged** | lead | — |
-| TG-804 Telegram 对标走查（报告） | M | not-started | lead | — |
+| TG-804 Telegram 对标走查（报告） | M | **merged** `1a5ee99` | lead | — |
 | TG-805 动画对标 Telegram | M | **merged** | lead | — |
 | TG-806 首屏包回到预算 | S | **merged** `a365d0a` | lead | — |
+
+## M9 走查收口（负责人主线程串行）
+
+来源 `docs/tg/m8-parity-audit.md`（0 P0 / 7 P1 / 7 P2）。
+
+| 任务 | 规模 | 状态 | Owner | 依赖 |
+| --- | --- | --- | --- | --- |
+| TG-901 消息右键菜单与置顶条 | M | not-started | lead | — |
+| TG-902 面板与手机几何 | S | not-started | lead | — |
+| TG-903 联系人 Telegram 化 | M | not-started | lead | — |
+| TG-904 频道帖与搜索默认页 | M | not-started | lead | — |
+| TG-905 打磨批 | S | not-started | lead | — |
+| TG-906 core 卫生 | S | not-started | lead | — |
 
 ---
 
