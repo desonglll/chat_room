@@ -115,6 +115,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
       ? [{ id: 'archive-show', label: t('w.chatList.bb986d'), onSelect: () => changeArchiveMode('collapsed') }]
       : []),
     ...(canInstall ? [{ id: 'install', label: t('w.pwa.install'), onSelect: () => void promptInstall() }] : []),
+    { id: 'contacts', label: t('w.contacts.menu'), onSelect: () => void navigate('/contacts') },
     { id: 'settings', label: t('w.chatList.7debf9'), onSelect: () => openSettings() },
     { id: 'night', label: t('w.chatList.e32be0'), onSelect: toggleNightMode },
     ...(onToggleCollapsed

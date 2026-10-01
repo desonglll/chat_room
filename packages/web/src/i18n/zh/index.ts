@@ -15,6 +15,7 @@ import { folders } from './folders'
 import { forum } from './forum'
 import { gif } from './gif'
 import { inviteLinks } from './inviteLinks'
+import { contactsPage } from './contactsPage'
 import { lifecycle } from './lifecycle'
 import { linkPreview } from './linkPreview'
 import { location } from './location'
@@ -50,6 +51,7 @@ export const zh: Catalog = {
   ...forum,
   ...gif,
   ...inviteLinks,
+  ...contactsPage,
   ...lifecycle,
   ...linkPreview,
   ...location,
