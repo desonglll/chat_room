@@ -11,6 +11,7 @@ import type { MenuItem } from '@tg/ui'
 import { authStore, chatListStore, selectToken, settingsStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { ScrollArea, Skeleton } from '@tg/ui'
+import { adminStore, checkAdmin } from '../admin/adminApi'
 import { notificationsStore } from '../notifications/notificationsStore'
 import { promptInstall, pwaStore } from '../../app/pwa'
 import { apiClient } from '../../app/client'
@@ -74,6 +75,9 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   // TG-601: «安装应用» while the browser offers installation.
   const canInstall = useStore(pwaStore, (state) => state.canInstall)
   const incomingRequests = useStore(notificationsStore, (state) => state.incomingRequests)
+  // TG-705: «管理后台» only for system administrators (asked once per session).
+  const isAdmin = useStore(adminStore, (state) => state.isAdmin)
+  useEffect(checkAdmin, [])
   const searching = query.trim() !== '' && !collapsed
   const messageTab = searching && searchTab !== 'chats'
   const custom = folder === 'main' ? activeFolder : undefined
@@ -124,6 +128,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
       hint: incomingRequests > 0 ? String(incomingRequests) : undefined,
       onSelect: () => void navigate('/contacts'),
     },
+    ...(isAdmin ? [{ id: 'admin', label: t('w.admin.menu'), onSelect: () => void navigate('/admin') }] : []),
     { id: 'settings', label: t('w.chatList.7debf9'), onSelect: () => openSettings() },
     { id: 'night', label: t('w.chatList.e32be0'), onSelect: toggleNightMode },
     ...(onToggleCollapsed

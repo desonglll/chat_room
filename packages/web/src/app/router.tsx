@@ -30,6 +30,7 @@ function AnonymousOnly({ children }: { children: ReactNode }) {
 }
 
 const ContactsPage = lazy(() => import('../features/contacts/ContactsPage'))
+const AdminPage = lazy(() => import('../features/admin/AdminPage'))
 const NotificationsPage = lazy(() => import('../features/notifications/NotificationsPage'))
 
 export const appRouter = createBrowserRouter([
@@ -56,6 +57,15 @@ export const appRouter = createBrowserRouter([
       { path: '/public/:username', element: <PublicChatRoute /> },
       { path: '/add/:username', element: <AddContactRoute /> },
       { path: '/saved', element: <SavedMessagesRoute /> },
+      // TG-705: system administration.
+      {
+        path: '/admin',
+        element: (
+          <Suspense fallback={null}>
+            <AdminPage />
+          </Suspense>
+        ),
+      },
       // TG-703: notification center.
       {
         path: '/notifications',

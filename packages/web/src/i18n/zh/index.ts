@@ -1,5 +1,6 @@
 /** TG-510: Source (zh-CN) messages, first extracted by scripts/i18n/extract.ts. One file per feature area. */
 import type { Catalog } from '@tg/core'
+import { admin } from './admin'
 import { album } from './album'
 import { auth } from './auth'
 import { channel } from './channel'
@@ -38,6 +39,7 @@ import { videoNote } from './videoNote'
 import { voice } from './voice'
 
 export const zh: Catalog = {
+  ...admin,
   ...album,
   ...auth,
   ...channel,
