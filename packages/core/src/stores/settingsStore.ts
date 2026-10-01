@@ -5,6 +5,8 @@
  */
 import { createStore } from 'zustand/vanilla'
 import type { CoreStorage } from '../types'
+import type { AutoDownloadRules } from '../domain/autoDownload'
+import { DEFAULT_AUTO_DOWNLOAD } from '../domain/autoDownload'
 
 export type ThemePreference = 'light' | 'dark' | 'system'
 
@@ -15,6 +17,11 @@ export interface SettingsSnapshot {
   sendShortcut: SendShortcut
   notificationsEnabled: boolean
   notificationDetails: boolean
+  /** TG-509: automatic media download per network type. */
+  autoDownload: AutoDownloadRules
+  /** TG-509: the offline media cache's ceiling (MB) and how long entries are kept (days; 0 = forever). */
+  cacheLimitMb: number
+  cacheRetentionDays: number
 }
 
 export const DEFAULT_SETTINGS: SettingsSnapshot = {
@@ -22,6 +29,9 @@ export const DEFAULT_SETTINGS: SettingsSnapshot = {
   sendShortcut: 'enter',
   notificationsEnabled: true,
   notificationDetails: true,
+  autoDownload: DEFAULT_AUTO_DOWNLOAD,
+  cacheLimitMb: 1024,
+  cacheRetentionDays: 7,
 }
 
 export const SETTINGS_STORAGE_KEY = 'tg.settings.v1'
@@ -49,10 +59,26 @@ export const createSettingsStore = () =>
     update: (change) => set(change),
     hydrate: (storage) => set({ ...DEFAULT_SETTINGS, ...parseSnapshot(storage.getItem(SETTINGS_STORAGE_KEY)) }),
     persist: (storage) => {
-      const { theme, sendShortcut, notificationsEnabled, notificationDetails } = get()
+      const {
+        theme,
+        sendShortcut,
+        notificationsEnabled,
+        notificationDetails,
+        autoDownload,
+        cacheLimitMb,
+        cacheRetentionDays,
+      } = get()
       storage.setItem(
         SETTINGS_STORAGE_KEY,
-        JSON.stringify({ theme, sendShortcut, notificationsEnabled, notificationDetails }),
+        JSON.stringify({
+          theme,
+          sendShortcut,
+          notificationsEnabled,
+          notificationDetails,
+          autoDownload,
+          cacheLimitMb,
+          cacheRetentionDays,
+        }),
       )
     },
   }))

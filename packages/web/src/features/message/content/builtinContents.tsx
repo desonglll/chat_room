@@ -5,6 +5,7 @@
 import type { MessageContentProps } from './contentTypes'
 import { MessageText } from './MessageText'
 import { MediaFrame } from './MediaFrame'
+import { AutoDownloadGate } from '../../settings/storage/AutoDownloadGate'
 import { formatBytes, hasCaption } from './attachmentKind'
 import { DeletedGlyph, FileGlyph, PlayGlyph } from '../icons'
 
@@ -25,14 +26,16 @@ export function ImageContent(props: MessageContentProps) {
   return (
     <>
       <MediaFrame attachment={attachment} actions={actions} label={`查看图片 ${attachment.file_name}`}>
-        <img
-          className="tg-bubble__image"
-          src={attachment.download_url}
-          alt={attachment.file_name}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
+        <AutoDownloadGate kind="photo" sizeBytes={attachment.size_bytes}>
+          <img
+            className="tg-bubble__image"
+            src={attachment.download_url}
+            alt={attachment.file_name}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+        </AutoDownloadGate>
       </MediaFrame>
       <Caption {...props} />
     </>
@@ -46,7 +49,9 @@ export function VideoContent(props: MessageContentProps) {
   return (
     <>
       <MediaFrame attachment={attachment} actions={actions} label={`播放视频 ${attachment.file_name}`}>
-        <video className="tg-bubble__image" src={attachment.download_url} preload="metadata" muted playsInline />
+        <AutoDownloadGate kind="video" sizeBytes={attachment.size_bytes}>
+          <video className="tg-bubble__image" src={attachment.download_url} preload="metadata" muted playsInline />
+        </AutoDownloadGate>
         <span className="tg-bubble__play">
           <PlayGlyph />
         </span>
