@@ -734,3 +734,7 @@ M0 的卡上仍标了组字母，但那只表示依赖分层，**不代表可以
 ## TG-906 core 卫生 · S
 - **Work** `packages/core` 拆分 src/test 两个 tsconfig（src 不再获得 bun/WHATWG 类型）；`chatSocket.createSocket` 同步抛错时不卡在 connecting；补拉过滤不再用 RFC3339 字典序比较时间。
 - **Acceptance** 各自有失败→通过的测试；core 边界检查仍通过。
+
+## TG-907 TUI 对接新功能 · M
+- **Work** 用户 2026-10-01 指示「tui 的也要对接好功能」。盘点 `src/bin/client_tui` 与 Web 的功能差距（会话列表媒体摘要、置顶、反应、回复/引用、转发、编辑/撤回、投票、联系人/好友申请、未读、搜索等），按 TUI 形态补齐可用的子集；未知帧不崩溃。
+- **Acceptance** TUI 单元/集成测试覆盖新增命令与帧处理；README 或 `--help` 列出命令。

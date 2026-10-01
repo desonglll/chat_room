@@ -266,6 +266,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-904 频道帖与搜索默认页 | M | not-started | lead | — |
 | TG-905 打磨批 | S | not-started | lead | — |
 | TG-906 core 卫生 | S | not-started | lead | — |
+| TG-907 TUI 对接新功能 | M | not-started | lead | — |
 
 ---
 
