@@ -33,7 +33,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 ## 当前在飞的任务
 
-**在飞：无**（agent 基础设施故障期间由负责人在主线程串行推进，见「基础设施事故」）。
+**在飞（M8，基线 `634edad`，2026-10-01 开工）**：TG-801 联系人修复、TG-802 会话摘要媒体类型、TG-803 共享内容分类、TG-804 对标走查。
 
 历史：波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
 
@@ -233,6 +233,15 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-704 账号安全补齐 | S | **merged** | — | M6 |
 | TG-705 管理后台 | M | **merged** | — | M6 |
 | TG-706 聊天任务与审计日志 | S | **merged** | — | M6 |
+
+## M8 缺陷收口与 Telegram 对标（4 路并行）
+
+| 任务 | 规模 | 状态 | Owner | 依赖 |
+| --- | --- | --- | --- | --- |
+| TG-801 联系人修复与 Telegram 化 | M | in-progress | agent | — |
+| TG-802 会话列表媒体摘要与转发隐私 | S | in-progress | agent | — |
+| TG-803 共享内容分类与成员分页 | M | in-progress | agent | — |
+| TG-804 Telegram 对标走查（报告） | M | in-progress | agent | — |
 
 ---
 
