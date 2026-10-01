@@ -254,11 +254,13 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 ## M9 走查收口（负责人主线程串行）
 
-来源 `docs/tg/m8-parity-audit.md`（0 P0 / 7 P1 / 7 P2）。
+来源 `docs/tg/m8-parity-audit.md`（0 P0 / 7 P1 / 7 P2）。用户 2026-10-01 指示：每完成一个板块即 commit 并 push 到 `dev`，不再询问，持续到复刻完整；TUI 也要对接新功能（另立卡）。
+
+- **TG-901 合并**：置顶条（`pins_changed` 帧实时刷新、最新优先、点击跳转并循环、取消置顶）+ 右键菜单快速反应条。**更正审计 P1-1**：右键菜单本来就有，走查点到了空白处；真实缺口已修。两账号浏览器 E2E 10/10，nextest 627/627。
 
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
-| TG-901 消息右键菜单与置顶条 | M | not-started | lead | — |
+| TG-901 消息右键菜单与置顶条 | M | **merged** | lead | — |
 | TG-902 面板与手机几何 | S | not-started | lead | — |
 | TG-903 联系人 Telegram 化 | M | not-started | lead | — |
 | TG-904 频道帖与搜索默认页 | M | not-started | lead | — |
