@@ -10,12 +10,21 @@
  */
 import type { PointerEvent, ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
-import { animate } from 'motion'
+import type { animate as AnimateFn } from 'motion'
 import { readSpring, usePrefersReducedMotion } from '@tg/ui'
 import { ChatListIcon } from './chatListIcons'
 import type { SwipeAxis } from './swipeGesture'
 import { commitsArchive, lockAxis, swipeOffset, swipeProgress } from './swipeGesture'
 import { t } from '../../i18n/index'
+
+// TG-1104: `motion` is only needed once a touch swipe is released, so it is fetched on the first
+// touch (well before the release) instead of on first paint.
+let animate: typeof AnimateFn | null = null
+let loadingMotion: Promise<typeof AnimateFn> | null = null
+function loadMotion(): Promise<typeof AnimateFn> {
+  loadingMotion ??= import('motion').then((module) => (animate = module.animate))
+  return loadingMotion
+}
 
 export interface SwipeArchiveProps {
   archived: boolean
@@ -63,6 +72,14 @@ export function SwipeArchive({ archived, onCommit, disabled = false, children }:
       done?.()
       return
     }
+    if (!animate) {
+      // Released before the chunk arrived (first touch on a slow link): finish once it has.
+      void loadMotion().then(
+        () => settle(from, to, done),
+        () => paint(to),
+      )
+      return
+    }
     const controls = animate(from, to, { type: 'spring', ...spring, restDelta: 1, onUpdate: paint })
     running.current = controls
     void controls.finished.then(() => {
@@ -76,6 +93,7 @@ export function SwipeArchive({ archived, onCommit, disabled = false, children }:
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (disabled || event.pointerType !== 'touch' || drag.current) return
+    void loadMotion()
     running.current?.stop()
     running.current = null
     const current = content.current ? new DOMMatrixReadOnly(getComputedStyle(content.current).transform).m41 : 0
