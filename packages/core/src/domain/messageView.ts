@@ -85,6 +85,7 @@ export function storedMessageToBroadcast(message: StoredMessage): BroadcastMessa
     ...(message.comments !== undefined ? { comments: message.comments } : {}),
     ...(message.voice ? { voice: message.voice } : {}),
     ...(message.contact ? { contact: message.contact } : {}),
+    ...(message.location ? { location: message.location } : {}),
     ...(message.video_note ? { video_note: message.video_note } : {}),
     ...(message.grouped_id ? { grouped_id: message.grouped_id } : {}),
   }

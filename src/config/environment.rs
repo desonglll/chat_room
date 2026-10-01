@@ -39,6 +39,11 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         config.observability.required_dependencies = comma_separated(&dependencies);
     }
     backup::apply(config, &mut value);
+    set_string(&mut config.map.tile_url, value("CHAT_ROOM_MAP_TILE_URL"));
+    set_string(
+        &mut config.map.attribution,
+        value("CHAT_ROOM_MAP_ATTRIBUTION"),
+    );
 
     set_parsed(
         &mut config.uploads.max_file_size_mib,

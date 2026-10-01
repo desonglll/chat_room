@@ -35,6 +35,7 @@ fn broadcast_video_note_is_omitted_when_absent_and_shaped_when_present() {
         voice: None,
         video_note,
         contact: None,
+        location: None,
         topic_id: None,
         views: None,
         post_author: None,

@@ -113,6 +113,7 @@ fn broadcast_frame_serializes_unchanged() {
         voice: None,
         video_note: None,
         contact: None,
+        location: None,
         silent: false,
         grouped_id: None,
     };
@@ -182,6 +183,7 @@ fn broadcast_frame_serializes_unchanged() {
         voice: None,
         video_note: None,
         contact: None,
+        location: None,
         silent: false,
         grouped_id: None,
     };

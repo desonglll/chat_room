@@ -1,8 +1,7 @@
 /**
  * The paperclip: a menu of attachment kinds. Photo/video and file open the native file
  * picker; «投票» opens TG-406's creation dialog (lazy: the poll form only loads when used);
- * «联系人» opens TG-410's friend picker; location is present but DISABLED (not hidden) until its task (TG-407,
- * M4) enables it — Telegram's menu shape stays stable.
+ * «联系人» opens TG-410's friend picker; «位置» opens TG-407's share dialog (both lazy).
  */
 import { lazy, Suspense, useRef, useState, type ChangeEvent } from 'react'
 import type { MenuItem } from '@tg/ui'
@@ -20,11 +19,14 @@ export interface AttachMenuProps {
 const PollCreateDialog = lazy(() => import('../poll/PollCreateDialog'))
 // TG-410: the friend picker loads only when «联系人» is used.
 const ContactPickerDialog = lazy(() => import('../contact/ContactPickerDialog'))
+// TG-407: the location dialog loads only when «位置» is used.
+const ShareLocationDialog = lazy(() => import('../location/ShareLocationDialog'))
 
 export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProps) {
   const [open, setOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
+  const [locationOpen, setLocationOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const mediaInput = useRef<HTMLInputElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -32,7 +34,15 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
   const items: MenuItem[] = [
     { id: 'media', label: '图片或视频', icon: <PhotoGlyph />, onSelect: () => mediaInput.current?.click() },
     { id: 'file', label: '文件', icon: <FileGlyph />, onSelect: () => fileInput.current?.click() },
-    { id: 'location', label: '位置', icon: <LocationGlyph />, disabled: true, separatorBefore: true },
+    chatId
+      ? {
+          id: 'location',
+          label: '位置',
+          icon: <LocationGlyph />,
+          separatorBefore: true,
+          onSelect: () => setLocationOpen(true),
+        }
+      : { id: 'location', label: '位置', icon: <LocationGlyph />, disabled: true, separatorBefore: true },
     chatId
       ? { id: 'poll', label: '投票', icon: <PollGlyph />, onSelect: () => setPollOpen(true) }
       : { id: 'poll', label: '投票', icon: <PollGlyph />, disabled: true },
@@ -75,6 +85,11 @@ export function AttachMenu({ disabled = false, chatId, onFiles }: AttachMenuProp
       {contactOpen && chatId ? (
         <Suspense fallback={null}>
           <ContactPickerDialog chatId={chatId} onClose={() => setContactOpen(false)} />
+        </Suspense>
+      ) : null}
+      {locationOpen && chatId ? (
+        <Suspense fallback={null}>
+          <ShareLocationDialog chatId={chatId} onClose={() => setLocationOpen(false)} />
         </Suspense>
       ) : null}
       {pollOpen && chatId ? (

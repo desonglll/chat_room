@@ -21,6 +21,7 @@ import type {
   MessageEntity,
   MessageReaction,
   ContactCard,
+  MessageLocation,
   MessageSticker,
   ReadReceipt,
   ReplyPreview,
@@ -100,6 +101,8 @@ export interface BroadcastFrame {
   silent?: boolean
   /** TG-410: a shared contact card; omitted otherwise. */
   contact?: ContactCard
+  /** TG-407: omitted unless the message is a location. */
+  location?: MessageLocation
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
   grouped_id?: string
 }
@@ -216,6 +219,8 @@ export type ServerFrame =
   | { type: 'topic_updated'; topic: TopicSummary }
   | { type: 'message_views_updated'; views: MessageViewCount[] }
   | { type: 'poll_updated'; message_id: string; poll: PollState }
+  /** TG-407: a live location moved or stopped; only its latest point exists. */
+  | { type: 'location_updated'; message_id: string; location: MessageLocation }
   | DraftUpdatedFrame
   | VoiceListenedFrame
 

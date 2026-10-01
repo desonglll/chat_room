@@ -29,6 +29,7 @@ const KNOWN_SERVER_TYPES: ReadonlySet<string> = new Set([
   'topic_updated',
   'message_views_updated',
   'poll_updated',
+  'location_updated',
   'draft_updated',
   'voice_listened',
 ])

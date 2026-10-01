@@ -40,7 +40,7 @@
         "dompurify": "^3.4.16",
         "emoji-picker-element": "^1.29.1",
         "emoji-picker-element-data": "^1.8.0",
-        "leaflet": "^1.9.4",
+        "leaflet": "1.9.4",
         "lottie-web": "^5.13.0",
         "marked": "^18.0.14",
         "motion": "^13.4.6",
@@ -54,7 +54,7 @@
         "zustand": "5.0.8",
       },
       "devDependencies": {
-        "@types/leaflet": "^1.9.22",
+        "@types/leaflet": "1.9.12",
         "@types/pako": "^3.0.0",
         "@types/qrcode": "^1.5.6",
         "@types/react": "^19.3.0",
@@ -109,7 +109,7 @@
 
     "@types/geojson": ["@types/geojson@7946.0.16", "", {}, "sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg=="],
 
-    "@types/leaflet": ["@types/leaflet@1.9.22", "", { "dependencies": { "@types/geojson": "*" } }, "sha512-h3lhECYEKDasG7LFHu+GiHqAvsgLuQvlJvVZzJDGONo3sEL+wUOqSFLnwkZlK0qVxnxbuGFW8iBlJNYs5wgndA=="],
+    "@types/leaflet": ["@types/leaflet@1.9.12", "", { "dependencies": { "@types/geojson": "*" } }, "sha512-BK7XS+NyRI291HIo0HCfE18Lp8oA30H1gpi1tf0mF3TgiCEzanQjOqNZ4x126SXzzi2oNSZhZ5axJp1k0iM6jg=="],
 
     "@types/node": ["@types/node@26.6.3", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg=="],
 

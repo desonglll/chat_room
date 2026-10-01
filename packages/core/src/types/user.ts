@@ -41,4 +41,7 @@ export interface PublicConfig {
   ai_enabled: boolean
   ai_status: AiRuntimeStatus
   registration_mode: RegistrationMode
+  /** TG-407: map tile template (`{z}/{x}/{y}`) and its attribution; absent on older servers. */
+  map_tile_url?: string
+  map_attribution?: string
 }

@@ -1,0 +1,90 @@
+/* TG-407: location bubbles, the shared map sheet and the share dialog. */
+.tg-location {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1-5);
+  min-inline-size: 15rem;
+}
+
+.tg-location__open {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  overflow: hidden;
+  background: var(--tg-bg-secondary);
+  cursor: pointer;
+}
+
+.tg-location__open:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-location-map {
+  inline-size: 100%;
+  block-size: 9rem;
+  pointer-events: none;
+}
+
+.tg-location-map--full {
+  block-size: 22rem;
+  border-radius: var(--tg-radius-lg);
+  pointer-events: auto;
+}
+
+.tg-location__text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-1);
+  align-items: baseline;
+}
+
+.tg-location__title {
+  font-weight: 500;
+}
+
+.tg-location__address,
+.tg-location__live {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-location-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-location-sheet__list {
+  margin: 0;
+  padding-inline-start: var(--tg-space-4);
+}
+
+.tg-location-sheet__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tg-location-share {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-location-share__privacy,
+.tg-location-share__label {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+}
+
+.tg-location-share__periods {
+  display: flex;
+  gap: var(--tg-space-2);
+}
+
+.tg-location-share__periods > * {
+  flex: 1;
+}

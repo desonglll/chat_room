@@ -6,6 +6,7 @@ pub mod contacts;
 pub mod forward_handlers;
 mod forward_store;
 pub mod global_search;
+pub mod locations;
 pub mod pins;
 pub mod polls;
 pub mod reactions;

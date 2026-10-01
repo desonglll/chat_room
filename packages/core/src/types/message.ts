@@ -118,6 +118,26 @@ export interface ReadReceipt {
   message_id: string
 }
 
+/** TG-407: a location message's place. `live_until` is present on live locations. */
+export interface MessageLocation {
+  latitude: number
+  longitude: number
+  accuracy_m?: number
+  heading?: number
+  title?: string
+  address?: string
+  live_until?: string
+  updated_at: string
+}
+
+/** TG-407: a location being shared live in a chat right now. */
+export interface LiveLocationEntry {
+  message_id: string
+  sender_id: string | null
+  sender: string
+  location: MessageLocation
+}
+
 /** One persisted message as `GET /api/chats/:id/messages` returns it. */
 export interface StoredMessage {
   id: string
@@ -160,6 +180,8 @@ export interface StoredMessage {
   silent?: boolean
   /** TG-410: a shared contact card; omitted otherwise. */
   contact?: ContactCard
+  /** TG-407: present exactly when the message is a location. */
+  location?: MessageLocation
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
   grouped_id?: string
 }
