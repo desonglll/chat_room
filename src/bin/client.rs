@@ -7,9 +7,11 @@ use uuid::Uuid;
 mod client_api;
 mod client_api_features;
 mod client_api_models;
+mod client_api_polls_folders;
 mod client_api_social;
 mod client_auth;
 mod client_chat;
+mod client_chat_media;
 mod client_chat_protocol;
 mod client_media;
 #[cfg(test)]

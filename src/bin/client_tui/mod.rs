@@ -258,6 +258,7 @@ mod tests {
                     recalled: false,
                     edited: false,
                     delivery: crate::client_chat::DeliveryState::Sent,
+                    media: Default::default(),
                 }),
             );
         }
@@ -284,6 +285,7 @@ mod tests {
                 recalled: false,
                 edited: false,
                 delivery: crate::client_chat::DeliveryState::Sent,
+                media: Default::default(),
             }),
         );
         assert_eq!(app.message_index, 8);

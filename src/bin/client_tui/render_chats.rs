@@ -108,7 +108,10 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
         area,
         conversations,
         app.conversation_index,
-        "Conversations",
+        &app.social.folder_title().map_or_else(
+            || "Conversations".to_string(),
+            |title| format!("Conversations · {title}"),
+        ),
         app.focus == Focus::List,
         "No conversations yet",
     );
@@ -158,8 +161,16 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
             let mut lines = vec![heading];
             if message.recalled {
                 lines.push(Line::styled("message recalled", Style::default().fg(MUTED)));
+            } else if let Some(poll) = &message.media.poll {
+                // TG-1103: the question and one line per option (results once voted/closed).
+                lines.extend(poll.lines().into_iter().map(Line::raw));
             } else {
-                lines.extend(wrap_message(&message.content, content_width));
+                if let Some(label) = message.media.label() {
+                    lines.push(Line::styled(label, Style::default().fg(Color::Green)));
+                }
+                if !message.content.trim().is_empty() {
+                    lines.extend(wrap_message(&message.content, content_width));
+                }
             }
             if let Some(file) = &message.attachment {
                 let kind = file.mime_type.split('/').next().unwrap_or("file");

@@ -216,6 +216,7 @@ impl App {
             }
             PromptKind::AddContact => self.add_contact_action(value),
             PromptKind::Forward(message_id) => self.forward_action(message_id, &value),
+            PromptKind::Vote(message_id) => self.vote_action(message_id, &value),
         }
     }
 

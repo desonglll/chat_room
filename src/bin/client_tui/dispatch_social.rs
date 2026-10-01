@@ -55,6 +55,14 @@ pub fn run(
                 title,
                 result: api.forward(message_id, target).await,
             },
+            SocialAction::Vote {
+                message_id,
+                options,
+            } => SocialEvent::Voted {
+                message_id,
+                result: api.vote(message_id, &options).await,
+            },
+            SocialAction::LoadFolders => SocialEvent::Folders(api.folders().await),
         };
         let _ = sender.send(AppEvent::Social(event));
     });

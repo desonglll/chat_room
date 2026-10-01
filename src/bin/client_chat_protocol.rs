@@ -18,6 +18,8 @@ pub struct ChatMessage {
     pub recalled: bool,
     pub edited: bool,
     pub delivery: DeliveryState,
+    /// TG-1103: poll, voice, sticker, location … as text-renderable parts.
+    pub media: Box<crate::client_chat_media::MessageMedia>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,6 +47,11 @@ pub enum ChatEvent {
     Typing(Option<String>),
     /// TG-907: a pin or unpin in this chat; the client re-reads the pins.
     PinsChanged,
+    /// TG-1103: new poll counts for one message.
+    PollUpdated {
+        message_id: Uuid,
+        poll: crate::client_chat_media::Poll,
+    },
     Closed,
     Error(String),
 }
@@ -107,6 +114,14 @@ pub(super) enum ServerMessage {
         recalled_at: Option<String>,
         #[serde(default)]
         edited_at: Option<String>,
+        #[serde(flatten)]
+        media: crate::client_chat_media::MessageMedia,
+    },
+    /// TG-1103: a poll's new counts (and, for the voter's own connections, `chosen`).
+    #[serde(rename = "poll_updated")]
+    PollUpdated {
+        message_id: Uuid,
+        poll: crate::client_chat_media::Poll,
     },
     #[serde(rename = "system")]
     System { content: String },
@@ -192,6 +207,7 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
             timestamp,
             recalled_at,
             edited_at,
+            media,
         } => ChatEvent::Message(ChatMessage {
             id: message_id,
             client_message_id,
@@ -202,7 +218,11 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
             recalled: recalled_at.is_some(),
             edited: edited_at.is_some(),
             delivery: DeliveryState::Sent,
+            media: Box::new(media),
         }),
+        ServerMessage::PollUpdated { message_id, poll } => {
+            ChatEvent::PollUpdated { message_id, poll }
+        }
         ServerMessage::HistoryComplete => ChatEvent::HistoryComplete,
         ServerMessage::System { content } => ChatEvent::System(clean_multiline(&content)),
         ServerMessage::MessageEdited {
@@ -250,85 +270,5 @@ fn clean_multiline(value: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn decodes_current_broadcast_contract_without_terminal_controls() {
-        let message_id = Uuid::new_v4();
-        let message = decode_server_message(
-            &serde_json::json!({
-                "type": "broadcast",
-                "message_id": message_id,
-                "client_message_id": Uuid::new_v4(),
-                "sender_id": null,
-                "sender": "alice\u{1b}",
-                "sender_avatar": "",
-                "content": "hello\nworld",
-                "attachment": null,
-                "reply_to": null,
-                "recalled_at": null,
-                "edited_at": null,
-                "timestamp": "2026-08-31T00:00:00Z",
-                "favorite_id": null,
-                "forwarded_from": null,
-                "reactions": []
-            })
-            .to_string(),
-        )
-        .unwrap();
-        let (sender, mut receiver) = mpsc::unbounded_channel();
-        emit_server_event(&sender, message);
-        let ChatEvent::Message(message) = receiver.try_recv().unwrap() else {
-            panic!("expected chat message");
-        };
-        assert_eq!(message.sender, "alice");
-        assert_eq!(message.content, "hello\nworld");
-    }
-
-    #[test]
-    fn unknown_and_extended_frames_are_tolerated_without_events() {
-        let (sender, mut receiver) = mpsc::unbounded_channel();
-        for frame in [
-            // TG-007 extension frames this frozen client does not render.
-            serde_json::json!({ "type": "user_status", "user_id": Uuid::new_v4(),
-                "status": { "kind": "online" } }),
-            serde_json::json!({ "type": "chat_updated", "chat": { "id": Uuid::new_v4() } }),
-            // A frame kind that does not exist at all.
-            serde_json::json!({ "type": "not_a_real_frame", "payload": 1 }),
-        ] {
-            let message = decode_server_message(&frame.to_string())
-                .expect("unknown frame kinds must decode to the catch-all, not error");
-            assert!(matches!(message, ServerMessage::Unknown));
-            emit_server_event(&sender, message);
-        }
-        // The extended typing frame still decodes as typing; extra fields are ignored.
-        let message = decode_server_message(
-            &serde_json::json!({ "type": "typing", "content": "draft",
-                "action": "recording_voice", "username": "alice" })
-            .to_string(),
-        )
-        .unwrap();
-        emit_server_event(&sender, message);
-        let ChatEvent::Typing(Some(name)) = receiver.try_recv().unwrap() else {
-            panic!("expected a typing event");
-        };
-        assert_eq!(name, "alice");
-        assert!(
-            receiver.try_recv().is_err(),
-            "unknown frames must emit nothing"
-        );
-    }
-
-    #[test]
-    fn send_commands_have_idempotency_identity() {
-        let client_message_id = Uuid::new_v4();
-        let frame = command_frame(ChatCommand::Send {
-            content: "hello".into(),
-            reply_to: None,
-            client_message_id,
-        });
-        assert_eq!(frame["type"], "message");
-        assert_eq!(frame["client_message_id"], client_message_id.to_string());
-    }
-}
+#[path = "client_chat_protocol_tests.rs"]
+mod tests;

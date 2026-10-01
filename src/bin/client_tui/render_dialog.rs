@@ -185,6 +185,7 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("C-f / Right", "Messages"),
             ("n / g", "New / discover"),
             ("p a m t", "Chat preferences"),
+            ("o", "Next chat folder"),
         ],
         (View::Chats, Focus::Content) => &[
             ("C-n / C-p", "Select message"),
@@ -194,6 +195,7 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("+ / f", "React / favorite"),
             ("u / d", "Upload / download"),
             ("P / F", "Pin-unpin / forward"),
+            ("V", "Vote in poll"),
         ],
         (View::Chats, Focus::Input) => &[
             ("Enter", "Send"),
