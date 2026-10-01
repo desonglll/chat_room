@@ -25,6 +25,8 @@ import './features/videoNote/register'
 import './features/gif/register'
 // TG-509: 设置 › 数据与存储.
 import './features/settings/storage/register'
+// TG-704: 设置 › 密码与账号.
+import './features/settings/password/register'
 // TG-510: 设置 › 语言.
 import './features/settings/language/register'
 // TG-507: 设置 › 外观.

@@ -42,3 +42,21 @@ export function getCurrentUser(client: ApiClient, token: string): Promise<User> 
 export function updateCurrentUser(client: ApiClient, token: string, payload: UpdateProfilePayload): Promise<User> {
   return client.json<User>('PATCH', '/api/users/me', { token, body: payload })
 }
+
+/** TG-704: the server signs out every other session of the account after a change. */
+export async function changePassword(
+  client: ApiClient,
+  token: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await client.request('PUT', '/api/users/me/password', {
+    token,
+    body: { current_password: currentPassword, new_password: newPassword },
+  })
+}
+
+/** TG-704: permanently delete the signed-in account (password confirmed by the server). */
+export async function deleteAccount(client: ApiClient, token: string, currentPassword: string): Promise<void> {
+  await client.request('DELETE', '/api/users/me', { token, body: { current_password: currentPassword } })
+}
