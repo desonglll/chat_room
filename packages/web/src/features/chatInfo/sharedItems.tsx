@@ -1,4 +1,5 @@
 /** One row/tile per shared-content kind. Presentational; data arrives from the pagers. */
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { ChatMembership } from '@tg/core'
 import { Avatar } from '@tg/ui'
@@ -136,7 +137,7 @@ const ROLE_COPY: Record<ChatMembership['role'], string> = {
   member: '',
 }
 
-export function MemberRow({ member }: { member: ChatMembership }) {
+export function MemberRow({ member, action }: { member: ChatMembership; action?: ReactNode }) {
   const lastSeen = useLastSeenText(member.user_id)
   const name = memberName(member)
   return (
@@ -154,6 +155,7 @@ export function MemberRow({ member }: { member: ChatMembership }) {
         </span>
       </span>
       {ROLE_COPY[member.role] ? <span className="tg-chatinfo__item-role">{ROLE_COPY[member.role]}</span> : null}
+      {action}
     </li>
   )
 }
