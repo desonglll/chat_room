@@ -1,0 +1,71 @@
+/* TG-507: 设置 › 外观. Swatches render through the token layers themselves (data-tg-accent /
+   data-tg-wallpaper on the swatch), so no colour is restated here. */
+.tg-appearance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-appearance__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-4);
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-surface);
+}
+
+.tg-appearance__title {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-appearance__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-space-2);
+}
+
+.tg-appearance__accents,
+.tg-appearance__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-space-2);
+}
+
+.tg-appearance__accent {
+  inline-size: var(--tg-space-8);
+  block-size: var(--tg-space-8);
+  border: 3px solid transparent;
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-accent);
+  cursor: pointer;
+}
+
+.tg-appearance__preset {
+  inline-size: var(--tg-space-12);
+  block-size: var(--tg-space-16);
+  border: 3px solid transparent;
+  border-radius: var(--tg-radius-md);
+  background-color: var(--tg-chat-bg);
+  background-image: var(--tg-wallpaper-image);
+  cursor: pointer;
+}
+
+.tg-appearance__accent[aria-pressed='true'],
+.tg-appearance__preset[aria-pressed='true'] {
+  border-color: var(--tg-text-primary);
+}
+
+.tg-appearance__accent:focus-visible,
+.tg-appearance__preset:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-appearance__upload {
+  color: var(--tg-text-link);
+  cursor: pointer;
+}

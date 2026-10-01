@@ -21,6 +21,7 @@ import { ChatListPane } from '../chatList/ChatListPane'
 import { useChatListSync } from '../chatList/useChatListSync'
 import { SettingsHost } from '../settings/shell'
 import { StickerOverlays } from '../sticker/StickerOverlays'
+import { ChatWallpaper } from '../wallpaper/ChatWallpaper'
 import { InfoPane } from './InfoPane'
 import { SIDEBAR_COLLAPSED_WIDTH } from './sidebarLayout'
 import { SidebarResizer } from './SidebarResizer'
@@ -30,7 +31,8 @@ import { useSidebarLayout } from './useSidebarLayout'
 export function WorkspaceShell() {
   const token = useStore(authStore, selectToken)
   const infoOpen = useStore(uiStore, (state) => state.activePanel === 'chatInfo')
-  const chatOpen = useMatch('/chat/:chatId/*') !== null
+  const chatMatch = useMatch('/chat/:chatId/*')
+  const chatOpen = chatMatch !== null
   const mobile = useMobileLayout()
   const { layout, preview, commit, toggleCollapsed } = useSidebarLayout()
 
@@ -55,6 +57,8 @@ export function WorkspaceShell() {
         <SettingsHost />
       </div>
       <section className="tg-shell__main" inert={mobile && !chatOpen}>
+        {/* TG-507: the chat's (or the global) wallpaper, on its own layer behind the chat. */}
+        <ChatWallpaper chatId={chatMatch?.params.chatId ?? ''} />
         <Outlet />
       </section>
       <InfoPane />

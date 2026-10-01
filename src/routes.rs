@@ -107,6 +107,7 @@ pub(crate) fn api_routes(
         .merge(sessions::routes())
         .merge(crate::accounts::privacy::routes())
         .merge(crate::accounts::two_factor::routes())
+        .merge(crate::accounts::appearance_handlers::routes())
         .route(
             "/api/users/me/avatar",
             axum::routing::post(avatar_handlers::upload_avatar).layer(

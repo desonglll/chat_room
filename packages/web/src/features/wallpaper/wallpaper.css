@@ -1,0 +1,48 @@
+/*
+ * TG-507: the chat wallpaper layer. It sits behind the chat pane's content (the pane is an
+ * isolated stacking context), outside the message scroller, on its own compositor layer with
+ * strict containment — scrolling never repaints or re-rasterises it.
+ */
+.tg-shell__main {
+  isolation: isolate;
+}
+
+.tg-wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  contain: strict;
+  pointer-events: none;
+  background-color: var(--tg-chat-bg);
+  background-image: var(--tg-wallpaper-image);
+  background-size: cover;
+  background-position: center;
+  transform: translateZ(0);
+}
+
+/* Colours and gradients reuse the preset mesh with the user's own stops. */
+.tg-wallpaper[data-tg-wallpaper='custom'] {
+  --tg-chat-bg: var(--tg-wallpaper-4);
+  --tg-wallpaper-image:
+    radial-gradient(farthest-side at 80% 10%, var(--tg-wallpaper-1), transparent),
+    radial-gradient(farthest-side at 35% 25%, var(--tg-wallpaper-2), transparent),
+    radial-gradient(farthest-side at 20% 90%, var(--tg-wallpaper-3), transparent);
+}
+
+.tg-wallpaper[data-tg-wallpaper='image'] {
+  --tg-wallpaper-image: var(--tg-wallpaper-photo, none);
+}
+
+.tg-wallpaper[data-blur] {
+  inset: calc(-1 * var(--tg-space-5));
+  filter: blur(var(--tg-space-3));
+}
+
+/* Dim: a scrim over the wallpaper only (bubbles stay at full contrast). */
+.tg-wallpaper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--tg-overlay);
+  opacity: calc(var(--tg-wallpaper-dim, 0) * 2);
+}
