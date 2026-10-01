@@ -1,5 +1,7 @@
 pub(crate) mod account_events;
 pub mod account_ws;
+pub mod appearance;
+pub mod appearance_handlers;
 mod auth_limits;
 pub mod avatar_handlers;
 pub mod avatar_history;

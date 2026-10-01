@@ -8,7 +8,11 @@ import type { CoreStorage } from '../types'
 import type { AutoDownloadRules } from '../domain/autoDownload'
 import { DEFAULT_AUTO_DOWNLOAD } from '../domain/autoDownload'
 
-export type ThemePreference = 'light' | 'dark' | 'system'
+/** TG-507 adds `scheduled`: night between `nightFrom` and `nightTo` (local time). */
+export type ThemePreference = 'light' | 'dark' | 'system' | 'scheduled'
+
+/** TG-507: Telegram's accents (`packages/ui/src/tokens/themes/accents`). */
+export type AccentId = 'blue' | 'cyan' | 'green' | 'orange' | 'pink' | 'purple' | 'red' | 'gray'
 
 export type SendShortcut = 'enter' | 'shift-enter'
 
@@ -24,6 +28,10 @@ export interface SettingsSnapshot {
   cacheRetentionDays: number
   /** TG-501: chat folders as a tab strip above the list, or a rail on the left (Telegram Desktop). */
   folderLayout: 'top' | 'left'
+  /** TG-507: accent colour and the night schedule (`HH:MM`, local). */
+  accent: AccentId
+  nightFrom: string
+  nightTo: string
 }
 
 export const DEFAULT_SETTINGS: SettingsSnapshot = {
@@ -35,6 +43,9 @@ export const DEFAULT_SETTINGS: SettingsSnapshot = {
   cacheLimitMb: 1024,
   cacheRetentionDays: 7,
   folderLayout: 'top',
+  accent: 'blue',
+  nightFrom: '22:00',
+  nightTo: '07:00',
 }
 
 export const SETTINGS_STORAGE_KEY = 'tg.settings.v1'
@@ -71,6 +82,9 @@ export const createSettingsStore = () =>
         cacheLimitMb,
         cacheRetentionDays,
         folderLayout,
+        accent,
+        nightFrom,
+        nightTo,
       } = get()
       storage.setItem(
         SETTINGS_STORAGE_KEY,
@@ -83,6 +97,9 @@ export const createSettingsStore = () =>
           cacheLimitMb,
           cacheRetentionDays,
           folderLayout,
+          accent,
+          nightFrom,
+          nightTo,
         }),
       )
     },

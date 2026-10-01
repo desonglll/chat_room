@@ -1,0 +1,47 @@
+/*
+ * Layer 3 — ACCENT override: Gray. TG-507.
+ *
+ * [ios] PresentationThemeBaseColor.gray = #6d839e (PresentationThemeSettings.swift), one of
+ * the nine accents a Telegram user can pick. Every value below is derived exactly as in
+ * orange.css (read its header for the formulas): hover/active are HSL lightness −8/−14, the day
+ * bubble is a 12 % tint over white, the night bubble is iOS's two-stop HSV derivation.
+ */
+
+/* Day base */
+[data-tg-accent="gray"],
+[data-tg-theme="day"][data-tg-accent="gray"],
+[data-tg-theme="day"] [data-tg-accent="gray"] {
+  --tg-accent: #6d839e;
+  --tg-accent-rgb: 109, 131, 158;
+  --tg-accent-hover: #5a6f88; /* [derived] HSL lightness -8 */
+  --tg-accent-active: #4e6076; /* [derived] HSL lightness -14 [ours] */
+  --tg-accent-soft: rgb(109 131 158 / 8%);
+  --tg-accent-soft-filled: #f3f5f7; /* [derived] 8 % accent over white */
+  --tg-accent-contrast: #ffffff; /* white on the accent is 3.9:1 */
+
+  --tg-bubble-out: #edf0f3; /* [derived] 12 % accent over white */
+  --tg-bubble-out-fill: var(--tg-bubble-out);
+  --tg-bubble-out-text: #000000; /* 18.36:1 on the bubble */
+  --tg-bubble-out-meta: rgb(0 0 0 / 50%); /* [ios] light-bubble branch */
+  --tg-bubble-out-accent: #4e6076;
+  --tg-bubble-tick: rgb(0 0 0 / 50%); /* [ios] outgoingCheckColor, light bubble */
+}
+
+/* Night base */
+[data-tg-theme="night"][data-tg-accent="gray"],
+[data-tg-theme="night"] [data-tg-accent="gray"] {
+  --tg-accent: #6d839e;
+  --tg-accent-rgb: 109, 131, 158;
+  --tg-accent-hover: #5a6f88; /* [derived] HSL lightness -8 */
+  --tg-accent-active: #4e6076; /* [derived] HSL lightness -14 [ours] */
+  --tg-accent-soft: rgb(109 131 158 / 8%);
+  --tg-accent-soft-filled: #27292b; /* [derived] 8 % accent over the night surface */
+  --tg-accent-contrast: #ffffff;
+
+  --tg-bubble-out: #48505d; /* the gradient's bottom stop; the tail is filled with this flat colour */
+  --tg-bubble-out-fill: linear-gradient(to bottom, #4f555b, #48505d);
+  --tg-bubble-out-text: #ffffff; /* 8.12:1 on the bottom stop */
+  --tg-bubble-out-meta: rgb(255 255 255 / 50%); /* [ios] dark-bubble branch */
+  --tg-bubble-out-accent: #ffffff;
+  --tg-bubble-tick: #ffffff;
+}
