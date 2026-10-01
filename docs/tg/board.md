@@ -289,8 +289,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
-| TG-1101 论坛话题与两步验证走查并修复 | M | in-progress | lead | — |
-| TG-1102 联系人在线状态实时 | S | not-started | lead | — |
+| TG-1101 论坛话题与两步验证走查并修复 | M | **merged** | lead | — |
+| TG-1102 联系人在线状态实时 | S | in-progress | lead | — |
 | TG-1103 TUI 投票、文件夹与媒体显示 | M | not-started | lead | — |
 | TG-1104 首屏余量 ≥ 15 KB | S | not-started | lead | — |
 
@@ -324,6 +324,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **2026-10-01（第二次）** 新会话里派出的 7 个后台 agent（TG-801/802/803/804/805 与一个只跑两条 `ls` 的 Haiku 探针）全部在第二次请求时报同一个 400（cache_control 块 5 > 4），与模型和任务无关。TG-802/803/804/805 未创建 worktree，无残留。TG-801 由负责人在主线程完成。
 
 ## 集成负责人自己引入的缺陷
+
+- **2026-10-01** TG-1003 把懒加载页面的 CSS 移出首屏时，`notifications.css` 里还有首屏组件（会话列表头部的通知铃）的样式，铃铛退化成带边框的原生按钮。TG-1101 走查截图发现，已拆出 `bell.css` 随铃铛加载，并逐一核对其余被移动的样式表无首屏使用者；E2E 加了断言。教训：移动 CSS 前按「类名的所有使用者」而不是「所在目录」判断归属。
 
 - **2026-10-01** 合并 TG-204 前在 worktree 里用**绝对路径**调用 `scripts/check_file_sizes.py`——该脚本按自身位置解析仓库根，所以审计的是主 checkout 而非 worktree，「通过」毫无意义。合并后 `main` 有三个文件越过 350 行（`api_doc.rs`、`favorites/store.rs`、`chatSession.ts`），TG-403 的门禁才暴露。已按职责拆分：TG 阶段 OpenAPI 条目移入 `api_doc_tg.rs`（在 `compat.rs` 唯一生成点 merge）、收藏转发移入 `favorites/forward_store.rs`、会话类型移入 `chatSessionTypes.ts`。教训：在 worktree 里用 worktree 自己的 `scripts/` 相对路径跑审计。
 
