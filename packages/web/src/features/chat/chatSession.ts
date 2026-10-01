@@ -5,6 +5,7 @@
  * fake clock and fake APIs. M1 tasks extend the frame fan-out here rather than opening
  * second subscriptions elsewhere.
  */
+import { refreshPins } from './pinned/pinnedStore'
 import type { ChatDraft, CoreTimerHandle, ReplyExtras } from '@tg/core'
 import {
   EMPTY_DRAFT,
@@ -209,6 +210,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('location_updated', (frame) => applyLocationFrame(frame)),
         // TG-401: the listener's and the sender's unlistened dots (features/voice).
         socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
+        // TG-901: someone pinned or unpinned here; the bar re-reads the pins.
+        socket.on('pins_changed', () => void refreshPins(chatId)),
       )
       socket.connect()
       options.draftsApi

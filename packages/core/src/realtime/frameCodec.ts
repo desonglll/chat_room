@@ -33,6 +33,7 @@ const KNOWN_SERVER_TYPES: ReadonlySet<string> = new Set([
   'location_updated',
   'draft_updated',
   'voice_listened',
+  'pins_changed',
 ])
 
 /** Unknown wire strings degrade to `'typing'` (TG-007 §1 — mandatory client behaviour). */

@@ -27,6 +27,8 @@ export interface MessageActions {
   /** Toggle the viewer's reaction `emoji` on this message. */
   onReact?: ((emoji: string) => void) | undefined
   onPin?: (() => void) | undefined
+  /** TG-901: set instead of `onPin` when the message is already pinned. */
+  onUnpin?: (() => void) | undefined
   onCopy?: (() => void) | undefined
   /** Toggle this message's selection; the first call enters selection mode. */
   onSelect?: (() => void) | undefined

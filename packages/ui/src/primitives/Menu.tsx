@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import { cx } from '../internal/cx'
 import type { Placement } from '../internal/positioning'
 import type { AnchorTarget } from '../internal/useAnchoredPosition'
@@ -30,6 +30,8 @@ export interface MenuProps {
   /** The trigger, so a pointerdown on it counts as inside and does not immediately reopen. */
   triggerRef?: RefObject<HTMLElement | null> | undefined
   className?: string | undefined
+  /** Content above the items (e.g. a quick-reaction strip); gets the menu's close function. */
+  header?: ((close: () => void) => ReactNode) | undefined
 }
 
 export function Menu({
@@ -44,6 +46,7 @@ export function Menu({
   'aria-labelledby': ariaLabelledBy,
   triggerRef,
   className,
+  header,
 }: MenuProps) {
   return (
     <Popover
@@ -58,6 +61,7 @@ export function Menu({
       insideRefs={triggerRef === undefined ? undefined : [triggerRef]}
       className={cx('tg-popover--menu-list', className)}
     >
+      {header?.(() => onClose('select'))}
       <MenuList
         items={items}
         aria-label={ariaLabel}

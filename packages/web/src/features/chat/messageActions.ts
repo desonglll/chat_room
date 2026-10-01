@@ -27,6 +27,9 @@ export interface MessageActionDeps {
   requestDelete(messageIds: string[]): void
   requestForward(messageIds: string[]): void
   pin(messageId: string): void
+  /** TG-901: the chat's pinned message ids, and the unpin action. */
+  pinnedIds?: ReadonlySet<string>
+  unpin?(messageId: string): void
   copy(text: string): void
   /** TG-409: reply quoting the current text selection inside `content` (else a plain reply). */
   quote?(messageId: string, content: string): void
@@ -61,7 +64,8 @@ export function bindMessageActions(message: DisplayMessage, deps: MessageActionD
     onReact: server
       ? (emoji) => deps.sendFrame({ type: 'reaction', message_id: id, emoji, active: !viewerReacted(emoji) })
       : undefined,
-    onPin: deps.canPin && server ? () => deps.pin(id) : undefined,
+    onPin: deps.canPin && server && !deps.pinnedIds?.has(id) ? () => deps.pin(id) : undefined,
+    onUnpin: deps.canPin && server && deps.unpin && deps.pinnedIds?.has(id) ? () => deps.unpin?.(id) : undefined,
     onCopy: text.trim() !== '' ? () => deps.copy(text) : undefined,
     onSelect: server ? () => ids.forEach((itemId) => deps.toggleSelected(itemId)) : undefined,
     onOpenMedia: (attachmentId) => deps.openMedia(attachmentId),

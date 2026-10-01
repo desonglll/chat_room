@@ -40,6 +40,8 @@ export interface ContextMenuProps {
   focusable?: boolean | undefined
   'aria-label'?: string | undefined
   className?: string | undefined
+  /** Passed to the menu: content above the items, given the close function. */
+  header?: ((close: () => void) => ReactNode) | undefined
 }
 
 export function ContextMenu({
@@ -52,6 +54,7 @@ export function ContextMenu({
   focusable = false,
   'aria-label': ariaLabel = 'Context menu',
   className,
+  header,
 }: ContextMenuProps) {
   const region = useRef<HTMLSpanElement>(null)
   const holdTimer = useRef<number | null>(null)
@@ -139,6 +142,7 @@ export function ContextMenu({
         placement="bottom-start"
         aria-label={ariaLabel}
         triggerRef={region}
+        header={header}
       />
     </span>
   )

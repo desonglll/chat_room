@@ -73,6 +73,7 @@ function ChatBubble({
       avatar={{ label: message.sender, emoji: message.sender_avatar }}
       menuItems={items}
       onSelect={actions.onSelect}
+      onReact={reactable ? actions.onReact : undefined}
       sentAt={message.timestamp}
     >
       <BubbleFrame

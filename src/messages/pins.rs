@@ -10,7 +10,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::models::{StoredMessage, User};
+use crate::models::{ChatMessage, StoredMessage, User};
 use crate::state::{with_pool, AppState, SharedState};
 use crate::user_handlers::bearer_token;
 
@@ -163,12 +163,22 @@ pub async fn pin_message(
 ) -> Result<(StatusCode, Json<ChatPin>), StatusCode> {
     let user = current_user(&state, &headers).await?;
     require_pin_permission(&state, room_id, user.id).await?;
-    state
+    let pin = state
         .pin_chat_message(room_id, message_id, user.id)
         .await
         .map_err(internal_error)?
-        .map(|pin| (StatusCode::CREATED, Json(pin)))
-        .ok_or(StatusCode::NOT_FOUND)
+        .ok_or(StatusCode::NOT_FOUND)?;
+    // TG-901: every open client refreshes its pinned bar.
+    state
+        .broadcast(
+            room_id,
+            ChatMessage::PinsChanged {
+                message_id,
+                pinned: true,
+            },
+        )
+        .await;
+    Ok((StatusCode::CREATED, Json(pin)))
 }
 
 #[utoipa::path(delete, path = "/api/chats/{room_id}/pins/{message_id}", responses((status = 204)))]
@@ -179,12 +189,23 @@ pub async fn unpin_message(
 ) -> Result<StatusCode, StatusCode> {
     let user = current_user(&state, &headers).await?;
     require_pin_permission(&state, room_id, user.id).await?;
-    state
+    let removed = state
         .unpin_chat_message(room_id, message_id)
         .await
-        .map_err(internal_error)?
-        .then_some(StatusCode::NO_CONTENT)
-        .ok_or(StatusCode::NOT_FOUND)
+        .map_err(internal_error)?;
+    if !removed {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    state
+        .broadcast(
+            room_id,
+            ChatMessage::PinsChanged {
+                message_id,
+                pinned: false,
+            },
+        )
+        .await;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn internal_error(error: sqlx::Error) -> StatusCode {
