@@ -816,3 +816,8 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Work** (1) 刚打开会话立即回车偶发静默丢弃（约 1/3，文字留在输入框）——查根因（会话/socket 未就绪时的发送路径），修复或排队发送；(2) 聊天头部显示「离线」而会话列表同一好友显示在线——统一在线状态来源；(3) 会话信息里未静音时也显示「取消静音」等时长选项；(4) `englishUi.test.ts` 白名单中 10 处硬编码中文标点（composer、message、album、location、videoNote、chatInfo、messageList）改走 i18n，修一处删一条白名单。
 - **Allowed** 上述功能目录、`packages/web/test/**`、对应测试。
 - **Acceptance** 每个缺陷有回归测试；白名单清空；两账号浏览器复验 (1)(2)。
+
+## TG-1209 安全头与外部图片（地图瓦片、链接预览图）· S（来源 TG-1206 记录）
+- **Work** CSP `img-src` 只允许同源，导致线上地图瓦片（D-010：可配置瓦片，默认 OSM）与链接预览外部图片全部被拦。瓦片：按配置的瓦片 URL 模板推导主机并只放行它；链接预览图：服务端抓取时一并抓取并缓存图片，经同源接口提供（复用 TG-408 的 SSRF 防护与大小上限），不放开任意外部图片。
+- **Allowed** `src/security/**`、`src/link_preview/**`（或实际所在模块）、`packages/web/src/features/{linkPreview,location}/**`、迁移（若需缓存表，按前缀递增并双库成对）、对应测试。
+- **Acceptance** 响应头测试覆盖瓦片主机推导与未配置时的默认；预览图经同源 URL 返回且鉴权正确；浏览器实测地图瓦片与预览图都显示。**SSRF 相关改动需负责人评审后合并。**
