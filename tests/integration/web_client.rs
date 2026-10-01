@@ -68,16 +68,15 @@ async fn web_client_is_only_served_when_enabled() {
     assert_eq!(manifest["display"], "standalone");
     assert_eq!(manifest["icons"][0]["src"], "/pwa-192.png");
 
-    // Until packages/web ships its own worker, /sw.js is the generated retiring worker:
-    // it may reference no asset, no API path, and must unregister itself.
+    // TG-601: /sw.js is packages/web's own worker (no longer the retiring stub), served
+    // uncached with a root scope; it never intercepts the WebSocket path.
     let worker = reqwest::get(format!("{}/sw.js", web)).await.unwrap();
     assert_eq!(worker.status(), 200);
     assert_eq!(worker.headers()[reqwest::header::CACHE_CONTROL], "no-cache");
     assert_eq!(worker.headers()["service-worker-allowed"], "/");
     let worker = worker.text().await.unwrap();
-    assert!(worker.contains("unregister"));
-    assert!(!worker.contains("/assets/"));
-    assert!(!worker.contains("/api/"));
+    assert!(!worker.contains("registration.unregister"));
+    assert!(worker.contains("notificationclick"));
     assert!(!worker.contains("/ws"));
 
     let pwa_icon = reqwest::get(format!("{}/pwa-192.png", web)).await.unwrap();
