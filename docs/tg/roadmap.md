@@ -811,3 +811,8 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Work** AI 关闭时知识索引不再调用嵌入接口，也不对 401 无限重试（不可重试错误退避或停止）；评估 `chat-room.toml` 默认开 Redis 导致每请求约 2.5 s 卡顿的根因（连接超时？每请求新建连接？），修根因而非只改默认值。
 - **Allowed** `src/knowledge/**`、`src/ai_*/**`（仅开关与重试）、Redis 客户端所在模块、`chat-room.toml`、对应测试。
 - **Acceptance** 回归测试：AI 关闭时零嵌入请求；Redis 不可达/慢时请求延迟有上界并有测试。
+
+## TG-1208 走查遗留缺陷与英文标点 · S（来源 TG-1204 记录；等 TG-1203、TG-1206 合并后开工）
+- **Work** (1) 刚打开会话立即回车偶发静默丢弃（约 1/3，文字留在输入框）——查根因（会话/socket 未就绪时的发送路径），修复或排队发送；(2) 聊天头部显示「离线」而会话列表同一好友显示在线——统一在线状态来源；(3) 会话信息里未静音时也显示「取消静音」等时长选项；(4) `englishUi.test.ts` 白名单中 10 处硬编码中文标点（composer、message、album、location、videoNote、chatInfo、messageList）改走 i18n，修一处删一条白名单。
+- **Allowed** 上述功能目录、`packages/web/test/**`、对应测试。
+- **Acceptance** 每个缺陷有回归测试；白名单清空；两账号浏览器复验 (1)(2)。
