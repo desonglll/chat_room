@@ -72,6 +72,7 @@ impl App {
             View::Search => self.handle_search_key(key),
             View::Notifications => self.handle_notifications_key(key),
             View::Favorites => self.handle_favorites_key(key),
+            View::Contacts => self.handle_contacts_key(key),
             View::Ai => self.handle_ai_key(key),
         }
     }
@@ -147,6 +148,7 @@ impl App {
             View::Search => vec![Action::Search(self.search_input.value().trim().into())],
             View::Notifications => vec![Action::LoadNotifications],
             View::Favorites => vec![Action::LoadFavorites],
+            View::Contacts => vec![Action::Social(super::social::SocialAction::LoadContacts)],
             View::Ai => vec![Action::LoadAiThreads],
         }
     }
@@ -155,7 +157,7 @@ impl App {
         let order: &[Focus] = match self.view {
             View::Chats => &[Focus::List, Focus::Content, Focus::Input],
             View::Search | View::Ai => &[Focus::List, Focus::Input],
-            View::Notifications | View::Favorites => return Focus::List,
+            View::Notifications | View::Favorites | View::Contacts => return Focus::List,
         };
         let current = order
             .iter()

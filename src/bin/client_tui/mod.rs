@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::client_auth;
 
 mod dispatch;
+mod dispatch_social;
 mod input;
 mod model;
 mod navigation;
@@ -18,15 +19,21 @@ mod render;
 mod render_chats;
 mod render_dialog;
 mod render_list;
+mod render_social;
 mod render_views;
 #[cfg(test)]
 mod send_tests;
+mod social;
+#[cfg(test)]
+mod social_tests;
 mod update;
 mod update_chats;
 mod update_dialog;
 mod update_events;
 mod update_session;
+mod update_social;
 mod update_views;
+mod view;
 
 use model::{Action, App, AppEvent};
 

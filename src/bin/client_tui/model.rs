@@ -15,6 +15,7 @@ use crate::{
 };
 
 use super::input::TextField;
+pub use super::view::View;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
@@ -26,42 +27,6 @@ pub enum Screen {
 pub enum AuthMode {
     Login,
     Register,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum View {
-    Chats,
-    Search,
-    Notifications,
-    Favorites,
-    Ai,
-}
-
-impl View {
-    pub const ALL: [Self; 5] = [
-        Self::Chats,
-        Self::Search,
-        Self::Notifications,
-        Self::Favorites,
-        Self::Ai,
-    ];
-
-    pub fn title(self) -> &'static str {
-        match self {
-            Self::Chats => "Chats",
-            Self::Search => "Search",
-            Self::Notifications => "Notifications",
-            Self::Favorites => "Favorites",
-            Self::Ai => "AI",
-        }
-    }
-
-    pub fn index(self) -> usize {
-        Self::ALL
-            .iter()
-            .position(|candidate| *candidate == self)
-            .unwrap_or(0)
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -78,6 +43,10 @@ pub enum PromptKind {
     Download(Attachment),
     EditMessage(Uuid),
     Reaction(Uuid),
+    /// TG-907: a username to send a friend request to.
+    AddContact,
+    /// TG-907: the chat (by title) to forward this message to.
+    Forward(Uuid),
 }
 
 #[derive(Clone, Debug)]
@@ -175,6 +144,8 @@ pub enum Action {
         room_id: Option<Uuid>,
         chat_password: Option<String>,
     },
+    /// TG-907 contacts, pins and forwarding (`dispatch_social.rs`).
+    Social(super::social::SocialAction),
     Quit,
 }
 
@@ -219,6 +190,8 @@ pub enum AppEvent {
     },
     AiRunStarted(ApiResult<(AiThread, AiRun)>),
     AiRunPolled(ApiResult<AiRun>),
+    /// TG-907: answers to `Action::Social` (`update_social.rs`).
+    Social(super::social::SocialEvent),
 }
 
 pub struct App {
@@ -258,6 +231,8 @@ pub struct App {
     pub ai_input: TextField,
     pub ai_running: bool,
     pub dialog: Option<Dialog>,
+    /// TG-907: the Contacts tab and the open chat's pinned messages.
+    pub social: super::social::SocialState,
     pub status: String,
     pub busy: bool,
     pub initial_chat: Option<(Uuid, Option<String>)>,
@@ -311,6 +286,7 @@ impl App {
             ai_input: TextField::default(),
             ai_running: false,
             dialog: None,
+            social: super::social::SocialState::default(),
             status: if signed_in {
                 "Validating saved session...".into()
             } else {

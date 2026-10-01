@@ -177,6 +177,11 @@ impl App {
                 self.reply_to = self.selected_message().map(|message| message.id);
                 self.focus = Focus::Input;
             }
+            // TG-907: pin / unpin and forward the selected message.
+            KeyCode::Char('P') if self.focus == Focus::Content => {
+                return self.toggle_pin_selected()
+            }
+            KeyCode::Char('F') if self.focus == Focus::Content => self.prompt_forward_selected(),
             _ => {}
         }
         Vec::new()

@@ -220,6 +220,7 @@ pub fn action(app: &mut App, action: Action, sender: mpsc::UnboundedSender<AppEv
             room_id,
             chat_password,
         ),
+        Action::Social(social) => super::dispatch_social::run(social, server, token, sender),
         Action::Chat(_) | Action::Quit => unreachable!("handled before dispatch"),
     }
 }

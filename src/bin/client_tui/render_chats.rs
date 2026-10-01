@@ -65,7 +65,11 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     if message.recalled {
                         "message recalled".into()
                     } else {
-                        format!("{}: {}", clean(&message.sender), one_line(&message.content))
+                        format!(
+                            "{}: {}",
+                            clean(&message.sender),
+                            one_line(&message.summary())
+                        )
                     }
                 })
                 .unwrap_or_else(|| "No messages".into());
@@ -116,7 +120,15 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
         .messages
         .iter()
         .map(|message| {
-            let edited = if message.edited { " · edited" } else { "" };
+            let edited = match (
+                message.edited,
+                super::render_social::is_pinned(app, message.id),
+            ) {
+                (true, true) => " · edited · pinned",
+                (true, false) => " · edited",
+                (false, true) => " · pinned",
+                (false, false) => "",
+            };
             let delivery = match message.delivery {
                 DeliveryState::Sending => " · sending",
                 DeliveryState::Failed => " · failed",
@@ -167,7 +179,11 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let title = if app.active_room_name.is_empty() {
         "Messages".into()
     } else {
-        format!("Messages · {}", clean(&app.active_room_name))
+        format!(
+            "Messages · {}{}",
+            clean(&app.active_room_name),
+            super::render_social::pinned_suffix(app)
+        )
     };
     let empty = if app.active_chat.is_some() {
         "No messages yet"
