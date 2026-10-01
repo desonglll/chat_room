@@ -66,7 +66,7 @@ impl FileRow {
         ("id" = Uuid, description = "Chat id"),
         ("before" = Option<Uuid>, Query, description = "Exclusive message cursor"),
         ("limit" = Option<i64>, Query, description = "Page size (1-100)"),
-        ("kind" = Option<String>, Query, description = "all, image, video, or file")
+        ("kind" = Option<String>, Query, description = "all, image, video, file; TG-803: media, document, voice, gif")
     ),
     responses(
         (status = 200, description = "Paginated chat files", body = ChatFilePage),
@@ -81,10 +81,8 @@ pub async fn list_chat_files(
     headers: HeaderMap,
 ) -> Result<Json<ChatFilePage>, StatusCode> {
     authorize(&state, room_id, &headers).await?;
-    let kind = query.kind.as_deref().unwrap_or("all");
-    if !matches!(kind, "all" | "image" | "video" | "file") {
-        return Err(StatusCode::BAD_REQUEST);
-    }
+    let kind =
+        kind_clause(query.kind.as_deref().unwrap_or("all")).ok_or(StatusCode::BAD_REQUEST)?;
     let limit = query.limit.unwrap_or(50).clamp(1, 100);
     let before = match query.before {
         Some(message_id) => {
@@ -116,21 +114,51 @@ pub async fn list_chat_files(
     }))
 }
 
+/// The SQL predicate of each `kind`. Static strings chosen by a closed match, so nothing the
+/// client sends reaches the SQL text.
+///
+/// TG-803 adds the chat info panel's tabs, decided by `messages.media_kind` before the MIME
+/// type so a voice message is never "a file" and a sticker never "a photo":
+/// `media` photos and videos (no GIFs, stickers or round videos), `document` everything else
+/// that is not one of those kinds (music included, as Telegram's «文件»), `voice` voice and
+/// round video messages, `gif` GIFs.
+fn kind_clause(kind: &str) -> Option<&'static str> {
+    Some(match kind {
+        "all" => "TRUE",
+        "image" => "attachments.mime_type LIKE 'image/%'",
+        "video" => "attachments.mime_type LIKE 'video/%'",
+        "file" => {
+            "attachments.mime_type NOT LIKE 'image/%' AND attachments.mime_type NOT LIKE 'video/%'"
+        }
+        "media" => {
+            "(attachments.mime_type LIKE 'image/%' OR attachments.mime_type LIKE 'video/%') \
+             AND attachments.mime_type <> 'image/gif' \
+             AND COALESCE(messages.media_kind, '') NOT IN ('sticker', 'gif', 'video_note', 'voice')"
+        }
+        "document" => {
+            "attachments.mime_type NOT LIKE 'image/%' AND attachments.mime_type NOT LIKE 'video/%' \
+             AND COALESCE(messages.media_kind, '') NOT IN ('sticker', 'gif', 'video_note', 'voice')"
+        }
+        "voice" => "messages.media_kind IN ('voice', 'video_note')",
+        "gif" => "(messages.media_kind = 'gif' OR attachments.mime_type = 'image/gif')",
+        _ => return None,
+    })
+}
+
 async fn fetch_page(
     state: &SharedState,
     room_id: Uuid,
-    kind: &str,
+    kind_clause: &str,
     before: Option<(DateTime<Utc>, Uuid)>,
     limit: i64,
 ) -> Result<Vec<FileRow>, StatusCode> {
-    let (cursor_clause, kind_parameters, limit_parameter) = if before.is_some() {
+    let (cursor_clause, limit_parameter) = if before.is_some() {
         (
             "AND (messages.created_at < $2 OR (messages.created_at = $3 AND messages.id < $4))",
-            ["$5", "$6", "$7", "$8"],
-            "$9",
+            "$5",
         )
     } else {
-        ("", ["$2", "$3", "$4", "$5"], "$6")
+        ("", "$2")
     };
     let sql = format!(
         "SELECT messages.id AS message_id, messages.sender_id, messages.sender, \
@@ -140,12 +168,8 @@ async fn fetch_page(
          JOIN attachments ON attachments.id = messages.attachment_id \
          LEFT JOIN users ON users.id = messages.sender_id \
          WHERE messages.room_id = $1 AND messages.recalled_at IS NULL {cursor_clause} \
-         AND ({0} = 'all' OR ({1} = 'image' AND attachments.mime_type LIKE 'image/%') \
-           OR ({2} = 'video' AND attachments.mime_type LIKE 'video/%') \
-           OR ({3} = 'file' AND attachments.mime_type NOT LIKE 'image/%' \
-                         AND attachments.mime_type NOT LIKE 'video/%')) \
-         ORDER BY messages.created_at DESC, messages.id DESC LIMIT {limit_parameter}",
-        kind_parameters[0], kind_parameters[1], kind_parameters[2], kind_parameters[3]
+         AND ({kind_clause}) \
+         ORDER BY messages.created_at DESC, messages.id DESC LIMIT {limit_parameter}"
     );
     with_pool!(state, |pool| {
         let query = sqlx::query_as::<_, FileRow>(&sql).bind(room_id);
@@ -153,19 +177,13 @@ async fn fetch_page(
             Some((created_at, id)) => query.bind(created_at).bind(created_at).bind(id),
             None => query,
         };
-        query
-            .bind(kind)
-            .bind(kind)
-            .bind(kind)
-            .bind(kind)
-            .bind(limit)
-            .fetch_all(pool)
-            .await
+        query.bind(limit).fetch_all(pool).await
     })
     .map_err(database_error)
 }
 
-async fn authorize(
+/// TG-803: shared with the link tab (`messages::shared_links`) — same read gate as files.
+pub(crate) async fn authorize(
     state: &SharedState,
     room_id: Uuid,
     headers: &HeaderMap,

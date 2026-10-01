@@ -61,6 +61,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
         )
         .route(&path("/:id/files"), get(file_handlers::list_chat_files))
         .route(
+            &path("/:id/links"),
+            get(crate::messages::shared_links::handlers::list_shared_links),
+        )
+        .route(
             &path("/:id/ai/suggest"),
             axum::routing::post(ai_suggestions::suggest),
         )
