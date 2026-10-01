@@ -33,7 +33,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 ## 当前在飞的任务
 
-**M8 已全部合并**（TG-801…806，负责人主线程串行完成，agent 基础设施仍不可用）。**在飞：M9**（TG-901…906，见下方 M9 表）。
+**M8 已全部合并**（TG-801…806，负责人主线程串行完成，agent 基础设施仍不可用）。M9–M11 已全部合并。**在飞：M12**（TG-1201…1205，5 路并行，见下方 M12 表）。
 
 历史：波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
 
@@ -297,6 +297,18 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **M11 完成**：论坛话题与两步验证浏览器全流程通过（顺带修复 TG-1003 引入的通知铃样式回归、两步验证重复标题）；联系人在线状态经账号 WebSocket 实时推送（上线 0.2 s、下线约 3 s）；TUI 能显示并投票、按文件夹筛选、语音/贴纸/位置/名片等可读显示；首屏 288 → **269 KB**（`motion` 改为首次触摸时加载），余量约 31 KB。nextest 648/648。
 
 ---
+
+## M12 第三轮功能深走查（5 路并行，fork agent）
+
+| 任务 | 规模 | 状态 | Owner | 依赖 |
+| --- | --- | --- | --- | --- |
+| TG-1201 消息操作走查并修复 | M | in-progress | agent | — |
+| TG-1202 富媒体消息走查并修复 | M | in-progress | agent | — |
+| TG-1203 群组与频道管理走查并修复 | M | in-progress | agent | — |
+| TG-1204 设置与组织走查并修复 | M | in-progress | agent | — |
+| TG-1205 TUI 补齐剩余消息操作 | M | in-progress | agent | — |
+
+- 基线 `fb1e93c1`。普通子 agent 仍报 cache_control 400，fork 类型可用，本轮全部用 fork。每任务私有 `CARGO_TARGET_DIR`，cargo 命令经 `flock /home/mike/workspace/.cargo-target/m12.lock` 全局串行（14 GB 内存，其他项目常驻约 5 GB）。
 
 ## 状态取值
 

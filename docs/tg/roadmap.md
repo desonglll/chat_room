@@ -768,3 +768,36 @@ M0 的卡上仍标了组字母，但那只表示依赖分层，**不代表可以
 ## TG-1104 首屏余量 ≥ 15 KB · S
 - **Work** 继续把首屏不需要的代码移出（如登录页之于已登录用户、频道/投票创建等交互后才用的部分），不抬预算。
 - **Acceptance** `check_web_bundle.py` 首屏 ≤ 285 000 B gzip；涉及的功能浏览器实测可用。
+
+# M12 第三轮：功能深走查并修复（2026-10-01，用户：「继续任务，开多个 agent 并行开发，使用 git worktree」）
+
+前两轮走查只覆盖了主路径与设置外壳；M4/M5 的大多数功能自合并后没有人在真实浏览器里两账号走过一遍。
+本轮按界面域切 4 张 Web 卡 + 1 张 TUI 卡，5 路并行（fork agent；cargo 命令经全局 `flock` 串行以防内存耗尽）。
+共同验收：每张 Web 卡交付一个可重跑的两账号 Playwright 脚本 `packages/web/test/e2e/<卡>.e2e.mjs`，
+走查截图存 `/tmp/tg-shots/<卡>/`；每个修复的缺陷有回归测试（撤掉修复即失败）。
+i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末尾，合并冲突由负责人保留双方。
+
+## TG-1201 消息操作走查并修复 · M
+- **Work** 两账号走查：回复、引用片段回复、跨聊天回复、编辑、撤回、转发、表情回应、定时发送（列表/立即发送/取消）、静默发送、自毁计时器、消息效果、翻译、名片分享、草稿云同步（两标签页）。
+- **Allowed** `packages/web/src/features/{message,messageList,composer,scheduled,contact}/**`、`src/messages/**`（仅缺陷修复）、对应测试。
+- **Acceptance** E2E 全通过；缺陷各有回归测试。
+
+## TG-1202 富媒体消息走查并修复 · M
+- **Work** 两账号走查：相册（多图一条、查看器翻页）、语音（播放/变速/已听）、圆形视频播放、投票与测验（匿名/多选/撤票/关闭）、位置与实时位置（更新/停止）、链接预览、贴纸/GIF/自定义 emoji 发送与显示、媒体查看器。
+- **Allowed** `packages/web/src/features/{album,voice,videoNote,poll,location,linkPreview,sticker,gif,customEmoji,mediaViewer}/**`、相应 `src/` 域模块（仅缺陷修复）、对应测试。**不改** `features/message/**`（需要时写进集成补丁清单）。
+- **Acceptance** 同上。
+
+## TG-1203 群组与频道管理走查并修复 · M
+- **Work** 两账号走查：建群→升级超级群、管理员权限与成员限制（禁言到期）、慢速模式、邀请链接（多链接/有效期/人数上限/撤销/加入申请审批）、公开 username 与发现、频道（仅管理员发言、签名、浏览量、订阅者）、频道评论区、聊天资料编辑/退出/删除。
+- **Allowed** `packages/web/src/features/{chatAdmin,inviteLinks,channel,chatInfo,chatLifecycle,chatPreview,forum}/**`、`src/chats/**`（仅缺陷修复）、对应测试。
+- **Acceptance** 同上。
+
+## TG-1204 设置与组织走查并修复 · M
+- **Work** 走查：英文界面全量切换（无残留中文硬编码）、主题强调色与聊天壁纸（全局/单聊）、通知例外与声音、隐私矩阵与例外名单（第二账号验证效果）、多头像与二维码名片、Saved Messages、归档区、聊天文件夹规则、全局搜索分栏、数据与存储。
+- **Allowed** `packages/web/src/features/{settings,wallpaper,savedMessages,folders,search,profile,notifications,chatList}/**`、`packages/core/src/i18n/**`、相应 `src/` 域模块（仅缺陷修复）、对应测试。
+- **Acceptance** 同上；英文界面截图逐页无中文。
+
+## TG-1205 TUI 补齐剩余消息操作 · M
+- **Work** 先列出服务端已有而 TUI 缺失的能力（写进 devlog），再实现最有价值的：回复（含引用）、编辑、撤回、表情回应、会话内搜索、定时/静默发送、会话置顶/静音/归档、通过邀请链接加入、对方输入状态显示。
+- **Allowed** `src/bin/client_tui/**`、`tests/` 下新增的 TUI 端到端测试。
+- **Acceptance** 单元/渲染测试 + 对真实服务器的端到端测试；`--help` 或帮助面板列出新按键。
