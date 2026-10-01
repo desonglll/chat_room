@@ -26,8 +26,13 @@ const API_READS = [
 ]
 const MEDIA = [/^\/api\/attachments\//, /^\/api\/users\/[^/]+\/avatar$/, /^\/api\/stickers\/[^/]+\/file/, /\/download$/]
 
-export function classify(method: string, url: URL, origin: string, navigate: boolean): RequestKind {
-  if (method !== 'GET' || url.origin !== origin) return 'bypass'
+/**
+ * `ranged`: the request carries a `Range` header — how `<audio>`/`<video>` load voice, round
+ * video and GIF media. Those go straight to the network: the answer is a 206 the Cache API
+ * refuses to store, and a refused `put` fails the whole response (TG-1202).
+ */
+export function classify(method: string, url: URL, origin: string, navigate: boolean, ranged = false): RequestKind {
+  if (method !== 'GET' || url.origin !== origin || ranged) return 'bypass'
   if (navigate) return 'shell'
   if (url.pathname.startsWith('/assets/')) return 'asset'
   if (API_READS.some((pattern) => pattern.test(url.pathname))) return 'api-read'
