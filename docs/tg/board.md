@@ -302,7 +302,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
-| TG-1201 消息操作走查并修复 | M | in-progress | agent | — |
+| TG-1201 消息操作走查并修复 | M | **merged** | agent | — |
 | TG-1202 富媒体消息走查并修复 | M | **merged** | agent | — |
 | TG-1203 群组与频道管理走查并修复 | M | in-progress | agent | — |
 | TG-1204 设置与组织走查并修复 | M | in-progress | agent | — |
@@ -311,6 +311,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - 基线 `fb1e93c1`。普通子 agent 仍报 cache_control 400，fork 类型可用，本轮全部用 fork。每任务私有 `CARGO_TARGET_DIR`，cargo 命令经 `flock /home/mike/workspace/.cargo-target/m12.lock` 全局串行（14 GB 内存，其他项目常驻约 5 GB）。
 
 - **TG-1202 合并**（`4cd4f7cf` → `48b34e07`）：**线上语音/圆形视频/GIF 一律无法播放**——Service Worker 把媒体的分段请求（206）写入 Cache 被拒，整个请求 `ERR_FAILED`，连带「未听」标记永不消失；现分段请求直通网络，只缓存完整 200。相册在查看器中顺序随机（同组图片服务端只差 1 µs、前端按毫秒排序）已修。两账号 E2E 27 步全过。**待负责人**：TG-304 集成补丁 1–8 从未应用——Web 无自定义 emoji 输入入口、emoji 状态不显示；core `compareInstants` 同样只精确到毫秒。等 TG-1201（composer 所有者）合并后由负责人应用。负责人复验 bun ui 119 / web 796 / core 353，0 挂。
+
+- **TG-1201 合并**（`68226e73` → `f633cf41`）：**「引用」从来引不到片段**——`ContextMenu` 打开时对整块禁用文本选择，Chrome 因此清掉选区，引用总退化成整条回复；现只在触摸长按时禁用（`packages/ui` 越界改动，devlog 记了根因）。首次表情回应无迸发动画已修。其余 12 项两账号走查正常，E2E 17/17。转交 TG-1203：普通成员打开会话信息请求 `/audit-events` 得 403。记录：`chat-room.toml` 默认开 Redis，慢时每请求卡约 2.5 s；AI 关闭时知识索引仍调嵌入接口并对 401 无限重试。负责人复验 bun ui 120 / web 798 / core 353，0 挂。
 
 ## 状态取值
 
