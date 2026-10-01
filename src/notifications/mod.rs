@@ -1,3 +1,5 @@
+pub mod exception_handlers;
+pub mod exceptions;
 pub mod handlers;
 pub mod models;
 mod projection;

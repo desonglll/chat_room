@@ -147,6 +147,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
             axum::routing::post(crate::messages::contacts::send_contact),
         )
         .route(
+            &path("/:id/notification-exception"),
+            axum::routing::put(crate::notifications::exception_handlers::put_exception),
+        )
+        .route(
             &path("/:id/auto-delete"),
             axum::routing::put(crate::messages::auto_delete::put_auto_delete),
         )

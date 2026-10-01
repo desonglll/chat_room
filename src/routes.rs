@@ -128,6 +128,14 @@ pub(crate) fn api_routes(
             axum::routing::put(crate::accounts::avatar_history::set_main),
         )
         .route(
+            "/api/users/me/notification-settings",
+            get(crate::notifications::exception_handlers::get_settings),
+        )
+        .route(
+            "/api/users/me/notification-settings/defaults/:scope",
+            axum::routing::put(crate::notifications::exception_handlers::put_defaults),
+        )
+        .route(
             "/api/users/me/verify-password",
             axum::routing::post(user_handlers::verify_password),
         )

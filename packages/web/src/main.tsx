@@ -21,6 +21,8 @@ import './features/videoNote/register'
 import './features/gif/register'
 // TG-509: 设置 › 数据与存储.
 import './features/settings/storage/register'
+// TG-508: 设置 › 通知与声音.
+import './features/settings/notifications/register'
 // TG-410: contact card bubbles and «翻译».
 import './features/contact/register'
 // TG-511: «头像» and «我的二维码» in settings.

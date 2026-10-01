@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use super::models::{ClaimedPushJob, PushSubscriptionView, SavePushSubscriptionRequest};
@@ -147,28 +147,19 @@ impl AppState {
         })
     }
 
+    /// TG-508: whether a chat event may push to `recipient_id` — the one rule in
+    /// `notifications::exceptions::decide` (timed mute, exception, level, type default).
+    /// Delivery itself uses `chat_push_decision` (it needs the preview and sound too).
+    #[cfg(test)]
     pub(crate) async fn chat_allows_push(
         &self,
         recipient_id: Uuid,
         room_id: Uuid,
         mentions_only_event: bool,
     ) -> Result<bool, sqlx::Error> {
-        let preference: Option<(String, Option<DateTime<Utc>>)> = with_pool!(self, |pool| {
-            sqlx::query_as(
-                "SELECT notification_level, muted_until FROM chat_members \
-                 WHERE user_id = $1 AND room_id = $2 AND status = 'active'",
-            )
-            .bind(recipient_id)
-            .bind(room_id)
-            .fetch_optional(pool)
-            .await
-        })?;
-        let Some((level, muted_until)) = preference else {
-            return Ok(false);
-        };
-        if muted_until.is_some_and(|until| until > Utc::now()) || level == "none" {
-            return Ok(false);
-        }
-        Ok(level == "all" || (level == "mentions" && mentions_only_event))
+        Ok(self
+            .chat_push_decision(recipient_id, room_id, mentions_only_event)
+            .await?
+            .is_some_and(|decision| decision.deliver))
     }
 }

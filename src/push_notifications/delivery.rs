@@ -70,17 +70,26 @@ pub(crate) async fn dispatch_batch(
             state.complete_push_job(&job.id, &claim_token).await?;
             continue;
         }
+        // TG-508: the chat's decision also carries the preview switch and the sound.
+        let mut preview = true;
+        let mut silent = false;
         if let Some(room_id) = notification.room_id {
             let mention_or_reply = matches!(
                 notification.kind,
                 NotificationKind::Mention | NotificationKind::Reply
             );
-            if !state
-                .chat_allows_push(job.recipient_id, room_id, mention_or_reply)
+            match state
+                .chat_push_decision(job.recipient_id, room_id, mention_or_reply)
                 .await?
             {
-                state.complete_push_job(&job.id, &claim_token).await?;
-                continue;
+                Some(decision) if decision.deliver => {
+                    preview = decision.preview;
+                    silent = decision.sound == "none";
+                }
+                _ => {
+                    state.complete_push_job(&job.id, &claim_token).await?;
+                    continue;
+                }
             }
         }
         // TG-204: a muted forum topic is silent even when its chat is not.
@@ -93,7 +102,8 @@ pub(crate) async fn dispatch_batch(
                 continue;
             }
         }
-        let payload = payload_for(&notification, job.show_details);
+        let mut payload = payload_for(&notification, job.show_details && preview);
+        payload.silent = silent;
         match sender.send(&job, &payload).await {
             PushSendOutcome::Delivered => state.complete_push_job(&job.id, &claim_token).await?,
             PushSendOutcome::Expired => {
@@ -134,6 +144,7 @@ fn payload_for(
         body: show_details.then(|| notification.summary.clone()),
         url,
         tag: format!("notification:{}", notification.id),
+        silent: false,
     }
 }
 

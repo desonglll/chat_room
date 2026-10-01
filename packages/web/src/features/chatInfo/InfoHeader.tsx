@@ -9,6 +9,7 @@ import { useLastSeenText } from '../presence'
 import type { InfoHeaderModel } from './chatInfoModel'
 import { memberCountText, subscriberCountText } from './chatInfoModel'
 import { AutoDeleteRow } from './AutoDeleteRow'
+import { NotificationRow } from './NotificationRow'
 import { AtIcon, BellIcon, InfoIcon } from './icons'
 
 function PrivateStatus({ userId }: { userId: string }) {
@@ -101,6 +102,7 @@ export function InfoDetails({
           onCheckedChange={onNotificationsChange}
         />
       </li>
+      {chatId ? <NotificationRow chatId={chatId} /> : null}
       {chatId ? <AutoDeleteRow chatId={chatId} /> : null}
     </ul>
   )
