@@ -1,0 +1,69 @@
+/* TG-408: link cards in bubbles and above the composer. */
+.tg-link-card {
+  position: relative;
+  display: flex;
+  margin-block-start: var(--tg-space-1-5);
+  padding-inline-start: var(--tg-space-2);
+  border-inline-start: 3px solid var(--tg-msg-accent, var(--tg-accent));
+  border-radius: var(--tg-radius-xs);
+}
+
+.tg-link-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--tg-space-0-5);
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tg-link-card__site {
+  color: var(--tg-msg-accent, var(--tg-accent));
+  font-weight: 500;
+  font-size: var(--tg-type-subtitle-size);
+}
+
+.tg-link-card__title {
+  font-weight: 500;
+}
+
+.tg-link-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--tg-type-subtitle-size);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.tg-link-card__image {
+  max-block-size: 12rem;
+  margin-block-start: var(--tg-space-1);
+  border-radius: var(--tg-radius-md);
+  object-fit: cover;
+}
+
+.tg-link-card__dismiss {
+  align-self: flex-start;
+  padding: 0 var(--tg-space-1);
+  border: 0;
+  background: none;
+  color: var(--tg-text-secondary);
+  font: inherit;
+  font-size: var(--tg-type-title-size);
+  cursor: pointer;
+}
+
+.tg-link-card__body:focus-visible,
+.tg-link-card__dismiss:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-link-card__meta {
+  text-align: end;
+}
+
+.tg-compose-link {
+  padding: var(--tg-space-1) var(--tg-space-3);
+}

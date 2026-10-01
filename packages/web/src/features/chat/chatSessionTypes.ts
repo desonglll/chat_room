@@ -70,6 +70,8 @@ export interface ChatSessionOptions {
 /** TG-404: per-send options; `silent` delivers without notifications. */
 export interface SendMessageOptions {
   silent?: boolean
+  /** TG-408: the sender dismissed the link card in the composer. */
+  noLinkPreview?: boolean
 }
 
 export interface ChatSession {

@@ -20,6 +20,7 @@ import {
 import { applyPollFrame } from '../poll/pollStore'
 import { applyViewsFrame } from '../channel/channelStore'
 import { applyLocationFrame } from '../location/liveLocationStore'
+import { applyLinkPreviewFrame } from '../linkPreview/linkPreviewStore'
 import { applyVoiceListenedFrame } from '../voice/voiceStore'
 import type { ChatSession, ChatSessionOptions } from './chatSessionTypes'
 import { MAX_MESSAGE_CHARS } from './chatSessionTypes'
@@ -202,6 +203,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('message_views_updated', (frame) => {
           if (stores.channel) applyViewsFrame(frame, stores.channel)
         }),
+        // TG-408: link cards built after delivery (features/linkPreview).
+        socket.on('link_preview_updated', (frame) => applyLinkPreviewFrame(frame)),
         // TG-407: live location points (features/location).
         socket.on('location_updated', (frame) => applyLocationFrame(frame)),
         // TG-401: the listener's and the sender's unlistened dots (features/voice).
@@ -255,6 +258,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         client_message_id: clientMessageId,
         ...(topic?.sendTopicId ? { topic_id: topic.sendTopicId } : {}),
         ...(options?.silent ? { silent: true } : {}),
+        ...(options?.noLinkPreview ? { no_link_preview: true } : {}),
       })
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
       stores.composer.getState().clearDraft(chatId)

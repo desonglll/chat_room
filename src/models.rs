@@ -83,6 +83,9 @@ pub struct StoredMessage {
     /// TG-410: present exactly when the message is a shared contact card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contact: Option<crate::messages::contacts::ContactCard>,
+    /// TG-408: the card for the first link; omitted when there is none (or it was hidden).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link_preview: Option<crate::messages::link_previews::LinkPreview>,
     /// TG-407: present exactly when the message is a location (static or live).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<crate::messages::locations::MessageLocation>,

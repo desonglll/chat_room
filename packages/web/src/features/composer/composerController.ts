@@ -19,12 +19,13 @@ import type {
   AttachmentKind,
   BroadcastMessage,
 } from '@tg/core'
+import { takeDismissal } from '../linkPreview/linkPreviewStore'
 import { EMPTY_DRAFT, editIsDirty, selectComposerMode, uploadChatAction } from '@tg/core'
 
 /** The slice of the chat session the composer needs. */
 export interface ComposerSessionApi {
   /** Optimistic append + WS send of the current draft (reply target read from the store). */
-  sendMessage(text: string, options?: { silent?: boolean }): boolean
+  sendMessage(text: string, options?: { silent?: boolean; noLinkPreview?: boolean }): boolean
   /** Draft text → store + debounced cloud save (TG-008). */
   setDraftText(text: string): void
   /** One raw client frame on the chat socket: `edit` and `typing` go through here. */
@@ -91,7 +92,10 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
     let outcome: SubmitOutcome = 'forwarded'
     if (content) {
       // Telegram order: the comment first, then the forwarded messages under it.
-      const sent = silent ? session.sendMessage(content, { silent: true }) : session.sendMessage(content)
+      // TG-408: a link card dismissed in the composer is not built for this message.
+      const noLinkPreview = takeDismissal(chatId, content)
+      const options = { ...(silent ? { silent: true } : {}), ...(noLinkPreview ? { noLinkPreview: true } : {}) }
+      const sent = silent || noLinkPreview ? session.sendMessage(content, options) : session.sendMessage(content)
       outcome = sent ? 'sent' : 'offline'
     }
     if (forwarding) void deps.forward(forwarding.messageIds, chatId).catch(() => undefined)

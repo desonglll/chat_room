@@ -21,6 +21,7 @@ import type {
   MessageEntity,
   MessageReaction,
   ContactCard,
+  LinkPreview,
   MessageLocation,
   MessageSticker,
   ReadReceipt,
@@ -101,6 +102,8 @@ export interface BroadcastFrame {
   silent?: boolean
   /** TG-410: a shared contact card; omitted otherwise. */
   contact?: ContactCard
+  /** TG-408: omitted unless the message has a link card. */
+  link_preview?: LinkPreview
   /** TG-407: omitted unless the message is a location. */
   location?: MessageLocation
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
@@ -219,6 +222,8 @@ export type ServerFrame =
   | { type: 'topic_updated'; topic: TopicSummary }
   | { type: 'message_views_updated'; views: MessageViewCount[] }
   | { type: 'poll_updated'; message_id: string; poll: PollState }
+  /** TG-408: a message's link card arrived, or was hidden (`preview: null`). */
+  | { type: 'link_preview_updated'; message_id: string; preview: LinkPreview | null }
   /** TG-407: a live location moved or stopped; only its latest point exists. */
   | { type: 'location_updated'; message_id: string; location: MessageLocation }
   | DraftUpdatedFrame
@@ -244,6 +249,8 @@ export type ClientFrame =
       reply_quote?: { text: string; offset?: number }
       /** TG-409: `reply_to` lives in this other chat. */
       reply_to_chat_id?: string
+      /** TG-408: the sender dismissed the link card before sending. */
+      no_link_preview?: boolean
     }
   | { type: 'edit'; message_id: string; content: string; entities?: MessageEntity[] }
   | { type: 'read'; message_id: string }

@@ -83,6 +83,9 @@ pub enum ChatMessage {
         /// TG-409: `reply_to` lives in this other chat (a cross-chat reply).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reply_to_chat_id: Option<Uuid>,
+        /// TG-408: the sender dismissed the link card before sending.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        no_link_preview: bool,
     },
 
     /// Client -> Server: replace the content of a message sent by this account. TG-304: the
@@ -183,6 +186,9 @@ pub enum ChatMessage {
         /// TG-410: omitted unless the message is a contact card.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         contact: Option<crate::messages::contacts::ContactCard>,
+        /// TG-408: omitted unless the message has a link card.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        link_preview: Option<crate::messages::link_previews::LinkPreview>,
         /// TG-407: omitted unless the message is a location.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         location: Option<crate::messages::locations::MessageLocation>,
@@ -285,6 +291,13 @@ pub enum ChatMessage {
     LocationUpdated {
         message_id: Uuid,
         location: crate::messages::locations::MessageLocation,
+    },
+
+    /// Server -> Client: a message's link card arrived (or was hidden: `preview: null`). TG-408.
+    #[serde(rename = "link_preview_updated")]
+    LinkPreviewUpdated {
+        message_id: Uuid,
+        preview: Option<crate::messages::link_previews::LinkPreview>,
     },
 
     #[serde(rename = "message_views_updated")]

@@ -33,6 +33,10 @@ pub(crate) fn api_routes(
         .merge(chats::invite_links::routes())
         .route("/api/config", get(config::public_config))
         .route(
+            "/api/link-preview",
+            get(crate::messages::link_previews::handlers::get_link_preview),
+        )
+        .route(
             "/api/messages/search",
             get(message_global_search::handlers::search_visible_messages),
         )

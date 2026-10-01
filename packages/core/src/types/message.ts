@@ -138,6 +138,15 @@ export interface LiveLocationEntry {
   location: MessageLocation
 }
 
+/** TG-408: the card for a message's first link (fetched by the server, SSRF-checked). */
+export interface LinkPreview {
+  url: string
+  site_name: string
+  title: string
+  description: string
+  image_url?: string
+}
+
 /** One persisted message as `GET /api/chats/:id/messages` returns it. */
 export interface StoredMessage {
   id: string
@@ -180,6 +189,8 @@ export interface StoredMessage {
   silent?: boolean
   /** TG-410: a shared contact card; omitted otherwise. */
   contact?: ContactCard
+  /** TG-408: the first link's card; omitted when there is none or it was hidden. */
+  link_preview?: LinkPreview
   /** TG-407: present exactly when the message is a location. */
   location?: MessageLocation
   /** TG-403: shared by the 2–10 items of one album; omitted for every other message. */
