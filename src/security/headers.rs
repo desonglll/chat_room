@@ -1,5 +1,5 @@
 use axum::{
-    extract::Request,
+    extract::{Request, State},
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
@@ -10,8 +10,6 @@ use axum::{
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::config::SecurityConfig;
-
-const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:";
 
 pub(crate) fn cors_layer(config: &SecurityConfig) -> CorsLayer {
     let layer = CorsLayer::new()
@@ -36,13 +34,15 @@ pub(crate) fn cors_layer(config: &SecurityConfig) -> CorsLayer {
     }
 }
 
-pub(crate) async fn security_headers(request: Request, next: Next) -> Response {
+/// `csp` is built once at startup (`csp::content_security_policy`, TG-1209).
+pub(crate) async fn security_headers(
+    State(csp): State<HeaderValue>,
+    request: Request,
+    next: Next,
+) -> Response {
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
-    headers.insert(
-        "content-security-policy",
-        HeaderValue::from_static(CONTENT_SECURITY_POLICY),
-    );
+    headers.insert("content-security-policy", csp);
     headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
     headers.insert(
         "x-content-type-options",

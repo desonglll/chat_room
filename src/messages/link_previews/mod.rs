@@ -2,10 +2,12 @@
 //! title, description, image, site) fetched by the server **after** the message is stored and
 //! delivered — a slow or failing site never delays or blocks a send. The card reaches the chat
 //! in a `link_preview_updated` frame and rides on every later load. The sender can hide it
-//! (or ask for none when sending). All fetching goes through `ssrf` + `fetch`.
+//! (or ask for none when sending). All fetching goes through `ssrf` + `fetch`. TG-1209: the
+//! card's `image_url` is always a same-origin `images` URL, never the third-party one.
 
 pub mod fetch;
 pub mod handlers;
+pub mod images;
 pub mod parse;
 pub mod ssrf;
 
@@ -62,7 +64,7 @@ struct CachedRow {
     title: String,
     description: String,
     site_name: String,
-    image_url: Option<String>,
+    image_key: Option<Uuid>,
     fetched_at: DateTime<Utc>,
 }
 
@@ -82,8 +84,11 @@ impl AppState {
     async fn cached_preview(&self, url: &str) -> Result<Option<Option<LinkPreview>>, sqlx::Error> {
         let row: Option<CachedRow> = with_pool!(self, |pool| {
             sqlx::query_as(
-                "SELECT ok, title, description, site_name, image_url, fetched_at \
-                 FROM link_previews WHERE url = $1",
+                "SELECT previews.ok, previews.title, previews.description, previews.site_name, \
+                   images.access_key AS image_key, previews.fetched_at \
+                 FROM link_previews AS previews \
+                 LEFT JOIN link_preview_images AS images ON images.url = previews.url \
+                 WHERE previews.url = $1",
             )
             .bind(url)
             .fetch_optional(pool)
@@ -97,7 +102,7 @@ impl AppState {
                     site_name: row.site_name,
                     title: row.title,
                     description: row.description,
-                    image_url: row.image_url,
+                    image_url: row.image_key.map(images::image_path),
                 })
             })
         }))
@@ -142,13 +147,24 @@ impl AppState {
         let Ok(_permit) = FETCHES.acquire().await else {
             return Ok(None);
         };
-        let fetched = fetch::fetch_preview(url, &self.link_preview_policy(), fetch::system_resolve)
+        let policy = self.link_preview_policy();
+        let mut fetched = fetch::fetch_preview(url, &policy, fetch::system_resolve)
             .await
             .unwrap_or_else(|error| {
                 tracing::debug!("link preview fetch refused or failed: {error:?}");
                 None
             });
+        let source = fetched
+            .as_ref()
+            .and_then(|preview| preview.image_url.as_deref());
+        let image = images::fetch_card_image(source, &policy).await;
         self.store_preview(&key, fetched.as_ref()).await?;
+        let image_key = self
+            .store_preview_image(&key, fetched.as_ref().and(image.as_ref()))
+            .await?;
+        if let Some(preview) = fetched.as_mut() {
+            preview.image_url = image_key.map(images::image_path);
+        }
         Ok(fetched)
     }
 
@@ -225,13 +241,14 @@ impl AppState {
         if ids.is_empty() {
             return Ok(());
         }
-        let rows: Vec<(Uuid, String, String, String, String, Option<String>)> =
+        let rows: Vec<(Uuid, String, String, String, String, Option<Uuid>)> =
             with_pool!(self, |pool| {
                 let mut query = QueryBuilder::new(
                     "SELECT links.message_id, previews.url, previews.site_name, previews.title, \
-                   previews.description, previews.image_url \
+                   previews.description, images.access_key \
                  FROM message_link_previews AS links \
                  JOIN link_previews AS previews ON previews.url = links.url AND previews.ok \
+                 LEFT JOIN link_preview_images AS images ON images.url = previews.url \
                  WHERE NOT links.hidden AND links.message_id IN (",
                 );
                 {
@@ -245,7 +262,7 @@ impl AppState {
             })?;
         let mut cards: HashMap<Uuid, LinkPreview> = rows
             .into_iter()
-            .map(|(id, url, site_name, title, description, image_url)| {
+            .map(|(id, url, site_name, title, description, image_key)| {
                 (
                     id,
                     LinkPreview {
@@ -253,7 +270,7 @@ impl AppState {
                         site_name,
                         title,
                         description,
-                        image_url,
+                        image_url: image_key.map(images::image_path),
                     },
                 )
             })
