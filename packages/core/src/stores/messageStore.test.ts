@@ -121,3 +121,39 @@ describe('messageStore read cursors', () => {
     expect(peerReadThrough(selectTimeline(CHAT)(store.getState()), 'u1')).toBe('')
   })
 })
+
+describe('TG-1206: custom emoji entities follow the text', () => {
+  const entity = { type: 'custom_emoji', offset: 0, length: 2, custom_emoji_id: 'e1' }
+
+  test('an edit carries the new entities and drops the old ones', () => {
+    const store = seeded()
+    store.getState().applyBroadcast(CHAT, { ...message('m12', 12), content: '😀 hi', entities: [entity] }, 'none')
+    store.getState().applyEdit(CHAT, {
+      type: 'message_edited',
+      message_id: 'm12',
+      content: 'hi 😀',
+      edited_at: 'e',
+      entities: [{ ...entity, offset: 3 }],
+    })
+    let row = selectTimeline(CHAT)(store.getState()).messages.at(-1) as BroadcastMessage
+    expect(row.entities).toEqual([{ ...entity, offset: 3 }])
+    // The wire omits `entities` when the edited text has none: the stale ranges must go.
+    store.getState().applyEdit(CHAT, { type: 'message_edited', message_id: 'm12', content: 'plain', edited_at: 'e2' })
+    row = selectTimeline(CHAT)(store.getState()).messages.at(-1) as BroadcastMessage
+    expect(row.entities ?? []).toEqual([])
+  })
+
+  test('the optimistic row renders the entities before the server echo', () => {
+    const store = createMessageStore()
+    store.getState().appendOptimistic(CHAT, {
+      clientMessageId: 'cid',
+      content: '😀',
+      replyTo: '',
+      currentUserId: 'u1',
+      participants: [],
+      entities: [entity],
+    })
+    const row = selectTimeline(CHAT)(store.getState()).messages[0] as BroadcastMessage
+    expect(row.entities).toEqual([entity])
+  })
+})

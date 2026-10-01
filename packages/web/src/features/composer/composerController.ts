@@ -18,14 +18,20 @@ import type {
   MessageStore,
   AttachmentKind,
   BroadcastMessage,
+  MessageEntity,
 } from '@tg/core'
 import { takeDismissal } from '../linkPreview/linkPreviewStore'
+import { createEntityDraft } from '../customEmoji/useEntityDraft'
+import type { PickedCustomEmoji } from '../customEmoji/CustomEmojiGrid'
 import { EMPTY_DRAFT, editIsDirty, selectComposerMode, uploadChatAction } from '@tg/core'
 
 /** The slice of the chat session the composer needs. */
 export interface ComposerSessionApi {
   /** Optimistic append + WS send of the current draft (reply target read from the store). */
-  sendMessage(text: string, options?: { silent?: boolean; noLinkPreview?: boolean }): boolean
+  sendMessage(
+    text: string,
+    options?: { silent?: boolean; noLinkPreview?: boolean; entities?: MessageEntity[] },
+  ): boolean
   /** Draft text → store + debounced cloud save (TG-008). */
   setDraftText(text: string): void
   /** One raw client frame on the chat socket: `edit` and `typing` go through here. */
@@ -47,6 +53,15 @@ export interface ComposerController {
   /** What the input shows: the edit text while editing, else the draft. */
   text(): string
   input(text: string): void
+  /**
+   * TG-1206: put a custom emoji (its fallback character plus an entity) over `selection`
+   * of the draft. Returns the new text and caret, or null while editing (an edit frame
+   * keeps the plain text only), where the host inserts the fallback character instead.
+   */
+  insertCustomEmoji(
+    selection: { start: number; end: number },
+    emoji: PickedCustomEmoji,
+  ): { text: string; caret: number } | null
   submit(): SubmitOutcome
   /** TG-404 «静默发送»: send the draft now without notifications (not while editing). */
   submitSilent(): SubmitOutcome
@@ -77,6 +92,9 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
   const { chatId, session, composer, actions } = deps
   const draft = () => composer.getState().drafts[chatId] ?? EMPTY_DRAFT
   const mode = () => selectComposerMode(chatId)(composer.getState())
+  // TG-1206: the custom emoji ranges of the draft. Local only: a cloud draft synced from
+  // another device arrives as plain text, and `forSend` reconciles against whatever is there.
+  const entityDraft = createEntityDraft()
 
   /** Run a bar event; when the synced reply target moved, push it through the draft sync. */
   function dispatch(event: ComposerModeEvent): void {
@@ -87,18 +105,23 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
 
   function sendDraft(text: string, silent = false): SubmitOutcome {
     const forwarding = mode().forward
-    const content = text.trim()
+    const { text: content, entities } = entityDraft.forSend(text)
     if (!content && !forwarding) return 'empty'
     let outcome: SubmitOutcome = 'forwarded'
     if (content) {
       // Telegram order: the comment first, then the forwarded messages under it.
       // TG-408: a link card dismissed in the composer is not built for this message.
       const noLinkPreview = takeDismissal(chatId, content)
-      const options = { ...(silent ? { silent: true } : {}), ...(noLinkPreview ? { noLinkPreview: true } : {}) }
-      const sent = silent || noLinkPreview ? session.sendMessage(content, options) : session.sendMessage(content)
+      const options = {
+        ...(silent ? { silent: true } : {}),
+        ...(noLinkPreview ? { noLinkPreview: true } : {}),
+        ...(entities.length ? { entities } : {}),
+      }
+      const sent = Object.keys(options).length ? session.sendMessage(content, options) : session.sendMessage(content)
       outcome = sent ? 'sent' : 'offline'
     }
     if (forwarding) void deps.forward(forwarding.messageIds, chatId).catch(() => undefined)
+    entityDraft.reset()
     composer.getState().dispatchMode(chatId, { type: 'sent' })
     actions.sendChatAction(chatId, 'cancel')
     return outcome
@@ -112,9 +135,18 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
         composer.getState().dispatchMode(chatId, { type: 'editText', text })
         return
       }
+      entityDraft.sync(text)
       session.setDraftText(text)
       // Empty text is the stop signal: the sender turns it into one `cancel` frame.
       actions.sendChatAction(chatId, 'typing', text)
+    },
+
+    insertCustomEmoji(selection, emoji) {
+      if (mode().edit) return null
+      const result = entityDraft.insert(draft().text, selection, emoji)
+      session.setDraftText(result.text)
+      actions.sendChatAction(chatId, 'typing', result.text)
+      return { text: result.text, caret: result.caret }
     },
 
     submit() {
@@ -143,6 +175,7 @@ export function createComposerController(deps: ComposerControllerDeps): Composer
     },
 
     scheduled() {
+      entityDraft.reset()
       session.setDraftText('')
       dispatch({ type: 'sent' })
       actions.sendChatAction(chatId, 'cancel')

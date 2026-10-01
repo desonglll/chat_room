@@ -111,7 +111,7 @@ export const createMessageStore = () =>
           ...timeline,
           messages: timeline.messages.map((message) =>
             message.type === 'broadcast' && message.message_id === frame.message_id
-              ? { ...message, content: frame.content, edited_at: frame.edited_at }
+              ? { ...message, content: frame.content, edited_at: frame.edited_at, entities: frame.entities ?? [] }
               : message,
           ),
         })),

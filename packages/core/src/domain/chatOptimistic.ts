@@ -4,7 +4,7 @@
  * `web/src/chatOptimistic.ts` (TG-011); only the type import paths changed
  * (`RoomMember` → the identical `ChatMember` wire mirror).
  */
-import type { ChatMember, ReplyPreview } from '../types'
+import type { ChatMember, MessageEntity, ReplyPreview } from '../types'
 import type { BroadcastMessage, DisplayMessage } from './messageView'
 import { t } from '../i18n/t'
 
@@ -16,6 +16,8 @@ interface OptimisticMessageInput {
   participants: ChatMember[]
   messages: DisplayMessage[]
   timestamp?: string
+  /** TG-1206: custom emoji ranges, rendered optimistically like the server's echo. */
+  entities?: MessageEntity[]
 }
 
 function replyPreview(messages: DisplayMessage[], messageId: string): ReplyPreview | null {
@@ -43,6 +45,7 @@ export function createOptimisticMessage(input: OptimisticMessageInput): Broadcas
     sender: sender?.username || t('c.domain.5630b8'),
     sender_avatar: sender?.avatar_emoji || '',
     content: input.content,
+    ...(input.entities?.length ? { entities: input.entities } : {}),
     attachment: null,
     reply_to: replyPreview(input.messages, input.replyTo),
     recalled_at: null,

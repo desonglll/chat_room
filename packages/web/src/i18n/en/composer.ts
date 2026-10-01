@@ -62,4 +62,7 @@ export const composer: Catalog = {
   'w.composer.fecd66': 'Emoji',
   'w.composer.otherChat': 'another chat',
   'w.composer.recorderLoading': 'Preparing the recorder',
+  'w.composer.emojiKinds': 'Emoji kinds',
+  'w.composer.emojiUnicode': 'Standard',
+  'w.composer.emojiCustom': 'Custom',
 }

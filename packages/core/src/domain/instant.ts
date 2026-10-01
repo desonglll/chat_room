@@ -9,7 +9,17 @@ export function instantMs(value: string): number {
   return Number.isFinite(ms) ? ms : 0
 }
 
+/**
+ * The part of the fractional second below one millisecond, in nanoseconds (0–999 999).
+ * `Date.parse` stops at milliseconds, but the server stamps microseconds: two album items
+ * 1 µs apart parse to the same millisecond (TG-1202), so ties break on this.
+ */
+function subMillisecondNs(value: string): number {
+  const fraction = /T\d{2}:\d{2}:\d{2}\.(\d+)/.exec(value)?.[1] ?? ''
+  return Number(fraction.slice(3, 9).padEnd(6, '0'))
+}
+
 /** Negative when `a` is earlier than `b`, positive when later, 0 when the same instant. */
 export function compareInstants(a: string, b: string): number {
-  return instantMs(a) - instantMs(b)
+  return instantMs(a) - instantMs(b) || subMillisecondNs(a) - subMillisecondNs(b)
 }

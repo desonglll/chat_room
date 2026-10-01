@@ -27,7 +27,7 @@ import { ComposerBar } from './ComposerBar'
 import { ComposerLinkPreview } from '../linkPreview/ComposerLinkPreview'
 import type { ComposerSessionApi } from './composerController'
 import { DropZone } from './DropZone'
-import { EmojiPanel } from './EmojiPanel'
+import { ComposerEmojiTab } from './ComposerEmojiTab'
 import { FormatToolbar } from './FormatToolbar'
 import { CheckGlyph, MicGlyph, SendGlyph, SmileGlyph } from './icons'
 import { MentionPopup, mentionOptionId } from './MentionPopup'
@@ -320,7 +320,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
       >
         <LazyMediaPanel
           chatId={chatId}
-          emoji={<EmojiPanel onPick={input.insert} />}
+          emoji={<ComposerEmojiTab onPick={input.insert} onPickCustom={input.insertCustom} />}
           canSend={canSend}
           onSendSticker={(sticker) => {
             sendSticker(sticker)

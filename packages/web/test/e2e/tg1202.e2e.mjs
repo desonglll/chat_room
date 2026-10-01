@@ -95,23 +95,6 @@ async function stickerSet(setType, file, emoji) {
 await stickerSet('regular', 'sticker.webp', '😀')
 const customEmoji = await stickerSet('custom_emoji', 'emoji.webp', '⭐')
 
-/** Send one text message over the chat socket (there is no REST text send). */
-async function sendOverSocket(token, chatId, frame) {
-  const ws = new WebSocket(`${API.replace(/^http/, 'ws')}/ws/${chatId}`)
-  await new Promise((resolve, reject) => {
-    ws.onerror = () => reject(new Error('socket failed'))
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'join', token }))
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'auth_fail') reject(new Error(`auth_fail: ${data.reason}`))
-      if (data.type === 'history_complete')
-        ws.send(JSON.stringify({ type: 'message', client_message_id: crypto.randomUUID(), ...frame }))
-      if (data.type === 'broadcast' && data.content === frame.content) resolve()
-    }
-  })
-  ws.close()
-}
-
 const browser = await chromium.launch({
   args: ['--autoplay-policy=no-user-gesture-required'],
 })
@@ -369,17 +352,25 @@ await step(b, 'sticker-received', async () => {
     .evaluate((el) => (el instanceof HTMLImageElement ? el.naturalWidth > 0 : true))
   if (!ok) throw new Error('sticker image did not decode')
 })
-// No composer entry point yet (TG-304 integration items 2–3 unapplied, see the devlog), so the
-// message is sent the way the composer would: a socket `message` frame with its entities.
+// TG-1206: picked from the composer's «表情 › 自定义» tab, text typed around it, sent with Enter.
 await step(a, 'custom-emoji-sent-shows', async () => {
-  await sendOverSocket(alice.token, group.id, {
-    content: '⭐ 自定义表情',
-    entities: [{ type: 'custom_emoji', offset: 0, length: 1, custom_emoji_id: customEmoji.id }],
-  })
-  await last(a, '.tg-custom-emoji__image').waitFor({ timeout: 8000 })
+  const input = a.getByLabel('消息内容')
+  await input.fill('自定义表情 ')
+  await a.getByRole('button', { name: '表情' }).click()
+  const panel = a.locator('.tg-media-panel')
+  await panel.waitFor()
+  await panel.getByRole('tab', { name: '表情', exact: true }).click()
+  await panel.getByRole('tab', { name: '自定义' }).click()
+  await panel.locator('.tg-custom-emoji-grid__cell').first().click()
+  await a.keyboard.press('Escape')
+  await input.press('End')
+  await input.pressSequentially(' 好')
+  await input.press('Enter')
+  const sent = a.locator('.tg-message', { hasText: '自定义表情' }).last()
+  await sent.locator('.tg-custom-emoji__image').waitFor({ timeout: 8000 })
 })
 await step(b, 'custom-emoji-received', async () => {
-  const image = last(b, '.tg-custom-emoji__image').locator('.tg-custom-emoji__image').last()
+  const image = b.locator('.tg-message', { hasText: '自定义表情' }).last().locator('.tg-custom-emoji__image')
   await image.waitFor({ timeout: 8000 })
   const decoded = await image.evaluate((el) => (el instanceof HTMLImageElement ? el.naturalWidth > 0 : true))
   if (!decoded) throw new Error('custom emoji image did not decode')

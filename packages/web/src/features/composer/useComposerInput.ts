@@ -18,6 +18,7 @@ import {
   shouldCalculateExpression,
 } from '@tg/core'
 import type { ComposerController } from './composerController'
+import type { PickedCustomEmoji } from '../customEmoji/CustomEmojiGrid'
 
 export interface ComposerInputOptions {
   text: string
@@ -41,6 +42,8 @@ export interface ComposerInputHandle {
   pickMention(member: ChatMember): void
   format(kind: FormatKind, url?: string): void
   insert(value: string): void
+  /** TG-1206: a custom emoji from the panel — fallback text plus its entity in the draft. */
+  insertCustom(emoji: PickedCustomEmoji): void
   calcError: string
   syncSelection(): void
   onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void
@@ -111,6 +114,16 @@ export function useComposerInput(options: ComposerInputOptions): ComposerInputHa
     const { start, end } = currentSelection()
     const caret = start + value.length
     replace(text.slice(0, start) + value + text.slice(end), { start: caret, end: caret })
+  }
+
+  function insertCustom(emoji: PickedCustomEmoji) {
+    const result = controller.insertCustomEmoji(currentSelection(), emoji)
+    if (!result) {
+      insert(emoji.emoji)
+      return
+    }
+    pendingCaret.current = { start: result.caret, end: result.caret }
+    setCalcError('')
   }
 
   function handleMentionKeys(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
@@ -192,6 +205,7 @@ export function useComposerInput(options: ComposerInputOptions): ComposerInputHa
     pickMention,
     format,
     insert,
+    insertCustom,
     calcError,
     syncSelection,
     onKeyDown,
