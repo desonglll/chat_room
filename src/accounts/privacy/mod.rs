@@ -16,6 +16,7 @@
 //! "Contacts" are accepted friendships (`friendships.status = 'accepted'`), the only
 //! contact relation this product has.
 
+mod contact_presence;
 mod guards;
 pub mod handlers;
 mod last_seen;

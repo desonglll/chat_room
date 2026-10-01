@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
 import type { AdminApi, AdminOverview, SocialApi } from '@tg/core'
 import { AdminOverviewCard } from './AdminOverviewCard'
 import { AdminPage } from './AdminPage'
@@ -44,7 +45,11 @@ describe('TG-705 admin console', () => {
   })
 
   test('the page starts by checking access', () => {
-    const html = renderToStaticMarkup(<AdminPage api={{} as AdminApi} social={{} as SocialApi} />)
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <AdminPage api={{} as AdminApi} social={{} as SocialApi} />
+      </MemoryRouter>,
+    )
     expect(html).toContain('管理后台')
     expect(html).toContain('正在加载')
   })

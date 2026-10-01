@@ -38,4 +38,7 @@ export const contactsPage: Catalog = {
   'w.contacts.searchFailed': 'Search failed, try again later',
   'w.contacts.withdrawn': 'Request withdrawn',
   'w.contacts.menu': 'Contacts',
+  'w.contacts.filter': 'Search contacts',
+  'w.contacts.noMatch': 'No matching contacts',
+  'w.contacts.rowMenu': 'Contact actions',
 }

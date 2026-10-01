@@ -28,11 +28,11 @@ use crate::state::{with_pool, AppState};
 /// sockets within this window; new connections see it immediately.
 const PRESENCE_RULES_TTL: Duration = Duration::from_secs(15);
 
-const LAST_SEEN: &str = "last_seen";
+pub(super) const LAST_SEEN: &str = "last_seen";
 
 /// Everything about one viewer and one chat that the last-seen decision reads.
 #[derive(Debug, Default)]
-struct ViewerContext {
+pub(super) struct ViewerContext {
     viewer: Uuid,
     viewer_tier: PrivacyTier,
     /// The viewer's own exceptions, keyed by the account they name.
@@ -43,11 +43,11 @@ struct ViewerContext {
     blocked_viewer: HashSet<Uuid>,
     blocked_by_viewer: HashSet<Uuid>,
     /// `last_seen` tiers of the chat's members; absent means everybody.
-    owner_tiers: HashMap<Uuid, PrivacyTier>,
+    pub(super) owner_tiers: HashMap<Uuid, PrivacyTier>,
 }
 
 impl ViewerContext {
-    fn exact_visible(&self, owner: Uuid) -> bool {
+    pub(super) fn exact_visible(&self, owner: Uuid) -> bool {
         if owner == self.viewer {
             return true;
         }
@@ -77,7 +77,7 @@ fn effect_map(rows: Vec<(Uuid, String)>) -> HashMap<Uuid, ExceptionEffect> {
 }
 
 impl AppState {
-    async fn viewer_context(
+    pub(super) async fn viewer_context(
         &self,
         viewer: Uuid,
         room_id: Uuid,

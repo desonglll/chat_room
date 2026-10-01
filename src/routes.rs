@@ -174,6 +174,10 @@ pub(crate) fn api_routes(
         )
         .route("/api/friends", get(social::handlers::list_friends))
         .route(
+            "/api/friends/statuses",
+            get(social::status_handlers::friend_statuses),
+        )
+        .route(
             "/api/friends/:user_id/remark",
             axum::routing::put(social::handlers::update_friend_remark),
         )

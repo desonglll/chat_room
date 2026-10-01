@@ -3,6 +3,7 @@
  * private chat (`src/social`). The server applies every rule (blocks stop requests and chats).
  */
 import { encodePathSegment, QueryParams, type ApiClient } from './http'
+import type { UserStatusEntry } from '../types'
 
 export interface SocialUser {
   id: string
@@ -23,6 +24,8 @@ export interface FriendRequestView {
 
 export interface SocialApi {
   friends(): Promise<SocialUser[]>
+  /** TG-903: each friend's online / last-seen status, already filtered by privacy server-side. */
+  friendStatuses(): Promise<UserStatusEntry[]>
   requests(direction: 'incoming' | 'outgoing'): Promise<FriendRequestView[]>
   sendRequest(userId: string): Promise<void>
   respond(userId: string, accept: boolean): Promise<void>
@@ -45,6 +48,7 @@ export function createSocialApi(client: ApiClient, token: () => string | null): 
   const id = encodePathSegment
   return {
     friends: () => client.json<SocialUser[]>('GET', '/api/friends', auth()),
+    friendStatuses: () => client.json<UserStatusEntry[]>('GET', '/api/friends/statuses', auth()),
     requests: (direction) =>
       client.json<FriendRequestView[]>('GET', '/api/friend-requests', {
         ...auth(),
