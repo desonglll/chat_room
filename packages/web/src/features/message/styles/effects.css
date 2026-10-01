@@ -1,0 +1,153 @@
+/*
+ * TG-411 message effects: the send flight, the reaction burst and big emoji. Timing comes
+ * only from `--tg-motion-*` / `--tg-*` tokens, which TG-009 collapses under reduced motion;
+ * the moving keyframes also get an explicit fade-only fallback below. Nothing here changes
+ * layout size — only transform and opacity animate, so there is no layout shift.
+ */
+
+/* Send: the user's own new message rises out of the composer and settles into place. */
+.tg-message[data-fresh][data-side='out'] .tg-message__column {
+  transform-origin: bottom right;
+  animation: tg-message-send var(--tg-motion-send) backwards;
+}
+
+@keyframes tg-message-send {
+  from {
+    opacity: 0;
+    transform: translateY(var(--tg-space-12)) scale(0.85);
+  }
+}
+
+/* Reaction burst: the emoji pops and a ring flashes out from behind it. */
+.tg-bubble__reaction[data-burst] .tg-bubble__reaction-emoji {
+  position: relative;
+  animation: tg-reaction-pop var(--tg-motion-burst);
+}
+
+.tg-bubble__reaction[data-burst] .tg-bubble__reaction-emoji::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--tg-radius-circle);
+  box-shadow: 0 0 0 var(--tg-space-0-5) currentColor;
+  opacity: 0;
+  animation: tg-reaction-ring var(--tg-motion-burst);
+  pointer-events: none;
+}
+
+@keyframes tg-reaction-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  45% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes tg-reaction-ring {
+  from {
+    opacity: 0.8;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+/* Big emoji: no bubble; one emoji is largest, three the smallest of the large sizes. */
+.tg-big-emoji {
+  position: relative;
+  padding-block-end: var(--tg-space-5);
+}
+
+.tg-big-emoji__glyphs {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 1.1;
+}
+
+.tg-big-emoji__glyphs:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+  border-radius: var(--tg-radius-md);
+}
+
+.tg-big-emoji__text {
+  display: inline-block;
+}
+
+.tg-big-emoji[data-count='1'] .tg-big-emoji__glyphs {
+  font-size: var(--tg-big-emoji-1);
+}
+
+.tg-big-emoji[data-count='2'] .tg-big-emoji__glyphs {
+  font-size: var(--tg-big-emoji-2);
+}
+
+.tg-big-emoji[data-count='3'] .tg-big-emoji__glyphs {
+  font-size: var(--tg-big-emoji-3);
+}
+
+.tg-message[data-fresh] .tg-big-emoji__text {
+  animation: tg-big-emoji-in var(--tg-motion-burst) backwards;
+}
+
+.tg-big-emoji__text[data-tapped] {
+  animation: tg-big-emoji-tap var(--tg-motion-burst);
+}
+
+@keyframes tg-big-emoji-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+@keyframes tg-big-emoji-tap {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.25) rotate(-6deg);
+  }
+  70% {
+    transform: scale(0.95) rotate(3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-message[data-fresh][data-side='out'] .tg-message__column,
+  .tg-message[data-fresh] .tg-big-emoji__text {
+    animation-name: tg-effect-fade;
+    animation-duration: var(--tg-duration-fade);
+  }
+
+  .tg-bubble__reaction[data-burst] .tg-bubble__reaction-emoji,
+  .tg-big-emoji__text[data-tapped] {
+    animation: none;
+  }
+
+  .tg-bubble__reaction[data-burst] .tg-bubble__reaction-emoji::after {
+    animation-name: tg-effect-flash;
+    animation-duration: var(--tg-duration-fade);
+  }
+}
+
+@keyframes tg-effect-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tg-effect-flash {
+  from {
+    opacity: 0.6;
+  }
+}

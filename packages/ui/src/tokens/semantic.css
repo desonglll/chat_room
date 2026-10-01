@@ -121,6 +121,10 @@
   --tg-type-header-size: var(--tg-raw-font-size-20); /* screen titles */
   --tg-type-header-line: var(--tg-raw-line-height-20);
   --tg-type-hero-size: var(--tg-raw-font-size-24);
+  /* TG-411: an emoji-only message, by count — one is largest. */
+  --tg-big-emoji-1: var(--tg-raw-font-size-72);
+  --tg-big-emoji-2: var(--tg-raw-font-size-56);
+  --tg-big-emoji-3: var(--tg-raw-font-size-44);
   --tg-type-hero-line: var(--tg-raw-line-height-24);
 
   /* ══ Layout ════════════════════════════════════════════════════════════ */
@@ -216,6 +220,8 @@
   --tg-motion-press: var(--tg-transition-spring-smooth); /* bubble shrink during long press */
   --tg-motion-panel: var(--tg-transition-spring); /* info / settings panel push */
   --tg-motion-modal: var(--tg-transition-spring); /* modal, sheet, popover appear */
+  --tg-motion-send: var(--tg-transition-spring-smooth); /* TG-411 own message flies in */
+  --tg-motion-burst: var(--tg-transition-spring-bounce); /* TG-411 reaction pop, big emoji */
 
   /* ══ Motion · spring parameters for the JS animation layer ══════════════
      `motion`/framer-motion takes mass, stiffness and damping in the same

@@ -1,8 +1,9 @@
 /**
  * The decorations above and below a bubble's content: sender name, forwarded-from header,
- * reply quote, reaction chips. Each is a small presentational piece with no state.
+ * reply quote, reaction chips. Presentational; the only state is a chip's TG-411 burst counter.
  */
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import type { ForwardedFrom, MessageReaction, ReplyPreview } from '@tg/core'
 
 export function SenderName({ name }: { name: string }) {
@@ -91,28 +92,59 @@ export function ReactionRow({
 }) {
   return (
     <div className="tg-bubble__reactions">
-      {reactions.map((reaction) => {
-        const chosen = viewerId !== undefined && reaction.user_ids.includes(viewerId)
-        const count = reaction.user_ids.length
-        return (
-          <button
-            key={reaction.emoji}
-            type="button"
-            className="tg-bubble__reaction"
-            aria-pressed={chosen}
-            aria-label={`${reaction.emoji} ${count} 人`}
-            disabled={onReact === undefined}
-            onClick={(event) => {
-              event.stopPropagation()
-              onReact?.(reaction.emoji)
-            }}
-          >
-            <span className="tg-bubble__reaction-emoji">{reaction.emoji}</span>
-            <span className="tg-bubble__reaction-count">{count}</span>
-          </button>
-        )
-      })}
+      {reactions.map((reaction) => (
+        <ReactionChip
+          key={reaction.emoji}
+          emoji={reaction.emoji}
+          count={reaction.user_ids.length}
+          chosen={viewerId !== undefined && reaction.user_ids.includes(viewerId)}
+          onReact={onReact}
+        />
+      ))}
       {metaSpacer}
     </div>
+  )
+}
+
+/**
+ * One chip. TG-411: when the viewer's own reaction lands (chosen goes false → true while the
+ * chip is on screen) the emoji bursts — a pop plus an expanding ring. History never bursts.
+ */
+function ReactionChip({
+  emoji,
+  count,
+  chosen,
+  onReact,
+}: {
+  emoji: string
+  count: number
+  chosen: boolean
+  onReact?: ((emoji: string) => void) | undefined
+}) {
+  const [burst, setBurst] = useState(0)
+  const [wasChosen, setWasChosen] = useState(chosen)
+  if (chosen !== wasChosen) {
+    // Adjusting state during render (React's documented pattern) — no effect, no extra frame.
+    setWasChosen(chosen)
+    if (chosen) setBurst((value) => value + 1)
+  }
+  return (
+    <button
+      type="button"
+      className="tg-bubble__reaction"
+      aria-pressed={chosen}
+      aria-label={`${emoji} ${count} 人`}
+      disabled={onReact === undefined}
+      data-burst={burst > 0 ? '' : undefined}
+      onClick={(event) => {
+        event.stopPropagation()
+        onReact?.(emoji)
+      }}
+    >
+      <span key={burst} className="tg-bubble__reaction-emoji">
+        {emoji}
+      </span>
+      <span className="tg-bubble__reaction-count">{count}</span>
+    </button>
   )
 }
