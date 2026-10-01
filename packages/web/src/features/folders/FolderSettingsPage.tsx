@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import type { ChatFolder, ChatFolderWrite } from '@tg/core'
 import { chatListStore, folderConversations, MAX_CHAT_FOLDERS, settingsStore } from '@tg/core'
-import { Button } from '@tg/ui'
+import { Button, RadioGroup } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { browserStorage } from '../../app/platform'
 import { EMPTY_FOLDER, FolderEditor } from './FolderEditor'
@@ -60,61 +60,65 @@ export function FolderSettingsPage({ api = foldersApi }: { api?: FoldersApi }) {
   const now = Date.now()
   return (
     <div className="tg-folder-settings">
-      <p>{t('w.folders.675049')}</p>
-      <ul className="tg-folder-list" aria-label={t('w.folders.d7ce24')}>
-        {folders.map((folder, index) => (
-          <li key={folder.id} className="tg-folder-list__item">
-            <span aria-hidden="true">{folder.emoji || '📁'}</span>
-            <span className="tg-folder-list__title">
-              {folder.title} · {folderConversations(folder, conversations, now).length} {t('w.folders.3bd0ab')}
-            </span>
-            <Button
-              variant="text"
-              size="sm"
-              aria-label={t('w.folders.38e2f3', folder.title)}
-              disabled={index === 0}
-              onClick={() => move(index, -1)}
-            >
-              ↑
-            </Button>
-            <Button
-              variant="text"
-              size="sm"
-              aria-label={t('w.folders.451b58', folder.title)}
-              disabled={index === folders.length - 1}
-              onClick={() => move(index, 1)}
-            >
-              ↓
-            </Button>
-            <Button variant="text" size="sm" onClick={() => setEditing(folder)}>
-              {t('w.folders.a7f814')}
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => void run(() => api.remove(folder.id))}>
-              {t('w.folders.3755f5')}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <Button disabled={folders.length >= MAX_CHAT_FOLDERS} onClick={() => setEditing('new')}>
-        {t('w.folders.95cf3c')}
-      </Button>
-      {folders.length >= MAX_CHAT_FOLDERS ? (
-        <p>
-          {t('w.folders.4c5dfc')} {MAX_CHAT_FOLDERS} {t('w.folders.9a311c')}
-        </p>
-      ) : null}
-      {failure ? <p role="alert">{failure}</p> : null}
-      <fieldset className="tg-folder-editor__group">
-        <legend>{t('w.folders.489b5a')}</legend>
-        <label>
-          <input type="radio" name="folder-layout" checked={layout === 'top'} onChange={() => setLayout('top')} />{' '}
-          {t('w.folders.ad65cb')}
-        </label>
-        <label>
-          <input type="radio" name="folder-layout" checked={layout === 'left'} onChange={() => setLayout('left')} />{' '}
-          {t('w.folders.9bfcb6')}
-        </label>
-      </fieldset>
+      <section className="tg-settings__group">
+        <p className="tg-settings__hint">{t('w.folders.675049')}</p>
+        <ul className="tg-folder-list" aria-label={t('w.folders.d7ce24')}>
+          {folders.map((folder, index) => (
+            <li key={folder.id} className="tg-folder-list__item">
+              <span aria-hidden="true">{folder.emoji || '📁'}</span>
+              <span className="tg-folder-list__title">
+                {folder.title} · {folderConversations(folder, conversations, now).length} {t('w.folders.3bd0ab')}
+              </span>
+              <Button
+                variant="text"
+                size="sm"
+                aria-label={t('w.folders.38e2f3', folder.title)}
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+              >
+                ↑
+              </Button>
+              <Button
+                variant="text"
+                size="sm"
+                aria-label={t('w.folders.451b58', folder.title)}
+                disabled={index === folders.length - 1}
+                onClick={() => move(index, 1)}
+              >
+                ↓
+              </Button>
+              <Button variant="text" size="sm" onClick={() => setEditing(folder)}>
+                {t('w.folders.a7f814')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => void run(() => api.remove(folder.id))}>
+                {t('w.folders.3755f5')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <Button disabled={folders.length >= MAX_CHAT_FOLDERS} onClick={() => setEditing('new')}>
+          {t('w.folders.95cf3c')}
+        </Button>
+        {folders.length >= MAX_CHAT_FOLDERS ? (
+          <p>
+            {t('w.folders.4c5dfc')} {MAX_CHAT_FOLDERS} {t('w.folders.9a311c')}
+          </p>
+        ) : null}
+        {failure ? <p role="alert">{failure}</p> : null}
+      </section>
+      {/* TG-1002: a settings card with the shared radio rows, not a bare fieldset. */}
+      <section className="tg-settings__group">
+        <RadioGroup
+          name="folder-layout"
+          label={<span className="tg-settings__group-title">{t('w.folders.489b5a')}</span>}
+          value={layout}
+          onValueChange={(value) => setLayout(value === 'left' ? 'left' : 'top')}
+          options={[
+            { value: 'top', label: t('w.folders.ad65cb') },
+            { value: 'left', label: t('w.folders.9bfcb6') },
+          ]}
+        />
+      </section>
     </div>
   )
 }

@@ -116,3 +116,24 @@
   flex: 1;
   min-width: 0;
 }
+
+/* TG-1002: the page is two settings cards, like every other settings page. */
+.tg-folder-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+}
+
+.tg-folder-settings .tg-folder-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-folder-settings .tg-folder-list:empty {
+  display: none;
+}
+
+.tg-folder-settings > .tg-settings__group > .tg-button {
+  align-self: flex-start;
+}

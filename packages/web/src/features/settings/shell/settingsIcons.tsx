@@ -6,7 +6,17 @@
 import type { ReactNode } from 'react'
 import type { SettingsSectionId } from './settingsRegistry'
 
-export type SettingsIconName = SettingsSectionId | 'back' | 'close' | 'edit' | 'chevron' | 'security'
+export type SettingsIconName =
+  | SettingsSectionId
+  | 'back'
+  | 'close'
+  | 'edit'
+  | 'chevron'
+  | 'security'
+  | 'password'
+  | 'avatar'
+  | 'qr'
+  | 'stickers'
 
 const PATHS: Record<SettingsIconName, ReactNode> = {
   account: (
@@ -59,6 +69,34 @@ const PATHS: Record<SettingsIconName, ReactNode> = {
   close: <path d="M6 6l12 12M18 6 6 18" />,
   edit: <path d="M4.5 19.5h4l10-10-4-4-10 10Zm9-13 4 4" />,
   chevron: <path d="m9 6 6 6-6 6" />,
+  // TG-1002: the secondary rows of a section each get their own glyph.
+  password: (
+    <>
+      <circle cx="8" cy="15" r="3.5" />
+      <path d="m10.5 12.5 8-8M15.5 7.5l2.5 2.5M13 10l2 2" />
+    </>
+  ),
+  avatar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <circle cx="12" cy="11" r="2.5" />
+      <path d="M7.5 19a4.5 4.5 0 0 1 9 0" />
+    </>
+  ),
+  qr: (
+    <>
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2" />
+    </>
+  ),
+  stickers: (
+    <>
+      <path d="M20 12a8 8 0 1 1-8-8h8v8Z" />
+      <path d="M9 10h.01M15 10h.01M9 14.5a4 4 0 0 0 6 0" />
+    </>
+  ),
 }
 
 export function SettingsIcon({ name, size = 22 }: { name: SettingsIconName; size?: number }) {

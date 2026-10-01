@@ -121,26 +121,56 @@ function ComingSoon({ section }: { section: SettingsSection }) {
   )
 }
 
+/**
+ * A section with several pages (TG-1002): Telegram shows the section's main page itself and the
+ * other pages as rows under it («隐私与安全» = the rules, then «两步验证») — never a menu whose
+ * first row repeats the section's own name.
+ */
 export function SectionView({ section, context }: { section: SettingsSection; context: ViewContext }) {
-  const pages = pagesInSection(context.pages, section.id)
+  const [primary, ...more] = pagesInSection(context.pages, section.id)
+  if (!primary) {
+    return (
+      <>
+        <SettingsHeader title={section.title} onBack={context.back} />
+        <div className="tg-settings__body">
+          <ComingSoon section={section} />
+        </div>
+      </>
+    )
+  }
+  const Page = primary.component
+  const rows =
+    more.length === 0 ? null : (
+      <div className="tg-settings__group tg-settings__group--rows tg-settings__group--more">
+        {more.map((page) => (
+          <Row
+            key={page.id}
+            icon={page.icon ?? <SettingsIcon name={section.id} />}
+            title={page.title}
+            onOpen={() => context.push({ kind: 'page', id: page.id })}
+          />
+        ))}
+      </div>
+    )
+  const body = (
+    <Suspense fallback={<Spinner label={t('w.settings.3667cb')} />}>
+      <Page onBack={context.back} onClose={context.close} />
+    </Suspense>
+  )
+  if (primary.ownsHeader) {
+    return (
+      <div className="tg-settings__body tg-settings__body--bare">
+        {body}
+        {rows}
+      </div>
+    )
+  }
   return (
     <>
       <SettingsHeader title={section.title} onBack={context.back} />
       <div className="tg-settings__body">
-        {pages.length === 0 ? (
-          <ComingSoon section={section} />
-        ) : (
-          <div className="tg-settings__group tg-settings__group--rows">
-            {pages.map((page) => (
-              <Row
-                key={page.id}
-                icon={page.icon ?? <SettingsIcon name={section.id} />}
-                title={page.title}
-                onOpen={() => context.push({ kind: 'page', id: page.id })}
-              />
-            ))}
-          </div>
-        )}
+        {body}
+        {rows}
       </div>
     </>
   )

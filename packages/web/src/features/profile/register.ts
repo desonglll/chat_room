@@ -4,7 +4,7 @@
  */
 import { createElement, lazy } from 'react'
 import { authStore } from '@tg/core'
-import { registerSettingsPage } from '../settings/shell'
+import { registerSettingsPage, SettingsIcon } from '../settings/shell'
 import { t } from '../../i18n/index'
 import './profile.css'
 
@@ -16,6 +16,7 @@ registerSettingsPage({
   get title() {
     return t('w.profile.4ceeeb')
   },
+  icon: createElement(SettingsIcon, { name: 'avatar' }),
   order: 20,
   component: () => createElement(AvatarCarousel, { userId: authStore.getState().session?.user.id ?? '' }),
 })
@@ -26,6 +27,7 @@ registerSettingsPage({
   get title() {
     return t('w.profile.de99c3')
   },
+  icon: createElement(SettingsIcon, { name: 'qr' }),
   order: 30,
   component: lazy(() => import('./ProfileQrCard').then((m) => ({ default: m.ProfileQrCard }))),
 })

@@ -97,3 +97,24 @@
 .tg-settings__body--bare > .tg-privacy {
   flex: 1;
 }
+
+/* TG-1002: selects inside settings read as Telegram's inline value pickers (accent value with a
+   chevron, no native box), wherever a page uses a plain <select>. */
+.tg-settings select {
+  appearance: none;
+  padding: var(--tg-space-1) var(--tg-space-6) var(--tg-space-1) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--tg-accent) 50%) calc(100% - 14px) 55% / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--tg-accent) 50%) calc(100% - 9px) 55% / 5px 5px no-repeat,
+    var(--tg-bg-secondary);
+  color: var(--tg-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tg-settings select:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: 1px;
+}

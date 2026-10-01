@@ -12,3 +12,4 @@ export type {
 export { openSettings, settingsNavigation } from './settingsNavigation'
 export type { SettingsView } from './settingsNavigation'
 export { SettingsHost } from './SettingsHost'
+export { SettingsIcon } from './settingsIcons'
