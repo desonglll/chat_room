@@ -1,0 +1,108 @@
+/* TG-703: the notification bell and page. */
+.tg-bell {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tg-space-10);
+  block-size: var(--tg-space-10);
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: none;
+  color: var(--tg-text-secondary);
+  cursor: pointer;
+}
+
+.tg-bell:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-bell:focus-visible,
+.tg-notifications__item:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: var(--tg-focus-ring-offset);
+}
+
+.tg-bell__badge {
+  position: absolute;
+  inset-block-start: var(--tg-space-0-5);
+  inset-inline-end: var(--tg-space-0-5);
+  min-inline-size: 1.25em;
+  padding: 0 var(--tg-space-1);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-badge-bg);
+  color: var(--tg-badge-text);
+  font-size: var(--tg-type-badge-size);
+  line-height: 1.4;
+}
+
+.tg-notifications {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  inline-size: 100%;
+  max-inline-size: 42rem;
+  margin: 0 auto;
+  padding: var(--tg-space-4);
+  overflow-y: auto;
+  background: var(--tg-surface);
+}
+
+.tg-notifications__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tg-notifications__header h2 {
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+}
+
+.tg-notifications__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-notifications__item {
+  display: flex;
+  gap: var(--tg-space-3);
+  inline-size: 100%;
+  padding: var(--tg-space-2);
+  border: 0;
+  border-radius: var(--tg-radius-md);
+  background: none;
+  color: var(--tg-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tg-notifications__item[data-unread] {
+  background: var(--tg-accent-soft);
+}
+
+.tg-notifications__item:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-notifications__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tg-notifications__summary {
+  overflow: hidden;
+  color: var(--tg-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-notifications__time,
+.tg-notifications__empty {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}

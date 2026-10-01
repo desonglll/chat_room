@@ -7,6 +7,7 @@
 import { useEffect } from 'react'
 import { authStore, chatListStore, messageStore, uiStore } from '@tg/core'
 import { apiClient } from '../../app/client'
+import { applyAccountSignal } from '../notifications/notificationsStore'
 import { accountSocketUrl, browserClock, createBrowserSocket } from '../../app/platform'
 import { startAccountFeed } from './accountFeed'
 import { loadChatList, loadConversations } from './chatListController'
@@ -34,6 +35,7 @@ export function useChatListSync(token: string): void {
       activeChatId: () => uiStore.getState().activeChatId,
       currentUserId: () => authStore.getState().session?.user.id ?? '',
       resync,
+      onSignal: applyAccountSignal,
     })
     const stopMirror = mirrorTimelines(messageStore, chatListStore)
     return () => {

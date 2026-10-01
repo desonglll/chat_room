@@ -11,6 +11,7 @@ import type { MenuItem } from '@tg/ui'
 import { authStore, chatListStore, selectToken, settingsStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { ScrollArea, Skeleton } from '@tg/ui'
+import { notificationsStore } from '../notifications/notificationsStore'
 import { promptInstall, pwaStore } from '../../app/pwa'
 import { apiClient } from '../../app/client'
 import { openSettings } from '../settings/shell/settingsNavigation'
@@ -72,6 +73,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const searchTab = useStore(searchStore, (state) => state.tab)
   // TG-601: «安装应用» while the browser offers installation.
   const canInstall = useStore(pwaStore, (state) => state.canInstall)
+  const incomingRequests = useStore(notificationsStore, (state) => state.incomingRequests)
   const searching = query.trim() !== '' && !collapsed
   const messageTab = searching && searchTab !== 'chats'
   const custom = folder === 'main' ? activeFolder : undefined
@@ -115,7 +117,13 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
       ? [{ id: 'archive-show', label: t('w.chatList.bb986d'), onSelect: () => changeArchiveMode('collapsed') }]
       : []),
     ...(canInstall ? [{ id: 'install', label: t('w.pwa.install'), onSelect: () => void promptInstall() }] : []),
-    { id: 'contacts', label: t('w.contacts.menu'), onSelect: () => void navigate('/contacts') },
+    {
+      id: 'contacts',
+      label: t('w.contacts.menu'),
+      // TG-703: pending incoming friend requests, pushed by the account socket.
+      hint: incomingRequests > 0 ? String(incomingRequests) : undefined,
+      onSelect: () => void navigate('/contacts'),
+    },
     { id: 'settings', label: t('w.chatList.7debf9'), onSelect: () => openSettings() },
     { id: 'night', label: t('w.chatList.e32be0'), onSelect: toggleNightMode },
     ...(onToggleCollapsed
