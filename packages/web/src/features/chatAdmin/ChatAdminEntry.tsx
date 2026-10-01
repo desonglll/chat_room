@@ -4,9 +4,14 @@
  * administrator, "群组权限" (read-only) for a member — which slides the admin panel in as a
  * right sheet.
  *
+ * TG-1203: a channel gets the same panel ("管理频道") for its owner and administrators —
+ * before this nothing reached a channel's invite links, discussion group, signatures, public
+ * link or administrators. Subscribers see no entry. `managerExtra` renders beside the entry
+ * from the same permissions answer (the info panel's audit log uses it).
+ *
  *   <ChatAdminEntry chatId={chatId} />
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { ChatAdminApi, ChatPermissionsView } from '@tg/core'
 import { Sheet } from '@tg/ui'
 import { chatAdminApi } from './chatAdminApi'
@@ -22,6 +27,8 @@ export interface ChatAdminEntryProps {
   api?: ChatAdminApi | undefined
   /** Test/screenshot seed for the access check. */
   initialView?: ChatPermissionsView | undefined
+  /** Rendered after the entry, from the same permissions answer. */
+  managerExtra?: ((view: ChatPermissionsView) => ReactNode) | undefined
 }
 
 function ShieldIcon() {
@@ -38,15 +45,18 @@ function ShieldIcon() {
   )
 }
 
-export function ChatAdminEntry({ chatId, api = chatAdminApi, initialView }: ChatAdminEntryProps) {
+export function ChatAdminEntry({ chatId, api = chatAdminApi, initialView, managerExtra }: ChatAdminEntryProps) {
   const [open, setOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const access = useChatAdminAccess(api, initialView ? null : chatId, reloadKey)
   const view = initialView ?? access.view
-  // Channels get their own admin surface (TG-202); a private chat has nothing to administer.
-  if (!view || view.chat_type === 'private' || view.chat_type === 'channel') return null
-  // Every member sees the chat type and the rules; administrators also get the editors.
-  const manages = adminCapabilities(view).any
+  // A private chat has nothing to administer; a channel's subscribers have no rules to read.
+  if (!view || view.chat_type === 'private') return null
+  const channel = view.chat_type === 'channel'
+  if (channel && view.my_role !== 'owner' && view.my_role !== 'admin') return null
+  // Every group member sees the chat type and the rules; administrators also get the editors.
+  const manages = channel || adminCapabilities(view).any
+  const title = channel ? t('w.chatAdmin.manageChannel') : manages ? t('w.chatAdmin.924751') : t('w.chatAdmin.e986f4')
 
   return (
     <>
@@ -55,18 +65,17 @@ export function ChatAdminEntry({ chatId, api = chatAdminApi, initialView }: Chat
           <ShieldIcon />
         </span>
         <span className="tg-chatadmin__entry-text">
-          <span className="tg-chatadmin__entry-title">
-            {manages ? t('w.chatAdmin.924751') : t('w.chatAdmin.e986f4')}
-          </span>
+          <span className="tg-chatadmin__entry-title">{title}</span>
           <span className="tg-chatadmin__entry-sub">
-            {CHAT_TYPE_LABEL[view.chat_type]} · {view.member_count} {t('w.chatAdmin.b8d0b7')}
+            {CHAT_TYPE_LABEL[view.chat_type]} · {view.member_count}{' '}
+            {channel ? t('w.chatAdmin.subscriberUnit') : t('w.chatAdmin.b8d0b7')}
           </span>
         </span>
       </button>
       <Sheet
         open={open}
         side="right"
-        ariaLabel={t('w.chatAdmin.924751')}
+        ariaLabel={title}
         showClose={false}
         className="tg-chatadmin__sheet"
         onClose={() => {
@@ -85,6 +94,7 @@ export function ChatAdminEntry({ chatId, api = chatAdminApi, initialView }: Chat
           />
         ) : null}
       </Sheet>
+      {managerExtra?.(view)}
     </>
   )
 }

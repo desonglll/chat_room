@@ -49,3 +49,8 @@ export function channelPostLabel(post: ChannelPostParts): string {
 export function canPublish(myPermissions: readonly string[] | null): boolean {
   return myPermissions?.includes('message.post') ?? false
 }
+
+/** TG-1203: whether a group's permission view still lets the viewer send (restrictions applied). */
+export function canWriteInGroup(myPermissions: readonly string[]): boolean {
+  return myPermissions.includes('message.send')
+}

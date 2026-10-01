@@ -8,7 +8,7 @@ import type { ApiClient } from '@tg/core'
 import { chatListStore, presenceStore } from '@tg/core'
 import { IconButton, ScrollArea } from '@tg/ui'
 import { useStore } from 'zustand/react'
-import { countMembers, PANEL_HEADING, withKnownMembers } from './chatInfoModel'
+import { canReadAuditLog, countMembers, PANEL_HEADING, withKnownMembers } from './chatInfoModel'
 import { CloseIcon, SearchIcon } from './icons'
 import { ChatAdminEntry } from '../chatAdmin/ChatAdminEntry'
 import { ChatActions } from '../chatLifecycle'
@@ -86,7 +86,14 @@ export function ChatInfoPanel({
               onNotificationsChange={info.setNotifications}
               chatId={chatId}
             />
-            {header.variant === 'group' ? <ChatAdminEntry chatId={chatId} /> : null}
+            {/* TG-1203: channels too; the audit log only for holders of members.review — the
+                server answers anyone else 403. */}
+            {header.variant !== 'private' ? (
+              <ChatAdminEntry
+                chatId={chatId}
+                managerExtra={(view) => (canReadAuditLog(view) ? <AuditLogEntry chatId={chatId} /> : null)}
+              />
+            ) : null}
             <SharedSection
               chatId={chatId}
               pagers={info.pagers}
@@ -95,7 +102,6 @@ export function ChatInfoPanel({
             />
             {/* TG-706: the chat's tasks, and its audit log for managers. */}
             {header.variant === 'group' && chat?.chat_type !== 'channel' ? <TasksSection chatId={chatId} /> : null}
-            {header.variant === 'group' ? <AuditLogEntry chatId={chatId} /> : null}
             {/* TG-701: edit, invite, leave, delete. */}
             {chat ? <ChatActions chat={chat} /> : null}
           </>

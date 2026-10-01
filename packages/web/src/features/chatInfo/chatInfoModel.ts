@@ -141,3 +141,8 @@ export function withKnownMembers(header: InfoHeaderModel | null, knownMembers: n
   if (header?.variant !== 'group' || header.memberCount >= knownMembers) return header
   return { ...header, memberCount: knownMembers }
 }
+
+/** TG-1203: `GET /api/chats/:id/audit-events` requires `members.review`; nobody else asks. */
+export function canReadAuditLog(view: { my_permissions: readonly string[] }): boolean {
+  return view.my_permissions.includes('members.review')
+}

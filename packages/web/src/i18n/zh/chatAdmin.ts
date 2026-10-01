@@ -58,4 +58,15 @@ export const chatAdmin: Catalog = {
   'w.chatAdmin.fadf24': '保存',
   'w.chatAdmin.ff3beb': '所有者',
   'w.chatAdmin.ffa17c': '解除限制',
+  // TG-1203: bans
+  'w.chatAdmin.banMember': '封禁并移出群组',
+  'w.chatAdmin.banWarning': '对方会被移出，并且不能再通过链接或公开用户名重新加入，直到解除封禁。',
+  'w.chatAdmin.banConfirm': '封禁',
+  'w.chatAdmin.banCancel': '取消',
+  'w.chatAdmin.bannedTitle': '已封禁的用户',
+  'w.chatAdmin.noBanned': '没有被封禁的用户。',
+  'w.chatAdmin.unban': '解除封禁',
+  'w.chatAdmin.manageChannel': '管理频道',
+  'w.chatAdmin.subscribers': '订阅者',
+  'w.chatAdmin.subscriberUnit': '位订阅者',
 }

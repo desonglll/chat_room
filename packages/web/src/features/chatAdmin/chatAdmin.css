@@ -91,6 +91,9 @@
   display: flex;
   align-items: center;
   gap: var(--tg-space-4);
+  /* TG-1203: the owner's row is a static <div>, which (unlike a <button>) is content-box —
+     at 100% plus padding it overflowed and clipped the «所有者» badge. */
+  box-sizing: border-box;
   inline-size: 100%;
   min-height: var(--tg-menu-row-height);
   padding: var(--tg-space-2) var(--tg-space-4);
@@ -220,4 +223,11 @@ button.tg-chatadmin__member-button:hover,
   .tg-chatadmin__entry {
     transition: none;
   }
+}
+
+/* TG-1203: the ban confirmation under a member's actions. */
+.tg-chatadmin__confirm {
+  display: grid;
+  gap: var(--tg-space-2);
+  justify-items: start;
 }
