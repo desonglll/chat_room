@@ -95,6 +95,36 @@ pub async fn authorize_voice_send(
     Ok(())
 }
 
+/// TG-802: forwarding a voice or round video message into a private chat delivers a voice
+/// message to the peer, so the peer's `voice_messages` rule applies exactly as it does to
+/// [`authorize_voice_send`]. Every other forward is admitted here.
+pub(crate) async fn forward_voice_allowed(
+    state: &AppState,
+    source_message_id: Uuid,
+    target_room_id: Uuid,
+    forwarder: Uuid,
+) -> Result<bool, sqlx::Error> {
+    let media_kind: Option<Option<String>> = crate::state::with_pool!(state, |pool| {
+        sqlx::query_scalar("SELECT media_kind FROM messages WHERE id = $1")
+            .bind(source_message_id)
+            .fetch_optional(pool)
+            .await
+    })?;
+    if !matches!(
+        media_kind.flatten().as_deref(),
+        Some("voice" | "video_note")
+    ) {
+        return Ok(true);
+    }
+    match state
+        .private_chat_peer_id(target_room_id, forwarder)
+        .await?
+    {
+        Some(peer) => state.voice_message_allowed(forwarder, peer).await,
+        None => Ok(true),
+    }
+}
+
 /// Validate, store and broadcast one voice message. The container is sniffed from the bytes
 /// (never trusted from the client), and the duration is read from it when it carries one.
 pub async fn send_voice(

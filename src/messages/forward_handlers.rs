@@ -7,6 +7,10 @@ use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
 
+/// TG-802: the `skipped_reason` of a forward refused by the recipient's voice-message
+/// privacy; the same code the voice send endpoint returns, so clients map it once.
+pub const VOICE_MESSAGES_RESTRICTED: &str = "voice_messages_restricted";
+
 /// Forward one or more messages into one or more target chats. Each
 /// (source message, target chat) pair is attempted independently — a message
 /// that has since been recalled, or a chat the caller can no longer post in,
@@ -98,6 +102,24 @@ pub async fn forward_messages(
                     target_room_id,
                     forwarded_message_id: None,
                     skipped_reason: Some("the target topic is closed".into()),
+                });
+                continue;
+            }
+            // TG-802: the recipient's voice-message privacy covers forwarded voice too.
+            let voice_allowed = crate::attachments::voice::forward_voice_allowed(
+                &state,
+                message_id,
+                target_room_id,
+                user.id,
+            )
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            if !voice_allowed {
+                results.push(ForwardResult {
+                    message_id,
+                    target_room_id,
+                    forwarded_message_id: None,
+                    skipped_reason: Some(VOICE_MESSAGES_RESTRICTED.into()),
                 });
                 continue;
             }

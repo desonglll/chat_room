@@ -9,6 +9,7 @@ import { apiClient } from '../../app/client'
 import { browserClock } from '../../app/platform'
 import type { ComposerController, ComposerSessionApi } from './composerController'
 import { createComposerController } from './composerController'
+import { reportForwardResults } from './forwardNotice'
 
 export function useComposerController(chatId: string, session: ComposerSessionApi): ComposerController {
   const actions = useMemo(
@@ -33,7 +34,9 @@ export function useComposerController(chatId: string, session: ComposerSessionAp
         messages: messageStore,
         actions,
         forward: (messageIds, targetChatId) =>
-          forwardMessages(apiClient, selectToken(authStore.getState()), [...messageIds], [targetChatId]),
+          forwardMessages(apiClient, selectToken(authStore.getState()), [...messageIds], [targetChatId]).then(
+            (results) => reportForwardResults(targetChatId, results),
+          ),
       }),
     [actions, chatId, session],
   )

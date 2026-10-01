@@ -13,6 +13,10 @@ pub struct MessagePreview {
     pub sender: String,
     pub content: String,
     pub attachment_file_name: Option<String>,
+    /// TG-802: `voice`, `video_note`, `sticker`, `gif`, `poll`, `location`, `live_location`,
+    /// `contact`, `album`, `photo`, `video`, `audio` or `file`; absent for plain text.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_kind: Option<String>,
     pub recalled: bool,
     pub created_at: DateTime<Utc>,
 }

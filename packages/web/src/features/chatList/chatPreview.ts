@@ -3,10 +3,23 @@
  * someone typing > the caller's own draft > the last message > an empty-chat hint.
  * Pure — the row renders the result, tests assert it.
  */
-import type { ChatType, ConversationLastMessage } from '@tg/core'
+import type { ChatType, ConversationLastMessage, PreviewMediaKind } from '@tg/core'
 import { t } from '../../i18n/index'
 
-export type PreviewMedia = 'photo' | 'video' | 'gif' | 'voice' | 'audio' | 'sticker' | 'file'
+export type PreviewMedia =
+  | 'photo'
+  | 'video'
+  | 'gif'
+  | 'voice'
+  | 'audio'
+  | 'sticker'
+  | 'file'
+  | 'videoNote'
+  | 'poll'
+  | 'location'
+  | 'liveLocation'
+  | 'contact'
+  | 'album'
 
 export type ChatPreview =
   | { kind: 'typing'; text: string }
@@ -70,9 +83,52 @@ export const MEDIA_LABEL: Record<PreviewMedia, string> = {
   get file() {
     return t('w.chatList.49deaf')
   },
+  get videoNote() {
+    return t('w.chatList.media.videoNote')
+  },
+  get poll() {
+    return t('w.chatList.media.poll')
+  },
+  get location() {
+    return t('w.chatList.media.location')
+  },
+  get liveLocation() {
+    return t('w.chatList.media.liveLocation')
+  },
+  get contact() {
+    return t('w.chatList.media.contact')
+  },
+  get album() {
+    return t('w.chatList.media.album')
+  },
 }
 
-/** Media kind from the attachment name (the list summary carries no MIME type). */
+const MEDIA_BY_KIND: Record<PreviewMediaKind, PreviewMedia> = {
+  voice: 'voice',
+  video_note: 'videoNote',
+  sticker: 'sticker',
+  gif: 'gif',
+  poll: 'poll',
+  location: 'location',
+  live_location: 'liveLocation',
+  contact: 'contact',
+  album: 'album',
+  photo: 'photo',
+  video: 'video',
+  audio: 'audio',
+  file: 'file',
+}
+
+/**
+ * TG-802: the server names the kind; the file-name guess is kept only for a preview from a
+ * server older than TG-802 (it called a voice message "audio" and missed polls entirely).
+ */
+export function previewMedia(message: ConversationLastMessage): PreviewMedia | null {
+  if (message.media_kind) return MEDIA_BY_KIND[message.media_kind] ?? 'file'
+  return mediaFromFileName(message.attachment_file_name)
+}
+
+/** Fallback media kind from the attachment name, for previews without `media_kind`. */
 export function mediaFromFileName(fileName: string | null): PreviewMedia | null {
   if (!fileName) return null
   const dot = fileName.lastIndexOf('.')
@@ -103,7 +159,7 @@ export function buildChatPreview(input: PreviewInput): ChatPreview {
     return { kind: 'empty', text: input.chatType === 'private' ? t('w.chatList.d3f20d') : t('w.chatList.30dfbc') }
   if (message.recalled)
     return { kind: 'message', sender: null, media: null, text: t('w.chatList.26b4ea'), recalled: true }
-  const media = mediaFromFileName(message.attachment_file_name)
+  const media = previewMedia(message)
   const caption = singleLine(message.content)
   const text = caption || (media === 'file' ? (message.attachment_file_name ?? '') : media ? MEDIA_LABEL[media] : '')
   return { kind: 'message', sender: senderPrefix(input, message), media, text, recalled: false }

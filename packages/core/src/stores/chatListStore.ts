@@ -28,6 +28,22 @@ export interface ConversationPreferences {
   updated_at: string
 }
 
+/** TG-802: `src/conversations/preview_media.rs` — what a one-line preview stands for. */
+export type PreviewMediaKind =
+  | 'voice'
+  | 'video_note'
+  | 'sticker'
+  | 'gif'
+  | 'poll'
+  | 'location'
+  | 'live_location'
+  | 'contact'
+  | 'album'
+  | 'photo'
+  | 'video'
+  | 'audio'
+  | 'file'
+
 /** `src/conversations/models.rs::MessagePreview`; `content` is capped at 120 chars server-side. */
 export interface ConversationLastMessage {
   message_id: string
@@ -35,6 +51,8 @@ export interface ConversationLastMessage {
   sender: string
   content: string
   attachment_file_name: string | null
+  /** TG-802: omitted for plain text (and by servers older than TG-802). */
+  media_kind?: PreviewMediaKind
   recalled: boolean
   created_at: string
 }
@@ -76,6 +94,8 @@ export interface AccountMessageEvent {
   sender: string
   content: string
   attachment_file_name: string | null
+  /** TG-802: same vocabulary as `ConversationLastMessage.media_kind`. */
+  media_kind?: PreviewMediaKind
   timestamp: string
   is_mention: boolean
 }
@@ -176,6 +196,7 @@ export const createChatListStore = () =>
               sender: event.sender,
               content: event.content,
               attachment_file_name: event.attachment_file_name,
+              ...(event.media_kind ? { media_kind: event.media_kind } : {}),
               recalled: false,
               created_at: event.timestamp,
             },

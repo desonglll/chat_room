@@ -258,7 +258,10 @@ export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
                     size="sm"
                     onClick={() =>
                       void act(() => api.sendRequest(user.id)).then((ok) =>
-                        tell(ok, user.relationship === 'incoming' ? t('w.contacts.accepted') : t('w.contacts.requestSent')),
+                        tell(
+                          ok,
+                          user.relationship === 'incoming' ? t('w.contacts.accepted') : t('w.contacts.requestSent'),
+                        ),
                       )
                     }
                   >

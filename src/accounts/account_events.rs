@@ -5,6 +5,9 @@ use serde::Serialize;
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use crate::conversations::preview_media::{
+    preview_media_columns, preview_media_kind, PreviewMediaColumns,
+};
 use crate::state::{with_pool, AppState};
 
 #[derive(Clone)]
@@ -26,6 +29,8 @@ struct AccountEventRow {
     attachment_file_name: Option<String>,
     created_at: DateTime<Utc>,
     is_mention: bool,
+    #[sqlx(flatten)]
+    media: PreviewMediaColumns,
 }
 
 #[derive(Serialize)]
@@ -41,6 +46,9 @@ pub(crate) struct AccountMessageEvent {
     pub sender: String,
     pub content: String,
     pub attachment_file_name: Option<String>,
+    /// TG-802: same vocabulary as `MessagePreview::media_kind`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_kind: Option<&'static str>,
     pub timestamp: DateTime<Utc>,
     pub is_mention: bool,
 }
@@ -65,6 +73,7 @@ impl AccountEventRow {
             sender: self.sender,
             content: self.content,
             attachment_file_name: self.attachment_file_name,
+            media_kind: preview_media_kind(&self.media),
             timestamp: self.created_at,
             is_mention: self.is_mention,
         }
@@ -101,6 +110,7 @@ impl AppState {
         } else {
             ""
         };
+        let media_columns = preview_media_columns!("messages", "attachments");
         let sql = format!(
             "SELECT messages.id AS message_id, messages.room_id, chats.title AS room_name, \
              CASE WHEN direct.room_id IS NULL THEN 'group' ELSE 'direct' END \
@@ -110,7 +120,7 @@ impl AppState {
                AS conversation_title, \
              messages.sender_id, messages.sender, messages.content, \
              attachments.file_name AS attachment_file_name, messages.created_at, \
-             (mention.message_id IS NOT NULL) AS is_mention \
+             (mention.message_id IS NOT NULL) AS is_mention, {media_columns} \
              FROM messages JOIN chats ON chats.id = messages.room_id \
              JOIN chat_members ON chat_members.room_id = messages.room_id \
              LEFT JOIN direct_conversations AS direct ON direct.room_id = chats.id \
