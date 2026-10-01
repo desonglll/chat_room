@@ -6,8 +6,9 @@ use uuid::Uuid;
 
 use super::reply_quotes::ReplyColumns;
 use crate::attachment_storage::StagedUpload;
+use crate::attachments::view::AttachmentRow;
 use crate::cache::MessageCacheLookup;
-use crate::models::{Attachment, ForwardedFrom, ReplyPreview, StoredMessage};
+use crate::models::{ForwardedFrom, ReplyPreview, StoredMessage};
 use crate::state::{with_pool, AppState};
 
 pub(crate) const MESSAGE_SELECT: &str = "SELECT messages.id, messages.client_message_id, \
@@ -103,19 +104,15 @@ impl MessageRow {
             .then_some(self.attachment_id)
             .flatten()
             .and_then(|id| {
-                let access_key = self.attachment_access_key?;
-                let mime_type = self.attachment_mime_type?;
-                Some(Attachment {
+                let row = AttachmentRow {
                     id,
+                    access_key: self.attachment_access_key?,
                     file_name: self.attachment_file_name?,
-                    thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
-                        id, &mime_type, access_key,
-                    ),
-                    mime_type,
+                    mime_type: self.attachment_mime_type?,
                     size_bytes: self.attachment_size_bytes?,
-                    download_url: format!("/api/attachments/{id}?key={access_key}"),
                     is_sensitive: self.attachment_is_sensitive.unwrap_or(false),
-                })
+                };
+                Some(row.into_attachment())
             });
         let reply_to = self.reply.into_preview(self.created_at);
         let forwarded_from = self.forwarded_from_sender.and_then(|sender| {

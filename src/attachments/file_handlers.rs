@@ -11,7 +11,8 @@ use sha2::{Digest, Sha256};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::models::{Attachment, ChatFileItem, ChatFilePage};
+use crate::attachments::view::AttachmentRow;
+use crate::models::{ChatFileItem, ChatFilePage};
 use crate::state::{with_pool, SharedState};
 
 #[derive(Deserialize)]
@@ -44,22 +45,15 @@ impl FileRow {
             sender: self.sender,
             sender_avatar: self.sender_avatar,
             created_at: self.created_at,
-            attachment: Attachment {
+            attachment: AttachmentRow {
                 id: self.attachment_id,
+                access_key: self.access_key,
                 file_name: self.file_name,
-                thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
-                    self.attachment_id,
-                    &self.mime_type,
-                    self.access_key,
-                ),
                 mime_type: self.mime_type,
                 size_bytes: self.size_bytes,
-                download_url: format!(
-                    "/api/attachments/{}?key={}",
-                    self.attachment_id, self.access_key
-                ),
                 is_sensitive: self.is_sensitive,
-            },
+            }
+            .into_attachment(),
         }
     }
 }

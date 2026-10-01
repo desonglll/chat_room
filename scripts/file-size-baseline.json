@@ -2,7 +2,6 @@
   "src/accounts/user_handlers.rs": 460,
   "src/admin/metrics.rs": 467,
   "src/ai_threads/run_store.rs": 435,
-  "src/attachments/content.rs": 444,
   "src/attachments/handlers.rs": 422,
   "src/attachments/upload_handlers.rs": 431,
   "src/favorites/handlers.rs": 416,

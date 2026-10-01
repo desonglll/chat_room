@@ -5,7 +5,8 @@ use uuid::Uuid;
 
 use super::model::AlbumError;
 use super::promote::PromotedItem;
-use crate::models::{Attachment, ReplyPreview, StoredMessage, User};
+use crate::attachments::view::AttachmentRow;
+use crate::models::{ReplyPreview, StoredMessage, User};
 use crate::state::{with_pool, AppState};
 
 /// Everything the album transaction writes besides the items themselves.
@@ -155,22 +156,17 @@ impl AppState {
                 } else {
                     String::new()
                 },
-                attachment: Some(Attachment {
-                    id: row.attachment_id,
-                    file_name: item.file_name.clone(),
-                    mime_type: item.mime_type.clone(),
-                    size_bytes: item.size_bytes,
-                    download_url: format!(
-                        "/api/attachments/{}?key={}",
-                        row.attachment_id, row.access_key
-                    ),
-                    is_sensitive: album.is_sensitive,
-                    thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
-                        row.attachment_id,
-                        &item.mime_type,
-                        row.access_key,
-                    ),
-                }),
+                attachment: Some(
+                    AttachmentRow {
+                        id: row.attachment_id,
+                        access_key: row.access_key,
+                        file_name: item.file_name.clone(),
+                        mime_type: item.mime_type.clone(),
+                        size_bytes: item.size_bytes,
+                        is_sensitive: album.is_sensitive,
+                    }
+                    .into_attachment(),
+                ),
                 reply_to: if index == 0 {
                     album.reply_to.clone()
                 } else {
