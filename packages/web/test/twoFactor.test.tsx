@@ -126,7 +126,9 @@ describe('markup', () => {
 
   test('the settings panel renders its titled region while loading', () => {
     const html = renderToStaticMarkup(<TwoFactorSettings />)
-    expect(html).toContain('aria-labelledby="tg-security-title"')
+    // TG-1101: named by aria-label (the shell header shows the visible title; no duplicate heading).
+    expect(html).toContain('aria-label="两步验证"')
+    expect(html).not.toContain('<h2')
     expect(html).toContain('两步验证')
   })
 })

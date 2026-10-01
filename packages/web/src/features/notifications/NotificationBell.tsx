@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from 'zustand/react'
 import { t } from '../../i18n/index'
 import { notificationsStore, refreshUnread } from './notificationsStore'
+import './bell.css'
 
 export function NotificationBell() {
   const unread = useStore(notificationsStore, (state) => state.unread)

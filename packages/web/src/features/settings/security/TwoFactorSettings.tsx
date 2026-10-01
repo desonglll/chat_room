@@ -53,11 +53,10 @@ export function TwoFactorSettings() {
   const back = () => setView('overview')
 
   return (
-    <section className="tg-security" aria-labelledby="tg-security-title">
+    // TG-1101: the settings shell already shows «两步验证» as the page title; repeating it as a
+    // heading inside the page doubled it. The section keeps it as its accessible name.
+    <section className="tg-security" aria-label={t('w.settings.b6c237')}>
       <header className="tg-security__header">
-        <h2 id="tg-security-title" className="tg-security__title">
-          {t('w.settings.b6c237')}
-        </h2>
         <p className="tg-security__lead">{t('w.settings.39775f')}</p>
       </header>
       {error ? (
