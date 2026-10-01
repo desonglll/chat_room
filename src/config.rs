@@ -15,6 +15,7 @@ mod auth;
 mod backup;
 mod database;
 mod environment;
+mod link_preview;
 mod map;
 mod observability;
 mod performance;
@@ -30,6 +31,7 @@ pub use admin::AdminConfig;
 pub use auth::AuthConfig;
 pub use backup::BackupConfig;
 pub use database::DatabaseConfig;
+pub use link_preview::LinkPreviewConfig;
 pub use map::MapConfig;
 pub use observability::ObservabilityConfig;
 pub use performance::{RedisConfig, WorkQueueConfig};
@@ -56,6 +58,7 @@ pub struct AppConfig {
     pub web_push: WebPushConfig,
     pub observability: ObservabilityConfig,
     pub backup: BackupConfig,
+    pub link_preview: LinkPreviewConfig,
     pub map: MapConfig,
 }
 
@@ -88,6 +91,7 @@ impl AppConfig {
         self.database.validate()?;
         self.ai.validate()?;
         self.vector_store.validate()?;
+        self.link_preview.validate()?;
         self.map.validate()?;
         Ok(self)
     }

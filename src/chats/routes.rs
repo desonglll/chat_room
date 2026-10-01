@@ -160,6 +160,10 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
                 .delete(crate::messages::locations::handlers::stop_live_location),
         )
         .route(
+            &path("/:id/messages/:message_id/link-preview"),
+            axum::routing::delete(crate::messages::link_previews::handlers::hide_link_preview),
+        )
+        .route(
             &path("/:id/notification-exception"),
             axum::routing::put(crate::notifications::exception_handlers::put_exception),
         )

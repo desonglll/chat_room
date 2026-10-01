@@ -27,6 +27,8 @@ import './features/folders/register'
 import './features/settings/notifications/register'
 // TG-410: contact card bubbles and «翻译».
 import './features/contact/register'
+// TG-408: link cards.
+import './features/linkPreview/register'
 // TG-407: location bubbles.
 import './features/location/register'
 // TG-511: «头像» and «我的二维码» in settings.

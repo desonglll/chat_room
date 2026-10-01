@@ -13,6 +13,7 @@ import { IconButton, Popover } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { AttachMenu } from './AttachMenu'
 import { ComposerBar } from './ComposerBar'
+import { ComposerLinkPreview } from '../linkPreview/ComposerLinkPreview'
 import type { ComposerSessionApi } from './composerController'
 import { DropZone } from './DropZone'
 import { EmojiPanel } from './EmojiPanel'
@@ -153,6 +154,8 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
     <footer className="tg-compose" ref={rootRef} data-mode={bar.kind}>
       <div className="tg-compose__field">
         <ComposerBar chatId={chatId} bar={bar} onCancel={() => controller.cancel()} />
+        {/* TG-408: the draft's link card, dismissible. */}
+        {bar.kind !== 'edit' ? <ComposerLinkPreview chatId={chatId} text={text} /> : null}
         {mentionOpen ? (
           <MentionPopup
             id={mentionListId}

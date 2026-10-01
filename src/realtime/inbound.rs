@@ -3,6 +3,7 @@
 use uuid::Uuid;
 
 use crate::chats::message_moderation::{MessageChange, MessageScope};
+use crate::messages::link_previews::build_link_card;
 use crate::models::{ChatMember, ChatMessage, TypingAction, User};
 use crate::realtime::protocol::stored_message_to_chat;
 use crate::state::SharedState;
@@ -68,6 +69,7 @@ pub async fn handle_client_message(
             silent,
             reply_quote,
             reply_to_chat_id,
+            no_link_preview,
         } => {
             // TG-204: the forum topic it lands in; a closed or unknown topic drops the frame,
             // like any refused WebSocket send.
@@ -126,6 +128,7 @@ pub async fn handle_client_message(
                     let stored = result.message;
                     let participants = state.chat_participants(room_id).await.unwrap_or_default();
                     let mentions = extract_mentions(&stored.content, &participants, user.id);
+                    build_link_card(state, room_id, &stored, result.inserted && !no_link_preview);
                     if result.inserted && !mentions.is_empty() {
                         if let Err(error) =
                             state.record_message_mentions(stored.id, &mentions).await

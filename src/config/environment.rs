@@ -39,6 +39,10 @@ fn apply_with(config: &mut AppConfig, mut value: impl FnMut(&str) -> Option<Stri
         config.observability.required_dependencies = comma_separated(&dependencies);
     }
     backup::apply(config, &mut value);
+    set_parsed(
+        &mut config.link_preview.enabled,
+        value("CHAT_ROOM_LINK_PREVIEW_ENABLED"),
+    );
     set_string(&mut config.map.tile_url, value("CHAT_ROOM_MAP_TILE_URL"));
     set_string(
         &mut config.map.attribution,
