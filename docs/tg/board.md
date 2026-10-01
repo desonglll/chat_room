@@ -291,7 +291,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | --- | --- | --- | --- | --- |
 | TG-1101 论坛话题与两步验证走查并修复 | M | **merged** | lead | — |
 | TG-1102 联系人在线状态实时 | S | **merged** | lead | — |
-| TG-1103 TUI 投票、文件夹与媒体显示 | M | not-started | lead | — |
+| TG-1103 TUI 投票、文件夹与媒体显示 | M | **merged** | lead | — |
 | TG-1104 首屏余量 ≥ 15 KB | S | not-started | lead | — |
 
 ---
