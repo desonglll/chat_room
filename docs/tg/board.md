@@ -311,7 +311,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-1207 AI 关闭时的后台噪声与默认配置 | S | **merged** | agent | — |
 | TG-1208 走查遗留缺陷与英文标点 | S | in-progress | agent | TG-1203、1206 |
 | TG-1209 安全头与外部图片 | S | in-progress | agent | TG-1206 |
-| TG-1210 群名允许重名 | S | in-progress | agent | TG-1203 |
+| TG-1210 群名允许重名 | S | **merged** | agent | TG-1203 |
 
 - 基线 `fb1e93c1`。普通子 agent 仍报 cache_control 400，fork 类型可用，本轮全部用 fork。每任务私有 `CARGO_TARGET_DIR`，cargo 命令经 `flock /home/mike/workspace/.cargo-target/m12.lock` 全局串行（14 GB 内存，其他项目常驻约 5 GB）。
 
@@ -328,6 +328,9 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **TG-1203 合并**（`2ef5342a` → `afce9c10`）：**服务端权限两处**——有移除权的管理员可移出/封禁群主任命的其他管理员（现仅群主，409）；封禁错误地要求 `members.remove`（现 `members.ban`），双库回归测试。**频道完全进不去管理面板**（邀请链接/讨论组/公开链接/任命管理员均不可用）已修；管理面板加署名开关、封禁入口与已封禁列表；被禁言成员的输入框改为提示（原先发出即被服务端静默丢弃）；慢速模式升级超级群后标签实时更新；`/audit-events` 只对 `members.review` 挂载。4 账号 E2E 31/31。遗留：群名唯一 → TG-1210（负责人按 Telegram 行为定：允许重名）；封禁列表读权限与「会话未就绪时发送」 → TG-1208。负责人复验：bun ui 120 / core 356 / web 823，0 挂；首屏 271 710 B；fmt/clippy 净；`cargo nextest run` **664/664**；parity 83 对。
 
 - **TG-1207 合并**（`cfab9f2e` → `1e240590`）：嵌入请求的触发者是本机 main checkout 的 `.env`（三个 AI/向量开关为 true，覆盖 `chat-room.toml`）；代码缺陷两处已修——AI 关闭时不再启动向量索引（`state_build.rs`，负责人审过：`MessageIndex` 只被 AI 上下文与管理后台使用），索引 worker 对 401/403 停止而非无限重试。**Redis 慢 → 每请求约 2.5 s** 根因：每条命令独立 500 ms 超时 × 一个请求最多 5 条；新增熔断器（`src/cache/breaker.rs`，失败后 5 s 内直走数据库，限流共用），并修了缓存失效超时后旧消息页最多再读 30 s 的隐患。负责人复验：bun 全过；fmt/clippy 净；`cargo nextest run` **672/672**。
+
+- **TG-1210 合并**（`26892c71` → `61ca6ba4`）：迁移 `20271001000001_allow_duplicate_chat_titles`（双库，仅删 `chats_title_active_idx`；公开 @username 仍唯一），双库 fresh/upgrade 测试；新建与改名可重名；CLI `--room-name` 重名时报错并列出调用者可见的候选。负责人复验：bun 全过；fmt/clippy 净；`cargo nextest run` **680/680**；parity 84 对。
+- **CI 自 M11 起一直红**（用户 2026-10-01 指出）：`Run packages tests` 中 3 个 sticker 面板测试失败——`gif/register` 导入即向模块全局的标签表注册，bun 在单进程内按目录顺序加载测试文件，CI runner 上 GIF 测试先加载；本机顺序相反所以一直绿。`bf7fe940` 让两个测试从空注册表开始；预加载 `gif/register` 复现：无修复 2 挂、有修复 0 挂。CI 被这一步挡住的后续步骤中，桌面端 pytest 16/16、ruff check/format 已在本地补跑通过。**教训：负责人门禁只看本机 bun 结果，从未核对 CI 状态——推送后必须看 `gh run list`。**
 
 ## 状态取值
 
