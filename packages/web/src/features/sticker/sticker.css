@@ -133,7 +133,7 @@
 @media (prefers-reduced-motion: reduce) {
   .tg-sticker-preview__card,
   .tg-sticker-suggest {
-    animation: tg-sticker-fade var(--tg-duration-fade) linear;
+    animation: tg-sticker-fade var(--tg-duration-fade) var(--tg-ease-linear);
   }
 
   .tg-sticker-preview {

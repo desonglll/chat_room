@@ -21,7 +21,7 @@
   font-family: var(--tg-font-sans);
   transform-origin: top left;
   animation:
-    tg-popover-in var(--tg-duration-panel) var(--tg-ease-overshoot),
+    tg-popover-in var(--tg-motion-modal),
     tg-popover-fade-in var(--tg-transition-fade);
 }
 

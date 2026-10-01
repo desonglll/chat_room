@@ -22,7 +22,7 @@
   color: var(--tg-text-primary);
   font-family: var(--tg-font-sans);
   box-shadow: var(--tg-shadow-column);
-  animation: tg-settings-in var(--tg-duration-spring) var(--tg-ease-spring) both;
+  animation: tg-settings-in var(--tg-motion-panel) both;
 }
 
 .tg-settings[data-closing] {
@@ -39,11 +39,11 @@
 }
 
 .tg-settings__view[data-direction='forward'] {
-  animation: tg-settings-push var(--tg-duration-spring) var(--tg-ease-spring) both;
+  animation: tg-settings-push var(--tg-motion-panel) both;
 }
 
 .tg-settings__view[data-direction='back'] {
-  animation: tg-settings-pop var(--tg-duration-spring) var(--tg-ease-spring) both;
+  animation: tg-settings-pop var(--tg-motion-panel) both;
 }
 
 @keyframes tg-settings-in {

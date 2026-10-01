@@ -4,8 +4,19 @@
  * message bubble and the upload placeholder sit in it.
  */
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { Avatar, Checkbox, ContextMenu, type MenuItem } from '@tg/ui'
 import type { MessageRenderContext } from './types'
+
+/** A message younger than this when its row mounts arrived live and rises in (TG-108). */
+export const FRESH_MESSAGE_MS = 3000
+
+/** Whether a row mounting at `mountedAt` shows a message that just arrived (not history). */
+export function isFreshMessage(sentAt: string | undefined, mountedAt: number): boolean {
+  if (sentAt === undefined) return true
+  const sent = Date.parse(sentAt)
+  return Number.isFinite(sent) && mountedAt - sent < FRESH_MESSAGE_MS
+}
 
 export interface RowAvatar {
   label: string
@@ -19,6 +30,7 @@ export function MessageRow({
   avatar,
   menuItems,
   onSelect,
+  sentAt,
   children,
 }: {
   ctx: MessageRenderContext
@@ -27,8 +39,12 @@ export function MessageRow({
   avatar: RowAvatar
   menuItems: readonly MenuItem[]
   onSelect?: (() => void) | undefined
+  /** The message's timestamp; omitted for a local upload, which is always fresh. */
+  sentAt?: string | undefined
   children: ReactNode
 }) {
+  // Decided once at mount: history pages and re-renders never replay the entrance.
+  const [fresh] = useState(() => isFreshMessage(sentAt, Date.now()))
   const selectable = selectionMode && onSelect !== undefined
   const avatarColumn = !ctx.isOutgoing && (reserveAvatar || ctx.showAvatar)
 
@@ -39,6 +55,7 @@ export function MessageRow({
       data-group={ctx.groupPosition}
       data-selected={ctx.selected ? '' : undefined}
       data-highlighted={ctx.highlighted ? '' : undefined}
+      data-fresh={fresh ? '' : undefined}
       data-selection-mode={selectionMode ? '' : undefined}
       onClick={selectable ? onSelect : undefined}
     >

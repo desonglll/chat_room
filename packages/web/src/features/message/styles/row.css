@@ -122,3 +122,44 @@
   text-align: center;
   overflow-wrap: anywhere;
 }
+
+/* ── TG-108 motion: arrival and long press ────────────────────────────────── */
+
+/* A message that arrived while the chat was open rises in; history never animates. */
+.tg-message[data-fresh] {
+  animation: tg-message-enter var(--tg-motion-message-enter) backwards;
+}
+
+@keyframes tg-message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--tg-space-4));
+  }
+}
+
+/* The bubble sinks slightly under a finger while the long press is timed (Telegram iOS). */
+.tg-message__column {
+  transition: transform var(--tg-motion-press);
+}
+
+.tg-message__menu-region[data-tg-holding] .tg-message__column {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-message[data-fresh] {
+    animation-name: tg-message-fade;
+    animation-duration: var(--tg-duration-fade);
+  }
+
+  .tg-message__menu-region[data-tg-holding] .tg-message__column {
+    transform: none;
+    opacity: 0.8;
+  }
+}
+
+@keyframes tg-message-fade {
+  from {
+    opacity: 0;
+  }
+}

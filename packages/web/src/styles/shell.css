@@ -13,6 +13,12 @@
   display: grid;
   grid-template-columns: var(--tg-shell-sidebar-width) minmax(0, 1fr);
   overflow: hidden;
+  /* TG-108: collapse / expand glides; a drag on the resizer follows the pointer 1:1. */
+  transition: grid-template-columns var(--tg-motion-sidebar);
+}
+
+.tg-shell:has(.tg-shell__resizer:active) {
+  transition: none;
 }
 
 .tg-shell__sidebar {
@@ -87,7 +93,7 @@
   .tg-shell__main {
     position: absolute;
     inset: 0;
-    transition: transform var(--tg-transition-slide);
+    transition: transform var(--tg-motion-chat-switch);
     will-change: transform;
   }
 
@@ -116,6 +122,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tg-shell,
   .tg-shell__sidebar,
   .tg-shell__main {
     transition: none;
