@@ -66,6 +66,40 @@
   min-width: 0;
 }
 
+/* TG-1204: the sender and date filters read as pill pickers (the settings selects' look), not
+   bare native boxes. */
+.tg-search-results__filters select,
+.tg-search-results__filters input {
+  appearance: none;
+  min-block-size: 32px;
+  padding: var(--tg-space-1) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-bg-secondary);
+  color: var(--tg-text-primary);
+  font: inherit;
+  font-size: var(--tg-type-meta-size);
+  cursor: pointer;
+}
+
+.tg-search-results__filters select {
+  padding-inline-end: var(--tg-space-6);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--tg-text-secondary) 50%) calc(100% - 14px) 55% / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--tg-text-secondary) 50%) calc(100% - 9px) 55% / 5px 5px no-repeat,
+    var(--tg-bg-secondary);
+}
+
+.tg-search-results__filters input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.tg-search-results__filters :focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: 1px;
+}
+
 .tg-search-results__list {
   margin: 0;
   padding: 0;
