@@ -5,11 +5,15 @@
  * (The exit only plays when the shell renders `<InfoPane />` unconditionally — see the
  * TG-106 integration patch list; with the conditional mount it simply unmounts.)
  */
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { uiStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { apiClient } from '../../app/client'
-import { ChatInfoPanel, watchPanelAnchor } from '../chatInfo'
+import { watchPanelAnchor } from '../chatInfo/panelAnchor'
+
+// TG-806: the panel (with its admin and invite-link screens) is a chunk of its own; it is
+// fetched on first open, and the anchor guard above is already armed by then.
+const ChatInfoPanel = lazy(() => import('../chatInfo/ChatInfoPanel').then((m) => ({ default: m.ChatInfoPanel })))
 
 // The message list keeps its anchor across every open/close, whoever triggers it (header
 // click, close button, Escape). Module scope: the pin must be taken synchronously inside
@@ -38,13 +42,15 @@ export function InfoPane({ onSearchInChat }: InfoPaneProps) {
 
   if (!mounted || !chatId) return null
   return (
-    <ChatInfoPanel
-      chatId={chatId}
-      client={apiClient}
-      onClose={closePanel}
-      onSearchInChat={onSearchInChat}
-      closing={!open}
-      onExited={() => setMounted(false)}
-    />
+    <Suspense fallback={null}>
+      <ChatInfoPanel
+        chatId={chatId}
+        client={apiClient}
+        onClose={closePanel}
+        onSearchInChat={onSearchInChat}
+        closing={!open}
+        onExited={() => setMounted(false)}
+      />
+    </Suspense>
   )
 }

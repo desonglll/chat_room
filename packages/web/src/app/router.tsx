@@ -13,11 +13,6 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { ForumChatRoute, ForumTopicRoute } from '../features/forum/ForumRoutes'
 import { EmptyChatState } from '../features/shell/EmptyChatState'
 import { WorkspaceShell } from '../features/shell/WorkspaceShell'
-import { StickerSetLinkRoute } from '../features/sticker/StickerSetLinkRoute'
-import { JoinChatRoute } from '../features/inviteLinks/JoinChatRoute'
-import { PublicChatRoute } from '../features/chatPreview/PublicChatRoute'
-import { AddContactRoute } from '../features/profile/AddContactRoute'
-import { SavedMessagesRoute } from '../features/savedMessages/SavedMessagesRoute'
 
 function RequireSession({ children }: { children: ReactNode }) {
   const authenticated = useStore(authStore, (state) => state.session !== null)
@@ -29,9 +24,28 @@ function AnonymousOnly({ children }: { children: ReactNode }) {
   return authenticated ? <Navigate to="/" replace /> : children
 }
 
+// TG-806: deep-link and secondary routes load on first visit, not on first paint.
+const StickerSetLinkRoute = lazy(() =>
+  import('../features/sticker/StickerSetLinkRoute').then((m) => ({ default: m.StickerSetLinkRoute })),
+)
+const JoinChatRoute = lazy(() =>
+  import('../features/inviteLinks/JoinChatRoute').then((m) => ({ default: m.JoinChatRoute })),
+)
+const PublicChatRoute = lazy(() =>
+  import('../features/chatPreview/PublicChatRoute').then((m) => ({ default: m.PublicChatRoute })),
+)
+const AddContactRoute = lazy(() =>
+  import('../features/profile/AddContactRoute').then((m) => ({ default: m.AddContactRoute })),
+)
+const SavedMessagesRoute = lazy(() =>
+  import('../features/savedMessages/SavedMessagesRoute').then((m) => ({ default: m.SavedMessagesRoute })),
+)
 const ContactsPage = lazy(() => import('../features/contacts/ContactsPage'))
 const AdminPage = lazy(() => import('../features/admin/AdminPage'))
 const NotificationsPage = lazy(() => import('../features/notifications/NotificationsPage'))
+
+/** A lazy route element; nothing shows while its chunk loads (it is small and local). */
+const suspended = (element: ReactNode) => <Suspense fallback={null}>{element}</Suspense>
 
 export const appRouter = createBrowserRouter([
   {
@@ -52,11 +66,11 @@ export const appRouter = createBrowserRouter([
       { path: '/', element: <EmptyChatState /> },
       { path: '/chat/:chatId', element: <ForumChatRoute /> },
       { path: '/chat/:chatId/topic/:topicId', element: <ForumTopicRoute /> },
-      { path: '/addstickers/:shortName', element: <StickerSetLinkRoute /> },
-      { path: '/joinchat/:token', element: <JoinChatRoute /> },
-      { path: '/public/:username', element: <PublicChatRoute /> },
-      { path: '/add/:username', element: <AddContactRoute /> },
-      { path: '/saved', element: <SavedMessagesRoute /> },
+      { path: '/addstickers/:shortName', element: suspended(<StickerSetLinkRoute />) },
+      { path: '/joinchat/:token', element: suspended(<JoinChatRoute />) },
+      { path: '/public/:username', element: suspended(<PublicChatRoute />) },
+      { path: '/add/:username', element: suspended(<AddContactRoute />) },
+      { path: '/saved', element: suspended(<SavedMessagesRoute />) },
       // TG-705: system administration.
       {
         path: '/admin',
