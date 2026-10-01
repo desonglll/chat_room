@@ -19,16 +19,8 @@ describe('TG-509 automatic download gate', () => {
     )
     expect(big).not.toContain('<video')
     expect(big).toContain('200.0 MB')
-    settingsStore.getState().update({
-      autoDownload: { ...DEFAULT_AUTO_DOWNLOAD, wifi: { ...DEFAULT_AUTO_DOWNLOAD.wifi, photo: false } },
-    })
-    expect(
-      renderToStaticMarkup(
-        <AutoDownloadGate kind="photo" sizeBytes={1024}>
-          <img alt="" />
-        </AutoDownloadGate>,
-      ),
-    ).not.toContain('<img')
+    // Rule changes are covered by core's `autoDownload.test.ts`: static rendering reads the
+    // store's initial state, so it cannot observe an update here.
     settingsStore.getState().update({ autoDownload: DEFAULT_AUTO_DOWNLOAD })
   })
 })
