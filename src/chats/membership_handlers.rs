@@ -147,11 +147,23 @@ pub async fn list_members(
 ) -> Result<Json<Vec<ChatMembership>>, StatusCode> {
     reject_private_chat(&state, room_id).await?;
     let user = session_user(&state, &headers).await?;
-    require_permission(&state, room_id, user.id, "members.review").await?;
-    let mut members = state.chat_members(room_id).await.map_err(|error| {
-        tracing::error!("list chat memberships failed: {}", error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    // TG-1208: an admin who may only ban (no `members.review`) still manages the banned
+    // list, so they read exactly those rows; the roster and join requests stay reviewers'.
+    let may_review = state
+        .has_chat_permission(room_id, user.id, "members.review")
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if !may_review {
+        require_permission(&state, room_id, user.id, "members.ban").await?;
+    }
+    let mut members = if may_review {
+        state.chat_members(room_id).await.map_err(|error| {
+            tracing::error!("list chat memberships failed: {}", error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+    } else {
+        Vec::new()
+    };
     members.extend(
         state
             .banned_chat_members(room_id)

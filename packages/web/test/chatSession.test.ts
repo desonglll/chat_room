@@ -74,8 +74,12 @@ describe('sending', () => {
   })
 
   test('a send while offline is marked failed; empty and over-limit sends are refused', async () => {
-    const { session, stores } = harness()
-    session.start() // never opens
+    const { session, sockets, stores, online } = harness()
+    await online()
+    // TG-1208: only a ready-then-dropped chat refuses; sends while opening are parked
+    // (chatSessionOpening.test.ts).
+    sockets[0]!.dropFromServer()
+    expect(session.sendable()).toBeFalse()
     expect(session.sendMessage('offline row')).toBeFalse()
     const rows = selectTimeline(CHAT_ID)(stores.message.getState()).messages
     expect(rows[0]).toMatchObject({ delivery_state: 'failed' })

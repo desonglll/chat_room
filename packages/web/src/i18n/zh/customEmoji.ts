@@ -12,4 +12,6 @@ export const customEmoji: Catalog = {
   'w.customEmoji.afa5f7': '清除状态',
   'w.customEmoji.c8fb1c': '1 小时',
   'w.customEmoji.f094c1': '自定义表情加载失败',
+  // TG-1208: the settings page that sets it.
+  'w.customEmoji.statusPage': '表情状态',
 }

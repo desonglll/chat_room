@@ -44,8 +44,22 @@ export function mergeIncomingBroadcast(
     }
   }
 
+  // TG-1208: a confirmed row lands before the trailing in-flight sends (failed ones keep
+  // their place). The server orders
+  // by arrival, and an own send the server has not acknowledged is newer than anything it
+  // has already delivered — notably the history replay that a send made while the chat was
+  // still opening used to end up below.
+  let at = messages.length
+  while (at > 0 && isUnconfirmed(messages[at - 1]!)) at -= 1
+  const row: DisplayMessage = { ...incoming, reactions: incoming.reactions || [], motion }
   return {
-    messages: [...messages, { ...incoming, reactions: incoming.reactions || [], motion }],
+    messages: [...messages.slice(0, at), row, ...messages.slice(at)],
     acknowledgedClientId: '',
   }
+}
+
+function isUnconfirmed(message: DisplayMessage): boolean {
+  return (
+    message.type === 'broadcast' && message.message_id.startsWith('pending:') && message.delivery_state === 'sending'
+  )
 }

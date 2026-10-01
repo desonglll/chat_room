@@ -10,6 +10,7 @@ import { useStore } from 'zustand/react'
 import { ChatListRow } from './ChatListRow'
 import { toChatRowModel } from './chatRowModel'
 import { useChatRowPresence } from './chatRowPresence'
+import { EmojiStatus } from '../customEmoji/EmojiStatus'
 
 export interface ConnectedChatRowProps {
   conversation: ConversationSummary
@@ -40,6 +41,7 @@ export function ConnectedChatRow({
       isOnline={presence.isOnline}
       typingText={presence.typingText}
       onOpen={onOpen}
+      titleAdornment={conversation.peer ? <EmojiStatus userId={conversation.peer.id} size={16} /> : undefined}
     />
   )
 }

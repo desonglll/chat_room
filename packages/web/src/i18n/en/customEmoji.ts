@@ -12,4 +12,6 @@ export const customEmoji: Catalog = {
   'w.customEmoji.afa5f7': 'Clear status',
   'w.customEmoji.c8fb1c': '1 hour',
   'w.customEmoji.f094c1': 'Could not load custom emoji',
+  // TG-1208: the settings page that sets it.
+  'w.customEmoji.statusPage': 'Emoji status',
 }

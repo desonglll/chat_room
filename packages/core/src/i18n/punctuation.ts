@@ -14,3 +14,12 @@ export const labelled = (label: string, value: string): string => t('c.text.labe
 
 /** Items joined with the locale's list separator. */
 export const joinList = (items: readonly string[]): string => items.join(t('c.text.listSeparator'))
+
+/** TG-1208: `「text」` / `“text”` — a quoted fragment. */
+export const quoted = (text: string): string => t('c.text.quoted', text)
+
+/** TG-1208: `text（aside）` / `text (aside)`. */
+export const parenthetical = (text: string, aside: string): string => t('c.text.parenthetical', text, aside)
+
+/** TG-1208: clauses joined with the locale's semicolon (`甲；乙` / `a; b`). */
+export const joinClauses = (items: readonly string[]): string => items.join(t('c.text.clauseSeparator'))

@@ -4,7 +4,7 @@
  * (comments excluded). Dev-only galleries, fixtures and benches are allowlisted explicitly.
  */
 import { afterEach, describe, expect, test } from 'bun:test'
-import { joinList, labelled, setLocale, speaker } from '@tg/core'
+import { joinClauses, joinList, labelled, parenthetical, quoted, setLocale, speaker } from '@tg/core'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { loadLocale, t } from './index'
@@ -25,20 +25,7 @@ const INTENTIONAL: readonly (readonly [string, string])[] = [
   ['web/src/features/composer/Composer.tsx', 'const ARITHMETIC'],
   ['web/src/features/message/content/linkify.ts', 'const TRAILING_PUNCTUATION'],
 ]
-const PENDING: readonly (readonly [string, string])[] = [
-  ['web/src/features/videoNote/VideoNoteBody.tsx', '${label}，'],
-  ['web/src/features/composer/ComposerBar.tsx', '`「${extras.quote.text}」` :'],
-  ['web/src/features/composer/ComposerBar.tsx', 'body: `「${extras.quote.text}」`,'],
-  ['web/src/features/composer/ComposerBar.tsx', '${message.sender}：'],
-  ['web/src/features/composer/PendingDialog.tsx', '${file.name}：'],
-  ['web/src/features/composer/Composer.tsx', '${file.name}：'],
-  ['web/src/features/message/UploadBubble.tsx', '`：${upload.error}`'],
-  ['web/src/features/album/AlbumContent.tsx', '（${index + 1}'],
-  ['web/src/features/location/LocationMap.tsx', ".join('，')"],
-  ['web/src/features/chatInfo/sharedItems.tsx', "t('w.chatInfo.48e9e5')}："],
-  ['web/src/features/chatInfo/sharedItems.tsx', '`GIF：'],
-  ['web/src/features/messageList/DefaultMessage.tsx', '{message.reply_to.sender}：'],
-]
+const PENDING: readonly (readonly [string, string])[] = []
 const EXEMPT = [...INTENTIONAL, ...PENDING]
 
 const CJK = /[㐀-鿿＀-￯　-〿]/
@@ -104,5 +91,16 @@ describe('TG-1204 English copy regressions', () => {
     expect(speaker('Ann')).toBe('Ann: ')
     expect(labelled('GIF', 'x.gif')).toBe('GIF: x.gif')
     expect(joinList(['a', 'b'])).toBe('a, b')
+  })
+
+  // TG-1208: the marks the last hard-coded lines used (quote bar, album label, rejected files).
+  test('quotes, asides and clause separators follow the locale', () => {
+    expect(quoted('香蕉')).toBe('「香蕉」')
+    expect(parenthetical('图片 a.png', '1/3')).toBe('图片 a.png（1/3）')
+    expect(joinClauses(['a', 'b'])).toBe('a；b')
+    setLocale('en')
+    expect(quoted('banana')).toBe('“banana”')
+    expect(parenthetical('Photo a.png', '1/3')).toBe('Photo a.png (1/3)')
+    expect(joinClauses(['a', 'b'])).toBe('a; b')
   })
 })

@@ -81,7 +81,11 @@ export interface ChatSession {
   start(): void
   /** Flushes a pending draft save, closes the socket, detaches every subscription. */
   stop(): void
-  /** Optimistic append + WS send; false marks the row failed (offline). TG-404: `silent`. */
+  /**
+   * Optimistic append + WS send; false marks the row failed (offline). TG-404: `silent`.
+   * TG-1208: while the chat is still opening (connecting, or replaying history) the send is
+   * parked and goes out after the replay, in order — it returns true.
+   */
   sendMessage(text: string, options?: SendMessageOptions): boolean
   /**
    * Composer edit: store + debounced cloud save. Typing frames are the composer's
@@ -98,6 +102,9 @@ export interface ChatSession {
   markRead(): void
   status(): ChatSocketStatus
   onStatus(handler: (status: ChatSocketStatus) => void): () => void
+  /** TG-1208: whether a send would go out (or be parked) now; the composer's gate. */
+  sendable(): boolean
+  onSendable(handler: (sendable: boolean) => void): () => void
   /** Every server frame, after the store fan-out (TG-204's topic list refreshes on them). */
   onFrame(handler: (frame: ServerFrame) => void): () => void
 }

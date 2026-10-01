@@ -24,6 +24,7 @@ import { applyLocationFrame } from '../location/liveLocationStore'
 import { applyLinkPreviewFrame } from '../linkPreview/linkPreviewStore'
 import { applyVoiceListenedFrame } from '../voice/voiceStore'
 import type { ChatSession, ChatSessionOptions } from './chatSessionTypes'
+import { createOpeningSendQueue } from './openingSendQueue'
 import { MAX_MESSAGE_CHARS } from './chatSessionTypes'
 
 export type {
@@ -59,6 +60,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
   // commit starts, corrected by every accepted remote state. Decides whether sending a
   // message needs to flush an empty clear (PUT "") or has nothing to clean up.
   let serverDraftMayExist = false
+  const openingSends = createOpeningSendQueue()
+  const sendableHandlers = new Set<(sendable: boolean) => void>()
 
   const socket = createChatSocket({
     url: options.socketUrl,
@@ -130,6 +133,22 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
       })
   }
 
+  /** TG-1208: whether the composer may send now — parked while opening, live once ready. */
+  function sendable(): boolean {
+    if (stopped) return false
+    if (openingSends.opening()) return socket.status() !== 'failed'
+    return socket.status() === 'online'
+  }
+
+  function notifySendable(): void {
+    const value = sendable()
+    for (const handler of [...sendableHandlers]) handler(value)
+  }
+
+  function failParked(): void {
+    openingSends.abandon((clientMessageId) => stores.message.getState().markDelivery(chatId, clientMessageId, 'failed'))
+  }
+
   function markRead(): void {
     if (options.readCursor === false) return
     if (socket.status() !== 'online' || !(options.isVisible?.() ?? true)) return
@@ -160,6 +179,11 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
           const ready = () => {
             if (stopped) return
             stores.message.getState().setHistoryReady(chatId, true)
+            // TG-1208: the sends made while opening go out now, after the replay, in order.
+            openingSends.ready(({ clientMessageId, frame }) => {
+              if (!socket.send(frame)) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
+            })
+            notifySendable()
             markRead()
           }
           if (!topic) return ready()
@@ -212,6 +236,10 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
         // TG-901: someone pinned or unpinned here; the bar re-reads the pins.
         socket.on('pins_changed', () => void refreshPins(chatId)),
+        socket.onStatus((status) => {
+          if (status === 'failed') failParked()
+          notifySendable()
+        }),
       )
       socket.connect()
       options.draftsApi
@@ -226,6 +254,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
 
     stop() {
       stopped = true
+      failParked()
+      sendableHandlers.clear()
       synchronizer.flush(chatId)
       synchronizer.dispose()
       for (const unsubscribe of unsubscribers) unsubscribe()
@@ -255,8 +285,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         participants: stores.presence.getState().chats[chatId]?.participants ?? [],
         ...(entities.length ? { entities } : {}),
       })
-      const sent = socket.send({
-        type: 'message',
+      const frame = {
+        type: 'message' as const,
         content,
         ...(replyTo ? { reply_to: replyTo } : {}),
         ...replyExtrasFrame(stores.composer.getState().replyExtras[chatId], replyTo),
@@ -265,7 +295,11 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         ...(options?.silent ? { silent: true } : {}),
         ...(options?.noLinkPreview ? { no_link_preview: true } : {}),
         ...(entities.length ? { entities } : {}),
-      })
+      }
+      // TG-1208: while the chat is still opening the send is parked, not refused.
+      const parked = openingSends.opening() && sendable()
+      if (parked) openingSends.push(clientMessageId, frame)
+      const sent = parked || socket.send(frame)
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
       stores.composer.getState().clearDraft(chatId)
       if (serverDraftMayExist) {
@@ -296,6 +330,11 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
 
     status: () => socket.status(),
     onStatus: (handler) => socket.onStatus(handler),
+    sendable,
+    onSendable(handler) {
+      sendableHandlers.add(handler)
+      return () => sendableHandlers.delete(handler)
+    },
     onFrame: (handler) => socket.onAnyFrame(handler),
   }
 }

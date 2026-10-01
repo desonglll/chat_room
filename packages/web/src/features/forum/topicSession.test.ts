@@ -128,15 +128,22 @@ describe('topic mode', () => {
   })
 
   test('sends carry the topic id; General omits it', async () => {
+    // TG-1208: a send before the replay completes is parked, so these go out after it.
     const topic = topicHarness({ topic: { id: 't1', is_general: false } })
     await topic.open()
     topic.session.sendMessage('hi')
+    topic.socket.receive({ type: 'history_complete' })
+    topic.topicsApi.release()
+    await settle()
     expect(topic.socket.sentFrames().find((frame) => frame.type === 'message')?.topic_id).toBe('t1')
     topic.session.stop()
 
     const general = topicHarness({ topic: { id: 'g', is_general: true } })
     await general.open()
     general.session.sendMessage('hi')
+    general.socket.receive({ type: 'history_complete' })
+    general.topicsApi.release()
+    await settle()
     expect(general.socket.sentFrames().find((frame) => frame.type === 'message')).not.toHaveProperty('topic_id')
     general.session.stop()
   })

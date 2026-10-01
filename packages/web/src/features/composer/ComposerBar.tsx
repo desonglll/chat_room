@@ -4,7 +4,7 @@
  * Which bar shows is `activeComposerBar` — this component only renders it.
  */
 import type { ComposerBar as ComposerBarState } from '@tg/core'
-import { composerStore, messageStore } from '@tg/core'
+import { composerStore, messageStore, quoted, speaker } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { CloseGlyph, EditBarGlyph, ForwardBarGlyph, ReplyBarGlyph } from './icons'
 import { findMessage } from './composerController'
@@ -40,13 +40,13 @@ function useBarCopy(chatId: string, bar: ComposerBarState): { title: string; bod
       if (extras?.source) {
         return {
           title: t('w.composer.9fa890', extras.source.sender, extras.source.chatTitle || t('w.composer.otherChat')),
-          body: extras.quote ? `「${extras.quote.text}」` : quote(extras.source.text, null),
+          body: extras.quote ? quoted(extras.quote.text) : quote(extras.source.text, null),
         }
       }
       if (extras?.quote)
         return {
           title: message ? t('w.composer.6ef258', message.sender) : t('w.composer.23c0e1'),
-          body: `「${extras.quote.text}」`,
+          body: quoted(extras.quote.text),
         }
       return { title: message ? t('w.composer.17f37e', message.sender) : t('w.composer.1f0d18'), body }
     case 'edit':
@@ -55,7 +55,7 @@ function useBarCopy(chatId: string, bar: ComposerBarState): { title: string; bod
       const count = bar.messageIds.length
       return {
         title: count > 1 ? t('w.composer.eb5a89', count) : t('w.composer.d646f7'),
-        body: message ? `${message.sender}：${body}` : t('w.composer.8ab7d9', count),
+        body: message ? `${speaker(message.sender)}${body}` : t('w.composer.8ab7d9', count),
       }
     }
     default:

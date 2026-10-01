@@ -59,4 +59,8 @@ export const zh: Catalog = {
   'c.text.speaker': '{0}：',
   'c.text.labelled': '{0}：{1}',
   'c.text.listSeparator': '，',
+  // TG-1208: quotes, asides and clause separators.
+  'c.text.quoted': '「{0}」',
+  'c.text.parenthetical': '{0}（{1}）',
+  'c.text.clauseSeparator': '；',
 }

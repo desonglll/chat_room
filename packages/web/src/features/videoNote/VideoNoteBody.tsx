@@ -5,6 +5,7 @@
  * `VideoNoteContent` owns the element and the playback rules.
  */
 import type { Ref } from 'react'
+import { joinList } from '@tg/core'
 import { PlayGlyph } from '../voice/glyphs'
 import { formatVoiceDuration } from '../voice/waveform'
 import { SpeakerOffGlyph } from './glyphs'
@@ -42,7 +43,7 @@ export function VideoNoteBody(props: VideoNoteBodyProps) {
       <button
         type="button"
         className="tg-video-note__disc"
-        aria-label={`${label}，${formatVoiceDuration(durationMs)}`}
+        aria-label={joinList([label, formatVoiceDuration(durationMs)])}
         onClick={(event) => {
           event.stopPropagation()
           props.onActivate()

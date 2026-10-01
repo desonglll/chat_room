@@ -17,6 +17,8 @@ import { channelStore } from '../channel/channelStore'
 
 export interface ChatSessionHandle {
   connection: ChatSocketStatus
+  /** TG-1208: the composer's gate — true while opening (sends are parked) and when online. */
+  sendable: boolean
   sendMessage(text: string, options?: SendMessageOptions): boolean
   setDraftText(text: string): void
   sendFrame(frame: ClientFrame): boolean
@@ -41,6 +43,7 @@ export function useChatSession(chatId: string, hookOptions: ChatSessionHookOptio
   const currentUserId = useStore(authStore, (state) => state.session?.user.id ?? '')
   const sessionRef = useRef<ChatSession | null>(null)
   const [connection, setConnection] = useState<ChatSocketStatus>('idle')
+  const [sendable, setSendable] = useState(false)
 
   useEffect(() => {
     if (!chatId || !token || !currentUserId) return
@@ -67,13 +70,16 @@ export function useChatSession(chatId: string, hookOptions: ChatSessionHookOptio
     })
     sessionRef.current = session
     const offStatus = session.onStatus(setConnection)
+    const offSendable = session.onSendable(setSendable)
     const offFrame = session.onFrame((frame) => onFrameRef.current?.(frame))
     const unregister = registerChatSession(chatId, session)
     const offVisible = onPageVisible(() => session.markRead())
     session.start()
     setConnection(session.status())
+    setSendable(session.sendable())
     return () => {
       offStatus()
+      offSendable()
       offFrame()
       offVisible()
       unregister()
@@ -92,5 +98,5 @@ export function useChatSession(chatId: string, hookOptions: ChatSessionHookOptio
 
   const sendFrame = useCallback((frame: ClientFrame) => sessionRef.current?.sendFrame(frame) ?? false, [])
 
-  return { connection, sendMessage, setDraftText, sendFrame }
+  return { connection, sendable, sendMessage, setDraftText, sendFrame }
 }

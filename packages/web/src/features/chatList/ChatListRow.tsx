@@ -5,7 +5,7 @@
  * adapts store data into `ChatRowModel`, and presence arrives as `isOnline`/`typingText`
  * (TG-107 seam). `collapsed` is the avatar-only sidebar column.
  */
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { Avatar, Badge } from '@tg/ui'
 import type { ChatPreview } from './chatPreview'
 import { MEDIA_LABEL } from './chatPreview'
@@ -23,6 +23,8 @@ export interface ChatListRowProps {
   /** Presence seam: replaces the preview line while set. */
   typingText?: string | null | undefined
   onOpen?: ((chatId: string, event: MouseEvent<HTMLAnchorElement>) => void) | undefined
+  /** TG-1208: rendered right after the title — a private chat's emoji status. */
+  titleAdornment?: ReactNode | undefined
 }
 
 function PreviewLine({ preview, typingText }: { preview: ChatPreview; typingText: string | null | undefined }) {
@@ -64,6 +66,7 @@ export function ChatListRow({
   isOnline,
   typingText,
   onOpen,
+  titleAdornment,
 }: ChatListRowProps) {
   const online = model.showsPresence && isOnline === true
   const badgeVariant = model.muted ? 'muted' : 'accent'
@@ -90,6 +93,7 @@ export function ChatListRow({
         <span className="tg-chatrow__body">
           <span className="tg-chatrow__top">
             <span className="tg-chatrow__title">{model.title}</span>
+            {titleAdornment}
             {model.muted ? (
               <span className="tg-chatrow__muted" role="img" aria-label={t('w.chatList.a074ec')}>
                 <ChatListIcon name="muted" size={14} />

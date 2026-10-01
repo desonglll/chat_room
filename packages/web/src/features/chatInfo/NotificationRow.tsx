@@ -4,8 +4,11 @@
  * per-chat exception (`/api/chats/:id/notification-exception`) over the chat type's default.
  */
 import { useState } from 'react'
-import { authStore, selectToken } from '@tg/core'
+import type { ConversationPreferences } from '@tg/core'
+import { authStore, chatListStore, isConversationMuted, selectToken } from '@tg/core'
+import { useStore } from 'zustand/react'
 import { apiClient } from '../../app/client'
+import { withPreferences } from '../chatList/archiveRules'
 import { notificationSettingsApi, SOUNDS } from '../settings/notifications/notificationSettingsApi'
 import { BellIcon } from './icons'
 import { t } from '../../i18n/index'
@@ -48,6 +51,14 @@ const MUTE_CHOICES: { id: string; label: string; hours: number | null }[] = [
   },
 ]
 
+/**
+ * TG-1208: the choices that apply now — a muted chat offers only «取消静音», an unmuted one
+ * only the durations (the walkthrough found «取消静音» offered on a chat that was not muted).
+ */
+export function muteChoicesFor(muted: boolean): typeof MUTE_CHOICES {
+  return MUTE_CHOICES.filter((choice) => (choice.hours === 0) === muted)
+}
+
 /** The preferences patch for a mute choice (pure, for tests). */
 export function mutePatch(
   hours: number | null,
@@ -60,15 +71,24 @@ export function mutePatch(
 
 export function NotificationRow({ chatId }: { chatId: string }) {
   const [note, setNote] = useState('')
+  const muted = useStore(chatListStore, (state) => {
+    const conversation = state.conversations.find((candidate) => candidate.room_id === chatId)
+    return conversation ? isConversationMuted(conversation, Date.now()) : false
+  })
   const mute = (hours: number | null, label: string) => {
     const token = selectToken(authStore.getState())
     apiClient
-      .json('PATCH', `/api/conversations/${encodeURIComponent(chatId)}/preferences`, {
+      .json<ConversationPreferences>('PATCH', `/api/conversations/${encodeURIComponent(chatId)}/preferences`, {
         ...(token ? { token } : {}),
         body: mutePatch(hours, Date.now()),
       })
       .then(
-        () => setNote(hours === 0 ? t('w.chatInfo.02ae7c') : t('w.chatInfo.e04e05', label)),
+        (saved) => {
+          // The stored preferences drive the choices shown here and the list's mute icon.
+          const store = chatListStore.getState()
+          store.setConversations(withPreferences(store.conversations, chatId, saved))
+          setNote(hours === 0 ? t('w.chatInfo.02ae7c') : t('w.chatInfo.e04e05', label))
+        },
         () => setNote(t('w.chatInfo.7f77f4')),
       )
   }
@@ -79,7 +99,7 @@ export function NotificationRow({ chatId }: { chatId: string }) {
       </span>
       <div className="tg-chatinfo__notify">
         <div className="tg-chatinfo__notify-choices" role="group" aria-label={t('w.chatInfo.97fb2c')}>
-          {MUTE_CHOICES.map((choice) => (
+          {muteChoicesFor(muted).map((choice) => (
             <button key={choice.id} type="button" onClick={() => mute(choice.hours, choice.label)}>
               {choice.label}
             </button>
