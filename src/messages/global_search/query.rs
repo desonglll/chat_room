@@ -22,6 +22,7 @@ struct SearchRow {
     content: String,
     attachment_file_name: Option<String>,
     attachment_mime_type: Option<String>,
+    media_kind: Option<String>,
     context_before: Option<String>,
     context_after: Option<String>,
     created_at: DateTime<Utc>,
@@ -44,7 +45,10 @@ impl SearchRow {
             sender_id: self.sender_id,
             sender: self.sender,
             excerpt: excerpt(&self.content, 180),
-            content_type: SearchContentType::from_mime_type(self.attachment_mime_type.as_deref()),
+            content_type: SearchContentType::of_message(
+                self.media_kind.as_deref(),
+                self.attachment_mime_type.as_deref(),
+            ),
             attachment_file_name: self.attachment_file_name,
             context_before: self.context_before.map(|value| excerpt(&value, 100)),
             context_after: self.context_after.map(|value| excerpt(&value, 100)),
@@ -73,7 +77,7 @@ impl AppState {
                      ELSE COALESCE(NULLIF(remarks.remark, ''), NULLIF(peer.display_name, ''), peer.username) END \
                  ) AS conversation_title, messages.sender_id, messages.sender, messages.content, \
                  attachments.file_name AS attachment_file_name, \
-                 attachments.mime_type AS attachment_mime_type, \
+                 attachments.mime_type AS attachment_mime_type, messages.media_kind, \
                  (SELECT previous.content FROM messages AS previous \
                    WHERE previous.room_id = messages.room_id AND previous.recalled_at IS NULL \
                      AND (previous.created_at < messages.created_at OR \
@@ -95,7 +99,8 @@ impl AppState {
                    WHEN direct.user_high_id = $1 THEN direct.user_low_id ELSE NULL END \
                  LEFT JOIN friend_remarks AS remarks ON remarks.owner_id = $1 AND remarks.friend_id = peer.id \
                  WHERE memberships.user_id = $1 AND memberships.status = 'active' \
-                   AND LOWER(messages.content) LIKE LOWER($2) ESCAPE '\\' \
+                   AND (LOWER(messages.content) LIKE LOWER($2) ESCAPE '\\' \
+                     OR LOWER(COALESCE(attachments.file_name, '')) LIKE LOWER($2) ESCAPE '\\') \
                    AND ($3 IS NULL OR messages.room_id = $3) \
                    AND ($4 IS NULL OR messages.sender_id = $4) \
                    AND ($5 IS NULL OR messages.created_at >= $5) \
@@ -104,7 +109,20 @@ impl AppState {
                      OR ($7 = 'file' AND attachments.id IS NOT NULL) \
                      OR ($7 = 'image' AND attachments.mime_type LIKE 'image/%') \
                      OR ($7 = 'video' AND attachments.mime_type LIKE 'video/%') \
-                     OR ($7 = 'audio' AND attachments.mime_type LIKE 'audio/%')) \
+                     OR ($7 = 'audio' AND attachments.mime_type LIKE 'audio/%') \
+                     OR ($7 = 'media' AND (attachments.mime_type LIKE 'image/%' \
+                       OR attachments.mime_type LIKE 'video/%') \
+                       AND COALESCE(messages.media_kind, '') NOT IN ('video_note', 'sticker', 'gif')) \
+                     OR ($7 = 'document' AND attachments.id IS NOT NULL \
+                       AND attachments.mime_type NOT LIKE 'image/%' \
+                       AND attachments.mime_type NOT LIKE 'video/%' \
+                       AND attachments.mime_type NOT LIKE 'audio/%' \
+                       AND COALESCE(messages.media_kind, '') NOT IN ('voice', 'video_note', 'sticker', 'gif')) \
+                     OR ($7 = 'link' AND (LOWER(messages.content) LIKE '%http://%' \
+                       OR LOWER(messages.content) LIKE '%https://%')) \
+                     OR ($7 = 'music' AND attachments.mime_type LIKE 'audio/%' \
+                       AND COALESCE(messages.media_kind, '') <> 'voice') \
+                     OR ($7 = 'voice' AND messages.media_kind IN ('voice', 'video_note'))) \
                    AND ($8 IS NULL OR messages.created_at < $8 OR \
                      (messages.created_at = $8 AND messages.id < $9)) \
                  ORDER BY messages.created_at DESC, messages.id DESC LIMIT $10",
