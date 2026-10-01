@@ -126,6 +126,8 @@ impl AppState {
         self.attach_message_video_note(messages).await?;
         // TG-410: and contact cards.
         self.attach_message_contacts(messages).await?;
+        // TG-407: and locations.
+        self.attach_message_locations(messages).await?;
         self.attach_message_entities(messages).await
     }
 }

@@ -83,6 +83,9 @@ pub struct StoredMessage {
     /// TG-410: present exactly when the message is a shared contact card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contact: Option<crate::messages::contacts::ContactCard>,
+    /// TG-407: present exactly when the message is a location (static or live).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<crate::messages::locations::MessageLocation>,
     /// TG-404: sent without notifications; omitted (= false) for ordinary messages.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub silent: bool,

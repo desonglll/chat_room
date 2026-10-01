@@ -19,6 +19,7 @@ import {
 } from '@tg/core'
 import { applyPollFrame } from '../poll/pollStore'
 import { applyViewsFrame } from '../channel/channelStore'
+import { applyLocationFrame } from '../location/liveLocationStore'
 import { applyVoiceListenedFrame } from '../voice/voiceStore'
 import type { ChatSession, ChatSessionOptions } from './chatSessionTypes'
 import { MAX_MESSAGE_CHARS } from './chatSessionTypes'
@@ -201,6 +202,8 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         socket.on('message_views_updated', (frame) => {
           if (stores.channel) applyViewsFrame(frame, stores.channel)
         }),
+        // TG-407: live location points (features/location).
+        socket.on('location_updated', (frame) => applyLocationFrame(frame)),
         // TG-401: the listener's and the sender's unlistened dots (features/voice).
         socket.on('voice_listened', (frame) => applyVoiceListenedFrame(frame)),
       )

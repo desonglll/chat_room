@@ -17,6 +17,9 @@ pub struct PublicConfig {
     ai_enabled: bool,
     ai_status: AiRuntimeStatus,
     registration_mode: String,
+    /// TG-407: the map tile template and its attribution (D-010).
+    map_tile_url: String,
+    map_attribution: String,
 }
 
 pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfig> {
@@ -33,5 +36,7 @@ pub async fn public_config(State(state): State<SharedState>) -> Json<PublicConfi
         ai_enabled: ai_status == AiRuntimeStatus::Ready,
         ai_status,
         registration_mode: state.registration_mode().to_string(),
+        map_tile_url: state.config.map.tile_url.clone(),
+        map_attribution: state.config.map.attribution.clone(),
     })
 }

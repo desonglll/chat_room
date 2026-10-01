@@ -147,6 +147,19 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
             axum::routing::post(crate::messages::contacts::send_contact),
         )
         .route(
+            &path("/:id/location-messages"),
+            axum::routing::post(crate::messages::locations::handlers::send_location),
+        )
+        .route(
+            &path("/:id/live-locations"),
+            get(crate::messages::locations::handlers::list_live_locations),
+        )
+        .route(
+            &path("/:id/live-locations/:message_id"),
+            axum::routing::put(crate::messages::locations::handlers::update_live_location)
+                .delete(crate::messages::locations::handlers::stop_live_location),
+        )
+        .route(
             &path("/:id/notification-exception"),
             axum::routing::put(crate::notifications::exception_handlers::put_exception),
         )

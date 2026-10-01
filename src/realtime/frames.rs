@@ -183,6 +183,9 @@ pub enum ChatMessage {
         /// TG-410: omitted unless the message is a contact card.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         contact: Option<crate::messages::contacts::ContactCard>,
+        /// TG-407: omitted unless the message is a location.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        location: Option<crate::messages::locations::MessageLocation>,
         /// TG-404: omitted unless the message was sent silently.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         silent: bool,
@@ -277,6 +280,13 @@ pub enum ChatMessage {
     TopicUpdated { topic: TopicSummary },
 
     /// Server -> Client: batched channel view counters. One frame, many message ids. M2.
+    /// Server -> Client: a live location moved or stopped (TG-407). Only the latest point exists.
+    #[serde(rename = "location_updated")]
+    LocationUpdated {
+        message_id: Uuid,
+        location: crate::messages::locations::MessageLocation,
+    },
+
     #[serde(rename = "message_views_updated")]
     MessageViewsUpdated { views: Vec<MessageViewCount> },
 

@@ -65,6 +65,7 @@ fn broadcast_voice_is_omitted_when_absent_and_shaped_when_present() {
         voice,
         video_note: None,
         contact: None,
+        location: None,
         topic_id: None,
         views: None,
         post_author: None,
