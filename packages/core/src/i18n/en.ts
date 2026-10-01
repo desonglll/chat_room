@@ -55,4 +55,8 @@ export const en: Catalog = {
   'c.domain.fa0b40': '{0}/{1}',
   'c.domain.fc731e': 'recording audio',
   'c.domain.ffd6d7': { one: 'Send {0} video', other: 'Send {0} videos' },
+  // TG-1204: locale-aware punctuation, so no full-width mark is hard-coded in a component.
+  'c.text.speaker': '{0}: ',
+  'c.text.labelled': '{0}: {1}',
+  'c.text.listSeparator': ', ',
 }

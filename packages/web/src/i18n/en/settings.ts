@@ -97,7 +97,7 @@ export const settings: Catalog = {
   'w.settings.7553b9': 'Coming soon',
   'w.settings.765198': 'Blur (image backgrounds)',
   'w.settings.76b988': 'Ends',
-  'w.settings.76d626': '” is still in development.',
+  'w.settings.76d626': '“{0}” is still in development.',
   'w.settings.76e1a9': 'Custom theme',
   'w.settings.7719bd': 'Edit profile',
   'w.settings.77569c': 'Paste a theme file, or press “Export” to get the current theme',

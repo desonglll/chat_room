@@ -69,9 +69,18 @@ export const SEARCH_TABS: readonly SearchTab[] = [
 export const RECENT_SEARCH_KEY = 'tg.search.recent.v1'
 export const RECENT_SEARCH_MAX = 10
 
-export function readRecentSearches(storage: CoreStorage): string[] {
+/**
+ * TG-1204: recent searches are per account (Telegram keeps them per account). The bare
+ * {@link RECENT_SEARCH_KEY} was shared by every account using this browser, so the next account
+ * to sign in saw the previous one's searches.
+ */
+export function recentSearchKey(userId: string): string {
+  return `${RECENT_SEARCH_KEY}:${userId}`
+}
+
+export function readRecentSearches(storage: CoreStorage, key = RECENT_SEARCH_KEY): string[] {
   try {
-    const parsed = JSON.parse(storage.getItem(RECENT_SEARCH_KEY) ?? '[]') as unknown
+    const parsed = JSON.parse(storage.getItem(key) ?? '[]') as unknown
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
   } catch {
     return []
