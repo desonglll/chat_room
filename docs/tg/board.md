@@ -285,6 +285,15 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-1002 设置与主菜单打磨 | M | **merged** | lead | — |
 | TG-1003 首屏余量与复数排查 | S | **merged** | lead | — |
 
+## M11 补齐未覆盖项
+
+| 任务 | 规模 | 状态 | Owner | 依赖 |
+| --- | --- | --- | --- | --- |
+| TG-1101 论坛话题与两步验证走查并修复 | M | in-progress | lead | — |
+| TG-1102 联系人在线状态实时 | S | not-started | lead | — |
+| TG-1103 TUI 投票、文件夹与媒体显示 | M | not-started | lead | — |
+| TG-1104 首屏余量 ≥ 15 KB | S | not-started | lead | — |
+
 ---
 
 ## 状态取值
