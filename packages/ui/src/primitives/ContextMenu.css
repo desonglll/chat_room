@@ -7,9 +7,12 @@
   display: contents;
 }
 
-/* While a long press is being evaluated, stop the browser turning it into a text selection or a
-   native callout - which is what makes long-press feel broken on touch. */
-.tg-context-menu[data-tg-context-open] {
+/* While a long press is being evaluated (and while the menu it opened is up), stop the browser
+   turning it into a text selection or a native callout - which is what makes long-press feel
+   broken on touch. Never for a right click: switching `user-select` off under an existing
+   selection clears it, and the message menu's «引用» quotes that selection (TG-1201). */
+.tg-context-menu[data-tg-holding],
+.tg-context-menu[data-tg-touch-open] {
   -webkit-user-select: none;
   user-select: none;
 }

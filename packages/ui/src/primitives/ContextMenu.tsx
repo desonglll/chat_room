@@ -62,12 +62,16 @@ export function ContextMenu({
   const [anchor, setAnchor] = useState<AnchorTarget>(null)
   // TG-108: true while a touch hold is being timed, so the content can shrink under the finger.
   const [holding, setHolding] = useState(false)
+  // TG-1201: only a touch-opened menu keeps text selection off; a right click must leave the
+  // user's selection intact (the message menu's «引用» quotes it).
+  const [touchOpen, setTouchOpen] = useState(false)
 
   const open = anchor !== null
 
   const show = useCallback(
-    (next: AnchorTarget) => {
+    (next: AnchorTarget, byTouch = false) => {
       setAnchor(next)
+      setTouchOpen(byTouch)
       onOpenChange?.(true)
     },
     [onOpenChange],
@@ -75,6 +79,7 @@ export function ContextMenu({
 
   const hide = useCallback(() => {
     setAnchor(null)
+    setTouchOpen(false)
     onOpenChange?.(false)
   }, [onOpenChange])
 
@@ -99,7 +104,7 @@ export function ContextMenu({
     holdTimer.current = window.setTimeout(() => {
       holdTimer.current = null
       setHolding(false)
-      show(point)
+      show(point, true)
     }, longPressMs)
   }
 
@@ -126,6 +131,7 @@ export function ContextMenu({
       tabIndex={focusable ? 0 : undefined}
       data-tg-context-open={open ? '' : undefined}
       data-tg-holding={holding ? '' : undefined}
+      data-tg-touch-open={open && touchOpen ? '' : undefined}
       onContextMenu={onContextMenu}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

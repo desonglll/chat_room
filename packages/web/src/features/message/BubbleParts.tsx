@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { ForwardedFrom, MessageReaction, ReplyPreview } from '@tg/core'
 import { t } from '../../i18n/index'
+import { isFreshOwnReaction } from './reactionIntent'
 
 export function SenderName({ name }: { name: string }) {
   return <div className="tg-bubble__sender">{name}</div>
@@ -81,11 +82,14 @@ export function ReplyQuote({
 }
 
 export function ReactionRow({
+  messageId,
   reactions,
   viewerId,
   onReact,
   metaSpacer,
 }: {
+  /** Lets a chip mounted by the viewer's own first reaction burst (TG-1201). */
+  messageId: string
   reactions: readonly MessageReaction[]
   viewerId: string | undefined
   onReact?: ((emoji: string) => void) | undefined
@@ -99,6 +103,7 @@ export function ReactionRow({
           emoji={reaction.emoji}
           count={reaction.user_ids.length}
           chosen={viewerId !== undefined && reaction.user_ids.includes(viewerId)}
+          fresh={isFreshOwnReaction(messageId, reaction.emoji)}
           onReact={onReact}
         />
       ))}
@@ -110,19 +115,22 @@ export function ReactionRow({
 /**
  * One chip. TG-411: when the viewer's own reaction lands (chosen goes false → true while the
  * chip is on screen) the emoji bursts — a pop plus an expanding ring. History never bursts.
+ * TG-1201: a chip mounted by the viewer's own first reaction (`fresh`) bursts on mount.
  */
 function ReactionChip({
   emoji,
   count,
   chosen,
+  fresh,
   onReact,
 }: {
   emoji: string
   count: number
   chosen: boolean
+  fresh: boolean
   onReact?: ((emoji: string) => void) | undefined
 }) {
-  const [burst, setBurst] = useState(0)
+  const [burst, setBurst] = useState(() => (fresh && chosen ? 1 : 0))
   const [wasChosen, setWasChosen] = useState(chosen)
   if (chosen !== wasChosen) {
     // Adjusting state during render (React's documented pattern) — no effect, no extra frame.

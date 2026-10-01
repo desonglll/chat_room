@@ -16,6 +16,7 @@ import { HoverActions } from './HoverActions'
 import { MessageMeta, MetaSpacer, metaParts, resolveDelivery } from './MessageMeta'
 import { MessageRow } from './MessageRow'
 import { buildMessageMenu, canReact } from './messageMenu'
+import { noteOwnReaction } from './reactionIntent'
 import { SystemMessage } from './SystemMessage'
 import { UploadBubble } from './UploadBubble'
 
@@ -63,6 +64,17 @@ function ChatBubble({
   const spacer = <MetaSpacer parts={parts} />
   const items = selectionMode ? [] : buildMessageMenu(message, actions, facts)
   const reactable = !selectionMode && canReact(message, actions, facts)
+  const baseReact = actions.onReact
+  const onReact =
+    reactable && baseReact
+      ? (emoji: string) => {
+          const mine = reactions.some(
+            (r) => r.emoji === emoji && viewerId !== undefined && r.user_ids.includes(viewerId),
+          )
+          if (!mine) noteOwnReaction(message.message_id, emoji)
+          baseReact(emoji)
+        }
+      : undefined
   const media = kind?.leadingMedia ?? false
 
   return (
@@ -73,7 +85,7 @@ function ChatBubble({
       avatar={{ label: message.sender, emoji: message.sender_avatar }}
       menuItems={items}
       onSelect={actions.onSelect}
-      onReact={reactable ? actions.onReact : undefined}
+      onReact={onReact}
       sentAt={message.timestamp}
     >
       <BubbleFrame
@@ -94,9 +106,10 @@ function ChatBubble({
         />
         {reactions.length === 0 ? null : (
           <ReactionRow
+            messageId={message.message_id}
             reactions={reactions}
             viewerId={viewerId}
-            onReact={reactable ? actions.onReact : undefined}
+            onReact={onReact}
             metaSpacer={layout.metaMode === 'reactions' ? spacer : null}
           />
         )}
@@ -108,7 +121,7 @@ function ChatBubble({
         <HoverActions
           items={items}
           onReply={facts.delivered && !recalled ? actions.onReply : undefined}
-          onReact={reactable ? actions.onReact : undefined}
+          onReact={onReact}
         />
       )}
     </MessageRow>
