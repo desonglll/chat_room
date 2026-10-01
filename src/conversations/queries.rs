@@ -5,7 +5,7 @@ use crate::chats::ChatType;
 use crate::conversations::models::{
     ConversationPreferences, ConversationSummary, MessagePreview, NotificationLevel,
 };
-use crate::models::{Chat, ChatCompatView, UserSummary};
+use crate::models::{Chat, UserSummary};
 use crate::state::{with_pool, AppState};
 
 #[derive(sqlx::FromRow)]
@@ -65,26 +65,24 @@ impl ConversationRow {
             });
         // The sidebar's shape depends on chat_type (docs/tg/architecture.md §4.3), so the
         // conversation list carries it rather than making the client fetch each chat. `kind`
-        // is the frozen clients' spelling of the same fact: 'direct' iff chat_type = 'private'.
-        let group = (self.kind == "group").then(|| {
-            ChatCompatView::from(Chat {
-                id: self.room_id,
-                chat_type: self.chat_type,
-                title: self.room_name,
-                has_password: self.has_password,
-                creator_user_id: self.creator_user_id,
-                join_policy: self.join_policy,
-                avatar_emoji: self.chat_avatar,
-                description: self.chat_description,
-                username: self.chat_username,
-                is_forum: self.is_forum,
-                member_count: self.member_count,
-                membership_status: Some(self.membership_status),
-                membership_role: Some(self.membership_role),
-                unread_count: self.unread_count,
-                created_at: self.created_at,
-                ..Chat::default()
-            })
+        // says the same thing in the older words: 'direct' iff chat_type = 'private'.
+        let group = (self.kind == "group").then(|| Chat {
+            id: self.room_id,
+            chat_type: self.chat_type,
+            title: self.room_name,
+            has_password: self.has_password,
+            creator_user_id: self.creator_user_id,
+            join_policy: self.join_policy,
+            avatar_emoji: self.chat_avatar,
+            description: self.chat_description,
+            username: self.chat_username,
+            is_forum: self.is_forum,
+            member_count: self.member_count,
+            membership_status: Some(self.membership_status),
+            membership_role: Some(self.membership_role),
+            unread_count: self.unread_count,
+            created_at: self.created_at,
+            ..Chat::default()
         });
         let peer = self.peer_id.map(|id| UserSummary {
             id,

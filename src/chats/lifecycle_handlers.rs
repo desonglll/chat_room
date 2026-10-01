@@ -6,7 +6,7 @@
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    response::Response,
+    response::{IntoResponse, Response},
     Json,
 };
 use uuid::Uuid;
@@ -15,7 +15,6 @@ use super::handlers::{
     hash_password, valid_chat_avatar, valid_chat_description, valid_chat_title, MAX_PASSWORD_CHARS,
 };
 use super::membership_handlers::reject_private_chat;
-use super::ApiDialect;
 use crate::models::{Chat, UpdateChatRequest};
 use crate::state::SharedState;
 use crate::user_handlers::bearer_token;
@@ -37,7 +36,6 @@ use crate::user_handlers::bearer_token;
 pub async fn update_chat(
     State(state): State<SharedState>,
     Path(id): Path<Uuid>,
-    dialect: ApiDialect,
     headers: HeaderMap,
     Json(req): Json<UpdateChatRequest>,
 ) -> Result<Response, StatusCode> {
@@ -144,7 +142,7 @@ pub async fn update_chat(
         Ok(true) => {
             if password_changed {
                 state
-                    // Frozen wire value: web/src/roomSystemEvents.ts stored-password cleanup.
+                    // Frozen wire value (released clients key their stored-password cleanup on it).
                     .restart_chat_connections(id, "room password changed")
                     .await;
             } else if updated.title != previous.title {
@@ -152,7 +150,7 @@ pub async fn update_chat(
                     .broadcast(
                         id,
                         crate::models::ChatMessage::System {
-                            // Frozen wire value: web/src/roomSystemEvents.ts list refresh.
+                            // Frozen wire value (released clients key their list refresh on it).
                             content: format!("room renamed to {}", updated.title),
                             members: None,
                             participants: None,
@@ -160,7 +158,7 @@ pub async fn update_chat(
                     )
                     .await;
             }
-            Ok(dialect.chat(updated))
+            Ok(Json(updated).into_response())
         }
         Ok(false) => Err(StatusCode::CONFLICT),
         Err(sqlx::Error::Database(error)) if error.is_unique_violation() => {

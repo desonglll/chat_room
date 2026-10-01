@@ -245,7 +245,7 @@ async fn collect_overview(state: &AppState) -> anyhow::Result<AdminOverview> {
     let top_rooms: Vec<TopChat> = with_pool!(state, |pool| {
         sqlx::query_as(
             // `AS name` keeps the admin overview's wire field spelled the way
-            // web/src/adminTypes.ts reads it; only the column behind it was renamed.
+            // the admin console reads it; only the column behind it was renamed.
             "SELECT chats.id, chats.title AS name, \
              (SELECT COUNT(*) FROM messages WHERE messages.room_id = chats.id) AS messages, \
              (SELECT COUNT(*) FROM chat_members WHERE room_id = chats.id AND status = 'active') \

@@ -19,14 +19,5 @@
   "tests/integration/persistence.rs": 365,
   "tests/integration/postgres.rs": 395,
   "tests/integration_test.rs": 396,
-  "tests/chat_permissions_test.rs": 425,
-  "web/src/App.vue": 497,
-  "web/src/api.ts": 400,
-  "web/src/chat.css": 355,
-  "web/src/components/AdminDashboard.vue": 431,
-  "web/src/components/AiAssistantPage.vue": 484,
-  "web/src/components/MessageList.vue": 482,
-  "web/src/composables/useChatSocket.ts": 399,
-  "web/src/types.ts": 427,
-  "web/src/vscodeDisguise.css": 437
+  "tests/chat_permissions_test.rs": 425
 }

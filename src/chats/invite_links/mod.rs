@@ -28,8 +28,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-/// Every invite-link route. Canonical `/api/chats/*` only: the frozen clients behind the
-/// `/api/rooms/*` alias predate invite links.
+/// Every invite-link route.
 pub fn routes() -> Router<Arc<crate::state::AppState>> {
     Router::new()
         .route(

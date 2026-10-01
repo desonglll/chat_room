@@ -70,7 +70,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
                     let membership = chat.membership_status.as_deref().unwrap_or("not joined");
                     ListItem::new(Line::from(format!(
                         "{}  [{}]  {}",
-                        chat.name, access, membership
+                        chat.title, access, membership
                     )))
                 })
                 .collect::<Vec<_>>();

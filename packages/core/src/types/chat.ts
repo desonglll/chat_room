@@ -1,9 +1,7 @@
 /**
  * Mirrors of the canonical chat contract (`/api/chats/*`, TG-004 devlog §5).
  *
- * These types model the CANONICAL dialect only: the display title is `title`, never the
- * deprecated `name` (that spelling exists solely on the `/api/rooms/*` alias and inside
- * `/api/conversations`, both of which die in M6 with the frozen clients). The server never
+ * The display title is `title` (TG-602 removed the old `name` duplicate everywhere). The server never
  * serialises `password_hash` or `access_hash`, so they do not exist here at all.
  */
 

@@ -18,7 +18,12 @@ class WorkspaceResponsesMixin:
             self._chat.set_ai_enabled(ai_enabled)
             self._sidebar.set_ai_enabled(ai_enabled)
         elif operation == "rooms" and isinstance(payload, list):
-            rooms = [Room.from_dict(item) for item in payload if isinstance(item, dict)]
+            # `/api/chats` also lists private chats; the directory shows groups and channels.
+            rooms = [
+                Room.from_dict(item)
+                for item in payload
+                if isinstance(item, dict) and item.get("chat_type") != "private"
+            ]
             self._show_room_directory(rooms)
         elif operation == "room-lookup" and isinstance(payload, dict):
             self._show_room_directory([Room.from_dict(payload)])

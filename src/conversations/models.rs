@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::chats::ChatType;
-use crate::models::{ChatCompatView, UserSummary};
+use crate::models::{Chat, UserSummary};
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct MessagePreview {
@@ -92,11 +92,8 @@ pub struct ConversationSummary {
     pub alias: String,
     pub avatar_emoji: String,
     pub description: String,
-    /// Serialised as `ChatCompatView`, i.e. with the deprecated `name` beside `title`:
-    /// `/api/conversations` has no `/api/rooms` alias of its own, so this is the only way the
-    /// frozen Vue, PySide6 and ratatui clients keep reading a chat's display name. M6 drops the
-    /// duplicate together with those clients.
-    pub group: Option<ChatCompatView>,
+    /// The chat descriptor for groups, supergroups and channels; `None` for a private chat.
+    pub group: Option<Chat>,
     pub peer: Option<UserSummary>,
     pub unread_count: i64,
     pub pending_join_requests: i64,

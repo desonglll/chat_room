@@ -34,8 +34,7 @@ use crate::state::{AppState, SharedState};
 use broadcast::schedule_poll_broadcast;
 use model::{CreatePollRequest, PollError, PollVoterPage};
 
-/// The poll routes. `POST /api/chats/:id/polls` is chat-scoped but only on the canonical
-/// prefix: the deprecated `/api/rooms` alias serves frozen clients that know no polls.
+/// The poll routes (`POST /api/chats/:id/polls` and the per-poll actions).
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/chats/:id/polls", post(handlers::create))

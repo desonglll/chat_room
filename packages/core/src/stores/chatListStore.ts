@@ -55,7 +55,7 @@ export interface ConversationSummary {
   avatar_emoji: string
   description: string
   /** The chat descriptor for non-private chats; carries `chat_type`. */
-  group: (Chat & { name?: string }) | null
+  group: Chat | null
   peer: ConversationPeer | null
   unread_count: number
   pending_join_requests: number

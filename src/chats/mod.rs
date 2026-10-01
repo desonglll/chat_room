@@ -17,7 +17,6 @@ pub mod channel_views;
 pub mod channels;
 pub(crate) mod chat_projection;
 pub mod chat_type;
-pub mod compat;
 pub mod default_permissions;
 pub mod discussion;
 pub mod discussion_handlers;
@@ -51,7 +50,6 @@ pub mod topics;
 pub use authorization::ChatAuthorization;
 pub use capabilities::{CapabilityError, CapabilityOutcome, ChatCapabilityChange};
 pub use chat_type::ChatType;
-pub use compat::ApiDialect;
 pub use supergroup_upgrade::{
     supergroup_upgrade_trigger, ChatCapabilityRequest, SupergroupUpgradeTrigger,
 };

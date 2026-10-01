@@ -1,21 +1,5 @@
 use std::{env, fmt::Write as _, fs, path::Path, path::PathBuf, process::Command};
 
-/// Paths `src/web.rs` embeds with `include_str!` / `include_bytes!` but the React client
-/// does not produce yet. They are staged out of the frozen `web/public/` tree, which is why
-/// deleting `web/` (TG-602) has to wait for `packages/web/public/**` to cover this list.
-/// Staging never overwrites a file vite already emitted, so adding `packages/web/public/<name>`
-/// takes a path over without touching this file.
-const LEGACY_PUBLIC_ASSETS: &[&str] = &[
-    "favicon.svg",
-    "icons/icon-sprite.svg",
-    "brand/echo-gate.svg",
-    "emoji-data-zh.json",
-    "theme-bootstrap.js",
-    "manifest.webmanifest",
-    "pwa-192.png",
-    "pwa-512.png",
-];
-
 /// `src/web.rs` embeds `sw.js` unconditionally, but the service worker was emitted by a
 /// plugin in the old Vue `vite.config.ts` and precached that client's asset URLs. Serving it
 /// now would pin browsers to bundles that no longer exist, so the React client ships a worker
@@ -60,16 +44,10 @@ fn main() {
         "packages/web/vite.config.ts",
         "packages/web/index.html",
         "packages/web/src",
-        "web/public",
+        "packages/web/public",
     ] {
         println!("cargo:rerun-if-changed={path}");
     }
-    // Only emitted once it exists: Cargo reruns a build script unconditionally when a
-    // `rerun-if-changed` path is missing, which would rebuild the client every time.
-    if Path::new("packages/web/public").exists() {
-        println!("cargo:rerun-if-changed=packages/web/public");
-    }
-
     // bun puts workspace binaries in the member's own `node_modules/.bin`, not the root one.
     if !Path::new("packages/web/node_modules/.bin/vite").exists() {
         // cwd is the crate root, which is also the bun workspace root.
@@ -92,27 +70,13 @@ fn main() {
         .expect("run Bun; install Bun and run `bun install`");
 
     assert!(status.success(), "React web build failed");
-    stage_legacy_assets(&output_dir);
+    stage_service_worker(&output_dir);
     generate_asset_manifest(&output_dir);
 }
 
-fn stage_legacy_assets(output_dir: &Path) {
-    for name in LEGACY_PUBLIC_ASSETS {
-        let destination = output_dir.join(name);
-        if destination.exists() {
-            continue;
-        }
-        let source = Path::new("web/public").join(name);
-        create_parent_dir(&destination);
-        fs::copy(&source, &destination).unwrap_or_else(|error| {
-            panic!(
-                "stage {} into the embedded bundle: {error}; src/web.rs embeds it by fixed path, \
-                 so it must come from packages/web/public or web/public",
-                source.display()
-            )
-        });
-    }
-
+/// `packages/web/public/` (copied by vite) supplies every file `src/web.rs` embeds except the
+/// service worker, which the React client does not emit yet.
+fn stage_service_worker(output_dir: &Path) {
     let service_worker = output_dir.join("sw.js");
     if !service_worker.exists() {
         fs::write(&service_worker, RETIRED_SERVICE_WORKER).expect("write retired service worker");
@@ -180,11 +144,4 @@ fn content_type(path: &Path) -> &'static str {
         Some("webm") => "video/webm",
         _ => "application/octet-stream",
     }
-}
-
-fn create_parent_dir(destination: &Path) {
-    let parent = destination
-        .parent()
-        .expect("staged asset path has a parent directory");
-    fs::create_dir_all(parent).expect("create staged asset directory");
 }

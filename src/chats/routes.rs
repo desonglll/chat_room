@@ -1,7 +1,5 @@
-//! The chat-scoped route tree, mounted twice.
-//!
-//! `docs/tg/architecture.md` §5.1: `/api/chats/*` is the contract and `/api/rooms/*` is a
-//! deprecated alias that forwards to the same handlers and is removed in M6.
+//! The chat-scoped route tree under `/api/chats` (`docs/tg/architecture.md` §5.1). TG-602 removed
+//! the pre-rename alias that used to mount this same tree a second time.
 
 use std::sync::Arc;
 
@@ -19,16 +17,8 @@ use crate::{
 
 /// The canonical chat contract.
 pub(crate) const CHAT_PREFIX: &str = "/api/chats";
-/// Deprecated pre-TG-006 spelling, kept until M6 for the frozen Vue, PySide6 and ratatui
-/// clients. `docs/tg/architecture.md` §5.1.
-pub(crate) const DEPRECATED_CHAT_PREFIX: &str = "/api/rooms";
 
-/// Every chat-scoped route, built once and mounted twice.
-///
-/// The deprecated `/api/rooms/*` alias is this same function with a different prefix and one
-/// extra layer that marks the request's dialect. There is no second route list and no second
-/// handler, so the alias cannot drift from the contract — which is a stronger guarantee than
-/// the equivalence test alone gives.
+/// Every chat-scoped route.
 fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<AppState>> {
     let path = |suffix: &str| format!("{prefix}{suffix}");
     Router::new()
@@ -211,16 +201,8 @@ fn chat_scoped_routes(prefix: &str, multipart_body_limit: usize) -> Router<Arc<A
 /// `/api/chats/*` — the contract.
 pub(crate) fn canonical(multipart_body_limit: usize) -> Router<Arc<AppState>> {
     chat_scoped_routes(CHAT_PREFIX, multipart_body_limit)
-        // TG-202: channels exist only on the canonical prefix.
+        // TG-202: channels.
         .merge(super::channel_handlers::routes())
-        // TG-203: channel comments, canonical prefix only.
+        // TG-203: channel comments.
         .merge(super::discussion_handlers::routes())
-}
-
-/// `/api/rooms/*` — the same tree, plus the one layer that tells the chat-descriptor handlers
-/// to answer in the pre-rename dialect. Routing only: no handler is duplicated.
-pub(crate) fn deprecated_alias(multipart_body_limit: usize) -> Router<Arc<AppState>> {
-    chat_scoped_routes(DEPRECATED_CHAT_PREFIX, multipart_body_limit).layer(
-        axum::middleware::from_fn(super::compat::mark_legacy_room_dialect),
-    )
 }

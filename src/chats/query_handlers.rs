@@ -3,12 +3,14 @@
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
-    response::Response,
+    response::{IntoResponse, Response},
+    Json,
 };
 use serde::Deserialize;
 use uuid::Uuid;
 
-use super::{ApiDialect, ChatType};
+use super::ChatType;
+use crate::models::Chat;
 use crate::state::SharedState;
 use crate::user_handlers::optional_bearer_token;
 
@@ -28,12 +30,11 @@ pub struct ListQuery {
     get,
     path = "/api/chats",
     params(("title" = Option<String>, Query, description = "Filter by exact chat title")),
-    responses((status = 200, description = "Chats the viewer is an active member of, of every chat type. A private chat carries its peer's name, avatar and signature as title, avatar_emoji and description. The deprecated /api/rooms alias omits private chats.", body = Vec<Chat>))
+    responses((status = 200, description = "Chats the viewer is an active member of, of every chat type. A private chat carries its peer's name, avatar and signature as title, avatar_emoji and description.", body = Vec<Chat>))
 )]
 pub async fn list_chats(
     State(state): State<SharedState>,
     Query(query): Query<ListQuery>,
-    dialect: ApiDialect,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
     let user = if let Some(token) = optional_bearer_token(&headers) {
@@ -45,15 +46,10 @@ pub async fn list_chats(
         None
     };
     let Some(user) = user else {
-        return Ok(dialect.chats(Vec::new()));
+        return Ok(Json(Vec::<Chat>::new()).into_response());
     };
+    // Every chat the viewer is in, whatever its type (TG-208).
     let mut chats = state.list_chats(None).await;
-    // The frozen clients behind `/api/rooms` list private chats from `/api/conversations`;
-    // giving them here too would show every private chat twice. The canonical contract lists
-    // every chat the viewer is in, whatever its type (TG-208).
-    if dialect == ApiDialect::LegacyRooms {
-        chats.retain(|chat| chat.chat_type != ChatType::Private);
-    }
     state
         .decorate_chats_for_user(&mut chats, user.id)
         .await
@@ -68,7 +64,7 @@ pub async fn list_chats(
     if let Some(title) = query.title.as_deref() {
         chats.retain(|chat| chat.title == title);
     }
-    Ok(dialect.chats(chats))
+    Ok(Json(chats).into_response())
 }
 
 #[utoipa::path(
@@ -81,7 +77,6 @@ pub async fn list_chats(
 pub async fn discover_chats(
     State(state): State<SharedState>,
     Query(query): Query<ListQuery>,
-    dialect: ApiDialect,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
     let mut chats = state.list_chats(query.title.as_deref()).await;
@@ -116,7 +111,7 @@ pub async fn discover_chats(
             chats.retain(|chat| chat.membership_status.as_deref() != Some("active"));
         }
     }
-    Ok(dialect.chats(chats))
+    Ok(Json(chats).into_response())
 }
 
 #[utoipa::path(
@@ -131,7 +126,6 @@ pub async fn discover_chats(
 pub async fn get_chat(
     State(state): State<SharedState>,
     Path(id): Path<Uuid>,
-    dialect: ApiDialect,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
     // Refresh the cached projections (type, member count) from the row first; they can
@@ -173,5 +167,5 @@ pub async fn get_chat(
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
-    Ok(dialect.chat(chat))
+    Ok(Json(chat).into_response())
 }

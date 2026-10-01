@@ -84,7 +84,7 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
     let chunk_body_limit = state.chunk_body_limit_bytes();
     let cors = security::cors_layer(&state.config.security);
     let mut app = routes::api_routes(multipart_body_limit, chunk_body_limit)
-        .route("/api-docs/openapi.json", get(chats::compat::openapi_json));
+        .route("/api-docs/openapi.json", get(api_doc::openapi_json));
     if web_enabled {
         app = app
             .route("/", get(web::index))
