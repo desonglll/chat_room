@@ -10,7 +10,7 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import type { Attachment, BroadcastMessage } from '@tg/core'
-import { layoutAlbum, type AlbumItemSize } from '@tg/core'
+import { layoutAlbum, parenthetical, type AlbumItemSize } from '@tg/core'
 import { MessageText, type MessageContentProps } from '../message'
 import { MediaFrame } from '../message/content/MediaFrame'
 import { albumItemsOf } from './albumCollapse'
@@ -71,7 +71,10 @@ export function AlbumContent({ message, actions, metaSpacer }: MessageContentPro
               <MediaFrame
                 attachment={attachment}
                 actions={actions}
-                label={`${video ? t('w.album.af7d6e') : t('w.album.9b1861')} ${attachment.file_name}（${index + 1}/${withMedia.length}）`}
+                label={parenthetical(
+                  `${video ? t('w.album.af7d6e') : t('w.album.9b1861')} ${attachment.file_name}`,
+                  `${index + 1}/${withMedia.length}`,
+                )}
               >
                 {video ? (
                   <video

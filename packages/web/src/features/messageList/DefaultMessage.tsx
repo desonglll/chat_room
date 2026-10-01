@@ -8,6 +8,7 @@
  * fixed box before it loads, so a late image never changes the row height.
  */
 import type { BroadcastMessage, DisplayMessage, UploadMessage } from '@tg/core'
+import { speaker } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { useMessageListActions } from './messageListActions'
 import type { MessageRenderContext } from './renderContract'
@@ -72,7 +73,7 @@ function BroadcastBubble({ message, ctx }: { message: BroadcastMessage; ctx: Mes
             className="tg-msg__reply tg-mlist-default__reply"
             onClick={() => jumpToMessage(message.reply_to?.message_id ?? '')}
           >
-            {message.reply_to.sender}：
+            {speaker(message.reply_to.sender)}
             {message.reply_to.recalled ? t('w.messageList.26b4ea') : message.reply_to.content}
           </button>
         ) : null}

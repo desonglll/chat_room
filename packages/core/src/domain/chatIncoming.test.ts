@@ -31,4 +31,20 @@ describe('incoming chat messages', () => {
     const result = mergeIncomingBroadcast([], message(), 'incoming')
     expect((result.messages[0] as BroadcastMessage).motion).toBe('incoming')
   })
+
+  // TG-1208: a send made while the chat was opening sat ABOVE the replayed history.
+  test('a confirmed row lands before trailing in-flight sends, after failed ones', () => {
+    const pending = (id: string, state: 'sending' | 'failed'): BroadcastMessage => ({
+      ...message(),
+      message_id: `pending:${id}`,
+      sender_id: 'me',
+      content: id,
+      delivery_state: state,
+    })
+    const replayed = { ...message(), message_id: 'history-1', content: 'history' }
+    const inFlight = mergeIncomingBroadcast([pending('a', 'sending'), pending('b', 'sending')], replayed, 'none')
+    expect(inFlight.messages.map((row) => (row as BroadcastMessage).content)).toEqual(['history', 'a', 'b'])
+    const failed = mergeIncomingBroadcast([pending('x', 'failed')], replayed, 'none')
+    expect(failed.messages.map((row) => (row as BroadcastMessage).content)).toEqual(['x', 'history'])
+  })
 })

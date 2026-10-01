@@ -260,10 +260,19 @@ describe('deriveChatRowPresence (TG-107 seam)', () => {
 
   test('private: peer online; typing text without a name', () => {
     const typing = [{ user_id: 'u9', username: 'zed', content: '', action: 'typing' as const, receivedAt: 0 }]
-    expect(deriveChatRowPresence({ ...presence, typing }, direct, 'me')).toEqual({
+    expect(deriveChatRowPresence({ ...presence, typing }, direct, 'me', { kind: 'online' })).toEqual({
       isOnline: true,
       typingText: '正在输入…',
     })
+  })
+
+  // TG-1208: the header said «离线» while the row showed the dot — the row read the roster.
+  test('private: being in the roster is not being online; the status decides, as in the header', () => {
+    expect(deriveChatRowPresence(presence, direct, 'me', undefined).isOnline).toBeUndefined()
+    expect(deriveChatRowPresence(presence, direct, 'me', { kind: 'recently' }).isOnline).toBe(false)
+    expect(deriveChatRowPresence(presence, direct, 'me', { kind: 'empty' }).isOnline).toBe(false)
+    // A status heard in another chat still shows while this chat is closed.
+    expect(deriveChatRowPresence(undefined, direct, 'me', { kind: 'online' }).isOnline).toBe(true)
   })
 
   test('group: named typist, count for several, never the caller', () => {

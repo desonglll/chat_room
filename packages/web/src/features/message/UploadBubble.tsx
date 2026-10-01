@@ -4,6 +4,7 @@
  * offers no menu, because there is no server message to act on yet.
  */
 import type { UploadMessage } from '@tg/core'
+import { labelled } from '@tg/core'
 import { computeBubbleLayout } from './bubbleLayout'
 import { BubbleFrame } from './BubbleFrame'
 import { formatBytes } from './content/attachmentKind'
@@ -50,7 +51,7 @@ export function UploadBubble({ upload, ctx }: { upload: UploadMessage; ctx: Mess
     hasReactions: false,
   })
   const status = failed
-    ? t('w.message.45b9b4', upload.error === '' ? '' : `：${upload.error}`)
+    ? t('w.message.45b9b4', upload.error === '' ? '' : labelled('', upload.error))
     : `${PHASE_LABEL[upload.phase]} ${percent}%`
 
   const progress = (

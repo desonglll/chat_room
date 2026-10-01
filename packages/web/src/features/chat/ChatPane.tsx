@@ -71,7 +71,7 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
   const slowMode = useSlowMode(chatId, currentUserId)
   const navigate = useNavigate()
   const session = useChatSession(chatId, { topic: topic?.mode ?? null, onFrame: topic?.onFrame })
-  const { connection, sendFrame } = session
+  const { connection, sendable, sendFrame } = session
   const selection = useMessageSelection(chatId)
   const { selected, toggle: toggleSelected, clear: clearSelection } = selection
 
@@ -191,7 +191,7 @@ export function ChatPane({ topic }: { topic?: ChatPaneTopic | undefined } = {}) 
             currentUserId={currentUserId}
             members={presence.participants}
             session={session}
-            canSend={connection === 'online' && slowMode.wait === 0}
+            canSend={sendable && slowMode.wait === 0}
           />
         </>
       )}

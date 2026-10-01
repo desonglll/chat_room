@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { ChatMembership } from '@tg/core'
+import { labelled } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { formatChatListTime } from '../chatList/chatTime'
 import { openMediaViewer } from '../mediaViewer'
@@ -11,6 +12,7 @@ import { FileIcon, PlayIcon } from './icons'
 import { memberName } from './memberSource'
 import type { SharedFile, SharedLink } from './sharedSources'
 import { t } from '../../i18n/index'
+import { EmojiStatus } from '../customEmoji/EmojiStatus'
 
 const when = (createdAt: string) => formatChatListTime(createdAt, new Date())
 
@@ -30,7 +32,7 @@ export function MediaTile({ chatId, file }: { chatId: string; file: SharedFile }
       data-veiled={revealed ? undefined : ''}
       aria-label={
         revealed
-          ? `${video ? t('w.chatInfo.fa4e33') : t('w.chatInfo.48e9e5')}：${attachment.file_name}`
+          ? labelled(video ? t('w.chatInfo.fa4e33') : t('w.chatInfo.48e9e5'), attachment.file_name)
           : t('w.chatInfo.976c5d')
       }
       onClick={(event) => {
@@ -67,7 +69,7 @@ export function GifTile({ file }: { file: SharedFile }) {
       href={file.attachment.download_url}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`GIF：${file.attachment.file_name}`}
+      aria-label={labelled('GIF', file.attachment.file_name)}
     >
       <img src={file.attachment.download_url} alt="" loading="lazy" decoding="async" draggable={false} />
     </a>
@@ -149,7 +151,10 @@ export function MemberRow({ member, action }: { member: ChatMembership; action?:
         online={lastSeen === t('w.chatInfo.0373ff')}
       />
       <span className="tg-chatinfo__item-text">
-        <span className="tg-chatinfo__item-title">{name}</span>
+        <span className="tg-chatinfo__item-title">
+          {name}
+          <EmojiStatus userId={member.user_id} size={16} />
+        </span>
         <span className="tg-chatinfo__item-meta" data-online={lastSeen === t('w.chatInfo.0373ff') || undefined}>
           {lastSeen}
         </span>

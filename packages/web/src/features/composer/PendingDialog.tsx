@@ -4,7 +4,7 @@
  * the batch, «以文件形式发送», and send. Enter in the caption sends.
  */
 import type { PendingAttachment } from '@tg/core'
-import { pendingBatchTitle } from '@tg/core'
+import { joinClauses, labelled, pendingBatchTitle } from '@tg/core'
 import { Button, Checkbox, Modal } from '@tg/ui'
 import { CloseGlyph, FileGlyph } from './icons'
 import type { PendingBatchHandle } from './usePendingBatch'
@@ -100,7 +100,7 @@ export function PendingDialog({ pending }: PendingDialogProps) {
       </ul>
       {pending.rejected.length > 0 ? (
         <p className="tg-compose__pending-rejected" role="status">
-          {pending.rejected.map((file) => `${file.name}：${file.reason}`).join('；')}
+          {joinClauses(pending.rejected.map((file) => labelled(file.name, file.reason)))}
         </p>
       ) : null}
       <Checkbox

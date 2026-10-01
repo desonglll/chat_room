@@ -3,6 +3,7 @@ import type { ChatMemberEntry } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { memberName, roleBadge, untilText } from './chatAdminModel'
 import { t } from '../../i18n/index'
+import { EmojiStatus } from '../customEmoji/EmojiStatus'
 
 export interface MemberRowProps {
   entry: ChatMemberEntry
@@ -18,7 +19,10 @@ export function MemberRow({ entry, onOpen }: MemberRowProps) {
     <>
       <Avatar label={name} initials={entry.avatar_emoji || undefined} size="md" />
       <span className="tg-chatadmin__member-text">
-        <span className="tg-chatadmin__member-name">{name}</span>
+        <span className="tg-chatadmin__member-name">
+          {name}
+          <EmojiStatus userId={entry.user_id} size={16} />
+        </span>
         {restriction ? (
           <span className="tg-chatadmin__member-sub" data-tone="danger">
             {t('w.chatAdmin.a7c55d')} {untilText(restriction.until)}

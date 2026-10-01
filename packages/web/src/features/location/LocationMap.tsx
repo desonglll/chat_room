@@ -4,6 +4,7 @@
  * the theme tokens (no image assets, nothing to break with a bundler).
  */
 import { useEffect, useRef } from 'react'
+import { joinList } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { loadMapTiles, mapTilesStore } from './locationApi'
 
@@ -96,7 +97,7 @@ export function LocationMap({
       ref={host}
       className={className ?? 'tg-location-map'}
       role="img"
-      aria-label={points.map((p) => p.label).join('，')}
+      aria-label={joinList(points.map((p) => p.label))}
     />
   )
 }

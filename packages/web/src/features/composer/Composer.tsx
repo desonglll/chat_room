@@ -18,7 +18,15 @@ import {
   type ClipboardEvent,
 } from 'react'
 import type { ChatMember, Sticker } from '@tg/core'
-import { activeComposerBar, composerStore, evaluateArithmeticExpression, messageStore, settingsStore } from '@tg/core'
+import {
+  activeComposerBar,
+  composerStore,
+  evaluateArithmeticExpression,
+  joinClauses,
+  labelled,
+  messageStore,
+  settingsStore,
+} from '@tg/core'
 import { IconButton, Popover } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { AttachMenu } from './AttachMenu'
@@ -261,7 +269,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
         ) : null}
         {pending.rejected.length > 0 && pending.batch.items.length === 0 ? (
           <p className="tg-compose__notice" role="alert">
-            {pending.rejected.map((file) => `${file.name}：${file.reason}`).join('；')}
+            {joinClauses(pending.rejected.map((file) => labelled(file.name, file.reason)))}
           </p>
         ) : null}
       </div>
