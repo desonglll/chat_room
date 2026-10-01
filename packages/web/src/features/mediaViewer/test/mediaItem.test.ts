@@ -58,6 +58,21 @@ test('ordering parses timestamps (the server trims fractional seconds) and ties 
   expect(compareItems(tieA, tieB)).toBeLessThan(0)
 })
 
+test('album items 1 µs apart keep album order, not message-id order (TG-1202)', () => {
+  // `POST /albums` spaces its rows 1 µs apart; `Date.parse` alone drops that precision.
+  const red = media(1, { createdAt: '2026-10-01T11:51:02.123456Z', messageId: 'f-later-uuid' })
+  const green = media(2, { createdAt: '2026-10-01T11:51:02.123457Z', messageId: 'a-early-uuid' })
+  const blue = media(3, { createdAt: '2026-10-01T11:51:02.123458+00:00', messageId: '0-earliest' })
+  expect(mergeItems([], [blue, green, red]).map((item) => item.attachmentId)).toEqual(['a1', 'a2', 'a3'])
+  // A trimmed fraction (`.5`) is 500 ms, i.e. later than `.123456`.
+  expect(
+    compareItems(
+      media(4, { createdAt: '2026-10-01T00:00:00.1234Z' }),
+      media(5, { createdAt: '2026-10-01T00:00:00.12341Z' }),
+    ),
+  ).toBeLessThan(0)
+})
+
 test('merge de-duplicates by attachment id and keeps the captioned copy', () => {
   const merged = mergeItems([media(2), media(1)], [media(2, { caption: null }), media(3, { caption: null })])
   expect(merged.map((item) => item.attachmentId)).toEqual(['a1', 'a2', 'a3'])

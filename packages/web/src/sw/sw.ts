@@ -58,7 +58,8 @@ async function cacheFirst(request: Request, cacheName: string, trim: boolean): P
   const cached = await cache.match(request)
   if (cached) return cached
   const response = await fetch(request)
-  if (response.ok && response.type === 'basic') {
+  // Only a complete 200 is cacheable; `cache.put` rejects a 206 and would fail the response.
+  if (response.status === 200 && response.type === 'basic') {
     await cache.put(request, trim ? await stamp(response.clone()) : response.clone())
     if (trim) void trimMedia()
   }
@@ -82,7 +83,13 @@ async function trimMedia(): Promise<void> {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request
-  const kind = classify(request.method, new URL(request.url), self.location.origin, request.mode === 'navigate')
+  const kind = classify(
+    request.method,
+    new URL(request.url),
+    self.location.origin,
+    request.mode === 'navigate',
+    request.headers.has('range'),
+  )
   if (kind === 'bypass') return
   if (kind === 'shell') event.respondWith(networkFirst(request, CACHE_SHELL, '/'))
   else if (kind === 'asset') event.respondWith(cacheFirst(request, CACHE_SHELL, false))

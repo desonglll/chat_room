@@ -75,13 +75,22 @@ export function mediaFromFileItem(file: ChatFileItem): MediaItem | null {
   })
 }
 
+/** Nanoseconds below the millisecond, from the RFC 3339 fraction (`Date.parse` drops them). */
+function subMillisecondNanos(iso: string): number {
+  const fraction = /\.(\d+)/.exec(iso)?.[1] ?? ''
+  return Number(fraction.slice(3, 9).padEnd(6, '0'))
+}
+
 /**
  * Chronological order. Parsed, not string-compared: the server's RFC 3339 output trims its
- * fractional seconds, so two timestamps of different lengths do not sort lexically.
+ * fractional seconds, so two timestamps of different lengths do not sort lexically. Sub-
+ * millisecond digits break ties: the items of one album are written 1 µs apart (TG-1202).
  */
 export function compareItems(a: MediaItem, b: MediaItem): number {
   const delta = Date.parse(a.createdAt) - Date.parse(b.createdAt)
   if (delta !== 0 && Number.isFinite(delta)) return delta
+  const fine = subMillisecondNanos(a.createdAt) - subMillisecondNanos(b.createdAt)
+  if (fine !== 0) return fine
   return a.messageId < b.messageId ? -1 : a.messageId > b.messageId ? 1 : 0
 }
 

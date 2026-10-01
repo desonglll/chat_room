@@ -15,6 +15,10 @@ describe('TG-601 service worker policy', () => {
     expect(classify('POST', at('/api/chats/c1/messages'), origin, false)).toBe('bypass')
     expect(classify('GET', at('/api/messages/search'), origin, false)).toBe('bypass')
     expect(classify('GET', new URL('https://tile.openstreetmap.org/1/1/1.png'), origin, false)).toBe('bypass')
+    // TG-1202: <audio>/<video> ask for byte ranges; the Cache API refuses a 206, which failed
+    // the whole respondWith — voice messages, round videos and GIFs never played with the SW on.
+    expect(classify('GET', at('/api/attachments/a1?key=k'), origin, false, true)).toBe('bypass')
+    expect(classify('GET', at('/api/attachments/a1?key=k'), origin, false, false)).toBe('media')
   })
 
   test('media eviction honours retention first, then the size limit from the oldest', () => {
