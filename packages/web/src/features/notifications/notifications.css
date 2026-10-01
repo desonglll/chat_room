@@ -1,40 +1,6 @@
-/* TG-703: the notification bell and page. */
-.tg-bell {
-  position: relative;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--tg-space-10);
-  block-size: var(--tg-space-10);
-  border: 0;
-  border-radius: var(--tg-radius-circle);
-  background: none;
-  color: var(--tg-text-secondary);
-  cursor: pointer;
-}
-
-.tg-bell:hover {
-  background: var(--tg-surface-hover);
-}
-
-.tg-bell:focus-visible,
 .tg-notifications__item:focus-visible {
   outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
   outline-offset: var(--tg-focus-ring-offset);
-}
-
-.tg-bell__badge {
-  position: absolute;
-  inset-block-start: var(--tg-space-0-5);
-  inset-inline-end: var(--tg-space-0-5);
-  min-inline-size: 1.25em;
-  padding: 0 var(--tg-space-1);
-  border-radius: var(--tg-radius-pill);
-  background: var(--tg-badge-bg);
-  color: var(--tg-badge-text);
-  font-size: var(--tg-type-badge-size);
-  line-height: 1.4;
 }
 
 .tg-notifications {
