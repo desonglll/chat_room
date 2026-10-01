@@ -75,3 +75,9 @@ def test_room_and_profile_keep_desktop_workflow_fields() -> None:
     assert room.can_open
     assert room.membership_role == "owner"
     assert user.homepage == "https://example.com"
+
+
+def test_room_reads_the_chats_api_title() -> None:
+    """TG-603: `/api/chats` names a chat `title`; older servers' `name` still reads."""
+    assert Room.from_dict({"id": "c1", "title": "Design"}).name == "Design"
+    assert Room.from_dict({"id": "c1", "name": "Legacy"}).name == "Legacy"

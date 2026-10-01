@@ -52,7 +52,8 @@ class Room:
     def from_dict(cls, value: JsonObject) -> Room:
         return cls(
             id=str(value.get("id", "")),
-            name=str(value.get("name", "")),
+            # TG-603: `/api/chats` names a chat `title` (older servers also sent `name`).
+            name=str(value.get("title") or value.get("name", "")),
             has_password=bool(value.get("has_password", False)),
             join_policy=str(value.get("join_policy", "open")),
             avatar_emoji=str(value.get("avatar_emoji", "")),

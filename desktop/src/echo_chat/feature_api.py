@@ -34,7 +34,7 @@ class FeatureApiMixin:
         self.request_json(
             f"message-context:{message_id}",
             "GET",
-            f"/api/rooms/{room_path}/messages/{message_path}/context?limit=60",
+            f"/api/chats/{room_path}/messages/{message_path}/context?limit=60",
             extra_headers={"x-room-password": room_password} if room_password else None,
         )
 
