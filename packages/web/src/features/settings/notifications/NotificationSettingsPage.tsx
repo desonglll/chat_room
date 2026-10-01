@@ -12,9 +12,10 @@ import {
   type NotificationDefaults,
   type NotificationSettings,
 } from './notificationSettingsApi'
+import { t } from '../../../i18n/index'
 
 function soundLabel(id: string | null | undefined): string {
-  return SOUNDS.find((sound) => sound.id === id)?.label ?? '默认'
+  return SOUNDS.find((sound) => sound.id === id)?.label ?? t('w.settings.c8d09c')
 }
 
 export function NotificationSettingsPage() {
@@ -39,17 +40,17 @@ export function NotificationSettingsPage() {
         <section key={defaults.scope} className="tg-notify-settings__card" aria-label={SCOPE_LABEL[defaults.scope]}>
           <h3 className="tg-notify-settings__title">{SCOPE_LABEL[defaults.scope]}</h3>
           <Toggle
-            label="显示通知"
+            label={t('w.settings.38a190')}
             checked={defaults.enabled}
             onCheckedChange={(enabled) => saveDefaults({ ...defaults, enabled })}
           />
           <Toggle
-            label="消息预览"
+            label={t('w.settings.2c137e')}
             checked={defaults.preview}
             onCheckedChange={(preview) => saveDefaults({ ...defaults, preview })}
           />
           <label className="tg-notify-settings__sound">
-            <span>声音</span>
+            <span>{t('w.settings.ab9ff8')}</span>
             <select
               value={defaults.sound}
               onChange={(event) => saveDefaults({ ...defaults, sound: event.target.value })}
@@ -63,21 +64,25 @@ export function NotificationSettingsPage() {
           </label>
         </section>
       ))}
-      <section className="tg-notify-settings__card" aria-label="例外">
-        <h3 className="tg-notify-settings__title">例外</h3>
+      <section className="tg-notify-settings__card" aria-label={t('w.settings.6401b3')}>
+        <h3 className="tg-notify-settings__title">{t('w.settings.6401b3')}</h3>
         {settings.exceptions.length === 0 ? (
-          <p className="tg-notify-settings__hint">在会话信息里为单个会话设置例外。</p>
+          <p className="tg-notify-settings__hint">{t('w.settings.56dd68')}</p>
         ) : (
           <ul className="tg-notify-settings__exceptions">
             {settings.exceptions.map((exception) => (
               <li key={exception.chat_id}>
-                <span>{exception.chat_title || '会话'}</span>
+                <span>{exception.chat_title || t('w.settings.836ffe')}</span>
                 <span className="tg-notify-settings__hint">
-                  {exception.enabled === false ? '关闭' : exception.enabled === true ? '开启' : '默认'} ·{' '}
-                  {soundLabel(exception.sound)}
+                  {exception.enabled === false
+                    ? t('w.settings.6c14bd')
+                    : exception.enabled === true
+                      ? t('w.settings.256783')
+                      : t('w.settings.c8d09c')}{' '}
+                  · {soundLabel(exception.sound)}
                 </span>
                 <button type="button" onClick={() => removeException(exception.chat_id)}>
-                  移除
+                  {t('w.settings.2f752c')}
                 </button>
               </li>
             ))}

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CommentThread, DiscussionApi } from '@tg/core'
 import { Button, TextField } from '@tg/ui'
 import { replyTarget } from './commentsModel'
+import { t } from '../../../i18n/index'
 
 export interface CommentsPanelProps {
   channelId: string
@@ -74,28 +75,32 @@ export function CommentsPanel({ channelId, postId, api, onCount }: CommentsPanel
   }
 
   if (thread === null) {
-    return <p className="tg-comments__empty">{failed ? '评论加载失败' : '正在加载评论…'}</p>
+    return <p className="tg-comments__empty">{failed ? t('w.channel.8df828') : t('w.channel.ea6315')}</p>
   }
   return (
     <div className="tg-comments">
       {thread.messages.length === 0 ? (
-        <p className="tg-comments__empty">还没有评论</p>
+        <p className="tg-comments__empty">{t('w.channel.57fb8d')}</p>
       ) : (
-        <ul className="tg-comments__list" aria-label="评论">
+        <ul className="tg-comments__list" aria-label={t('w.channel.cf5105')}>
           {thread.messages.map((message) => {
             const answers = replyTarget(message.reply_to?.message_id, thread.discussion_message_id, byId)
             return (
               <li key={message.id} className="tg-comments__item">
                 <span className="tg-comments__sender">{message.sender}</span>
-                {answers ? <span className="tg-comments__answers">回复 {answers}</span> : null}
-                <p className="tg-comments__text">{message.recalled_at ? '评论已删除' : message.content}</p>
+                {answers ? (
+                  <span className="tg-comments__answers">
+                    {t('w.channel.ffc785')} {answers}
+                  </span>
+                ) : null}
+                <p className="tg-comments__text">{message.recalled_at ? t('w.channel.714c1e') : message.content}</p>
                 {thread.can_comment && !message.recalled_at ? (
                   <button
                     type="button"
                     className="tg-comments__reply"
                     onClick={() => setReplyTo({ id: message.id, sender: message.sender })}
                   >
-                    回复
+                    {t('w.channel.ffc785')}
                   </button>
                 ) : null}
               </li>
@@ -103,7 +108,7 @@ export function CommentsPanel({ channelId, postId, api, onCount }: CommentsPanel
           })}
         </ul>
       )}
-      {failed ? <p role="alert">操作失败，请重试</p> : null}
+      {failed ? <p role="alert">{t('w.channel.51d3cb')}</p> : null}
       {thread.can_comment ? (
         <form
           className="tg-comments__composer"
@@ -114,25 +119,25 @@ export function CommentsPanel({ channelId, postId, api, onCount }: CommentsPanel
         >
           {replyTo ? (
             <p className="tg-comments__replying">
-              回复 {replyTo.sender}
+              {t('w.channel.ffc785')} {replyTo.sender}
               <button type="button" className="tg-comments__reply" onClick={() => setReplyTo(null)}>
-                取消
+                {t('w.channel.4d0b46')}
               </button>
             </p>
           ) : null}
           <TextField
-            aria-label="写评论"
-            placeholder="写评论…"
+            aria-label={t('w.channel.a44f48')}
+            placeholder={t('w.channel.cf650e')}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
           <Button type="submit" disabled={!draft.trim()} loading={busy}>
-            发送
+            {t('w.channel.1214d6')}
           </Button>
         </form>
       ) : (
         <Button variant="tonal" loading={busy} onClick={() => void join()}>
-          加入讨论组以评论
+          {t('w.channel.5a55d6')}
         </Button>
       )}
     </div>

@@ -7,6 +7,7 @@
  * arrive in M2; the variant exists now so the panel does not have to be reshaped then.
  */
 import type { Chat, ChatType, ConversationSummary, PresenceState, User } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export type InfoVariant = 'private' | 'group' | 'channel'
 
@@ -100,18 +101,24 @@ const COUNT_FORMAT = new Intl.NumberFormat('zh-CN')
 
 /** Same rule as TG-107's header line: the online part only when more than one is online. */
 export function memberCountText(count: number, onlineCount = 0): string {
-  const base = `${COUNT_FORMAT.format(count)} 位成员`
-  return onlineCount > 1 ? `${base}，${COUNT_FORMAT.format(onlineCount)} 人在线` : base
+  const base = t('w.chatInfo.0ece20', COUNT_FORMAT.format(count))
+  return onlineCount > 1 ? t('w.chatInfo.40c5a7', base, COUNT_FORMAT.format(onlineCount)) : base
 }
 
 export function subscriberCountText(count: number): string {
-  return `${COUNT_FORMAT.format(count)} 位订阅者`
+  return t('w.chatInfo.2b75a3', COUNT_FORMAT.format(count))
 }
 
 export const PANEL_HEADING: Record<InfoVariant, string> = {
-  private: '用户信息',
-  group: '群组信息',
-  channel: '频道信息',
+  get private() {
+    return t('w.chatInfo.55c26a')
+  },
+  get group() {
+    return t('w.chatInfo.d868bb')
+  },
+  get channel() {
+    return t('w.chatInfo.7a589f')
+  },
 }
 
 /**

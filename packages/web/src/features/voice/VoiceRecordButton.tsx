@@ -17,6 +17,7 @@ import { LIVE_LEVELS, type RecordController, type RecordState } from './recordCo
 import { TAP_MS } from './recordGesture'
 import { useVoiceRecording } from './useVoiceRecording'
 import { formatRecordingTime } from './waveform'
+import { t } from '../../i18n/index'
 
 export interface VoiceRecordButtonProps {
   chatId: string
@@ -121,10 +122,10 @@ export function VoiceRecordView(props: VoiceRecordViewProps) {
       <IconButton
         label={
           locked
-            ? (props.sendLabel ?? '发送语音')
+            ? (props.sendLabel ?? t('w.voice.cc01a4'))
             : active
-              ? '松开发送，上滑锁定'
-              : (props.idleLabel ?? '按住录制语音消息')
+              ? t('w.voice.bf0580')
+              : (props.idleLabel ?? t('w.voice.9ccb9e'))
         }
         variant="filled"
         size="lg"
@@ -190,7 +191,7 @@ function RecordingPanel({
     <div
       className="tg-voice-rec"
       role="group"
-      aria-label={waveform ? '正在录制语音' : '正在录制视频消息'}
+      aria-label={waveform ? t('w.voice.3c4dff') : t('w.voice.8be901')}
       style={{ '--tg-voice-cancel-progress': state.gesture.cancelProgress } as CSSProperties}
     >
       <span className="tg-voice-rec__dot" aria-hidden="true" />
@@ -208,12 +209,12 @@ function RecordingPanel({
       )}
       {locked ? (
         <button type="button" className="tg-voice-rec__cancel" onClick={() => controller.cancel()}>
-          取消
+          {t('w.voice.4d0b46')}
         </button>
       ) : (
         <span className="tg-voice-rec__hint">
           <ChevronLeftGlyph />
-          滑动取消
+          {t('w.voice.0c7fe0')}
         </span>
       )}
     </div>

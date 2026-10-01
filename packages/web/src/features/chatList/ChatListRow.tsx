@@ -11,6 +11,7 @@ import type { ChatPreview } from './chatPreview'
 import { MEDIA_LABEL } from './chatPreview'
 import type { ChatRowModel } from './chatRowModel'
 import { ChatListIcon } from './chatListIcons'
+import { t } from '../../i18n/index'
 
 export interface ChatListRowProps {
   model: ChatRowModel
@@ -34,7 +35,7 @@ function PreviewLine({ preview, typingText }: { preview: ChatPreview; typingText
   if (preview.kind === 'draft') {
     return (
       <span className="tg-chatrow__preview">
-        <span className="tg-chatrow__draft">草稿: </span>
+        <span className="tg-chatrow__draft">{t('w.chatList.79d1a2')} </span>
         {preview.text}
       </span>
     )
@@ -90,7 +91,7 @@ export function ChatListRow({
           <span className="tg-chatrow__top">
             <span className="tg-chatrow__title">{model.title}</span>
             {model.muted ? (
-              <span className="tg-chatrow__muted" role="img" aria-label="已静音">
+              <span className="tg-chatrow__muted" role="img" aria-label={t('w.chatList.a074ec')}>
                 <ChatListIcon name="muted" size={14} />
               </span>
             ) : null}
@@ -99,7 +100,7 @@ export function ChatListRow({
                 <span
                   className={`tg-chatrow__ticks tg-chatrow__ticks--${model.outgoing}`}
                   role="img"
-                  aria-label={model.outgoing === 'read' ? '已读' : '已发送'}
+                  aria-label={model.outgoing === 'read' ? t('w.chatList.642ec8') : t('w.chatList.afb629')}
                 >
                   <ChatListIcon name={model.outgoing === 'read' ? 'checks' : 'check'} size={16} />
                 </span>
@@ -112,7 +113,7 @@ export function ChatListRow({
             {unread ? (
               <Badge count={model.unreadCount} variant={badgeVariant} className="tg-chatrow__badge" />
             ) : model.pinned ? (
-              <span className="tg-chatrow__pin" role="img" aria-label="已置顶">
+              <span className="tg-chatrow__pin" role="img" aria-label={t('w.chatList.d7d970')}>
                 <ChatListIcon name="pin" size={16} />
               </span>
             ) : null}

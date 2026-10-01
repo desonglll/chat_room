@@ -20,6 +20,7 @@ import {
   type GestureState,
 } from './recordGesture'
 import { RecorderError, type VoiceRecording } from './voiceRecorder'
+import { t } from '../../i18n/index'
 
 /** Shorter recordings are dropped (an accidental press), as Telegram does. */
 export const MIN_VOICE_MS = 700
@@ -86,16 +87,16 @@ export interface RecordController {
 
 export function recordErrorText(error: unknown): string {
   if (error instanceof RecorderError) {
-    if (error.reason === 'unsupported') return '此浏览器不支持录制语音'
-    if (error.reason === 'permission') return '无法使用麦克风：请在浏览器设置中允许访问'
-    return '麦克风不可用'
+    if (error.reason === 'unsupported') return t('w.voice.7fb030')
+    if (error.reason === 'permission') return t('w.voice.10639e')
+    return t('w.voice.003f6b')
   }
   if (error instanceof ApiError) {
-    if (error.serverMessage === VOICE_RESTRICTED) return '对方设置了不接收你的语音消息'
-    if (error.status === 403) return '没有在此会话发送消息的权限'
-    if (error.status === 413) return '语音消息过大'
+    if (error.serverMessage === VOICE_RESTRICTED) return t('w.voice.162eb5')
+    if (error.status === 403) return t('w.voice.4fcc34')
+    if (error.status === 413) return t('w.voice.1544d5')
   }
-  return '语音发送失败，请重试'
+  return t('w.voice.679eab')
 }
 
 export function createRecordController<T = VoiceRecording>(deps: RecordControllerDeps<T>): RecordController {

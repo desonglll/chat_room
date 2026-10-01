@@ -17,6 +17,7 @@ import {
   validateProfileDraft,
   type ProfileDraft,
 } from '../profileModel'
+import { t } from '../../../../i18n/index'
 
 export function AccountPage({ onBack }: SettingsPageProps) {
   const token = useStore(authStore, selectToken)
@@ -41,7 +42,7 @@ export function AccountPage({ onBack }: SettingsPageProps) {
       setDraft(profileDraftFrom(saved))
       onBack()
     } catch {
-      setFailure('保存失败，请检查内容后重试')
+      setFailure(t('w.settings.f6d210'))
     } finally {
       setSaving(false)
     }
@@ -53,7 +54,7 @@ export function AccountPage({ onBack }: SettingsPageProps) {
     <form className="tg-settings-account" onSubmit={(event) => void submit(event)} noValidate>
       <div className="tg-settings__group">
         <TextField
-          label="名称"
+          label={t('w.settings.1be7ae')}
           value={draft.displayName}
           maxLength={PROFILE_LIMITS.displayName}
           placeholder={user.username}
@@ -62,16 +63,16 @@ export function AccountPage({ onBack }: SettingsPageProps) {
           onChange={(event) => field('displayName')(event.target.value)}
         />
         <TextField
-          label="简介"
+          label={t('w.settings.5ea2e0')}
           value={draft.signature}
           maxLength={PROFILE_LIMITS.signature}
-          hint="写几句关于你自己的话"
+          hint={t('w.settings.2e2912')}
           error={errors.signature}
           fullWidth
           onChange={(event) => field('signature')(event.target.value)}
         />
         <TextField
-          label="链接"
+          label={t('w.settings.715022')}
           type="url"
           value={draft.homepage}
           maxLength={PROFILE_LIMITS.homepage}
@@ -82,9 +83,9 @@ export function AccountPage({ onBack }: SettingsPageProps) {
         />
       </div>
       <div className="tg-settings__group">
-        <h3 className="tg-settings__group-title">用户名</h3>
+        <h3 className="tg-settings__group-title">{t('w.settings.a1aaf3')}</h3>
         <p className="tg-settings__value">@{user.username}</p>
-        <p className="tg-settings__hint">用户名是登录账号，目前不能修改。</p>
+        <p className="tg-settings__hint">{t('w.settings.57d67b')}</p>
       </div>
       {failure ? (
         <p className="tg-settings__error" role="alert">
@@ -93,7 +94,7 @@ export function AccountPage({ onBack }: SettingsPageProps) {
       ) : null}
       <div className="tg-settings__actions">
         <Button type="submit" disabled={!patch || invalid} loading={saving} fullWidth>
-          保存
+          {t('w.settings.fadf24')}
         </Button>
       </div>
     </form>

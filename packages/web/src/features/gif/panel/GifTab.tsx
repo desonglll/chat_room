@@ -12,6 +12,7 @@ import type { MediaPanelTabContext } from '../../sticker/panel/mediaPanelTabs'
 import { gifErrorMessage, gifLibrary, gifStore } from '../gifLibrary'
 import { GifGrid, type GifGridItem } from './GifGrid'
 import type { GifSection } from './gifPanelLayout'
+import { t } from '../../../i18n/index'
 import '../gif.css'
 import './gifTab.css'
 
@@ -44,8 +45,8 @@ export function buildGifSections(
     aspect: aspectOf(gif, measured),
   }))
   return [
-    { id: 'saved', title: '已保存的 GIF', items: savedEntries },
-    { id: 'recent', title: '聊天中的 GIF', items: recentEntries },
+    { id: 'saved', title: t('w.gif.19571c'), items: savedEntries },
+    { id: 'recent', title: t('w.gif.9bc2e3'), items: recentEntries },
   ]
 }
 
@@ -94,16 +95,18 @@ export function GifTab({ chatId, canSend, close }: MediaPanelTabContext) {
   const menuItems = useMemo<MenuItem[]>(() => {
     if (!menu) return []
     const { entry } = menu
-    const items: MenuItem[] = [{ id: 'send', label: '发送 GIF', disabled: !canSend, onSelect: () => send(entry) }]
+    const items: MenuItem[] = [
+      { id: 'send', label: t('w.gif.f02ec6'), disabled: !canSend, onSelect: () => send(entry) },
+    ]
     if (entry.kind === 'saved') {
       items.push({
         id: 'remove',
-        label: '从已保存中删除',
+        label: t('w.gif.f014c1'),
         danger: true,
         onSelect: () => void gifLibrary().remove(entry.gif.id),
       })
     } else if (!saved.some((gif) => gif.file_url === entry.gif.file_url)) {
-      items.push({ id: 'save', label: '保存 GIF', onSelect: () => void gifLibrary().save(entry.gif.message_id) })
+      items.push({ id: 'save', label: t('w.gif.ca767d'), onSelect: () => void gifLibrary().save(entry.gif.message_id) })
     }
     return items
     // `send` closes over the latest props; the menu is rebuilt whenever it opens.
@@ -114,9 +117,9 @@ export function GifTab({ chatId, canSend, close }: MediaPanelTabContext) {
     <div className="tg-gif-tab">
       <div className="tg-gif-tab__toolbar">
         <Button size="sm" variant="tonal" disabled={!canSend || busy} onClick={() => fileRef.current?.click()}>
-          上传 GIF
+          {t('w.gif.132b72')}
         </Button>
-        {busy ? <Spinner size="sm" label="正在发送" /> : null}
+        {busy ? <Spinner size="sm" label={t('w.gif.a11211')} /> : null}
         <input
           ref={fileRef}
           type="file"
@@ -136,12 +139,10 @@ export function GifTab({ chatId, canSend, close }: MediaPanelTabContext) {
       ) : null}
       {status === 'loading' && empty ? (
         <div className="tg-gif-tab__state">
-          <Spinner size="md" label="正在加载 GIF" />
+          <Spinner size="md" label={t('w.gif.864bf0')} />
         </div>
       ) : empty ? (
-        <p className="tg-gif-tab__state">
-          {status === 'error' ? 'GIF 加载失败' : '还没有 GIF。在消息菜单中选择「保存 GIF」，或上传一个。'}
-        </p>
+        <p className="tg-gif-tab__state">{status === 'error' ? t('w.gif.bb9d9f') : t('w.gif.eee0ac')}</p>
       ) : (
         <GifGrid
           sections={sections}
@@ -156,7 +157,7 @@ export function GifTab({ chatId, canSend, close }: MediaPanelTabContext) {
         onClose={() => setMenu(null)}
         anchor={menu ? { x: menu.x, y: menu.y } : null}
         items={menuItems}
-        aria-label="GIF 操作"
+        aria-label={t('w.gif.4be557')}
       />
     </div>
   )

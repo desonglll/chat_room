@@ -3,6 +3,7 @@
  * feature boundary, exactly like `authCopy.ts`; server strings are never matched.
  */
 import { ApiError } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export type SecondStageAction = 'password' | 'recovery-request' | 'recovery-code'
 
@@ -12,22 +13,22 @@ export function isChallengeGone(error: unknown): boolean {
 }
 
 export function secondStageErrorCopy(error: unknown, action: SecondStageAction): string {
-  if (!(error instanceof ApiError)) return '无法连接服务器，请检查网络后重试'
+  if (!(error instanceof ApiError)) return t('w.auth.77d57e')
   switch (error.status) {
     case 400:
-      return action === 'recovery-code' ? '验证码是 6 位数字' : '请输入两步验证密码'
+      return action === 'recovery-code' ? t('w.auth.d0fa3c') : t('w.auth.1bb472')
     case 401:
-      return action === 'recovery-code' ? '验证码不正确' : '两步验证密码不正确'
+      return action === 'recovery-code' ? t('w.auth.751a0d') : t('w.auth.8c7930')
     case 409:
-      return '这个账号没有设置恢复邮箱，无法通过邮件重置'
+      return t('w.auth.7f0c4e')
     case 410:
-      return '登录已超时，请重新输入账号密码'
+      return t('w.auth.0b996a')
     case 429:
-      return '尝试次数过多，请稍后再试'
+      return t('w.auth.b04f0b')
     case 502:
     case 503:
-      return '服务器暂时无法发送邮件，请联系管理员'
+      return t('w.auth.afc70c')
     default:
-      return `请求失败（${error.status}），请稍后再试`
+      return t('w.auth.d8ae3d', error.status)
   }
 }

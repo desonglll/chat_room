@@ -20,6 +20,7 @@ import { MediaSlide } from './MediaSlide'
 import { Caption, NavArrow, TopBar } from './ViewerChrome'
 import { ThumbStrip } from './ThumbStrip'
 import { CloseGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 export interface ViewerSurfaceProps {
   request: MediaViewerRequest
@@ -124,7 +125,7 @@ export default function ViewerSurface({ request, actions, fetchPage, onClosed }:
       className="tg-mv"
       role="dialog"
       aria-modal="true"
-      aria-label="媒体查看器"
+      aria-label={t('w.mediaViewer.5bae9e')}
       tabIndex={-1}
       data-phase={phase}
       data-flying={flying ? '' : undefined}
@@ -159,7 +160,11 @@ export default function ViewerSurface({ request, actions, fetchPage, onClosed }:
         </div>
         {current ? null : (
           <div className="tg-mv__status" data-mv-chrome="">
-            {list.syncing ? <Spinner size="lg" label="正在加载" /> : <span>无法加载该媒体</span>}
+            {list.syncing ? (
+              <Spinner size="lg" label={t('w.mediaViewer.3667cb')} />
+            ) : (
+              <span>{t('w.mediaViewer.220d4f')}</span>
+            )}
           </div>
         )}
       </div>
@@ -174,7 +179,12 @@ export default function ViewerSurface({ request, actions, fetchPage, onClosed }:
           onClose={close}
         />
       ) : (
-        <button type="button" className="tg-mv__tool tg-mv__tool--corner" aria-label="关闭" onClick={close}>
+        <button
+          type="button"
+          className="tg-mv__tool tg-mv__tool--corner"
+          aria-label={t('w.mediaViewer.6c14bd')}
+          onClick={close}
+        >
           <CloseGlyph />
         </button>
       )}

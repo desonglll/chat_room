@@ -25,6 +25,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla'
 import { apiClient } from '../../app/client'
 import { browserFetch } from '../../app/platform'
 import { activeTopicId } from '../forum/activeTopic'
+import { t } from '../../i18n/index'
 
 export interface GifState {
   status: 'idle' | 'loading' | 'ready' | 'error'
@@ -185,18 +186,18 @@ export function gifLibrary(): GifLibrary {
 export function gifErrorMessage(code: string): string {
   switch (code) {
     case 'audio_not_allowed':
-      return 'GIF 不能包含声音'
+      return t('w.gif.9ab82e')
     case 'unsupported_format':
     case 'unsupported_codec':
-      return '仅支持 GIF、MP4 (H.264) 或 WebM 动图'
+      return t('w.gif.6d46b9')
     case 'file_too_large':
     case 'Payload Too Large':
-      return 'GIF 不能超过 10 MB'
+      return t('w.gif.26e72c')
     case 'too_long':
-      return 'GIF 不能超过 60 秒'
+      return t('w.gif.b8ebca')
     case 'forbidden':
-      return '没有在此会话发送的权限'
+      return t('w.gif.71935a')
     default:
-      return 'GIF 发送失败'
+      return t('w.gif.178dfa')
   }
 }

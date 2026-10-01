@@ -6,6 +6,7 @@ import { ApiError, chatListStore } from '@tg/core'
 import { Button, Modal, TextField } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { createNewChat } from './chatListController'
+import { t } from '../../i18n/index'
 
 export interface NewChatDialogProps {
   open: boolean
@@ -30,19 +31,17 @@ export function NewChatDialog({ open, onClose, token, onCreated }: NewChatDialog
       setTitle('')
       onCreated(chat)
     } catch (failure) {
-      setError(
-        failure instanceof ApiError && failure.status === 409 ? '已有同名会话，换一个名字' : '创建失败，请稍后再试',
-      )
+      setError(failure instanceof ApiError && failure.status === 409 ? t('w.chatList.448caf') : t('w.chatList.63598d'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="新建群组" size="sm">
+    <Modal open={open} onClose={onClose} title={t('w.chatList.07285a')} size="sm">
       <form className="tg-new-chat" onSubmit={submit}>
         <TextField
-          label="群组名称"
+          label={t('w.chatList.acb902')}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           error={error || undefined}
@@ -52,7 +51,7 @@ export function NewChatDialog({ open, onClose, token, onCreated }: NewChatDialog
           autoFocus
         />
         <Button type="submit" loading={busy} fullWidth>
-          创建
+          {t('w.chatList.fcbd09')}
         </Button>
       </form>
     </Modal>

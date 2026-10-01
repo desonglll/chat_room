@@ -6,6 +6,7 @@
 import type { Attachment } from '../types'
 import type { ApiClient } from './http'
 import { encodePathSegment } from './http'
+import { t } from '../i18n/t'
 
 export type FavoriteKind = 'message' | 'video' | 'manual'
 
@@ -81,7 +82,7 @@ export function savedMessagesTimeline(items: readonly FavoriteItem[]): FavoriteI
 /** The header line of a saved message: «来自 Alice · 项目组»; empty for a note. */
 export function savedSourceLine(item: FavoriteItem): string {
   if (item.kind === 'manual') return ''
-  if (item.source_sender && item.source_room_name) return `来自 ${item.source_sender} · ${item.source_room_name}`
-  if (item.source_sender) return `来自 ${item.source_sender}`
-  return item.source_room_name ? `来自 ${item.source_room_name}` : ''
+  if (item.source_sender && item.source_room_name) return t('c.api.1f0e9a', item.source_sender, item.source_room_name)
+  if (item.source_sender) return t('c.api.9f6c45', item.source_sender)
+  return item.source_room_name ? t('c.api.9f6c45', item.source_room_name) : ''
 }

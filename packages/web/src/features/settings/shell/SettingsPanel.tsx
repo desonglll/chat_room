@@ -16,6 +16,7 @@ import './settingsPages.css'
 import { settingsNavigation, type SettingsView } from './settingsNavigation'
 import { findSettingsPage, settingsPagesSnapshot, subscribeSettingsPages } from './settingsRegistry'
 import { PageView, RootView, SectionView, sectionById, type ViewContext } from './SettingsViews'
+import { t } from '../../../i18n/index'
 
 /** Safety net for a missed `animationend` (tab hidden mid-animation). */
 const EXIT_FALLBACK_MS = 700
@@ -93,7 +94,7 @@ export function SettingsPanel() {
     <section
       ref={panelRef}
       className="tg-settings"
-      aria-label="设置"
+      aria-label={t('w.settings.7debf9')}
       data-closing={open ? undefined : ''}
       inert={!open}
       onAnimationEnd={(event) => {

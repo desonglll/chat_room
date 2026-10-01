@@ -8,6 +8,7 @@
  * are routed through `--tg-*` tokens in composer.css.
  */
 import { useEffect, useRef, useState } from 'react'
+import { t } from '../../i18n/index'
 
 export interface EmojiPanelProps {
   onPick(emoji: string): void
@@ -63,7 +64,7 @@ export function EmojiPanel({ onPick }: EmojiPanelProps) {
 
   return (
     <div className="tg-compose__emoji" ref={hostRef}>
-      {failed ? <p className="tg-compose__emoji-error">表情加载失败</p> : null}
+      {failed ? <p className="tg-compose__emoji-error">{t('w.composer.a8d4f7')}</p> : null}
     </div>
   )
 }

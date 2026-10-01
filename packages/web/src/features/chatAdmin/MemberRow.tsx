@@ -2,6 +2,7 @@
 import type { ChatMemberEntry } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { memberName, roleBadge, untilText } from './chatAdminModel'
+import { t } from '../../i18n/index'
 
 export interface MemberRowProps {
   entry: ChatMemberEntry
@@ -20,7 +21,7 @@ export function MemberRow({ entry, onOpen }: MemberRowProps) {
         <span className="tg-chatadmin__member-name">{name}</span>
         {restriction ? (
           <span className="tg-chatadmin__member-sub" data-tone="danger">
-            受限 · {untilText(restriction.until)}
+            {t('w.chatAdmin.a7c55d')} {untilText(restriction.until)}
           </span>
         ) : (
           <span className="tg-chatadmin__member-sub">@{entry.username}</span>

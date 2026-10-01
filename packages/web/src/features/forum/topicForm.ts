@@ -4,6 +4,7 @@
  */
 import type { CreateTopicInput, ForumTopic, UpdateTopicInput } from '@tg/core'
 import { MAX_TOPIC_TITLE_CHARS, TOPIC_COLORS } from '@tg/core'
+import { t } from '../../i18n/index'
 
 /** A curated set of Telegram's topic icons. */
 export const TOPIC_EMOJI = [
@@ -57,9 +58,9 @@ export const titleLength = (title: string): number => [...title.trim()].length
 /** Null when valid, else the message to show. */
 export function validateTopicForm(form: TopicForm): string | null {
   const length = titleLength(form.title)
-  if (length === 0) return '请输入话题名称'
-  if (length > MAX_TOPIC_TITLE_CHARS) return `话题名称不能超过 ${MAX_TOPIC_TITLE_CHARS} 个字符`
-  if (!(TOPIC_COLORS as readonly number[]).includes(form.color)) return '请选择话题颜色'
+  if (length === 0) return t('w.forum.3e9d49')
+  if (length > MAX_TOPIC_TITLE_CHARS) return t('w.forum.8c9a43', MAX_TOPIC_TITLE_CHARS)
+  if (!(TOPIC_COLORS as readonly number[]).includes(form.color)) return t('w.forum.e1fe1e')
   return null
 }
 

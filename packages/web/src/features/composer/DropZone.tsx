@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState, type DragEvent, type RefObject } from 'react'
 import { UploadGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 export interface DropZoneProps {
   /** The composer root; the overlay covers its parent (the chat column). */
@@ -87,8 +88,8 @@ export function DropZone({ anchorRef, disabled = false, onFiles }: DropZoneProps
 
   return (
     <div className="tg-compose__drop" style={rect} aria-hidden="true">
-      {zone(true, '拖放到这里', '以文件形式发送')}
-      {zone(false, '拖放到这里', '快速发送图片和视频')}
+      {zone(true, t('w.composer.a3c36d'), t('w.composer.e02394'))}
+      {zone(false, t('w.composer.a3c36d'), t('w.composer.8bfdcf'))}
     </div>
   )
 }

@@ -5,6 +5,7 @@
  */
 import type { ActiveTypingAction, ChatListState, ChatType, PresenceState, UserStatus } from '@tg/core'
 import { TYPING_TTL_MS, formatLastSeen, selectChatById, selectPresence, summarizeTyping } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export interface PresenceInputs {
   presence: PresenceState
@@ -49,9 +50,9 @@ export function lastSeenTextFor(status: UserStatus | undefined, now: number): st
 
 /** Telegram header copy for a multi-member chat: "12 位成员，3 人在线" (online only when > 1). */
 export function memberCountText(chatType: ChatType, memberCount: number, onlineCount: number): string {
-  const noun = chatType === 'channel' ? '位订阅者' : '位成员'
+  const noun = chatType === 'channel' ? t('w.presence.597e61') : t('w.presence.b8d0b7')
   const base = `${memberCount} ${noun}`
-  return chatType !== 'channel' && onlineCount > 1 ? `${base}，${onlineCount} 人在线` : base
+  return chatType !== 'channel' && onlineCount > 1 ? t('w.presence.40c5a7', base, onlineCount) : base
 }
 
 /** The other side of a private chat, from the chat's live member snapshots. */

@@ -9,6 +9,7 @@
 import { suggestStickers, type StickerSet, type StickerState } from '@tg/core'
 import { singleEmoji } from '../suggest/singleEmoji'
 import type { PanelSection } from './panelLayout'
+import { t } from '../../../i18n/index'
 
 export interface StickerSearchResult {
   sections: PanelSection[]
@@ -28,7 +29,7 @@ export function searchStickers(
   const emoji = singleEmoji(trimmed)
   if (emoji !== null) {
     const stickers = suggestStickers(library, emoji, 200)
-    return { sections: [{ id: 'search', title: `${emoji} 的贴纸`, stickers }], remoteShortName: null }
+    return { sections: [{ id: 'search', title: t('w.sticker.7ab919', emoji), stickers }], remoteShortName: null }
   }
   const needle = trimmed.toLocaleLowerCase()
   const sets = activeSets.filter(

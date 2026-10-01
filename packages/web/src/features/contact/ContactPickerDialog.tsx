@@ -8,6 +8,7 @@ import { Avatar, Modal, TextField } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { activeTopicId } from '../forum/activeTopic'
 import { contactsApi } from './contactsApi'
+import { t } from '../../i18n/index'
 
 interface Friend {
   user_id: string
@@ -56,13 +57,18 @@ export default function ContactPickerDialog({ chatId, onClose }: { chatId: strin
   const send = (friend: Friend) => {
     contactsApi
       .sendContact(chatId, friend.user_id, { topicId: activeTopicId(chatId) })
-      .then(onClose, () => setError('无法在这个会话中发送联系人'))
+      .then(onClose, () => setError(t('w.contact.91aa48')))
   }
 
   return (
-    <Modal open onClose={onClose} title="分享联系人" size="sm">
+    <Modal open onClose={onClose} title={t('w.contact.0b13dd')} size="sm">
       <div className="tg-contact-picker">
-        <TextField label="搜索好友" value={query} onChange={(event) => setQuery(event.currentTarget.value)} fullWidth />
+        <TextField
+          label={t('w.contact.869b5e')}
+          value={query}
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          fullWidth
+        />
         {error ? (
           <p className="tg-contact-picker__note" role="alert">
             {error}
@@ -79,7 +85,7 @@ export default function ContactPickerDialog({ chatId, onClose }: { chatId: strin
             </li>
           ))}
           {friends !== null && shown.length === 0 ? (
-            <li className="tg-contact-picker__note">没有可分享的好友</li>
+            <li className="tg-contact-picker__note">{t('w.contact.91fb91')}</li>
           ) : null}
         </ul>
       </div>

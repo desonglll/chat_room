@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { InviteLink, InviteLinkInput, InviteLinkMember, InviteLinksView } from '@tg/core'
 import { ApiError } from '@tg/core'
 import type { InviteLinksService } from './inviteLinksApi'
+import { t } from '../../i18n/index'
 
 export interface InviteLinksState {
   view: InviteLinksView | null
@@ -22,15 +23,23 @@ export interface LinkPeople {
 }
 
 const WRITE_ERRORS: Record<number, string> = {
-  400: '设置无效，请检查有效期与人数上限',
-  403: '你没有管理这个链接的权限',
-  404: '链接不存在',
-  409: '链接已撤销或是主链接，无法这样修改',
+  get 400() {
+    return t('w.inviteLinks.ac5741')
+  },
+  get 403() {
+    return t('w.inviteLinks.8ca3fd')
+  },
+  get 404() {
+    return t('w.inviteLinks.651dcc')
+  },
+  get 409() {
+    return t('w.inviteLinks.79c25b')
+  },
 }
 
 function describe(error: unknown): string {
-  if (error instanceof ApiError) return WRITE_ERRORS[error.status] ?? `请求失败（${error.status}）`
-  return '网络异常，请稍后再试'
+  if (error instanceof ApiError) return WRITE_ERRORS[error.status] ?? t('w.inviteLinks.7bc3e2', error.status)
+  return t('w.inviteLinks.9fd900')
 }
 
 export function useInviteLinks(api: InviteLinksService, chatId: string, initial?: Partial<InviteLinksState>) {

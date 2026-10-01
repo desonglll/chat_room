@@ -17,6 +17,7 @@ import {
   untilText,
 } from './chatAdminModel'
 import { PermissionChecklist } from './PermissionChecklist'
+import { t } from '../../i18n/index'
 
 export interface RestrictionEditorProps {
   target: ChatMemberEntry
@@ -38,11 +39,16 @@ export function RestrictionEditor({ target, view, busy, onSave, now = Date.now }
   return (
     <div className="tg-chatadmin__editor">
       <p className="tg-chatadmin__lead">
-        限制 <strong>{memberName(target)}</strong>
+        {t('w.chatAdmin.ac90b4')} <strong>{memberName(target)}</strong>
       </p>
-      {current ? <p className="tg-chatadmin__note">当前限制：{untilText(current.until)}</p> : null}
+      {current ? (
+        <p className="tg-chatadmin__note">
+          {t('w.chatAdmin.52df91')}
+          {untilText(current.until)}
+        </p>
+      ) : null}
       <PermissionChecklist
-        title="这位成员可以"
+        title={t('w.chatAdmin.44983f')}
         options={options}
         disabled={busy}
         onToggle={(key, checked) => setAllowed((set) => toggleMemberPermission(set, key, checked))}
@@ -51,7 +57,7 @@ export function RestrictionEditor({ target, view, busy, onSave, now = Date.now }
         <section className="tg-chatadmin__section">
           <RadioGroup
             name={`restrict-until-${target.user_id}`}
-            label="限制时长"
+            label={t('w.chatAdmin.c2746f')}
             options={UNTIL_PRESETS.map((entry) => ({ value: entry.id, label: entry.label }))}
             value={preset}
             disabled={busy}
@@ -65,7 +71,7 @@ export function RestrictionEditor({ target, view, busy, onSave, now = Date.now }
           disabled={busy}
           onClick={() => onSave(denied, denied.length > 0 ? untilFromPreset(preset, now()) : null)}
         >
-          {denied.length > 0 ? '限制' : current ? '解除限制' : '保存'}
+          {denied.length > 0 ? t('w.chatAdmin.ac90b4') : current ? t('w.chatAdmin.ffa17c') : t('w.chatAdmin.fadf24')}
         </Button>
       </div>
     </div>

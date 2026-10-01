@@ -11,6 +11,7 @@ import { chatListStore, selectChatById } from '@tg/core'
 import { Spinner } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { ChatPane } from '../chat/ChatPane'
+import { t } from '../../i18n/index'
 
 const TopicListView = lazy(() => import('./TopicListView'))
 const TopicChatView = lazy(() => import('./TopicChatView'))
@@ -18,7 +19,7 @@ const TopicChatView = lazy(() => import('./TopicChatView'))
 function Loading() {
   return (
     <div className="tg-chat">
-      <Spinner label="正在加载" />
+      <Spinner label={t('w.forum.3667cb')} />
     </div>
   )
 }

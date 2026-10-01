@@ -8,6 +8,8 @@ import './features/customEmoji/register'
 import { apiClient } from './app/client'
 import { browserStorage } from './app/platform'
 import { hydrateSession, revalidateSession } from './app/session'
+import { bindLanguage } from './app/language'
+import { LocaleRoot } from './app/LocaleRoot'
 import { bindTheme } from './app/theme'
 // TG-406: registers the poll bubble body with the message content registry.
 import './features/poll/register'
@@ -21,6 +23,8 @@ import './features/videoNote/register'
 import './features/gif/register'
 // TG-509: 设置 › 数据与存储.
 import './features/settings/storage/register'
+// TG-510: 设置 › 语言.
+import './features/settings/language/register'
 // TG-507: 设置 › 外观.
 import './features/settings/appearance/register'
 // TG-501: 设置 › 聊天文件夹.
@@ -45,6 +49,8 @@ import './features/album/register'
 // `/login` applies; revalidation is fire-and-forget (a revoked token clears itself).
 settingsStore.getState().hydrate(browserStorage)
 bindTheme(settingsStore)
+// TG-510: interface language (no reload on switch; see app/LocaleRoot).
+bindLanguage(settingsStore)
 hydrateSession({ storage: browserStorage, store: authStore }, Date.now())
 void revalidateSession({ client: apiClient, storage: browserStorage, store: authStore })
 
@@ -53,6 +59,8 @@ if (!container) throw new Error('index.html is missing the #root mount point')
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <LocaleRoot>
+      <App />
+    </LocaleRoot>
   </StrictMode>,
 )

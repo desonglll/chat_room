@@ -12,12 +12,19 @@ import { Button, Modal, ScrollArea, TextField } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { linkify } from '../message/content/linkify'
 import { favoritesApi } from './savedMessagesApi'
+import { t } from '../../i18n/index'
 
 function time(iso: string): string {
   const date = new Date(iso)
   return Number.isNaN(date.getTime())
     ? ''
-    : `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    : t(
+        'w.savedMessages.584530',
+        date.getMonth() + 1,
+        date.getDate(),
+        String(date.getHours()).padStart(2, '0'),
+        String(date.getMinutes()).padStart(2, '0'),
+      )
 }
 
 function Text({ text }: { text: string }) {
@@ -69,14 +76,14 @@ function SavedEntry({
           <span className="tg-saved__actions">
             {onOpenSource ? (
               <button type="button" onClick={onOpenSource}>
-                查看原消息
+                {t('w.savedMessages.8ac74f')}
               </button>
             ) : null}
             <button type="button" onClick={onForward}>
-              转发
+              {t('w.savedMessages.0d5a8a')}
             </button>
             <button type="button" onClick={onDelete}>
-              删除
+              {t('w.savedMessages.3755f5')}
             </button>
           </span>
         </footer>
@@ -123,15 +130,20 @@ export function SavedMessagesRoute({ api = favoritesApi }: { api?: typeof favori
     const target = forwarding
     setForwarding(null)
     api.forward(target.id, [chatId]).then(
-      (results) => setNotice(results.some((result) => result.forwarded_message_id) ? '已转发' : '无法转发到这个会话'),
-      () => setNotice('转发失败'),
+      (results) =>
+        setNotice(
+          results.some((result) => result.forwarded_message_id)
+            ? t('w.savedMessages.35f8b3')
+            : t('w.savedMessages.c3ef13'),
+        ),
+      () => setNotice(t('w.savedMessages.d27604')),
     )
   }
 
   return (
-    <section className="tg-saved" aria-label="收藏夹">
+    <section className="tg-saved" aria-label={t('w.savedMessages.e6f497')}>
       <header className="tg-saved__header">
-        <h2 className="tg-saved__title">收藏夹</h2>
+        <h2 className="tg-saved__title">{t('w.savedMessages.e6f497')}</h2>
         {notice ? (
           <span className="tg-saved__notice" role="status">
             {notice}
@@ -140,7 +152,7 @@ export function SavedMessagesRoute({ api = favoritesApi }: { api?: typeof favori
       </header>
       <ScrollArea className="tg-saved__scroll" orientation="vertical">
         {items === null ? null : items.length === 0 ? (
-          <p className="tg-saved__empty">在这里保存消息或写下笔记。在任意消息的菜单中选择「保存到收藏夹」。</p>
+          <p className="tg-saved__empty">{t('w.savedMessages.18a6aa')}</p>
         ) : (
           <ul className="tg-saved__list">
             {items.map((item) => (
@@ -169,12 +181,22 @@ export function SavedMessagesRoute({ api = favoritesApi }: { api?: typeof favori
           addNote()
         }}
       >
-        <TextField label="写一条笔记" value={note} onChange={(event) => setNote(event.currentTarget.value)} fullWidth />
+        <TextField
+          label={t('w.savedMessages.089648')}
+          value={note}
+          onChange={(event) => setNote(event.currentTarget.value)}
+          fullWidth
+        />
         <Button variant="filled" type="submit" loading={busy} disabled={!note.trim()}>
-          保存
+          {t('w.savedMessages.fadf24')}
         </Button>
       </form>
-      <Modal open={forwarding !== null} onClose={() => setForwarding(null)} title="转发到…" size="sm">
+      <Modal
+        open={forwarding !== null}
+        onClose={() => setForwarding(null)}
+        title={t('w.savedMessages.3699f8')}
+        size="sm"
+      >
         <ul className="tg-saved__picker">
           {conversations.map((row) => (
             <li key={row.room_id}>

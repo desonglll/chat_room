@@ -11,6 +11,7 @@ import { resultDay, SEARCH_TABS } from './searchModel'
 import { recordSearch, searchStore } from './searchStore'
 import type { SearchFilterInput } from './useMessageSearch'
 import { useMessageSearch } from './useMessageSearch'
+import { t } from '../../i18n/index'
 
 const KIND_GLYPH: Partial<Record<GlobalSearchResult['content_type'], string>> = {
   image: '🖼️',
@@ -38,14 +39,14 @@ export function MessageSearchResults({ query }: { query: string }) {
   }
 
   return (
-    <section className="tg-search-results" aria-label={`${tab?.label ?? ''}搜索结果`}>
+    <section className="tg-search-results" aria-label={t('w.search.bc89f9', tab?.label ?? '')}>
       <div className="tg-search-results__filters">
         <select
-          aria-label="发送者"
+          aria-label={t('w.search.008629')}
           value={filters.senderId}
           onChange={(event) => setFilters({ ...filters, senderId: event.target.value })}
         >
-          <option value="">所有人</option>
+          <option value="">{t('w.search.f40c84')}</option>
           {senders.map(([id, name]) => (
             <option key={id} value={id}>
               {name}
@@ -54,20 +55,20 @@ export function MessageSearchResults({ query }: { query: string }) {
         </select>
         <input
           type="date"
-          aria-label="开始日期"
+          aria-label={t('w.search.1f2919')}
           value={filters.from}
           onChange={(event) => setFilters({ ...filters, from: event.target.value })}
         />
         <input
           type="date"
-          aria-label="结束日期"
+          aria-label={t('w.search.f4b9b2')}
           value={filters.to}
           onChange={(event) => setFilters({ ...filters, to: event.target.value })}
         />
       </div>
-      {search.failed ? <p className="tg-search-results__empty">搜索失败，请重试</p> : null}
+      {search.failed ? <p className="tg-search-results__empty">{t('w.search.75f73b')}</p> : null}
       {!search.loading && !search.failed && search.items.length === 0 ? (
-        <p className="tg-search-results__empty">没有找到结果</p>
+        <p className="tg-search-results__empty">{t('w.search.a6fb2c')}</p>
       ) : null}
       <ul className="tg-search-results__list">
         {search.items.map((item) => (
@@ -90,7 +91,7 @@ export function MessageSearchResults({ query }: { query: string }) {
       </ul>
       {search.hasMore ? (
         <Button variant="text" loading={search.loading} onClick={search.loadMore}>
-          加载更多
+          {t('w.search.3a0fab')}
         </Button>
       ) : null}
     </section>

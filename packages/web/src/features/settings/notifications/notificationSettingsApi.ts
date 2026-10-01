@@ -1,6 +1,7 @@
 /** TG-508: the viewer's notification settings (defaults per chat type, per-chat exceptions). */
 import { authStore, selectToken } from '@tg/core'
 import { apiClient } from '../../../app/client'
+import { t } from '../../../i18n/index'
 
 export type NotificationScope = 'private' | 'group' | 'channel'
 
@@ -28,15 +29,55 @@ export interface NotificationSettings {
 }
 
 export const SOUNDS: { id: string; label: string }[] = [
-  { id: 'default', label: '默认' },
-  { id: 'note', label: '音符' },
-  { id: 'chime', label: '风铃' },
-  { id: 'pop', label: '气泡' },
-  { id: 'bell', label: '铃声' },
-  { id: 'none', label: '无声' },
+  {
+    id: 'default',
+    get label() {
+      return t('w.settings.c8d09c')
+    },
+  },
+  {
+    id: 'note',
+    get label() {
+      return t('w.settings.7ac328')
+    },
+  },
+  {
+    id: 'chime',
+    get label() {
+      return t('w.settings.c07f3d')
+    },
+  },
+  {
+    id: 'pop',
+    get label() {
+      return t('w.settings.d9be7c')
+    },
+  },
+  {
+    id: 'bell',
+    get label() {
+      return t('w.settings.232925')
+    },
+  },
+  {
+    id: 'none',
+    get label() {
+      return t('w.settings.e798b3')
+    },
+  },
 ]
 
-export const SCOPE_LABEL: Record<NotificationScope, string> = { private: '私聊', group: '群组', channel: '频道' }
+export const SCOPE_LABEL: Record<NotificationScope, string> = {
+  get private() {
+    return t('w.settings.3adfdb')
+  },
+  get group() {
+    return t('w.settings.4260ca')
+  },
+  get channel() {
+    return t('w.settings.b76dfd')
+  },
+}
 
 const auth = () => {
   const token = selectToken(authStore.getState())

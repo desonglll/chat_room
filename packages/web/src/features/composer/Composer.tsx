@@ -32,6 +32,7 @@ import { LazyMediaPanel } from '../sticker/LazyMediaPanel'
 import { stickerLibrary } from '../sticker/stickerLibrary'
 import { StickerSuggestions } from '../sticker/suggest/StickerSuggestions'
 import { RecordModeButton } from '../videoNote'
+import { t } from '../../i18n/index'
 
 export interface ComposerProps {
   chatId: string
@@ -179,7 +180,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
         <div className="tg-compose__row">
           <IconButton
             ref={emojiRef}
-            label="表情"
+            label={t('w.composer.fecd66')}
             className="tg-compose__tool"
             aria-expanded={emojiOpen}
             onClick={() => setEmojiOpen((open) => !open)}
@@ -191,8 +192,8 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
             className="tg-compose__input"
             value={text}
             rows={1}
-            placeholder={edit ? '编辑消息…' : '写消息…'}
-            aria-label="消息内容"
+            placeholder={edit ? t('w.composer.4c92ed') : t('w.composer.ae4564')}
+            aria-label={t('w.composer.acbc5a')}
             role={mentionOpen ? 'combobox' : undefined}
             aria-expanded={mentionOpen ? true : undefined}
             aria-controls={mentionOpen ? mentionListId : undefined}
@@ -228,7 +229,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
       {showSend ? (
         <SendMenu chatId={chatId} controller={controller} enabled={canSend && bar.kind !== 'edit'}>
           <IconButton
-            label={bar.kind === 'edit' ? '保存' : '发送'}
+            label={bar.kind === 'edit' ? t('w.composer.fadf24') : t('w.composer.1214d6')}
             variant="filled"
             size="lg"
             className="tg-compose__send"
@@ -261,7 +262,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
         surface="panel"
         focus="none"
         role="dialog"
-        aria-label="表情"
+        aria-label={t('w.composer.fecd66')}
         className="tg-compose__emoji-popover"
       >
         <LazyMediaPanel

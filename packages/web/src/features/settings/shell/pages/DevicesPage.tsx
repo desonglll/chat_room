@@ -13,6 +13,7 @@ import { apiClient } from '../../../../app/client'
 import type { SettingsPageProps } from '../settingsRegistry'
 import { SettingsIcon } from '../settingsIcons'
 import { deviceSubtitle, orderDeviceSessions } from './devicesModel'
+import { t } from '../../../../i18n/index'
 
 type Load = { state: 'loading' } | { state: 'failed' } | { state: 'ready'; sessions: DeviceSession[] }
 
@@ -43,17 +44,17 @@ export function DevicesPage(_props: SettingsPageProps) {
       setConfirming(null)
       await reload()
     } catch {
-      setError('操作失败，请稍后重试')
+      setError(t('w.settings.891d39'))
     } finally {
       setBusy(false)
     }
   }
 
-  if (load.state === 'loading') return <Spinner label="正在加载设备" />
+  if (load.state === 'loading') return <Spinner label={t('w.settings.92ac86')} />
   if (load.state === 'failed')
     return (
       <p className="tg-settings__error" role="alert">
-        无法加载设备列表
+        {t('w.settings.9dc84d')}
       </p>
     )
 
@@ -69,20 +70,20 @@ export function DevicesPage(_props: SettingsPageProps) {
       {current ? (
         <section className="tg-settings__group" aria-labelledby="tg-devices-current">
           <h3 id="tg-devices-current" className="tg-settings__group-title">
-            当前设备
+            {t('w.settings.d426cd')}
           </h3>
           <DeviceRow session={current} now={now} />
           {others.length > 0 ? (
             confirming === 'others' ? (
               <ConfirmRow
-                question="退出除本设备外的所有设备？"
+                question={t('w.settings.eb9858')}
                 busy={busy}
                 onConfirm={() => void run(() => revokeOtherDeviceSessions(apiClient, token))}
                 onCancel={() => setConfirming(null)}
               />
             ) : (
               <button type="button" className="tg-settings__danger-row" onClick={() => setConfirming('others')}>
-                终止所有其他会话
+                {t('w.settings.6bbab6')}
               </button>
             )
           ) : null}
@@ -90,22 +91,22 @@ export function DevicesPage(_props: SettingsPageProps) {
       ) : null}
       <section className="tg-settings__group" aria-labelledby="tg-devices-others">
         <h3 id="tg-devices-others" className="tg-settings__group-title">
-          活跃会话
+          {t('w.settings.42a08c')}
         </h3>
-        {others.length === 0 ? <p className="tg-settings__hint">没有其他设备登录此账号</p> : null}
+        {others.length === 0 ? <p className="tg-settings__hint">{t('w.settings.ba73a8')}</p> : null}
         <ul className="tg-settings__list">
           {others.map((session) => (
             <li key={session.id}>
               <DeviceRow session={session} now={now}>
                 {confirming === session.id ? null : (
                   <Button variant="text" size="sm" onClick={() => setConfirming(session.id)}>
-                    终止
+                    {t('w.settings.2eee57')}
                   </Button>
                 )}
               </DeviceRow>
               {confirming === session.id ? (
                 <ConfirmRow
-                  question={`终止「${session.device_name}」的会话？`}
+                  question={t('w.settings.830e60', session.device_name)}
                   busy={busy}
                   onConfirm={() => void run(() => revokeDeviceSession(apiClient, token, session.id))}
                   onCancel={() => setConfirming(null)}
@@ -126,7 +127,7 @@ function DeviceRow({ session, now, children }: { session: DeviceSession; now: Da
         <SettingsIcon name="devices" />
       </span>
       <span className="tg-settings-device__text">
-        <span className="tg-settings-device__name">{session.device_name || '未知设备'}</span>
+        <span className="tg-settings-device__name">{session.device_name || t('w.settings.f0497d')}</span>
         <span className="tg-settings-device__meta">{deviceSubtitle(session, now)}</span>
       </span>
       {children}
@@ -149,10 +150,10 @@ function ConfirmRow({
     <div className="tg-settings__confirm" role="group" aria-label={question}>
       <span className="tg-settings__confirm-text">{question}</span>
       <Button variant="text" size="sm" onClick={onCancel} disabled={busy}>
-        取消
+        {t('w.settings.4d0b46')}
       </Button>
       <Button variant="danger" size="sm" onClick={onConfirm} loading={busy}>
-        终止
+        {t('w.settings.2eee57')}
       </Button>
     </div>
   )

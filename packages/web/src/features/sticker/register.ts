@@ -8,6 +8,7 @@ import { registerMessageContent } from '../message'
 import { registerSettingsPage } from '../settings/shell'
 import { StickerMessage } from './message/StickerMessage'
 import { isStickerMessage } from './message/stickerMessageModel'
+import { t } from '../../i18n/index'
 import './sticker.css'
 
 registerMessageContent('sticker', StickerMessage, {
@@ -21,7 +22,9 @@ registerMessageContent('sticker', StickerMessage, {
 registerSettingsPage({
   id: 'appearance.stickers',
   section: 'appearance',
-  title: '贴纸与表情',
+  get title() {
+    return t('w.sticker.4be31b')
+  },
   order: 50,
   component: lazy(() => import('./manage/StickerSetsSettings').then((m) => ({ default: m.StickerSetsSettings }))),
 })

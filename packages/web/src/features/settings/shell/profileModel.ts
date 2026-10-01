@@ -3,6 +3,7 @@
  * `src/accounts/user_handlers.rs::update_me`, so the form refuses what the server would 400.
  */
 import type { UpdateProfilePayload, User } from '@tg/core'
+import { t } from '../../../i18n/index'
 
 export const PROFILE_LIMITS = { displayName: 48, signature: 160, homepage: 240 } as const
 
@@ -42,13 +43,13 @@ const CONTROL = new RegExp(`[${String.fromCharCode(0)}-${String.fromCharCode(31)
 export function validateProfileDraft(draft: ProfileDraft): ProfileErrors {
   const errors: ProfileErrors = {}
   if (chars(draft.displayName) > PROFILE_LIMITS.displayName)
-    errors.displayName = `名称最多 ${PROFILE_LIMITS.displayName} 个字符`
+    errors.displayName = t('w.settings.5ef515', PROFILE_LIMITS.displayName)
   if (chars(draft.signature) > PROFILE_LIMITS.signature)
-    errors.signature = `简介最多 ${PROFILE_LIMITS.signature} 个字符`
-  else if (CONTROL.test(draft.signature.trim())) errors.signature = '简介不能包含换行或控制字符'
+    errors.signature = t('w.settings.3aefe4', PROFILE_LIMITS.signature)
+  else if (CONTROL.test(draft.signature.trim())) errors.signature = t('w.settings.61aa64')
   const homepage = draft.homepage.trim()
-  if (chars(homepage) > PROFILE_LIMITS.homepage) errors.homepage = `链接最多 ${PROFILE_LIMITS.homepage} 个字符`
-  else if (homepage && !/^https?:\/\//.test(homepage)) errors.homepage = '链接需以 http:// 或 https:// 开头'
+  if (chars(homepage) > PROFILE_LIMITS.homepage) errors.homepage = t('w.settings.ca475f', PROFILE_LIMITS.homepage)
+  else if (homepage && !/^https?:\/\//.test(homepage)) errors.homepage = t('w.settings.8d2264')
   return errors
 }
 

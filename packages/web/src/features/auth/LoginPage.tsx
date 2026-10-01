@@ -20,6 +20,7 @@ import { signIn } from '../../app/session'
 import { authErrorCopy } from './authCopy'
 import { TwoFactorLoginStep } from './TwoFactorLoginStep'
 import { startLogin } from './twoStepLogin'
+import { t } from '../../i18n/index'
 
 export function LoginPage() {
   const [mode, setMode] = useState<AuthMode>('login')
@@ -94,9 +95,9 @@ export function LoginPage() {
     <main className="tg-login">
       <form className="tg-login__card" onSubmit={submit}>
         <h1 className="tg-login__title">Echo Gate</h1>
-        <p className="tg-login__subtitle">{mode === 'login' ? '登录以继续你的会话' : '创建账号，开始第一段会话'}</p>
+        <p className="tg-login__subtitle">{mode === 'login' ? t('w.auth.185440') : t('w.auth.3e7c6d')}</p>
         <TextField
-          label="用户名"
+          label={t('w.auth.a1aaf3')}
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           autoComplete="username"
@@ -107,19 +108,19 @@ export function LoginPage() {
           autoFocus
         />
         <TextField
-          label="密码"
+          label={t('w.auth.c839a8')}
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           name="password"
-          hint={mode === 'register' ? '至少 8 位' : undefined}
+          hint={mode === 'register' ? t('w.auth.bfd5e7') : undefined}
           required
           fullWidth
         />
         {showInvite ? (
           <TextField
-            label="邀请码"
+            label={t('w.auth.a8e3e2')}
             value={inviteToken}
             onChange={(event) => setInviteToken(event.target.value)}
             name="invite"
@@ -133,16 +134,16 @@ export function LoginPage() {
           </p>
         ) : null}
         <Button type="submit" loading={busy} fullWidth size="lg">
-          {mode === 'login' ? '登录' : '注册'}
+          {mode === 'login' ? t('w.auth.21f1e8') : t('w.auth.da0e5f')}
         </Button>
         <div className="tg-login__switch">
           {mode === 'login' ? (
             <Button variant="text" onClick={() => switchMode('register')} disabled={registerDisabled} fullWidth>
-              {registerDisabled ? '当前部署已关闭注册' : '注册新账号'}
+              {registerDisabled ? t('w.auth.c98805') : t('w.auth.354c82')}
             </Button>
           ) : (
             <Button variant="text" onClick={() => switchMode('login')} fullWidth>
-              已有账号？登录
+              {t('w.auth.9c76fe')}
             </Button>
           )}
         </div>

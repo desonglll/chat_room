@@ -12,6 +12,7 @@ import { useAutoplayAllowed } from './autoplayEnvironment'
 import { gifRenderMode } from './gifModel'
 import { observeGifVisibility } from './gifViewport'
 import { createGifPlayback } from './playback'
+import { t } from '../../i18n/index'
 
 export interface GifPlayerProps {
   src: string
@@ -121,7 +122,7 @@ export function GifPlayer({ src, mimeType, label, className, style, tapToToggle,
       className={classes}
       style={style}
       data-playing={playing ? '' : undefined}
-      aria-label={playing ? `暂停 ${label}` : `播放 ${label}`}
+      aria-label={playing ? t('w.gif.f52de6', label) : t('w.gif.832ae1', label)}
       onClick={(event) => {
         event.stopPropagation()
         playback.toggle()

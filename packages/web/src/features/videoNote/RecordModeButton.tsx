@@ -15,6 +15,7 @@ import { VoiceRecordView } from '../voice/VoiceRecordButton'
 import { CameraGlyph } from './glyphs'
 import { useVideoNoteRecording } from './useVideoNoteRecording'
 import { VideoNoteViewfinder } from './VideoNoteViewfinder'
+import { t } from '../../i18n/index'
 
 export type RecordMode = 'voice' | 'video'
 
@@ -46,7 +47,7 @@ export function RecordModeButton(props: RecordModeButtonProps) {
         state={voice.state}
         controller={voice.controller}
         onTap={toggle}
-        idleLabel="按住录制语音消息"
+        idleLabel={t('w.videoNote.9ccb9e')}
       />
     )
   }
@@ -59,8 +60,8 @@ export function RecordModeButton(props: RecordModeButtonProps) {
       controller={video.controller}
       onTap={toggle}
       kind="video_note"
-      idleLabel="按住录制视频消息"
-      sendLabel="发送视频消息"
+      idleLabel={t('w.videoNote.e87e92')}
+      sendLabel={t('w.videoNote.f2368c')}
       waveform={false}
       overlay={
         recording ? (

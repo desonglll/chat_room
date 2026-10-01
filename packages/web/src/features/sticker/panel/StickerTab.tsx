@@ -15,6 +15,7 @@ import { SetRail, type RailEntry } from './SetRail'
 import { StickerGrid, type StickerGridHandle } from './StickerGrid'
 import { searchStickers } from './stickerSearch'
 import { useRemoteSet } from './useRemoteSet'
+import { t } from '../../../i18n/index'
 
 export interface StickerTabProps {
   onSend(sticker: Sticker): void
@@ -23,8 +24,8 @@ export interface StickerTabProps {
 
 function librarySections(favorites: Sticker[], recent: Sticker[], sets: StickerSet[]): PanelSection[] {
   return [
-    { id: 'favorites', title: '收藏', stickers: favorites },
-    { id: 'recent', title: '最近使用', stickers: recent },
+    { id: 'favorites', title: t('w.sticker.d07cee'), stickers: favorites },
+    { id: 'recent', title: t('w.sticker.71265f'), stickers: recent },
     ...sets.map((set) => ({ id: set.id, title: set.title, stickers: set.stickers })),
   ]
 }
@@ -57,8 +58,8 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
   )
   const rail = useMemo<RailEntry[]>(() => {
     const entries: RailEntry[] = []
-    if (favorites.length > 0) entries.push({ id: 'favorites', title: '收藏', icon: 'favorites' })
-    if (recent.length > 0) entries.push({ id: 'recent', title: '最近使用', icon: 'recent' })
+    if (favorites.length > 0) entries.push({ id: 'favorites', title: t('w.sticker.d07cee'), icon: 'favorites' })
+    if (recent.length > 0) entries.push({ id: 'recent', title: t('w.sticker.71265f'), icon: 'recent' })
     for (const set of sets) {
       const first = set.stickers[0]
       if (first) entries.push({ id: set.id, title: set.title, icon: first })
@@ -73,10 +74,10 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
     const inRecent = recent.some((entry) => entry.id === sticker.id)
     const owner = all.find((set) => set.id === sticker.set_id)
     const items: MenuItem[] = [
-      { id: 'send', label: '发送贴纸', disabled: !canSend, onSelect: () => onSend(sticker) },
+      { id: 'send', label: t('w.sticker.8e5cc0'), disabled: !canSend, onSelect: () => onSend(sticker) },
       {
         id: 'favorite',
-        label: favorite ? '取消收藏' : '添加到收藏',
+        label: favorite ? t('w.sticker.26acae') : t('w.sticker.143fe6'),
         onSelect: () =>
           void stickerLibrary()
             .toggleFavorite(sticker)
@@ -86,14 +87,14 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
     if (inRecent) {
       items.push({
         id: 'recent',
-        label: '从最近使用中移除',
+        label: t('w.sticker.bab462'),
         onSelect: () =>
           void stickerLibrary()
             .removeRecent(sticker.id)
             .catch(() => undefined),
       })
     }
-    if (owner) items.push({ id: 'set', label: '查看贴纸包', onSelect: () => openStickerSet(owner.short_name) })
+    if (owner) items.push({ id: 'set', label: t('w.sticker.3abdbf'), onSelect: () => openStickerSet(owner.short_name) })
     return items
   }, [menu, favorites, recent, all, canSend, onSend])
 
@@ -105,11 +106,11 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
           size="sm"
           fullWidth
           value={query}
-          placeholder="搜索贴纸"
-          aria-label="搜索贴纸"
+          placeholder={t('w.sticker.73a0ac')}
+          aria-label={t('w.sticker.73a0ac')}
           startAdornment={<SearchGlyph />}
           clearable
-          clearLabel="清除搜索"
+          clearLabel={t('w.sticker.318ea1')}
           onClear={() => setQuery('')}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -128,17 +129,21 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
             <div className="tg-sticker-tab__remote">
               <span>{remote.title}</span>
               <Button size="sm" variant="tonal" onClick={() => openStickerSet(remote.short_name)}>
-                查看
+                {t('w.sticker.f7acef')}
               </Button>
             </div>
           ) : null}
           {status === 'loading' && empty ? (
             <div className="tg-sticker-tab__state">
-              <Spinner size="md" label="正在加载贴纸" />
+              <Spinner size="md" label={t('w.sticker.97ad37')} />
             </div>
           ) : empty ? (
             <p className="tg-sticker-tab__state">
-              {query.trim() ? '没有找到贴纸' : status === 'error' ? '贴纸加载失败' : '还没有贴纸包'}
+              {query.trim()
+                ? t('w.sticker.826fad')
+                : status === 'error'
+                  ? t('w.sticker.f9fd05')
+                  : t('w.sticker.42c27c')}
             </p>
           ) : (
             <StickerGrid
@@ -148,7 +153,7 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
               onActiveSection={setActive}
               handleRef={gridRef}
               disabled={!canSend}
-              label={query.trim() ? '搜索结果' : '贴纸'}
+              label={query.trim() ? t('w.sticker.2f17ec') : t('w.sticker.f7c0f3')}
             />
           )}
         </div>
@@ -158,7 +163,7 @@ export function StickerTab({ onSend, canSend }: StickerTabProps) {
         onClose={() => setMenu(null)}
         anchor={menu ? { x: menu.x, y: menu.y } : null}
         items={menuItems}
-        aria-label="贴纸操作"
+        aria-label={t('w.sticker.7dfa8e')}
       />
     </div>
   )

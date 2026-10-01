@@ -3,6 +3,7 @@
  * same rules; checking them here only saves a round trip and gives a precise message.
  */
 import { ApiError } from '@tg/core'
+import { t } from '../../../i18n/index'
 
 export const MAX_HINT_CHARS = 64
 
@@ -16,16 +17,16 @@ export interface PasswordDraft {
 
 /** A message for the first problem, or '' when the draft may be submitted. */
 export function checkNewPassword({ password, confirm, hint }: PasswordDraft): string {
-  if (password.length === 0) return '请输入两步验证密码'
-  if ([...password].length > 256) return '密码不能超过 256 个字符'
-  if (password !== confirm) return '两次输入的密码不一致'
+  if (password.length === 0) return t('w.settings.1bb472')
+  if ([...password].length > 256) return t('w.settings.66c3b2')
+  if (password !== confirm) return t('w.settings.3e2b22')
   return checkHint(hint, password)
 }
 
 export function checkHint(hint: string, password: string): string {
   const trimmed = hint.trim()
-  if ([...trimmed].length > MAX_HINT_CHARS) return `提示不能超过 ${MAX_HINT_CHARS} 个字符`
-  if (trimmed && password && trimmed.toLowerCase().includes(password.toLowerCase())) return '提示中不能包含密码本身'
+  if ([...trimmed].length > MAX_HINT_CHARS) return t('w.settings.e027e3', MAX_HINT_CHARS)
+  if (trimmed && password && trimmed.toLowerCase().includes(password.toLowerCase())) return t('w.settings.e0e84b')
   return ''
 }
 
@@ -40,37 +41,37 @@ export function checkEmail(email: string): string {
     !domain.startsWith('.') &&
     !domain.endsWith('.') &&
     !/\s/.test(value)
-  return valid ? '' : '请输入有效的邮箱地址'
+  return valid ? '' : t('w.settings.25d22e')
 }
 
 export function checkCode(code: string): string {
-  return /^\d{6}$/.test(code.trim()) ? '' : '验证码是 6 位数字'
+  return /^\d{6}$/.test(code.trim()) ? '' : t('w.settings.d0fa3c')
 }
 
 export type SecurityAction = 'load' | 'enable' | 'change' | 'disable' | 'email' | 'code'
 
 export function securityErrorCopy(error: unknown, action: SecurityAction): string {
-  if (!(error instanceof ApiError)) return '无法连接服务器，请检查网络后重试'
+  if (!(error instanceof ApiError)) return t('w.settings.77d57e')
   switch (error.status) {
     case 400:
-      return action === 'code' ? '验证码是 6 位数字' : '输入不符合要求，请检查后重试'
+      return action === 'code' ? t('w.settings.d0fa3c') : t('w.settings.06ff91')
     case 401:
-      if (action === 'enable') return '账号密码不正确'
-      if (action === 'code') return '验证码不正确'
-      if (action === 'load') return '登录已失效，请重新登录'
-      return '两步验证密码不正确'
+      if (action === 'enable') return t('w.settings.7b2330')
+      if (action === 'code') return t('w.settings.751a0d')
+      if (action === 'load') return t('w.settings.dc29c0')
+      return t('w.settings.8c7930')
     case 404:
-      return '两步验证尚未开启'
+      return t('w.settings.a1a1e2')
     case 409:
-      return '两步验证已经开启'
+      return t('w.settings.985220')
     case 410:
-      return '验证码已失效，请重新发送'
+      return t('w.settings.a3bf92')
     case 429:
-      return '尝试次数过多，请稍后再试'
+      return t('w.settings.b04f0b')
     case 502:
     case 503:
-      return '服务器未配置邮件发送，暂时无法设置恢复邮箱'
+      return t('w.settings.bba9a7')
     default:
-      return `请求失败（${error.status}），请稍后再试`
+      return t('w.settings.d8ae3d', error.status)
   }
 }

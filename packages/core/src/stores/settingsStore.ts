@@ -7,6 +7,7 @@ import { createStore } from 'zustand/vanilla'
 import type { CoreStorage } from '../types'
 import type { AutoDownloadRules } from '../domain/autoDownload'
 import { DEFAULT_AUTO_DOWNLOAD } from '../domain/autoDownload'
+import type { Locale } from '../i18n/runtime'
 
 /** TG-507 adds `scheduled`: night between `nightFrom` and `nightTo` (local time). */
 export type ThemePreference = 'light' | 'dark' | 'system' | 'scheduled'
@@ -32,6 +33,8 @@ export interface SettingsSnapshot {
   accent: AccentId
   nightFrom: string
   nightTo: string
+  /** TG-510: interface language. */
+  language: Locale
 }
 
 export const DEFAULT_SETTINGS: SettingsSnapshot = {
@@ -46,6 +49,7 @@ export const DEFAULT_SETTINGS: SettingsSnapshot = {
   accent: 'blue',
   nightFrom: '22:00',
   nightTo: '07:00',
+  language: 'zh-CN',
 }
 
 export const SETTINGS_STORAGE_KEY = 'tg.settings.v1'
@@ -85,6 +89,7 @@ export const createSettingsStore = () =>
         accent,
         nightFrom,
         nightTo,
+        language,
       } = get()
       storage.setItem(
         SETTINGS_STORAGE_KEY,
@@ -100,6 +105,7 @@ export const createSettingsStore = () =>
           accent,
           nightFrom,
           nightTo,
+          language,
         }),
       )
     },

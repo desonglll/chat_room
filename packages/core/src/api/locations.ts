@@ -4,6 +4,7 @@
  */
 import type { LiveLocationEntry, MessageLocation, StoredMessage } from '../types'
 import { encodePathSegment, type ApiClient } from './http'
+import { t } from '../i18n/t'
 
 /** Telegram's live periods: 15 minutes, 1 hour, 8 hours. */
 export const LIVE_LOCATION_PERIODS = [900, 3600, 28_800] as const
@@ -66,5 +67,5 @@ export function liveRemaining(location: MessageLocation, now: number): string {
   const left = Date.parse(location.live_until) - now
   if (!(left > 0)) return ''
   const minutes = Math.ceil(left / 60_000)
-  return minutes < 60 ? `剩余 ${minutes} 分钟` : `剩余 ${Math.ceil(minutes / 60)} 小时`
+  return minutes < 60 ? t('c.api.c0a4b1', minutes) : t('c.api.5977b6', Math.ceil(minutes / 60))
 }

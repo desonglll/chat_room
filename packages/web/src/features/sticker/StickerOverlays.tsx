@@ -7,6 +7,7 @@ import { lazy, Suspense } from 'react'
 import { Modal } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { closeStickerSet, closeStickerSettings, stickerOverlayStore } from './overlayStore'
+import { t } from '../../i18n/index'
 
 const StickerSetModal = lazy(() => import('./manage/StickerSetModal').then((m) => ({ default: m.StickerSetModal })))
 const StickerSetsSettings = lazy(() =>
@@ -19,7 +20,13 @@ export function StickerOverlays() {
   return (
     <Suspense fallback={null}>
       {settingsOpen ? (
-        <Modal open onClose={closeStickerSettings} title="贴纸" size="md" className="tg-sticker-manage-modal">
+        <Modal
+          open
+          onClose={closeStickerSettings}
+          title={t('w.sticker.f7c0f3')}
+          size="md"
+          className="tg-sticker-manage-modal"
+        >
           <StickerSetsSettings />
         </Modal>
       ) : null}

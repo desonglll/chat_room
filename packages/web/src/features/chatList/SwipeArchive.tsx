@@ -15,6 +15,7 @@ import { readSpring, usePrefersReducedMotion } from '@tg/ui'
 import { ChatListIcon } from './chatListIcons'
 import type { SwipeAxis } from './swipeGesture'
 import { commitsArchive, lockAxis, swipeOffset, swipeProgress } from './swipeGesture'
+import { t } from '../../i18n/index'
 
 export interface SwipeArchiveProps {
   archived: boolean
@@ -150,7 +151,7 @@ export function SwipeArchive({ archived, onCommit, disabled = false, children }:
       <div className={`tg-swipe__action tg-swipe__action--${archived ? 'unarchive' : 'archive'}`} aria-hidden="true">
         <span className="tg-swipe__action-inner">
           <ChatListIcon name={archived ? 'unarchive' : 'archive'} size={26} />
-          <span>{archived ? '取消归档' : '归档'}</span>
+          <span>{archived ? t('w.chatList.18362b') : t('w.chatList.ddfde7')}</span>
         </span>
       </div>
       <div ref={content} className="tg-swipe__content">

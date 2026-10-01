@@ -4,18 +4,27 @@
  */
 import type { ChatMemberEntry, ChatMembership, ChatPermissionsView, ChatType, PermissionDescriptor } from '@tg/core'
 import { ADMIN_ASSIGNABLE_KEYS, MEMBER_TOGGLEABLE_KEYS } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export const CHAT_TYPE_LABEL: Record<ChatType, string> = {
-  private: '私聊',
-  group: '群组',
-  supergroup: '超级群',
-  channel: '频道',
+  get private() {
+    return t('w.chatAdmin.3adfdb')
+  },
+  get group() {
+    return t('w.chatAdmin.4260ca')
+  },
+  get supergroup() {
+    return t('w.chatAdmin.a06237')
+  },
+  get channel() {
+    return t('w.chatAdmin.b76dfd')
+  },
 }
 
 /** The line under the chat type: Telegram upgrades automatically, never by a button. */
 export function chatTypeNote(type: ChatType): string {
-  if (type === 'group') return '成员超过 200 人、设置公开链接、开启话题或慢速模式时将自动升级为超级群。'
-  if (type === 'supergroup') return '已升级为超级群：最多 200000 名成员，支持公开链接、话题与慢速模式。升级不可撤销。'
+  if (type === 'group') return t('w.chatAdmin.7eaea5')
+  if (type === 'supergroup') return t('w.chatAdmin.001782')
   return ''
 }
 
@@ -124,10 +133,34 @@ export function defaultAdminSelection(actor: ChatPermissionsView): Set<string> {
 
 /** Restriction lengths offered as presets, Telegram-style. `null` = until lifted. */
 export const UNTIL_PRESETS: ReadonlyArray<{ id: string; label: string; seconds: number | null }> = [
-  { id: 'hour', label: '1 小时', seconds: 3600 },
-  { id: 'day', label: '1 天', seconds: 86_400 },
-  { id: 'week', label: '1 周', seconds: 604_800 },
-  { id: 'forever', label: '永久', seconds: null },
+  {
+    id: 'hour',
+    get label() {
+      return t('w.chatAdmin.c8fb1c')
+    },
+    seconds: 3600,
+  },
+  {
+    id: 'day',
+    get label() {
+      return t('w.chatAdmin.11f478')
+    },
+    seconds: 86_400,
+  },
+  {
+    id: 'week',
+    get label() {
+      return t('w.chatAdmin.03f320')
+    },
+    seconds: 604_800,
+  },
+  {
+    id: 'forever',
+    get label() {
+      return t('w.chatAdmin.409752')
+    },
+    seconds: null,
+  },
 ]
 
 export function untilFromPreset(presetId: string, now: number): string | null {
@@ -138,10 +171,10 @@ export function untilFromPreset(presetId: string, now: number): string | null {
 
 /** "直到 10月2日 14:30" / "永久". */
 export function untilText(until: string | null | undefined): string {
-  if (!until) return '永久'
+  if (!until) return t('w.chatAdmin.409752')
   const date = new Date(until)
   const pad = (value: number) => String(value).padStart(2, '0')
-  return `直到 ${date.getMonth() + 1}月${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return t('w.chatAdmin.ee5028', date.getMonth() + 1, date.getDate(), pad(date.getHours()), pad(date.getMinutes()))
 }
 
 export const memberName = (entry: Pick<ChatMemberEntry, 'nickname' | 'display_name' | 'username'>): string =>
@@ -150,8 +183,8 @@ export const memberName = (entry: Pick<ChatMemberEntry, 'nickname' | 'display_na
 /** The badge after a name: the admin title, else 所有者 / 管理员. */
 export function roleBadge(entry: ChatMemberEntry): string {
   if (entry.custom_title) return entry.custom_title
-  if (entry.role === 'owner') return '所有者'
-  if (entry.role === 'admin') return '管理员'
+  if (entry.role === 'owner') return t('w.chatAdmin.ff3beb')
+  if (entry.role === 'admin') return t('w.chatAdmin.ef84e7')
   return ''
 }
 

@@ -12,6 +12,7 @@ import { voiceStore } from './voiceStore'
 import { VoiceWaveform } from './VoiceWaveform'
 import { formatVoiceDuration, waveformBarCount } from './waveform'
 import { PauseGlyph, PlayGlyph } from './glyphs'
+import { t } from '../../i18n/index'
 
 export function VoiceContent({ message, metaSpacer }: MessageContentProps) {
   const voice = message.voice
@@ -70,7 +71,7 @@ export function VoiceBody(props: VoiceBodyProps) {
       <button
         type="button"
         className="tg-voice__play"
-        aria-label={playing ? '暂停语音' : '播放语音'}
+        aria-label={playing ? t('w.voice.447b18') : t('w.voice.ed7ef4')}
         onClick={(event) => {
           event.stopPropagation()
           player.toggle(track)
@@ -88,12 +89,12 @@ export function VoiceBody(props: VoiceBodyProps) {
         />
         <div className="tg-voice__info">
           <span className="tg-voice__time">{formatVoiceDuration(shown)}</span>
-          {listened ? null : <span className="tg-voice__unlistened" role="img" aria-label="未收听" />}
+          {listened ? null : <span className="tg-voice__unlistened" role="img" aria-label={t('w.voice.d821bd')} />}
           {loaded ? (
             <button
               type="button"
               className="tg-voice__rate"
-              aria-label={`播放速度 ${rate}x，点击切换`}
+              aria-label={t('w.voice.fbd8f0', rate)}
               onClick={(event) => {
                 event.stopPropagation()
                 player.cycleRate()

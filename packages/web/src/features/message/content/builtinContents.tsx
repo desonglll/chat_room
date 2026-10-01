@@ -8,6 +8,7 @@ import { MediaFrame } from './MediaFrame'
 import { AutoDownloadGate } from '../../settings/storage/AutoDownloadGate'
 import { formatBytes, hasCaption } from './attachmentKind'
 import { DeletedGlyph, FileGlyph, PlayGlyph } from '../icons'
+import { t } from '../../../i18n/index'
 
 export function TextContent({ message, metaSpacer }: MessageContentProps) {
   return <MessageText text={message.content} metaSpacer={metaSpacer} />
@@ -25,7 +26,7 @@ export function ImageContent(props: MessageContentProps) {
   if (attachment === null) return null
   return (
     <>
-      <MediaFrame attachment={attachment} actions={actions} label={`查看图片 ${attachment.file_name}`}>
+      <MediaFrame attachment={attachment} actions={actions} label={t('w.message.d5948e', attachment.file_name)}>
         <AutoDownloadGate kind="photo" sizeBytes={attachment.size_bytes}>
           <img
             className="tg-bubble__image"
@@ -48,7 +49,7 @@ export function VideoContent(props: MessageContentProps) {
   if (attachment === null) return null
   return (
     <>
-      <MediaFrame attachment={attachment} actions={actions} label={`播放视频 ${attachment.file_name}`}>
+      <MediaFrame attachment={attachment} actions={actions} label={t('w.message.c81777', attachment.file_name)}>
         <AutoDownloadGate kind="video" sizeBytes={attachment.size_bytes}>
           <video className="tg-bubble__image" src={attachment.download_url} preload="metadata" muted playsInline />
         </AutoDownloadGate>
@@ -94,7 +95,7 @@ export function DeletedContent({ metaSpacer }: MessageContentProps) {
   return (
     <div className="tg-bubble__text tg-bubble__deleted">
       <DeletedGlyph />
-      <span>消息已撤回</span>
+      <span>{t('w.message.26b4ea')}</span>
       {metaSpacer}
     </div>
   )

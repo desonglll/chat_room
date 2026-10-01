@@ -5,6 +5,7 @@
  */
 import type { ChatMember } from '@tg/core'
 import { Avatar } from '@tg/ui'
+import { t } from '../../i18n/index'
 
 export interface MentionPopupProps {
   id: string
@@ -19,7 +20,7 @@ export const mentionOptionId = (listId: string, index: number) => `${listId}-opt
 export function MentionPopup({ id, candidates, activeIndex, onPick, onHover }: MentionPopupProps) {
   if (candidates.length === 0) return null
   return (
-    <ul className="tg-compose__mentions" id={id} role="listbox" aria-label="提及成员">
+    <ul className="tg-compose__mentions" id={id} role="listbox" aria-label={t('w.composer.6120ef')}>
       {candidates.map((member, index) => (
         <li
           key={member.user_id}

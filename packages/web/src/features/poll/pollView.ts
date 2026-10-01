@@ -4,6 +4,7 @@
  * Framework-free so `bun test` covers every rule without a DOM.
  */
 import type { PollState } from '@tg/core'
+import { t } from '../../i18n/index'
 
 /**
  * Merge an incoming snapshot over the held one.
@@ -74,15 +75,15 @@ export interface PollView {
 }
 
 export function pollKindLabel(poll: PollState): string {
-  if (poll.closed) return poll.quiz ? '测验已结束' : '投票已结束'
-  const privacy = poll.public_voters ? '公开' : '匿名'
-  if (poll.quiz) return `${privacy}测验`
-  return poll.multiple_choice ? `${privacy}投票 · 多选` : `${privacy}投票`
+  if (poll.closed) return poll.quiz ? t('w.poll.18fa11') : t('w.poll.4852a8')
+  const privacy = poll.public_voters ? t('w.poll.dfe5a3') : t('w.poll.9117f2')
+  if (poll.quiz) return t('w.poll.298af6', privacy)
+  return poll.multiple_choice ? t('w.poll.afa895', privacy) : t('w.poll.f815ca', privacy)
 }
 
 export function votersLabel(count: number, quiz = false): string {
-  if (count === 0) return quiz ? '暂无人作答' : '暂无投票'
-  return quiz ? `${count} 人已作答` : `${count} 人已投票`
+  if (count === 0) return quiz ? t('w.poll.15e23e') : t('w.poll.aee9a5')
+  return quiz ? t('w.poll.64304c', count) : t('w.poll.4d38b6', count)
 }
 
 export function describePoll(poll: PollState): PollView {

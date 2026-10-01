@@ -8,6 +8,7 @@ import { composerStore, messageStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { CloseGlyph, EditBarGlyph, ForwardBarGlyph, ReplyBarGlyph } from './icons'
 import { findMessage } from './composerController'
+import { t } from '../../i18n/index'
 
 export interface ComposerBarProps {
   chatId: string
@@ -22,7 +23,7 @@ function quote(content: string, attachmentName: string | null | undefined): stri
     .replace(/\s+/g, ' ')
     .trim()
   if (text) return text
-  return attachmentName ? `📎 ${attachmentName}` : '消息'
+  return attachmentName ? `📎 ${attachmentName}` : t('w.composer.dc6de3')
 }
 
 function useBarCopy(chatId: string, bar: ComposerBarState): { title: string; body: string } {
@@ -30,7 +31,7 @@ function useBarCopy(chatId: string, bar: ComposerBarState): { title: string; bod
   const firstId = bar.kind === 'forward' ? (bar.messageIds[0] ?? '') : bar.kind === 'none' ? '' : bar.messageId
   // Subscribe to the one message so an incoming edit/recall updates the quote.
   const message = useStore(messageStore, () => (firstId ? findMessage(messageStore, lookupChat, firstId) : null))
-  const body = message ? quote(message.content, message.attachment?.file_name) : '消息'
+  const body = message ? quote(message.content, message.attachment?.file_name) : t('w.composer.dc6de3')
   // TG-409: a quote replaces the body; a cross-chat reply shows its source snapshot (the
   // message is not in this chat's timeline).
   const extras = useStore(composerStore, (state) => state.replyExtras[chatId])
@@ -38,19 +39,23 @@ function useBarCopy(chatId: string, bar: ComposerBarState): { title: string; bod
     case 'reply':
       if (extras?.source) {
         return {
-          title: `回复 ${extras.source.sender}（来自 ${extras.source.chatTitle || '其他会话'}）`,
+          title: t('w.composer.9fa890', extras.source.sender, extras.source.chatTitle || t('w.composer.otherChat')),
           body: extras.quote ? `「${extras.quote.text}」` : quote(extras.source.text, null),
         }
       }
-      if (extras?.quote) return { title: message ? `引用 ${message.sender}` : '引用', body: `「${extras.quote.text}」` }
-      return { title: message ? `回复 ${message.sender}` : '回复消息', body }
+      if (extras?.quote)
+        return {
+          title: message ? t('w.composer.6ef258', message.sender) : t('w.composer.23c0e1'),
+          body: `「${extras.quote.text}」`,
+        }
+      return { title: message ? t('w.composer.17f37e', message.sender) : t('w.composer.1f0d18'), body }
     case 'edit':
-      return { title: '编辑消息', body }
+      return { title: t('w.composer.8a8de1'), body }
     case 'forward': {
       const count = bar.messageIds.length
       return {
-        title: count > 1 ? `转发 ${count} 条消息` : '转发消息',
-        body: message ? `${message.sender}：${body}` : `${count} 条消息`,
+        title: count > 1 ? t('w.composer.eb5a89', count) : t('w.composer.d646f7'),
+        body: message ? `${message.sender}：${body}` : t('w.composer.8ab7d9', count),
       }
     }
     default:
@@ -73,7 +78,13 @@ export function ComposerBar({ chatId, bar, onCancel }: ComposerBarProps) {
         <span className="tg-compose__bar-title">{copy.title}</span>
         <span className="tg-compose__bar-body">{copy.body}</span>
       </span>
-      <button type="button" className="tg-compose__bar-close" aria-label="取消" title="取消 (Esc)" onClick={onCancel}>
+      <button
+        type="button"
+        className="tg-compose__bar-close"
+        aria-label={t('w.composer.4d0b46')}
+        title={t('w.composer.12f3a1')}
+        onClick={onCancel}
+      >
         <CloseGlyph />
       </button>
     </div>

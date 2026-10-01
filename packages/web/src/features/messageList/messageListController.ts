@@ -35,8 +35,8 @@ import {
   CONTEXT_WINDOW_SIZE,
   FIRST_ITEM_INDEX_BASE,
   HIGHLIGHT_MS,
-  LOAD_FAILED_NOTICE,
-  MESSAGE_NOT_FOUND_NOTICE,
+  loadFailedNotice,
+  messageNotFoundNotice,
   OLDER_PAGE_SIZE,
   initialMessageListState,
   rowIndexOf,
@@ -101,7 +101,7 @@ export function createMessageListController(options: MessageListControllerOption
     try {
       ;[page] = await Promise.all([api.loadOlder(cursor, OLDER_PAGE_SIZE), options.afterPaint?.()])
     } catch {
-      set({ loadingOlder: false, notice: LOAD_FAILED_NOTICE })
+      set({ loadingOlder: false, notice: loadFailedNotice() })
       return
     }
     if (disposed) return
@@ -165,7 +165,7 @@ export function createMessageListController(options: MessageListControllerOption
     try {
       context = await api.loadAround(cursor, CONTEXT_WINDOW_SIZE)
     } catch {
-      set({ loadingNewer: false, notice: LOAD_FAILED_NOTICE })
+      set({ loadingNewer: false, notice: loadFailedNotice() })
       return
     }
     if (disposed) return
@@ -199,14 +199,14 @@ export function createMessageListController(options: MessageListControllerOption
     try {
       context = await api.loadAround(messageId, CONTEXT_WINDOW_SIZE)
     } catch {
-      set({ jumping: false, notice: LOAD_FAILED_NOTICE })
+      set({ jumping: false, notice: loadFailedNotice() })
       return
     }
     if (disposed) return
     if (get().viewKey !== viewKey) return set({ jumping: false })
     const { targetIndex, reachedStart, reachedEnd } = splitContextWindow(context, messageId, CONTEXT_WINDOW_SIZE)
     if (targetIndex < 0) {
-      set({ jumping: false, notice: MESSAGE_NOT_FOUND_NOTICE })
+      set({ jumping: false, notice: messageNotFoundNotice() })
       return
     }
     const state = get()

@@ -18,6 +18,7 @@ import {
   type SettingsSection,
   type SettingsSectionId,
 } from './settingsRegistry'
+import { t } from '../../../i18n/index'
 
 export interface ViewContext {
   pages: readonly SettingsPageRegistration[]
@@ -29,7 +30,7 @@ export interface ViewContext {
 export function SettingsHeader({
   title,
   onBack,
-  backLabel = '返回',
+  backLabel = t('w.settings.11d024'),
   children,
 }: {
   title: string
@@ -64,7 +65,12 @@ export function ProfileCard({ user, onEdit }: { user: User | null; onEdit(): voi
   if (!user) return null
   const model = profileHeaderModel(user)
   return (
-    <button type="button" className="tg-settings-profile" onClick={onEdit} aria-label={`编辑资料：${model.name}`}>
+    <button
+      type="button"
+      className="tg-settings-profile"
+      onClick={onEdit}
+      aria-label={t('w.settings.49ccd8', model.name)}
+    >
       <Avatar src={model.avatarSrc} label={model.name} initials={model.initials} size="xl" />
       <span className="tg-settings-profile__text">
         <span className="tg-settings-profile__name">{model.name}</span>
@@ -80,14 +86,14 @@ export function RootView({ context }: { context: ViewContext }) {
     context.push(viewForSection(section, pagesInSection(context.pages, section)))
   return (
     <>
-      <SettingsHeader title="设置" onBack={context.close} backLabel="关闭设置">
-        <IconButton label="编辑资料" variant="plain" onClick={() => openSection('account')}>
+      <SettingsHeader title={t('w.settings.7debf9')} onBack={context.close} backLabel={t('w.settings.7346c0')}>
+        <IconButton label={t('w.settings.7719bd')} variant="plain" onClick={() => openSection('account')}>
           <SettingsIcon name="edit" />
         </IconButton>
       </SettingsHeader>
       <div className="tg-settings__body">
         <ProfileCard user={user} onEdit={() => openSection('account')} />
-        <nav className="tg-settings__group tg-settings__group--rows" aria-label="设置分区">
+        <nav className="tg-settings__group tg-settings__group--rows" aria-label={t('w.settings.fb3849')}>
           {SETTINGS_SECTIONS.map((section) => (
             <Row
               key={section.id}
@@ -106,8 +112,11 @@ function ComingSoon({ section }: { section: SettingsSection }) {
   return (
     <div className="tg-settings__placeholder" role="status">
       <SettingsIcon name={section.id} size={48} />
-      <p className="tg-settings__placeholder-title">即将推出</p>
-      <p className="tg-settings__hint">「{section.title}」还在开发中。</p>
+      <p className="tg-settings__placeholder-title">{t('w.settings.7553b9')}</p>
+      <p className="tg-settings__hint">
+        「{section.title}
+        {t('w.settings.76d626')}
+      </p>
     </div>
   )
 }
@@ -140,7 +149,7 @@ export function SectionView({ section, context }: { section: SettingsSection; co
 export function PageView({ page, context }: { page: SettingsPageRegistration; context: ViewContext }) {
   const Page = page.component
   const body = (
-    <Suspense fallback={<Spinner label="正在加载" />}>
+    <Suspense fallback={<Spinner label={t('w.settings.3667cb')} />}>
       <Page onBack={context.back} onClose={context.close} />
     </Suspense>
   )

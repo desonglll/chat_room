@@ -2,6 +2,7 @@
 import { useStore } from 'zustand/react'
 import { SEARCH_TABS, suggestSearches } from './searchModel'
 import { searchStore, selectSearchTab } from './searchStore'
+import { t } from '../../i18n/index'
 
 export function SearchTabs({ query, onPick }: { query: string; onPick: (query: string) => void }) {
   const tab = useStore(searchStore, (state) => state.tab)
@@ -9,7 +10,7 @@ export function SearchTabs({ query, onPick }: { query: string; onPick: (query: s
   const suggestions = suggestSearches(recent, query)
   return (
     <div className="tg-search">
-      <div className="tg-search__tabs" role="tablist" aria-label="搜索分类">
+      <div className="tg-search__tabs" role="tablist" aria-label={t('w.search.c3113f')}>
         {SEARCH_TABS.map((item) => (
           <button
             key={item.id}
@@ -24,7 +25,7 @@ export function SearchTabs({ query, onPick }: { query: string; onPick: (query: s
         ))}
       </div>
       {suggestions.length > 0 ? (
-        <div className="tg-search__suggestions" aria-label="最近搜索">
+        <div className="tg-search__suggestions" aria-label={t('w.search.b6f4af')}>
           {suggestions.map((item) => (
             <button key={item} type="button" className="tg-search__chip" onClick={() => onPick(item)}>
               {item}

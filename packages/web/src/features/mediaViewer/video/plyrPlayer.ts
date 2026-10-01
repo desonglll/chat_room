@@ -14,6 +14,7 @@
 import Plyr from 'plyr'
 import 'plyr/dist/plyr.css'
 import sprite from '../../../../node_modules/plyr/dist/plyr.svg?raw'
+import { t } from '../../../i18n/index'
 
 const SPRITE_ID = 'sprite-plyr'
 
@@ -53,22 +54,22 @@ export function createPlayer(video: HTMLVideoElement): VideoPlayerHandle {
     keyboard: { focused: true, global: false },
     storage: { enabled: true, key: 'tg.player' },
     i18n: {
-      play: '播放',
-      pause: '暂停',
-      played: '已播放',
-      buffered: '已缓冲',
-      currentTime: '当前时间',
-      duration: '时长',
-      volume: '音量',
-      mute: '静音',
-      unmute: '取消静音',
-      enterFullscreen: '全屏',
-      exitFullscreen: '退出全屏',
-      settings: '设置',
-      menuBack: '返回',
-      speed: '速度',
-      normal: '正常',
-      seek: '跳转',
+      play: t('w.mediaViewer.219253'),
+      pause: t('w.mediaViewer.130448'),
+      played: t('w.mediaViewer.2ce155'),
+      buffered: t('w.mediaViewer.90a93e'),
+      currentTime: t('w.mediaViewer.626e5b'),
+      duration: t('w.mediaViewer.29d055'),
+      volume: t('w.mediaViewer.1aa999'),
+      mute: t('w.mediaViewer.afdbd1'),
+      unmute: t('w.mediaViewer.59bc75'),
+      enterFullscreen: t('w.mediaViewer.93c44f'),
+      exitFullscreen: t('w.mediaViewer.a170c5'),
+      settings: t('w.mediaViewer.7debf9'),
+      menuBack: t('w.mediaViewer.11d024'),
+      speed: t('w.mediaViewer.f2fdff'),
+      normal: t('w.mediaViewer.f78d03'),
+      seek: t('w.mediaViewer.28cd2e'),
     },
   })
   return { destroy: () => player.destroy() }

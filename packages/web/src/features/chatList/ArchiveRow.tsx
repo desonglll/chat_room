@@ -15,8 +15,10 @@ import type { ArchiveBadge } from './archiveRules'
 import type { ArchiveRowMode } from './archiveRowMode'
 import { avatarParts } from './chatRowModel'
 import { ChatListIcon } from './chatListIcons'
+import { t } from '../../i18n/index'
 
-export const ARCHIVE_TITLE = '已归档的对话'
+/** «已归档的对话» in the current language. */
+export const archiveTitle = () => t('w.chatList.archiveTitle')
 
 export interface ArchiveRowProps {
   mode: Exclude<ArchiveRowMode, 'hidden'>
@@ -87,9 +89,9 @@ export function ArchiveRow({
 }: ArchiveRowProps) {
   const items: MenuItem[] = [
     mode === 'collapsed'
-      ? { id: 'expand', label: '展开', onSelect: () => onModeChange('expanded') }
-      : { id: 'collapse', label: '折叠', onSelect: () => onModeChange('collapsed') },
-    { id: 'hide', label: '隐藏到主菜单', onSelect: () => onModeChange('hidden') },
+      ? { id: 'expand', label: t('w.chatList.b0e248'), onSelect: () => onModeChange('expanded') }
+      : { id: 'collapse', label: t('w.chatList.e9132e'), onSelect: () => onModeChange('collapsed') },
+    { id: 'hide', label: t('w.chatList.45fe84'), onSelect: () => onModeChange('hidden') },
   ]
   const badgeNode =
     badge.count > 0 ? (
@@ -100,7 +102,12 @@ export function ArchiveRow({
         className="tg-chatrow__badge"
       />
     ) : null
-  const label = `${ARCHIVE_TITLE}，${count} 个会话${badge.count > 0 ? `，${badge.count} 条未读` : ''}`
+  const label = t(
+    'w.chatList.01c31b',
+    archiveTitle(),
+    count,
+    badge.count > 0 ? t('w.chatList.unreadSuffix', badge.count) : '',
+  )
 
   if (collapsed) {
     return (
@@ -108,7 +115,7 @@ export function ArchiveRow({
         type="button"
         className="tg-chatrow tg-chatrow--collapsed tg-archive"
         onClick={onOpen}
-        title={ARCHIVE_TITLE}
+        title={archiveTitle()}
         aria-label={label}
       >
         <span className="tg-chatrow__archive-avatar tg-archive__glyph" aria-hidden="true">
@@ -120,7 +127,7 @@ export function ArchiveRow({
   }
 
   return (
-    <ContextMenu items={items} aria-label="归档行菜单" className="tg-archive__menu-region">
+    <ContextMenu items={items} aria-label={t('w.chatList.f854b8')} className="tg-archive__menu-region">
       {mode === 'collapsed' ? (
         <button
           type="button"
@@ -130,7 +137,7 @@ export function ArchiveRow({
           data-mode="collapsed"
         >
           <AvatarStack chats={previewChats} />
-          <span className="tg-archive__title">{ARCHIVE_TITLE}</span>
+          <span className="tg-archive__title">{archiveTitle()}</span>
           {badgeNode}
         </button>
       ) : (
@@ -146,7 +153,7 @@ export function ArchiveRow({
           </span>
           <span className="tg-chatrow__body">
             <span className="tg-chatrow__top">
-              <span className="tg-chatrow__title">{ARCHIVE_TITLE}</span>
+              <span className="tg-chatrow__title">{archiveTitle()}</span>
             </span>
             <span className="tg-chatrow__bottom">
               <Names chats={previewChats} now={now} />

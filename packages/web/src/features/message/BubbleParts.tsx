@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { ForwardedFrom, MessageReaction, ReplyPreview } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export function SenderName({ name }: { name: string }) {
   return <div className="tg-bubble__sender">{name}</div>
@@ -14,7 +15,7 @@ export function ForwardHeader({ from }: { from: ForwardedFrom }) {
   const origin = from.room_name.trim()
   return (
     <div className="tg-bubble__forward">
-      <span className="tg-bubble__forward-label">转发自</span>{' '}
+      <span className="tg-bubble__forward-label">{t('w.message.f97f81')}</span>{' '}
       <span className="tg-bubble__forward-name">{from.sender}</span>
       {origin === '' ? null : <span className="tg-bubble__forward-origin"> · {origin}</span>}
     </div>
@@ -23,11 +24,11 @@ export function ForwardHeader({ from }: { from: ForwardedFrom }) {
 
 /** What a quote shows for its one line of body text. */
 export function replySnippet(reply: ReplyPreview): string {
-  if (reply.recalled) return '消息已撤回'
+  if (reply.recalled) return t('w.message.26b4ea')
   const text = reply.content.trim()
   if (text !== '') return text
-  if (reply.attachment_file_name) return `[附件] ${reply.attachment_file_name}`
-  return '消息'
+  if (reply.attachment_file_name) return t('w.message.1a4351', reply.attachment_file_name)
+  return t('w.message.dc6de3')
 }
 
 export function ReplyQuote({
@@ -54,7 +55,7 @@ export function ReplyQuote({
       >
         {reply.quote && !reply.recalled ? reply.quote.text : replySnippet(reply)}
       </span>
-      {reply.quote_modified ? <span className="tg-bubble__reply-modified">已修改</span> : null}
+      {reply.quote_modified ? <span className="tg-bubble__reply-modified">{t('w.message.c920e4')}</span> : null}
     </>
   )
   const open =
@@ -68,7 +69,7 @@ export function ReplyQuote({
     <button
       type="button"
       className="tg-bubble__reply"
-      aria-label={`跳转到 ${reply.sender} 的消息`}
+      aria-label={t('w.message.c4a891', reply.sender)}
       onClick={(event) => {
         event.stopPropagation()
         open()
@@ -133,7 +134,7 @@ function ReactionChip({
       type="button"
       className="tg-bubble__reaction"
       aria-pressed={chosen}
-      aria-label={`${emoji} ${count} 人`}
+      aria-label={t('w.message.0cb2c5', emoji, count)}
       disabled={onReact === undefined}
       data-burst={burst > 0 ? '' : undefined}
       onClick={(event) => {

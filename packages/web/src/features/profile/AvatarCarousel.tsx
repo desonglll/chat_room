@@ -7,6 +7,7 @@ import { authStore } from '@tg/core'
 import { Button, IconButton } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { profileApi, type AvatarHistoryEntry } from './profileApi'
+import { t } from '../../i18n/index'
 
 export function AvatarCarousel({ userId }: { userId: string }) {
   const viewerId = useStore(authStore, (state) => state.session?.user.id ?? '')
@@ -26,7 +27,7 @@ export function AvatarCarousel({ userId }: { userId: string }) {
   }, [userId])
   useEffect(reload, [reload])
 
-  if (photos.length === 0) return <p className="tg-avatar-carousel__empty">还没有头像照片</p>
+  if (photos.length === 0) return <p className="tg-avatar-carousel__empty">{t('w.profile.d643e9')}</p>
   const photo = photos[index] ?? photos[0]!
   const act = (run: () => Promise<unknown>) => {
     setBusy(true)
@@ -35,11 +36,15 @@ export function AvatarCarousel({ userId }: { userId: string }) {
       .finally(() => setBusy(false))
   }
   return (
-    <section className="tg-avatar-carousel" aria-label="头像">
+    <section className="tg-avatar-carousel" aria-label={t('w.profile.4ceeeb')}>
       <div className="tg-avatar-carousel__frame">
-        <img className="tg-avatar-carousel__image" src={photo.url} alt={`头像 ${index + 1}/${photos.length}`} />
+        <img
+          className="tg-avatar-carousel__image"
+          src={photo.url}
+          alt={t('w.profile.307551', index + 1, photos.length)}
+        />
         <IconButton
-          label="上一张"
+          label={t('w.profile.b9f734')}
           className="tg-avatar-carousel__nav"
           data-side="prev"
           disabled={index === 0}
@@ -48,7 +53,7 @@ export function AvatarCarousel({ userId }: { userId: string }) {
           ‹
         </IconButton>
         <IconButton
-          label="下一张"
+          label={t('w.profile.9a3dc9')}
           className="tg-avatar-carousel__nav"
           data-side="next"
           disabled={index >= photos.length - 1}
@@ -63,14 +68,14 @@ export function AvatarCarousel({ userId }: { userId: string }) {
       {own ? (
         <div className="tg-avatar-carousel__actions">
           {photo.is_current ? (
-            <span className="tg-avatar-carousel__current">当前头像</span>
+            <span className="tg-avatar-carousel__current">{t('w.profile.0c1c90')}</span>
           ) : (
             <Button variant="text" disabled={busy} onClick={() => act(() => profileApi.setMain(photo.id))}>
-              设为头像
+              {t('w.profile.c7ab2f')}
             </Button>
           )}
           <Button variant="danger" disabled={busy} onClick={() => act(() => profileApi.remove(photo.id))}>
-            删除
+            {t('w.profile.3755f5')}
           </Button>
         </div>
       ) : null}

@@ -17,22 +17,59 @@ import {
   uploadWallpaper,
   wallpaperStore,
 } from '../../wallpaper/wallpaperStore'
+import { t } from '../../../i18n/index'
 
 const THEMES: { id: ThemePreference; label: string }[] = [
-  { id: 'system', label: '跟随系统' },
-  { id: 'light', label: '日间' },
-  { id: 'dark', label: '夜间' },
-  { id: 'scheduled', label: '定时' },
+  {
+    id: 'system',
+    get label() {
+      return t('w.settings.f4bbd9')
+    },
+  },
+  {
+    id: 'light',
+    get label() {
+      return t('w.settings.e4c5fb')
+    },
+  },
+  {
+    id: 'dark',
+    get label() {
+      return t('w.settings.7dcb90')
+    },
+  },
+  {
+    id: 'scheduled',
+    get label() {
+      return t('w.settings.4c02a6')
+    },
+  },
 ]
 const ACCENT_LABEL: Record<AccentId, string> = {
-  blue: '蓝',
-  cyan: '青',
-  green: '绿',
-  orange: '橙',
-  pink: '粉',
-  purple: '紫',
-  red: '红',
-  gray: '灰',
+  get blue() {
+    return t('w.settings.a44c59')
+  },
+  get cyan() {
+    return t('w.settings.845d1d')
+  },
+  get green() {
+    return t('w.settings.579625')
+  },
+  get orange() {
+    return t('w.settings.a01503')
+  },
+  get pink() {
+    return t('w.settings.febcf8')
+  },
+  get purple() {
+    return t('w.settings.01caea')
+  },
+  get red() {
+    return t('w.settings.5e3127')
+  },
+  get gray() {
+    return t('w.settings.c01083')
+  },
 }
 const PRESETS = [
   'default',
@@ -75,16 +112,16 @@ export function AppearanceSettingsPage() {
   }
   const apply = (write: WallpaperWrite) =>
     void saveWallpaper(scope, { ...write, blur, dim }).then(
-      () => setMessage('已更新聊天背景'),
-      () => setMessage('保存失败'),
+      () => setMessage(t('w.settings.ac4668')),
+      () => setMessage(t('w.settings.40525a')),
     )
   const current = wallpapers.find((wallpaper) => wallpaper.scope === scope)
 
   return (
     <div className="tg-appearance">
-      <section className="tg-appearance__card" aria-label="主题">
-        <h3 className="tg-appearance__title">主题</h3>
-        <div className="tg-appearance__row" role="radiogroup" aria-label="主题">
+      <section className="tg-appearance__card" aria-label={t('w.settings.e848dd')}>
+        <h3 className="tg-appearance__title">{t('w.settings.e848dd')}</h3>
+        <div className="tg-appearance__row" role="radiogroup" aria-label={t('w.settings.e848dd')}>
           {THEMES.map((theme) => (
             <label key={theme.id}>
               <input
@@ -100,7 +137,7 @@ export function AppearanceSettingsPage() {
         {settings.theme === 'scheduled' ? (
           <div className="tg-appearance__row">
             <label>
-              夜间开始{' '}
+              {t('w.settings.c6abd1')}{' '}
               <input
                 type="time"
                 value={settings.nightFrom}
@@ -108,15 +145,15 @@ export function AppearanceSettingsPage() {
               />
             </label>
             <label>
-              结束{' '}
+              {t('w.settings.76b988')}{' '}
               <input type="time" value={settings.nightTo} onChange={(event) => save({ nightTo: event.target.value })} />
             </label>
           </div>
         ) : null}
       </section>
 
-      <section className="tg-appearance__card" aria-label="强调色">
-        <h3 className="tg-appearance__title">强调色</h3>
+      <section className="tg-appearance__card" aria-label={t('w.settings.6f6737')}>
+        <h3 className="tg-appearance__title">{t('w.settings.6f6737')}</h3>
         <div className="tg-appearance__accents">
           {ACCENTS.map((accent) => (
             <button
@@ -125,15 +162,15 @@ export function AppearanceSettingsPage() {
               className="tg-appearance__accent"
               data-tg-accent={accent}
               aria-pressed={settings.accent === accent}
-              aria-label={`${ACCENT_LABEL[accent]}色`}
+              aria-label={t('w.settings.b4375f', ACCENT_LABEL[accent])}
               onClick={() => save({ accent })}
             />
           ))}
         </div>
       </section>
 
-      <section className="tg-appearance__card" aria-label="聊天背景">
-        <h3 className="tg-appearance__title">聊天背景</h3>
+      <section className="tg-appearance__card" aria-label={t('w.settings.7e9e15')}>
+        <h3 className="tg-appearance__title">{t('w.settings.7e9e15')}</h3>
         <div className="tg-appearance__row">
           <label>
             <input
@@ -142,7 +179,7 @@ export function AppearanceSettingsPage() {
               checked={scope === GLOBAL_WALLPAPER}
               onChange={() => setScope(GLOBAL_WALLPAPER)}
             />{' '}
-            所有聊天
+            {t('w.settings.c082c4')}
           </label>
           {activeChatId ? (
             <label>
@@ -152,7 +189,7 @@ export function AppearanceSettingsPage() {
                 checked={scope === activeChatId}
                 onChange={() => setScope(activeChatId)}
               />{' '}
-              仅当前聊天
+              {t('w.settings.89297a')}
             </label>
           ) : null}
         </div>
@@ -163,7 +200,7 @@ export function AppearanceSettingsPage() {
               type="button"
               className="tg-appearance__preset"
               data-tg-wallpaper={preset}
-              aria-label={`预设背景 ${preset}`}
+              aria-label={t('w.settings.945793', preset)}
               aria-pressed={current?.kind === 'preset' && current.preset === preset}
               onClick={() => apply({ kind: 'preset', preset })}
             />
@@ -174,29 +211,29 @@ export function AppearanceSettingsPage() {
             <input
               key={index}
               type="color"
-              aria-label={`颜色 ${index + 1}`}
+              aria-label={t('w.settings.7ae353', index + 1)}
               value={colour || accentHex()}
               onChange={(event) => setColors(colors.map((value, at) => (at === index ? event.target.value : value)))}
             />
           ))}
           {colors.length < 4 ? (
             <Button variant="text" size="sm" onClick={() => setColors([...colors, colors[colors.length - 1] ?? ''])}>
-              + 颜色
+              {t('w.settings.4b5093')}
             </Button>
           ) : null}
           <Button size="sm" onClick={() => apply({ kind: 'color', colors: [colors[0] || accentHex()] })}>
-            纯色
+            {t('w.settings.c502e4')}
           </Button>
           <Button
             size="sm"
             onClick={() => apply({ kind: 'gradient', colors: colors.map((value) => value || accentHex()) })}
           >
-            渐变
+            {t('w.settings.204be2')}
           </Button>
         </div>
-        <Toggle label="模糊（图片背景）" checked={blur} onCheckedChange={setBlur} />
+        <Toggle label={t('w.settings.765198')} checked={blur} onCheckedChange={setBlur} />
         <label className="tg-appearance__row">
-          暗化 {dim}%
+          {t('w.settings.4ecf62')} {dim}%
           <input
             type="range"
             min={0}
@@ -208,7 +245,7 @@ export function AppearanceSettingsPage() {
         </label>
         <div className="tg-appearance__row">
           <label className="tg-appearance__upload">
-            上传图片
+            {t('w.settings.59b308')}
             <input
               type="file"
               accept="image/*"
@@ -218,8 +255,8 @@ export function AppearanceSettingsPage() {
                 event.target.value = ''
                 if (file)
                   void uploadWallpaper(scope, file, { blur, dim }).then(
-                    () => setMessage('已更新聊天背景'),
-                    () => setMessage('上传失败'),
+                    () => setMessage(t('w.settings.ac4668')),
+                    () => setMessage(t('w.settings.a6f805')),
                   )
               }}
             />
@@ -227,26 +264,26 @@ export function AppearanceSettingsPage() {
           <Button
             variant="text"
             size="sm"
-            onClick={() => void resetWallpaper(scope).then(() => setMessage('已恢复默认'))}
+            onClick={() => void resetWallpaper(scope).then(() => setMessage(t('w.settings.4c82d8')))}
           >
-            恢复默认
+            {t('w.settings.a19193')}
           </Button>
         </div>
       </section>
 
-      <section className="tg-appearance__card" aria-label="自定义主题">
-        <h3 className="tg-appearance__title">自定义主题</h3>
+      <section className="tg-appearance__card" aria-label={t('w.settings.76e1a9')}>
+        <h3 className="tg-appearance__title">{t('w.settings.76e1a9')}</h3>
         <TextField
           multiline
           rows={4}
-          aria-label="主题文件"
-          placeholder="粘贴主题文件，或点「导出」得到当前主题"
+          aria-label={t('w.settings.d8b344')}
+          placeholder={t('w.settings.77569c')}
           value={themeText}
           onChange={(event) => setThemeText(event.target.value)}
         />
         <div className="tg-appearance__row">
           <Button size="sm" variant="tonal" onClick={() => setThemeText(exportTheme(settings))}>
-            导出
+            {t('w.settings.188896')}
           </Button>
           <Button
             size="sm"
@@ -254,11 +291,11 @@ export function AppearanceSettingsPage() {
               const imported = importTheme(themeText)
               if (imported) {
                 save(imported)
-                setMessage('主题已导入')
-              } else setMessage('不是有效的主题文件')
+                setMessage(t('w.settings.dda5af'))
+              } else setMessage(t('w.settings.43c3a8'))
             }}
           >
-            导入
+            {t('w.settings.60e2bc')}
           </Button>
         </div>
       </section>

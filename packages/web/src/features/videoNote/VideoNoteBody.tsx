@@ -9,6 +9,7 @@ import { PlayGlyph } from '../voice/glyphs'
 import { formatVoiceDuration } from '../voice/waveform'
 import { SpeakerOffGlyph } from './glyphs'
 import { ProgressRing } from './ProgressRing'
+import { t } from '../../i18n/index'
 
 export interface VideoNoteBodyProps {
   url: string
@@ -30,7 +31,7 @@ export function VideoNoteBody(props: VideoNoteBodyProps) {
   const { url, durationMs, thumbnail, outgoing, active, moving, positionMs, listened } = props
   const progress = durationMs > 0 ? positionMs / durationMs : 0
   const shown = active ? Math.max(0, durationMs - positionMs) : durationMs
-  const label = active ? (moving ? '暂停视频消息' : '继续播放视频消息') : '播放视频消息'
+  const label = active ? (moving ? t('w.videoNote.5d4e88') : t('w.videoNote.930e14')) : t('w.videoNote.0d3a49')
   return (
     <div
       className="tg-video-note"
@@ -70,7 +71,9 @@ export function VideoNoteBody(props: VideoNoteBodyProps) {
       <span className="tg-video-note__badge">
         <span className="tg-video-note__time">{formatVoiceDuration(shown)}</span>
         {active ? null : <SpeakerOffGlyph />}
-        {listened ? null : <span className="tg-video-note__unwatched" role="img" aria-label="未观看" />}
+        {listened ? null : (
+          <span className="tg-video-note__unwatched" role="img" aria-label={t('w.videoNote.ecea6e')} />
+        )}
       </span>
     </div>
   )

@@ -4,6 +4,7 @@
  */
 import type { CustomEmojiSet } from '@tg/core'
 import { InlineCustomEmoji } from './InlineCustomEmoji'
+import { t } from '../../i18n/index'
 
 export interface PickedCustomEmoji {
   id: string
@@ -19,7 +20,7 @@ export interface CustomEmojiGridProps {
 export function CustomEmojiGrid({ sets, onPick }: CustomEmojiGridProps) {
   const visible = sets.filter((set) => !set.archived && set.stickers.length > 0)
   if (visible.length === 0) {
-    return <p className="tg-custom-emoji-grid__empty">还没有添加自定义表情包</p>
+    return <p className="tg-custom-emoji-grid__empty">{t('w.customEmoji.62408d')}</p>
   }
   return (
     <div className="tg-custom-emoji-grid">

@@ -6,6 +6,7 @@ import type { MediaItem } from './mediaItem'
 import type { MediaViewerActions } from './types'
 import { MessageText } from '../message/content/MessageText'
 import { ChevronGlyph, CloseGlyph, DeleteGlyph, DownloadGlyph, ForwardGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 const WHEN = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -46,8 +47,8 @@ export function TopBar({ item, position, actions, deleting, onForward, onDelete,
           className="tg-mv__tool"
           href={item.url}
           download={item.fileName}
-          aria-label="下载"
-          title="下载"
+          aria-label={t('w.mediaViewer.2b9d01')}
+          title={t('w.mediaViewer.2b9d01')}
           onClick={
             actions.onDownload
               ? (event) => {
@@ -60,7 +61,13 @@ export function TopBar({ item, position, actions, deleting, onForward, onDelete,
           <DownloadGlyph />
         </a>
         {actions.onForward ? (
-          <button type="button" className="tg-mv__tool" aria-label="转发" title="转发" onClick={onForward}>
+          <button
+            type="button"
+            className="tg-mv__tool"
+            aria-label={t('w.mediaViewer.0d5a8a')}
+            title={t('w.mediaViewer.0d5a8a')}
+            onClick={onForward}
+          >
             <ForwardGlyph />
           </button>
         ) : null}
@@ -68,15 +75,21 @@ export function TopBar({ item, position, actions, deleting, onForward, onDelete,
           <button
             type="button"
             className="tg-mv__tool"
-            aria-label="删除"
-            title="删除"
+            aria-label={t('w.mediaViewer.3755f5')}
+            title={t('w.mediaViewer.3755f5')}
             disabled={deleting}
             onClick={onDelete}
           >
             <DeleteGlyph />
           </button>
         ) : null}
-        <button type="button" className="tg-mv__tool" aria-label="关闭" title="关闭 (Esc)" onClick={onClose}>
+        <button
+          type="button"
+          className="tg-mv__tool"
+          aria-label={t('w.mediaViewer.6c14bd')}
+          title={t('w.mediaViewer.4417eb')}
+          onClick={onClose}
+        >
           <CloseGlyph />
         </button>
       </div>
@@ -91,7 +104,7 @@ export function NavArrow({ direction, onClick }: { direction: 'left' | 'right'; 
       className="tg-mv__arrow"
       data-side={direction}
       data-mv-chrome=""
-      aria-label={direction === 'left' ? '上一个' : '下一个'}
+      aria-label={direction === 'left' ? t('w.mediaViewer.57b271') : t('w.mediaViewer.159a87')}
       onClick={onClick}
     >
       <ChevronGlyph direction={direction} />

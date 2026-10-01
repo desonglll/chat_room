@@ -4,6 +4,7 @@
  */
 import type { CreatePollInput } from '@tg/core'
 import { POLL_LIMITS } from '@tg/core'
+import { t } from '../../i18n/index'
 
 export interface PollForm {
   question: string
@@ -59,14 +60,14 @@ export type PollFormResult = { ok: true; input: CreatePollInput } | { ok: false;
 /** Blank options are dropped (Telegram ignores the trailing empty row). */
 export function buildPollInput(form: PollForm): PollFormResult {
   const question = form.question.trim()
-  if (!question) return { ok: false, error: '请输入问题' }
+  if (!question) return { ok: false, error: t('w.poll.7b0f7a') }
   if (length(question) > POLL_LIMITS.questionChars) {
-    return { ok: false, error: `问题不能超过 ${POLL_LIMITS.questionChars} 个字符` }
+    return { ok: false, error: t('w.poll.c72c10', POLL_LIMITS.questionChars) }
   }
   const kept = form.options.map((text, index) => ({ text: text.trim(), index })).filter((option) => option.text)
-  if (kept.length < POLL_LIMITS.minOptions) return { ok: false, error: '至少需要两个选项' }
+  if (kept.length < POLL_LIMITS.minOptions) return { ok: false, error: t('w.poll.51ee30') }
   if (kept.some((option) => length(option.text) > POLL_LIMITS.optionChars)) {
-    return { ok: false, error: `选项不能超过 ${POLL_LIMITS.optionChars} 个字符` }
+    return { ok: false, error: t('w.poll.6001d5', POLL_LIMITS.optionChars) }
   }
   const input: CreatePollInput = {
     question,
@@ -77,11 +78,11 @@ export function buildPollInput(form: PollForm): PollFormResult {
   }
   if (form.quiz) {
     const correct = kept.findIndex((option) => option.index === form.correctOption)
-    if (correct < 0) return { ok: false, error: '请选择正确答案' }
+    if (correct < 0) return { ok: false, error: t('w.poll.647026') }
     input.correct_option = correct
     const explanation = form.explanation.trim()
     if (length(explanation) > POLL_LIMITS.explanationChars) {
-      return { ok: false, error: `解析不能超过 ${POLL_LIMITS.explanationChars} 个字符` }
+      return { ok: false, error: t('w.poll.e8ed17', POLL_LIMITS.explanationChars) }
     }
     if (explanation) input.explanation = explanation
   }

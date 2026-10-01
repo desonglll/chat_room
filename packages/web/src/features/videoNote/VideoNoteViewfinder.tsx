@@ -7,6 +7,7 @@
 import { useEffect, useRef } from 'react'
 import { VIDEO_NOTE_MAX_MS } from './videoNoteApi'
 import { ProgressRing } from './ProgressRing'
+import { t } from '../../i18n/index'
 
 export interface VideoNoteViewfinderProps {
   /** The recorder's preview element, or `null` while the camera opens. */
@@ -27,7 +28,12 @@ export function VideoNoteViewfinder({ preview, elapsedMs }: VideoNoteViewfinderP
   return (
     <>
       <div className="tg-video-note-rec__backdrop" aria-hidden="true" />
-      <div className="tg-video-note-rec" role="img" aria-label="视频消息取景框" data-ready={preview ? true : undefined}>
+      <div
+        className="tg-video-note-rec"
+        role="img"
+        aria-label={t('w.videoNote.88d4d7')}
+        data-ready={preview ? true : undefined}
+      >
         <div className="tg-video-note-rec__lens" ref={host} />
         <ProgressRing className="tg-video-note-rec__ring" progress={elapsedMs / VIDEO_NOTE_MAX_MS} />
       </div>

@@ -10,6 +10,7 @@ import { Avatar, Button, Modal, TextField } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { closeMediaViewer } from '../mediaViewer'
 import { chatDialogsStore, closeForward, settleDelete } from './chatDialogStore'
+import { t } from '../../i18n/index'
 
 export function ForwardDialog() {
   const request = useStore(chatDialogsStore, (state) => state.forward)
@@ -55,12 +56,17 @@ export function ForwardDialog() {
         closeForward()
         setQuery('')
       }}
-      title={request?.replyTo ? '在哪个会话中回复？' : '转发到…'}
+      title={request?.replyTo ? t('w.chat.5744cd') : t('w.chat.3699f8')}
       size="sm"
     >
       <div className="tg-forward">
-        <TextField label="搜索会话" value={query} onChange={(event) => setQuery(event.target.value)} fullWidth />
-        <ul className="tg-forward__list" aria-label="会话">
+        <TextField
+          label={t('w.chat.11b93c')}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          fullWidth
+        />
+        <ul className="tg-forward__list" aria-label={t('w.chat.836ffe')}>
           {targets.map((row) => (
             <li key={row.room_id}>
               <button type="button" className="tg-forward__row" onClick={() => pick(row.room_id)}>
@@ -69,7 +75,7 @@ export function ForwardDialog() {
               </button>
             </li>
           ))}
-          {targets.length === 0 ? <li className="tg-forward__empty">没有可转发的会话</li> : null}
+          {targets.length === 0 ? <li className="tg-forward__empty">{t('w.chat.e516b3')}</li> : null}
         </ul>
       </div>
     </Modal>
@@ -83,16 +89,16 @@ export function DeleteConfirmDialog() {
     <Modal
       open={request !== null}
       onClose={() => settleDelete(false)}
-      title={count > 1 ? `删除 ${count} 条消息？` : '删除消息？'}
-      description="消息将为所有人撤回，此操作无法撤销。"
+      title={count > 1 ? t('w.chat.b03ce1', count) : t('w.chat.6b7446')}
+      description={t('w.chat.043aa8')}
       size="sm"
       footer={
         <div className="tg-confirm__actions">
           <Button variant="text" onClick={() => settleDelete(false)}>
-            取消
+            {t('w.chat.4d0b46')}
           </Button>
           <Button variant="danger" onClick={() => settleDelete(true)}>
-            删除
+            {t('w.chat.3755f5')}
           </Button>
         </div>
       }

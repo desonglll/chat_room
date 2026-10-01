@@ -16,15 +16,24 @@ import { canChangeLink, linkName, linkSummary, partitionLinks } from './inviteLi
 import { LinkShareBox } from './LinkShareBox'
 import type { InviteLinksState, LinkPeople } from './useInviteLinks'
 import { useInviteLinks } from './useInviteLinks'
+import { t } from '../../i18n/index'
 import './inviteLinks.css'
 
 type Page = { id: 'home' } | { id: 'create' } | { id: 'edit'; linkId: string } | { id: 'detail'; linkId: string }
 
 const PAGE_TITLE: Record<Page['id'], string> = {
-  home: '邀请链接',
-  create: '新建链接',
-  edit: '编辑链接',
-  detail: '邀请链接',
+  get home() {
+    return t('w.inviteLinks.8a8f47')
+  },
+  get create() {
+    return t('w.inviteLinks.5d017e')
+  },
+  get edit() {
+    return t('w.inviteLinks.48513c')
+  },
+  get detail() {
+    return t('w.inviteLinks.8a8f47')
+  },
 }
 
 export interface InviteLinksPanelProps {
@@ -89,34 +98,34 @@ export function InviteLinksPanel({
 
   let body: ReactNode = null
   if (!view) {
-    body = links.loading ? <Spinner label="正在加载" /> : null
+    body = links.loading ? <Spinner label={t('w.inviteLinks.3667cb')} /> : null
   } else if (page.id === 'home') {
     const { primary, live, revoked } = partitionLinks(view.links)
     body = (
       <>
-        <p className="tg-invite__note">任何拿到链接的人都可以加入群组；撤销后链接立即失效。</p>
+        <p className="tg-invite__note">{t('w.inviteLinks.30c1dd')}</p>
         {primary ? (
-          <section className="tg-invite__primary" aria-label="主邀请链接">
-            <h3 className="tg-invite__section-title">主邀请链接</h3>
+          <section className="tg-invite__primary" aria-label={t('w.inviteLinks.90b9ef')}>
+            <h3 className="tg-invite__section-title">{t('w.inviteLinks.90b9ef')}</h3>
             <LinkShareBox token={primary.token} live origin={origin}>
               {confirmReplace ? null : (
                 <Button variant="text" onClick={() => setConfirmReplace(true)}>
-                  替换链接
+                  {t('w.inviteLinks.315867')}
                 </Button>
               )}
             </LinkShareBox>
             {confirmReplace ? (
-              <div className="tg-invite__confirm" role="group" aria-label="确认替换">
-                <span>旧链接将立即失效。</span>
+              <div className="tg-invite__confirm" role="group" aria-label={t('w.inviteLinks.1751c5')}>
+                <span>{t('w.inviteLinks.7357d4')}</span>
                 <Button
                   variant="danger"
                   loading={links.busy}
                   onClick={() => void links.replacePrimary().then(() => setConfirmReplace(false))}
                 >
-                  替换
+                  {t('w.inviteLinks.855241')}
                 </Button>
                 <Button variant="text" onClick={() => setConfirmReplace(false)}>
-                  取消
+                  {t('w.inviteLinks.4d0b46')}
                 </Button>
               </div>
             ) : null}
@@ -129,15 +138,15 @@ export function InviteLinksPanel({
             </button>
           </section>
         ) : null}
-        <section aria-label="其他链接">
-          <h3 className="tg-invite__section-title tg-invite__list-title">其他链接</h3>
+        <section aria-label={t('w.inviteLinks.52032d')}>
+          <h3 className="tg-invite__section-title tg-invite__list-title">{t('w.inviteLinks.52032d')}</h3>
           <div className="tg-invite__actions" data-start="">
             <Button variant="tonal" onClick={() => open({ id: 'create' })}>
-              ＋ 创建新链接
+              {t('w.inviteLinks.335f51')}
             </Button>
           </div>
           {live.length === 0 ? (
-            <p className="tg-invite__note">可以为不同渠道创建带有效期、人数上限或需要审核的链接。</p>
+            <p className="tg-invite__note">{t('w.inviteLinks.dfab17')}</p>
           ) : (
             <ul className="tg-invite__rows">
               {live.map((link) => (
@@ -147,8 +156,8 @@ export function InviteLinksPanel({
           )}
         </section>
         {revoked.length > 0 ? (
-          <section aria-label="已撤销的链接">
-            <h3 className="tg-invite__section-title tg-invite__list-title">已撤销的链接</h3>
+          <section aria-label={t('w.inviteLinks.69354e')}>
+            <h3 className="tg-invite__section-title tg-invite__list-title">{t('w.inviteLinks.69354e')}</h3>
             <ul className="tg-invite__rows">
               {revoked.map((link) => (
                 <LinkRow key={link.id} link={link} onOpen={() => open({ id: 'detail', linkId: link.id })} />
@@ -188,21 +197,21 @@ export function InviteLinksPanel({
         onSettle={(userId, approve) => links.settle(userId, approve)}
       />
     ) : (
-      <p className="tg-invite__note">链接已不存在。</p>
+      <p className="tg-invite__note">{t('w.inviteLinks.0415ed')}</p>
     )
   }
 
   return (
-    <section className="tg-invite" aria-label="邀请链接">
+    <section className="tg-invite" aria-label={t('w.inviteLinks.8a8f47')}>
       <header className="tg-invite__bar">
         {stack.length > 1 ? (
-          <IconButton label="返回" variant="plain" onClick={back}>
+          <IconButton label={t('w.inviteLinks.11d024')} variant="plain" onClick={back}>
             <BackIcon />
           </IconButton>
         ) : null}
         <h2 className="tg-invite__heading">{PAGE_TITLE[page.id]}</h2>
         <Button variant="text" size="sm" onClick={onClose}>
-          关闭
+          {t('w.inviteLinks.6c14bd')}
         </Button>
       </header>
       {links.error ? (

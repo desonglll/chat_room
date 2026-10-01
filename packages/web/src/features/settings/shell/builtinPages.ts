@@ -10,6 +10,7 @@
 import { createElement, lazy } from 'react'
 import { SettingsIcon } from './settingsIcons'
 import { registerSettingsPage, type SettingsPageProps } from './settingsRegistry'
+import { t } from '../../../i18n/index'
 
 const AccountPage = lazy(() => import('./pages/AccountPage'))
 const DevicesPage = lazy(() => import('./pages/DevicesPage'))
@@ -25,15 +26,27 @@ const TwoFactorPage = lazy(async () => {
 registerSettingsPage({
   id: 'account.profile',
   section: 'account',
-  title: '我的账号',
+  get title() {
+    return t('w.settings.ba7bbf')
+  },
   component: AccountPage,
   order: 10,
 })
-registerSettingsPage({ id: 'devices.sessions', section: 'devices', title: '设备', component: DevicesPage, order: 10 })
+registerSettingsPage({
+  id: 'devices.sessions',
+  section: 'devices',
+  get title() {
+    return t('w.settings.01f2c1')
+  },
+  component: DevicesPage,
+  order: 10,
+})
 registerSettingsPage({
   id: 'privacy.rules',
   section: 'privacy',
-  title: '隐私',
+  get title() {
+    return t('w.settings.4334e7')
+  },
   icon: createElement(SettingsIcon, { name: 'privacy' }),
   component: PrivacyPage,
   order: 10,
@@ -42,7 +55,9 @@ registerSettingsPage({
 registerSettingsPage({
   id: 'privacy.two-factor',
   section: 'privacy',
-  title: '两步验证',
+  get title() {
+    return t('w.settings.b6c237')
+  },
   icon: createElement(SettingsIcon, { name: 'security' }),
   component: TwoFactorPage,
   order: 20,

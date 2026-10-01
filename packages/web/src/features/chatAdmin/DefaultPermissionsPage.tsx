@@ -4,6 +4,7 @@ import type { ChatPermissionsView } from '@tg/core'
 import { Button } from '@tg/ui'
 import { memberOptions, toggleMemberPermission } from './chatAdminModel'
 import { PermissionChecklist } from './PermissionChecklist'
+import { t } from '../../i18n/index'
 
 export interface DefaultPermissionsPageProps {
   view: ChatPermissionsView
@@ -22,12 +23,12 @@ export function DefaultPermissionsPage({ view, busy, editable, onSave }: Default
   return (
     <div className="tg-chatadmin__editor">
       <PermissionChecklist
-        title="群成员可以"
+        title={t('w.chatAdmin.35c46a')}
         options={options}
         disabled={busy || !editable}
         onToggle={(key, checked) => setAllowed((set) => toggleMemberPermission(set, key, checked))}
       />
-      <p className="tg-chatadmin__note">管理员不受这些限制。对单个成员的限制可在成员列表中设置。</p>
+      <p className="tg-chatadmin__note">{t('w.chatAdmin.433e4f')}</p>
       {editable ? (
         <div className="tg-chatadmin__actions">
           <Button
@@ -35,7 +36,7 @@ export function DefaultPermissionsPage({ view, busy, editable, onSave }: Default
             disabled={busy || !changed}
             onClick={() => onSave(options.filter((o) => o.checked).map((o) => o.key))}
           >
-            保存
+            {t('w.chatAdmin.fadf24')}
           </Button>
         </div>
       ) : null}

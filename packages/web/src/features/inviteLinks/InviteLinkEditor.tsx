@@ -15,6 +15,7 @@ import {
   LIMIT_PRESETS,
   type InviteLinkDraft,
 } from './inviteLinksModel'
+import { t } from '../../i18n/index'
 
 export interface InviteLinkEditorProps {
   /** Absent = create. */
@@ -58,19 +59,19 @@ export function InviteLinkEditor({ link, busy, onSave, now = () => new Date() }:
     >
       <div className="tg-invite__section">
         <TextField
-          label="链接名称（可选）"
+          label={t('w.inviteLinks.7a65a9')}
           value={draft.title}
           maxLength={MAX_INVITE_TITLE_CHARS}
-          hint="只有管理员能看到名称"
+          hint={t('w.inviteLinks.48754b')}
           onChange={(event) => patch({ title: event.currentTarget.value })}
         />
       </div>
       <fieldset className="tg-invite__section tg-invite__fieldset">
-        <legend className="tg-invite__section-title">有效期</legend>
+        <legend className="tg-invite__section-title">{t('w.inviteLinks.222460')}</legend>
         <div className="tg-invite__chips">
           {draft.keptExpiresAt ? (
             <Chip
-              label={`保持（${formatWhen(draft.keptExpiresAt)}）`}
+              label={t('w.inviteLinks.faaa55', formatWhen(draft.keptExpiresAt))}
               selected={draft.expiry === 'keep'}
               onSelect={() => patch({ expiry: 'keep' })}
             />
@@ -87,15 +88,15 @@ export function InviteLinkEditor({ link, busy, onSave, now = () => new Date() }:
       </fieldset>
       <div className="tg-invite__section">
         <Toggle
-          label="需要管理员审核"
-          description="通过此链接的人需要管理员批准后才能加入；审核链接不设人数上限。"
+          label={t('w.inviteLinks.5eca12')}
+          description={t('w.inviteLinks.ab8362')}
           checked={draft.requiresApproval}
           onCheckedChange={(checked) => patch({ requiresApproval: checked })}
         />
       </div>
       {draft.requiresApproval ? null : (
         <fieldset className="tg-invite__section tg-invite__fieldset">
-          <legend className="tg-invite__section-title">人数上限</legend>
+          <legend className="tg-invite__section-title">{t('w.inviteLinks.2ab789')}</legend>
           <div className="tg-invite__chips">
             {LIMIT_PRESETS.map((preset) => (
               <Chip
@@ -107,10 +108,10 @@ export function InviteLinkEditor({ link, busy, onSave, now = () => new Date() }:
             ))}
           </div>
           <TextField
-            label="自定义人数"
+            label={t('w.inviteLinks.228a7f')}
             inputMode="numeric"
             value={draft.limit}
-            placeholder="不限"
+            placeholder={t('w.inviteLinks.09c4fc')}
             onChange={(event) => patch({ limit: event.currentTarget.value })}
           />
         </fieldset>
@@ -122,7 +123,7 @@ export function InviteLinkEditor({ link, busy, onSave, now = () => new Date() }:
       ) : null}
       <div className="tg-invite__actions">
         <Button type="submit" variant="filled" loading={busy} disabled={busy}>
-          {link ? '保存' : '创建链接'}
+          {link ? t('w.inviteLinks.fadf24') : t('w.inviteLinks.286539')}
         </Button>
       </div>
     </form>

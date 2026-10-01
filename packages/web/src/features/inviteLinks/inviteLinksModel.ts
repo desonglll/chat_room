@@ -4,13 +4,38 @@
  */
 import type { InviteLink, InviteLinkInput, InviteRefusal } from '@tg/core'
 import { MAX_INVITE_TITLE_CHARS, MAX_INVITE_USAGE_LIMIT } from '@tg/core'
+import { t } from '../../i18n/index'
 
 /** Telegram's expiry choices; `null` seconds = never. */
 export const EXPIRY_PRESETS: ReadonlyArray<{ id: string; label: string; seconds: number | null }> = [
-  { id: 'hour', label: '1 小时', seconds: 3600 },
-  { id: 'day', label: '1 天', seconds: 86_400 },
-  { id: 'week', label: '1 周', seconds: 7 * 86_400 },
-  { id: 'never', label: '永不过期', seconds: null },
+  {
+    id: 'hour',
+    get label() {
+      return t('w.inviteLinks.c8fb1c')
+    },
+    seconds: 3600,
+  },
+  {
+    id: 'day',
+    get label() {
+      return t('w.inviteLinks.11f478')
+    },
+    seconds: 86_400,
+  },
+  {
+    id: 'week',
+    get label() {
+      return t('w.inviteLinks.03f320')
+    },
+    seconds: 7 * 86_400,
+  },
+  {
+    id: 'never',
+    get label() {
+      return t('w.inviteLinks.0070ca')
+    },
+    seconds: null,
+  },
 ]
 
 /** Usage-limit choices; `null` = unlimited. */
@@ -19,7 +44,13 @@ export const LIMIT_PRESETS: ReadonlyArray<{ id: string; label: string; value: nu
   { id: '10', label: '10', value: 10 },
   { id: '50', label: '50', value: 50 },
   { id: '100', label: '100', value: 100 },
-  { id: 'none', label: '不限', value: null },
+  {
+    id: 'none',
+    get label() {
+      return t('w.inviteLinks.09c4fc')
+    },
+    value: null,
+  },
 ]
 
 export interface InviteLinkDraft {
@@ -50,21 +81,21 @@ export function draftFromLink(link: InviteLink): InviteLinkDraft {
 /** Validate a draft into the wire input, or return the Chinese error to show. */
 export function draftToInput(draft: InviteLinkDraft, now: Date): InviteLinkInput | string {
   const title = draft.title.trim()
-  if ([...title].length > MAX_INVITE_TITLE_CHARS) return `名称最多 ${MAX_INVITE_TITLE_CHARS} 个字符`
+  if ([...title].length > MAX_INVITE_TITLE_CHARS) return t('w.inviteLinks.5ef515', MAX_INVITE_TITLE_CHARS)
   let expiresAt: string | null = null
   if (draft.expiry === 'keep') {
     expiresAt = draft.keptExpiresAt
-    if (expiresAt && Date.parse(expiresAt) <= now.getTime()) return '有效期已过，请重新选择'
+    if (expiresAt && Date.parse(expiresAt) <= now.getTime()) return t('w.inviteLinks.071ee8')
   } else {
     const preset = EXPIRY_PRESETS.find((candidate) => candidate.id === draft.expiry)
-    if (!preset) return '请选择有效期'
+    if (!preset) return t('w.inviteLinks.e5053f')
     expiresAt = preset.seconds === null ? null : new Date(now.getTime() + preset.seconds * 1000).toISOString()
   }
   let usageLimit: number | null = null
   if (!draft.requiresApproval && draft.limit.trim() !== '') {
-    if (!/^\d+$/.test(draft.limit.trim())) return '人数上限必须是整数'
+    if (!/^\d+$/.test(draft.limit.trim())) return t('w.inviteLinks.2c1f07')
     usageLimit = Number(draft.limit.trim())
-    if (usageLimit < 1 || usageLimit > MAX_INVITE_USAGE_LIMIT) return `人数上限为 1 – ${MAX_INVITE_USAGE_LIMIT}`
+    if (usageLimit < 1 || usageLimit > MAX_INVITE_USAGE_LIMIT) return t('w.inviteLinks.a1abf5', MAX_INVITE_USAGE_LIMIT)
   }
   return { title, expires_at: expiresAt, usage_limit: usageLimit, requires_approval: draft.requiresApproval }
 }
@@ -80,29 +111,31 @@ export function formatWhen(iso: string): string {
 /** A link's display name: its title, else what it is. */
 export function linkName(link: InviteLink): string {
   if (link.title) return link.title
-  return link.is_primary ? '主邀请链接' : '邀请链接'
+  return link.is_primary ? t('w.inviteLinks.90b9ef') : t('w.inviteLinks.8a8f47')
 }
 
 /** The second line of a link row: usage, and why it no longer works or when it will stop. */
 export function linkSummary(link: InviteLink): string {
   const parts: string[] = []
   parts.push(
-    link.usage_limit === null ? `${link.usage_count} 人已加入` : `${link.usage_count}/${link.usage_limit} 人已加入`,
+    link.usage_limit === null
+      ? t('w.inviteLinks.3e3d46', link.usage_count)
+      : t('w.inviteLinks.75487b', link.usage_count, link.usage_limit),
   )
-  if (link.pending_count > 0) parts.push(`${link.pending_count} 个待审核`)
+  if (link.pending_count > 0) parts.push(t('w.inviteLinks.988ec4', link.pending_count))
   switch (link.state) {
     case 'revoked':
-      parts.push('已撤销')
+      parts.push(t('w.inviteLinks.61063b'))
       break
     case 'expired':
-      parts.push('已过期')
+      parts.push(t('w.inviteLinks.135437'))
       break
     case 'limit_reached':
-      parts.push('名额已满')
+      parts.push(t('w.inviteLinks.5addf4'))
       break
     default:
-      if (link.expires_at) parts.push(`${formatWhen(link.expires_at)} 过期`)
-      if (link.requires_approval) parts.push('需审核')
+      if (link.expires_at) parts.push(t('w.inviteLinks.e137d1', formatWhen(link.expires_at)))
+      if (link.requires_approval) parts.push(t('w.inviteLinks.422bd3'))
   }
   return parts.join(' · ')
 }
@@ -128,11 +161,25 @@ export function canChangeLink(link: InviteLink, viewerId: string | null, manageO
 }
 
 export const REFUSAL_COPY: Record<InviteRefusal, string> = {
-  not_found: '邀请链接无效',
-  expired: '邀请链接已过期',
-  limit_reached: '邀请链接的名额已用完',
-  revoked: '邀请链接已被撤销',
-  banned: '你已被移出该群组，无法通过链接加入',
-  locked: '该群组已被系统管理员锁定',
-  internal: '暂时无法打开邀请链接，请稍后再试',
+  get not_found() {
+    return t('w.inviteLinks.4f4802')
+  },
+  get expired() {
+    return t('w.inviteLinks.854fec')
+  },
+  get limit_reached() {
+    return t('w.inviteLinks.a68055')
+  },
+  get revoked() {
+    return t('w.inviteLinks.b06898')
+  },
+  get banned() {
+    return t('w.inviteLinks.21c900')
+  },
+  get locked() {
+    return t('w.inviteLinks.7a5eea')
+  },
+  get internal() {
+    return t('w.inviteLinks.f068ed')
+  },
 }

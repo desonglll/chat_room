@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Avatar, Button, Spinner, TextField } from '@tg/ui'
 import type { PrivacyApi, PrivacyUser } from '@tg/core'
 import { privacyUserName } from './privacyCopy'
+import { t } from '../../../i18n/index'
 
 const SEARCH_DEBOUNCE_MS = 250
 
@@ -54,16 +55,16 @@ export function UserPicker({ api, title, excludeIds, onPick, onCancel }: UserPic
     <section className="tg-privacy__picker" aria-label={title}>
       <h3 className="tg-privacy__section-title">{title}</h3>
       <TextField
-        label="搜索用户名"
+        label={t('w.settings.ab34fb')}
         value={query}
         autoFocus
         clearable
-        clearLabel="清除"
+        clearLabel={t('w.settings.7b15e5')}
         onClear={() => setQuery('')}
         onChange={(event) => setQuery(event.currentTarget.value)}
-        error={state === 'error' ? '搜索失败，请稍后重试' : undefined}
+        error={state === 'error' ? t('w.settings.80f9c9') : undefined}
       />
-      {state === 'loading' ? <Spinner size="sm" label="正在搜索" /> : null}
+      {state === 'loading' ? <Spinner size="sm" label={t('w.settings.c80b60')} /> : null}
       <ul className="tg-privacy__users">
         {visible.map((user) => {
           const name = privacyUserName(user)
@@ -79,7 +80,7 @@ export function UserPicker({ api, title, excludeIds, onPick, onCancel }: UserPic
         })}
       </ul>
       <Button variant="text" size="sm" onClick={onCancel}>
-        取消
+        {t('w.settings.4d0b46')}
       </Button>
     </section>
   )

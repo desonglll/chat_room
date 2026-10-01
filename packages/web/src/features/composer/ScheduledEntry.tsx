@@ -6,6 +6,7 @@ import { Suspense, lazy, useState } from 'react'
 import { IconButton } from '@tg/ui'
 import { useScheduledMessages } from '../scheduled/useScheduled'
 import { CalendarGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 const ScheduledMessagesDialog = lazy(() =>
   import('../scheduled/ScheduledMessagesDialog').then((module) => ({ default: module.ScheduledMessagesDialog })),
@@ -18,7 +19,7 @@ export function ScheduledEntry({ chatId }: { chatId: string }) {
     <>
       {items.length > 0 ? (
         <IconButton
-          label={`定时消息（${items.length}）`}
+          label={t('w.composer.4ea907', items.length)}
           className="tg-compose__tool"
           data-kind="scheduled"
           aria-haspopup="dialog"

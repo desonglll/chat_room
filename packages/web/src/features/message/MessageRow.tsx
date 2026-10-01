@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Avatar, Checkbox, ContextMenu, type MenuItem } from '@tg/ui'
 import type { MessageRenderContext } from './types'
+import { t } from '../../i18n/index'
 
 /** A message younger than this when its row mounts arrived live and rises in (TG-108). */
 export const FRESH_MESSAGE_MS = 3000
@@ -66,7 +67,7 @@ export function MessageRow({
             checked={ctx.selected}
             disabled={onSelect === undefined}
             onCheckedChange={() => onSelect?.()}
-            aria-label={ctx.selected ? '取消选择消息' : '选择消息'}
+            aria-label={ctx.selected ? t('w.message.c1c53d') : t('w.message.2b0443')}
           />
         </span>
       ) : null}
@@ -77,7 +78,12 @@ export function MessageRow({
           ) : null}
         </div>
       ) : null}
-      <ContextMenu items={menuItems} disabled={selectionMode} aria-label="消息操作" className="tg-message__menu-region">
+      <ContextMenu
+        items={menuItems}
+        disabled={selectionMode}
+        aria-label={t('w.message.9f2251')}
+        className="tg-message__menu-region"
+      >
         <div className="tg-message__column">{children}</div>
       </ContextMenu>
     </div>

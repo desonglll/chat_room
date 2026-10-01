@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { Button, IconButton } from '@tg/ui'
 import { CloseGlyph } from '../composer/icons'
 import { DeleteGlyph, ForwardGlyph } from '../message/icons'
+import { t } from '../../i18n/index'
 
 export interface SelectionBarProps {
   count: number
@@ -25,18 +26,18 @@ export function SelectionBar({ count, canDelete, onForward, onDelete, onCancel }
   }, [onCancel])
 
   return (
-    <footer className="tg-selection" role="toolbar" aria-label="已选消息">
-      <IconButton label="取消选择" variant="plain" onClick={onCancel}>
+    <footer className="tg-selection" role="toolbar" aria-label={t('w.chat.f0e0fb')}>
+      <IconButton label={t('w.chat.f02e94')} variant="plain" onClick={onCancel}>
         <CloseGlyph size={22} />
       </IconButton>
       <span className="tg-selection__count" aria-live="polite">
-        已选 {count} 条
+        {t('w.chat.f24ddc')} {count} {t('w.chat.bce2ef')}
       </span>
       <Button variant="tonal" onClick={onForward} startIcon={<ForwardGlyph />}>
-        转发
+        {t('w.chat.0d5a8a')}
       </Button>
       <Button variant="danger" onClick={onDelete} disabled={!canDelete} startIcon={<DeleteGlyph />}>
-        删除
+        {t('w.chat.3755f5')}
       </Button>
     </footer>
   )

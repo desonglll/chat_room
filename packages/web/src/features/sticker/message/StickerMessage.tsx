@@ -6,11 +6,12 @@ import type { MessageContentProps } from '../../message'
 import { openStickerSet } from '../overlayStore'
 import { LazyStickerView as StickerView } from '../LazyStickerView'
 import { stickerMessageView } from './stickerMessageModel'
+import { t } from '../../../i18n/index'
 
 export function StickerMessage({ message }: MessageContentProps) {
   const view = stickerMessageView(message)
   if (view === null) return null
-  const label = view.emoji ? `贴纸 ${view.emoji}` : '贴纸'
+  const label = view.emoji ? t('w.sticker.3c8532', view.emoji) : t('w.sticker.f7c0f3')
   const setShortName = view.setShortName
   const body = (
     <StickerView
@@ -27,7 +28,7 @@ export function StickerMessage({ message }: MessageContentProps) {
         <button
           type="button"
           className="tg-sticker-message__open"
-          aria-label={`${label}，查看贴纸包`}
+          aria-label={t('w.sticker.cc459f', label)}
           onClick={(event) => {
             event.stopPropagation()
             openStickerSet(setShortName)

@@ -1,0 +1,23 @@
+import type { Catalog } from '@tg/core'
+
+export const voice: Catalog = {
+  'w.voice.003f6b': '麦克风不可用',
+  'w.voice.0c7fe0': '滑动取消',
+  'w.voice.10639e': '无法使用麦克风：请在浏览器设置中允许访问',
+  'w.voice.1544d5': '语音消息过大',
+  'w.voice.162eb5': '对方设置了不接收你的语音消息',
+  'w.voice.3c4dff': '正在录制语音',
+  'w.voice.447b18': '暂停语音',
+  'w.voice.4d0b46': '取消',
+  'w.voice.4fcc34': '没有在此会话发送消息的权限',
+  'w.voice.679eab': '语音发送失败，请重试',
+  'w.voice.7a5c0f': '播放进度',
+  'w.voice.7fb030': '此浏览器不支持录制语音',
+  'w.voice.8be901': '正在录制视频消息',
+  'w.voice.9ccb9e': '按住录制语音消息',
+  'w.voice.bf0580': '松开发送，上滑锁定',
+  'w.voice.cc01a4': '发送语音',
+  'w.voice.d821bd': '未收听',
+  'w.voice.ed7ef4': '播放语音',
+  'w.voice.fbd8f0': '播放速度 {0}x，点击切换',
+}

@@ -9,6 +9,7 @@ import type { Chat } from '@tg/core'
 import { publicChatPath } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { publicHandlesApi } from './publicHandlesApi'
+import { t } from '../../i18n/index'
 
 const SEARCH_DELAY_MS = 300
 const MIN_QUERY = 2
@@ -44,8 +45,8 @@ export function PublicSearchResults({
 
   if (results.length === 0) return null
   return (
-    <section className="tg-publicsearch" aria-label="全局搜索">
-      <h3 className="tg-publicsearch__title">全局搜索</h3>
+    <section className="tg-publicsearch" aria-label={t('w.chatPreview.a38e3c')}>
+      <h3 className="tg-publicsearch__title">{t('w.chatPreview.a38e3c')}</h3>
       <ul className="tg-publicsearch__items">
         {results.map((chat) => (
           <li key={chat.id}>
@@ -58,7 +59,8 @@ export function PublicSearchResults({
               <span className="tg-publicsearch__text">
                 <span className="tg-publicsearch__name">{chat.title}</span>
                 <span className="tg-publicsearch__meta">
-                  @{chat.username} · {chat.member_count} {chat.chat_type === 'channel' ? '位订阅者' : '位成员'}
+                  @{chat.username} · {chat.member_count}{' '}
+                  {chat.chat_type === 'channel' ? t('w.chatPreview.597e61') : t('w.chatPreview.b8d0b7')}
                 </span>
               </span>
             </button>

@@ -10,6 +10,7 @@ import { Toggle } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { topicErrorText } from './topicListModel'
 import { topicsApi } from './topicsApi'
+import { t } from '../../i18n/index'
 import './forum.css'
 
 export interface ForumToggleProps {
@@ -50,8 +51,8 @@ export function ForumToggle({ chatId, chatType, myPermissions, api = topicsApi, 
   return (
     <div className="tg-forum-toggle">
       <Toggle
-        label="话题"
-        description="将群组消息按话题分开讨论。"
+        label={t('w.forum.df999a')}
+        description={t('w.forum.1dab4a')}
         checked={enabled}
         disabled={busy}
         onCheckedChange={change}

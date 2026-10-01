@@ -13,6 +13,7 @@ import { PrivacyRuleEditor } from './PrivacyRuleEditor'
 import { PRIVACY_KEY_COPY, privacyRuleSummary } from './privacyCopy'
 import { replaceRule } from './privacyEditing'
 import { privacyApi as defaultPrivacyApi } from './privacyApi'
+import { t } from '../../../i18n/index'
 import './privacy.css'
 
 export interface PrivacySettingsPageProps {
@@ -72,18 +73,18 @@ export function PrivacySettingsPage({
       () => {
         setLoad({ state: 'ready', rules: previous })
         setSaving(false)
-        setError('保存失败，请稍后重试')
+        setError(t('w.settings.b28580'))
       },
     )
   }
 
-  const title = openRule ? PRIVACY_KEY_COPY[openRule.key].title : '隐私'
+  const title = openRule ? PRIVACY_KEY_COPY[openRule.key].title : t('w.settings.4334e7')
   const back = openRule ? () => setOpenKey(null) : onBack
   return (
     <div className="tg-privacy" aria-busy={saving || load.state === 'loading'}>
       <header className="tg-privacy__header">
         {back ? (
-          <IconButton label="返回" onClick={back}>
+          <IconButton label={t('w.settings.11d024')} onClick={back}>
             <SpriteIcon name="back" />
           </IconButton>
         ) : null}
@@ -94,17 +95,17 @@ export function PrivacySettingsPage({
           {error}
         </p>
       ) : null}
-      {load.state === 'loading' ? <Spinner label="正在加载隐私设置" /> : null}
+      {load.state === 'loading' ? <Spinner label={t('w.settings.9fec19')} /> : null}
       {load.state === 'failed' ? (
         <p className="tg-privacy__error" role="alert">
-          无法加载隐私设置
+          {t('w.settings.69704d')}
         </p>
       ) : null}
       {load.state === 'ready' && openRule ? (
         <PrivacyRuleEditor rule={openRule} api={api} saving={saving} onChange={save} />
       ) : null}
       {load.state === 'ready' && !openRule ? (
-        <section className="tg-privacy__section" aria-label="隐私">
+        <section className="tg-privacy__section" aria-label={t('w.settings.4334e7')}>
           <ul className="tg-privacy__rows">
             {PRIVACY_KEYS.map((key) => {
               const rule = rules.find((candidate) => candidate.key === key)

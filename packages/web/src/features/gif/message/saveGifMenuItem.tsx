@@ -6,6 +6,7 @@
 import type { BroadcastMessage } from '@tg/core'
 import type { MenuItem } from '@tg/ui'
 import { isGifMessage } from '../gifModel'
+import { t } from '../../../i18n/index'
 
 function SaveGifGlyph() {
   return (
@@ -28,7 +29,7 @@ export function saveGifMenuItem(message: BroadcastMessage): MenuItem | null {
   if (!isGifMessage(message)) return null
   return {
     id: 'save-gif',
-    label: '保存 GIF',
+    label: t('w.gif.ca767d'),
     icon: <SaveGifGlyph />,
     onSelect: () => {
       void import('../gifLibrary').then(({ gifLibrary }) => gifLibrary().save(message.message_id))

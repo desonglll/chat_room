@@ -1,0 +1,28 @@
+import type { Catalog } from '@tg/core'
+
+export const messageList: Catalog = {
+  'w.messageList.03adb0': '用户{0}',
+  'w.messageList.1701af': '未发送',
+  'w.messageList.17e83c': '今天',
+  'w.messageList.1c1877': '加载消息失败，请稍后重试',
+  'w.messageList.23c0e1': '引用',
+  'w.messageList.255859': '上传中 {0}%',
+  'w.messageList.26b4ea': '消息已撤回',
+  'w.messageList.3dbbc1': '消息不存在或已被删除',
+  'w.messageList.59c4fc': '昨天',
+  'w.messageList.71a148': '返回原位置',
+  'w.messageList.79ed68': '回到最新消息',
+  'w.messageList.7bd220': '还没有消息，说点什么吧',
+  'w.messageList.8e3a21': '很久以前的消息',
+  'w.messageList.95b55a': '正在载入',
+  'w.messageList.9a5829': '今天 我们 讨论 一下 这个 虚拟 列表 的 滚动 性能 以及 锚点 保持 问题 好的 没问题',
+  'w.messageList.a6f805': '上传失败',
+  'w.messageList.acb4f3': '我发的消息',
+  'w.messageList.b298c8': '正在载入消息',
+  'w.messageList.c3286f': '用户u3',
+  'w.messageList.c36776': '已编辑',
+  'w.messageList.d9b3ce': '正在载入更早的消息',
+  'w.messageList.f97f81': '转发自',
+  'w.messageList.loadFailed': '加载消息失败，请稍后重试',
+  'w.messageList.notFound': '消息不存在或已被删除',
+}

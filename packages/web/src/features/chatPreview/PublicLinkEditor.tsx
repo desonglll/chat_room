@@ -8,6 +8,7 @@ import type { ChatType } from '@tg/core'
 import { ApiError, publicChatPath, usernameReasonText } from '@tg/core'
 import { Button, TextField } from '@tg/ui'
 import { publicHandlesApi } from './publicHandlesApi'
+import { t } from '../../i18n/index'
 
 const CHECK_DELAY_MS = 400
 
@@ -68,25 +69,25 @@ export function PublicLinkEditor({
   }
 
   return (
-    <section className="tg-publiclink" aria-label="公开链接">
-      <h3 className="tg-publiclink__title">公开链接</h3>
+    <section className="tg-publiclink" aria-label={t('w.chatPreview.093bb5')}>
+      <h3 className="tg-publiclink__title">{t('w.chatPreview.093bb5')}</h3>
       <TextField
-        label="用户名"
+        label={t('w.chatPreview.a1aaf3')}
         value={draft}
-        placeholder="例如 rust_learners"
+        placeholder={t('w.chatPreview.928162')}
         onChange={(event) => setDraft(event.currentTarget.value)}
         disabled={busy}
       />
       <p className="tg-publiclink__status" role="status">
         {check.kind === 'checking'
-          ? '正在检查…'
+          ? t('w.chatPreview.481ee2')
           : check.kind === 'ok'
-            ? `@${handle.toLowerCase()} 可以使用`
+            ? t('w.chatPreview.e33f2f', handle.toLowerCase())
             : check.kind === 'bad'
               ? check.text
               : saved
-                ? `任何人都可以通过 ${publicChatPath(saved)} 找到并加入`
-                : '设置后，这个群组会变成公开的超级群'}
+                ? t('w.chatPreview.4e56ef', publicChatPath(saved))
+                : t('w.chatPreview.238533')}
       </p>
       <div className="tg-publiclink__actions">
         <Button
@@ -95,11 +96,11 @@ export function PublicLinkEditor({
           disabled={!handle || check.kind === 'bad' || check.kind === 'checking' || handle.toLowerCase() === saved}
           onClick={() => save(handle)}
         >
-          保存
+          {t('w.chatPreview.fadf24')}
         </Button>
         {saved ? (
           <Button variant="text" disabled={busy} onClick={() => save(null)}>
-            设为私有
+            {t('w.chatPreview.6ea556')}
           </Button>
         ) : null}
       </div>

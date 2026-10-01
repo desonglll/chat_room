@@ -1,0 +1,28 @@
+import type { Catalog } from '@tg/core'
+
+export const location: Catalog = {
+  'w.location.033789': 'Cannot send a location in this chat',
+  'w.location.1184ec': 'Send location',
+  'w.location.1813aa': 'View {0}',
+  'w.location.2332ee': 'This browser does not support location',
+  'w.location.26fd6a': 'Live location ended',
+  'w.location.28849a': 'Approximate location (about 1 km)',
+  'w.location.2cfb94': 'Everyone in this chat can see your',
+  'w.location.3b5fd7': 'Live location',
+  'w.location.759ce5': '8 hours',
+  'w.location.8195a1': 'Send current location',
+  'w.location.88c344': 'Location',
+  'w.location.8bdf2f': 'approximate',
+  'w.location.96fe75': 'Cannot get your current location',
+  'w.location.be955b': 'exact',
+  'w.location.c8fb1c': '1 hour',
+  'w.location.c9ec06': 'Share live location',
+  'w.location.cb755e':
+    'm). A live location keeps only its latest point, stops updating when it ends, and has no history to replay.',
+  'w.location.cd8727': 'Getting your current location…',
+  'w.location.ce34f2': 'location (accuracy about',
+  'w.location.cfc1d0': '15 minutes',
+  'w.location.db9cc6': 'Location permission was not granted',
+  'w.location.e3a482': 'Stop sharing',
+  'w.location.f213c0': 'Open in map',
+}

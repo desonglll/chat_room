@@ -8,6 +8,7 @@ import type { ApiClient, PollState } from '@tg/core'
 import { ApiError, authStore, closePoll, retractPollVote, selectToken, votePoll } from '@tg/core'
 import { apiClient } from '../../app/client'
 import { effectivePoll, pollStore, type PollStore } from './pollStore'
+import { t } from '../../i18n/index'
 
 export interface PollController {
   poll: PollState
@@ -28,11 +29,11 @@ const DEFAULT_DEPS: PollDeps = { client: apiClient, store: pollStore }
 
 export function pollErrorText(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 409) return '投票已结束或答案已提交'
-    if (error.status === 403) return '没有权限执行此操作'
-    if (error.status === 404) return '投票已不可用'
+    if (error.status === 409) return t('w.poll.fb9d52')
+    if (error.status === 403) return t('w.poll.428d1f')
+    if (error.status === 404) return t('w.poll.fa1c71')
   }
-  return '操作失败，请重试'
+  return t('w.poll.51d3cb')
 }
 
 export function usePoll(fromMessage: PollState, deps: PollDeps = DEFAULT_DEPS): PollController {

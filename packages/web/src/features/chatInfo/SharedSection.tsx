@@ -20,10 +20,19 @@ import { FileRow, GifTile, LinkRow, MediaTile, MemberRow, VoiceRow } from './sha
 import type { SharedFile, SharedLink, SharedTabId } from './sharedSources'
 import { SHARED_TABS } from './sharedSources'
 import type { ChatInfoPagers } from './useChatInfo'
+import { t } from '../../i18n/index'
 
 export type InfoTabId = SharedTabId | 'members'
 
-const MEMBERS_TAB = { id: 'members' as const, label: '成员', empty: '还没有成员' }
+const MEMBERS_TAB = {
+  id: 'members' as const,
+  get label() {
+    return t('w.chatInfo.c1ee9f')
+  },
+  get empty() {
+    return t('w.chatInfo.4fc505')
+  },
+}
 /** Start the next page this far before the sentinel scrolls into view. */
 const PREFETCH_MARGIN_PX = 480
 
@@ -86,12 +95,12 @@ function SharedTabPanel<T>({ id, label, empty, active, layout, pager, scrollerRe
       {started && done && items.length === 0 && !error ? <p className="tg-chatinfo__empty">{empty}</p> : null}
       {error ? (
         <button type="button" className="tg-chatinfo__retry" onClick={() => void pager.getState().loadMore()}>
-          加载失败，点击重试
+          {t('w.chatInfo.560c03')}
         </button>
       ) : null}
       {loading ? (
         <div className="tg-chatinfo__loading">
-          <Spinner size="sm" label="加载中" />
+          <Spinner size="sm" label={t('w.chatInfo.ce56f6')} />
         </div>
       ) : null}
       <div ref={sentinel} className="tg-chatinfo__sentinel" aria-hidden="true" />
@@ -213,7 +222,7 @@ export function SharedSection({ chatId, pagers, showMembers, scrollerRef }: Shar
         value={active}
         onValueChange={select}
         stretch
-        aria-label="共享内容"
+        aria-label={t('w.chatInfo.8ac831')}
       />
       {tabs.map((tab) => panel(tab.id, tab.label, tab.empty))}
     </div>

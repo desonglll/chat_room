@@ -18,15 +18,54 @@ import { attachmentKind } from '../message/content/attachmentKind'
 import { extractLinks } from './linkExtract'
 import type { FetchSharedPage, SharedPage } from './sharedPager'
 import { filteredSource } from './sharedPager'
+import { t } from '../../i18n/index'
 
 export type SharedTabId = 'media' | 'files' | 'links' | 'voice' | 'gif'
 
 export const SHARED_TABS: ReadonlyArray<{ id: SharedTabId; label: string; empty: string }> = [
-  { id: 'media', label: '媒体', empty: '还没有共享的照片或视频' },
-  { id: 'files', label: '文件', empty: '还没有共享的文件' },
-  { id: 'links', label: '链接', empty: '还没有共享的链接' },
-  { id: 'voice', label: '语音', empty: '还没有语音消息' },
-  { id: 'gif', label: 'GIF', empty: '还没有 GIF' },
+  {
+    id: 'media',
+    get label() {
+      return t('w.chatInfo.fe3330')
+    },
+    get empty() {
+      return t('w.chatInfo.8eecbb')
+    },
+  },
+  {
+    id: 'files',
+    get label() {
+      return t('w.chatInfo.49deaf')
+    },
+    get empty() {
+      return t('w.chatInfo.2bcb83')
+    },
+  },
+  {
+    id: 'links',
+    get label() {
+      return t('w.chatInfo.715022')
+    },
+    get empty() {
+      return t('w.chatInfo.3cbf8a')
+    },
+  },
+  {
+    id: 'voice',
+    get label() {
+      return t('w.chatInfo.7a73e1')
+    },
+    get empty() {
+      return t('w.chatInfo.6b2d74')
+    },
+  },
+  {
+    id: 'gif',
+    label: 'GIF',
+    get empty() {
+      return t('w.chatInfo.0b84a7')
+    },
+  },
 ]
 
 export interface SharedFile {

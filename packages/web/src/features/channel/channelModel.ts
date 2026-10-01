@@ -3,6 +3,7 @@
  * line, and what a message's meta shows when it is a channel post.
  */
 import type { BroadcastMessage } from '@tg/core'
+import { t } from '../../i18n/index'
 
 const compact = (value: number, unit: number, suffix: string): string => {
   const scaled = value / unit
@@ -21,7 +22,7 @@ export function formatViews(views: number): string {
 
 /** The header subtitle: "12,345 位订阅者". */
 export function subscriberLine(count: number): string {
-  return `${Math.max(0, count).toLocaleString('zh-CN')} 位订阅者`
+  return t('w.channel.2b75a3', Math.max(0, count).toLocaleString('zh-CN'))
 }
 
 /** The channel fields of one post, as the meta shows them. */
@@ -39,7 +40,7 @@ export function channelPostOf(message: BroadcastMessage): ChannelPostParts | nul
 
 /** The post's part of the meta's accessible sentence. */
 export function channelPostLabel(post: ChannelPostParts): string {
-  return [`${formatViews(post.views)} 次浏览`, post.author].filter(Boolean).join(' ')
+  return [t('w.channel.fdaf57', formatViews(post.views)), post.author].filter(Boolean).join(' ')
 }
 
 /** Whether `myPermissions` (from `GET /permissions`) lets the viewer publish. */

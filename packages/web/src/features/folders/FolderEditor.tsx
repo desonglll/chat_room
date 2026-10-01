@@ -6,11 +6,27 @@
 import { useState } from 'react'
 import type { ChatFolder, ChatFolderWrite, ConversationSummary, FolderChatType } from '@tg/core'
 import { Button, Checkbox, TextField, Toggle } from '@tg/ui'
+import { t } from '../../i18n/index'
 
 const TYPES: { id: FolderChatType; label: string }[] = [
-  { id: 'private', label: '私聊' },
-  { id: 'groups', label: '群组' },
-  { id: 'channels', label: '频道' },
+  {
+    id: 'private',
+    get label() {
+      return t('w.folders.3adfdb')
+    },
+  },
+  {
+    id: 'groups',
+    get label() {
+      return t('w.folders.4260ca')
+    },
+  },
+  {
+    id: 'channels',
+    get label() {
+      return t('w.folders.b76dfd')
+    },
+  },
 ]
 export const FOLDER_TITLE_MAX = 12
 
@@ -28,9 +44,9 @@ export const EMPTY_FOLDER: ChatFolderWrite = {
 /** Why the draft cannot be saved yet, or `''` when it can. */
 export function folderDraftError(draft: ChatFolderWrite): string {
   const title = [...draft.title.trim()].length
-  if (title === 0) return '请输入文件夹名称'
-  if (title > FOLDER_TITLE_MAX) return `名称最多 ${FOLDER_TITLE_MAX} 个字`
-  if (draft.include_types.length === 0 && draft.include_chat_ids.length === 0) return '至少选择一种聊天类型或一个聊天'
+  if (title === 0) return t('w.folders.0d58c8')
+  if (title > FOLDER_TITLE_MAX) return t('w.folders.9a125a', FOLDER_TITLE_MAX)
+  if (draft.include_types.length === 0 && draft.include_chat_ids.length === 0) return t('w.folders.98baa7')
   return ''
 }
 
@@ -60,7 +76,7 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
     try {
       await onSave({ ...draft, title: draft.title.trim() })
     } catch {
-      setFailure('保存失败，请重试')
+      setFailure(t('w.folders.18b4e2'))
     } finally {
       setSaving(false)
     }
@@ -69,7 +85,7 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
   return (
     <form
       className="tg-folder-editor"
-      aria-label="编辑文件夹"
+      aria-label={t('w.folders.17b32d')}
       onSubmit={(event) => {
         event.preventDefault()
         if (!error) void save()
@@ -77,20 +93,20 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
     >
       <div className="tg-folder-editor__row">
         <TextField
-          label="图标"
+          label={t('w.folders.1f24c1')}
           value={draft.emoji}
           maxLength={8}
           onChange={(event) => change({ emoji: event.target.value })}
         />
         <TextField
-          label="文件夹名称"
+          label={t('w.folders.6af274')}
           value={draft.title}
           onChange={(event) => change({ title: event.target.value })}
-          error={draft.title && error.startsWith('名称') ? error : undefined}
+          error={draft.title && error.startsWith(t('w.folders.1be7ae')) ? error : undefined}
         />
       </div>
       <fieldset className="tg-folder-editor__group">
-        <legend>包含的聊天类型</legend>
+        <legend>{t('w.folders.72a2ac')}</legend>
         {TYPES.map((type) => (
           <Checkbox
             key={type.id}
@@ -107,17 +123,25 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
         ))}
       </fieldset>
       <fieldset className="tg-folder-editor__group">
-        <legend>排除</legend>
-        <Toggle label="已静音" checked={draft.exclude_muted} onCheckedChange={(on) => change({ exclude_muted: on })} />
-        <Toggle label="已读" checked={draft.exclude_read} onCheckedChange={(on) => change({ exclude_read: on })} />
+        <legend>{t('w.folders.7b37cc')}</legend>
         <Toggle
-          label="已归档"
+          label={t('w.folders.a074ec')}
+          checked={draft.exclude_muted}
+          onCheckedChange={(on) => change({ exclude_muted: on })}
+        />
+        <Toggle
+          label={t('w.folders.642ec8')}
+          checked={draft.exclude_read}
+          onCheckedChange={(on) => change({ exclude_read: on })}
+        />
+        <Toggle
+          label={t('w.folders.5cfbea')}
           checked={draft.exclude_archived}
           onCheckedChange={(on) => change({ exclude_archived: on })}
         />
       </fieldset>
       <fieldset className="tg-folder-editor__group">
-        <legend>单独添加或排除的聊天</legend>
+        <legend>{t('w.folders.eb3785')}</legend>
         <ul className="tg-folder-editor__chats">
           {conversations.map((conversation) => {
             const id = conversation.room_id
@@ -125,7 +149,7 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
               <li key={id} className="tg-folder-editor__row">
                 <span className="tg-folder-list__title">{conversation.title || conversation.alias}</span>
                 <Checkbox
-                  label="包含"
+                  label={t('w.folders.f896fb')}
                   checked={draft.include_chat_ids.includes(id)}
                   onCheckedChange={(on) =>
                     change({
@@ -135,7 +159,7 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
                   }
                 />
                 <Checkbox
-                  label="排除"
+                  label={t('w.folders.7b37cc')}
                   checked={draft.exclude_chat_ids.includes(id)}
                   onCheckedChange={(on) =>
                     change({
@@ -149,14 +173,14 @@ export function FolderEditor({ initial, conversations, onSave, onCancel }: Folde
           })}
         </ul>
       </fieldset>
-      {error && !error.startsWith('名称') ? <p className="tg-folder-editor__hint">{error}</p> : null}
+      {error && !error.startsWith(t('w.folders.1be7ae')) ? <p className="tg-folder-editor__hint">{error}</p> : null}
       {failure ? <p role="alert">{failure}</p> : null}
       <div className="tg-folder-editor__row">
         <Button type="button" variant="text" onClick={onCancel}>
-          取消
+          {t('w.folders.4d0b46')}
         </Button>
         <Button type="submit" disabled={Boolean(error)} loading={saving}>
-          保存
+          {t('w.folders.fadf24')}
         </Button>
       </div>
     </form>

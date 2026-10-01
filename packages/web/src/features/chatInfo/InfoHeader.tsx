@@ -11,11 +11,12 @@ import { memberCountText, subscriberCountText } from './chatInfoModel'
 import { AutoDeleteRow } from './AutoDeleteRow'
 import { NotificationRow } from './NotificationRow'
 import { AtIcon, BellIcon, InfoIcon } from './icons'
+import { t } from '../../i18n/index'
 
 function PrivateStatus({ userId }: { userId: string }) {
   const text = useLastSeenText(userId)
   return (
-    <p className="tg-chatinfo__status" data-online={text === '在线' || undefined}>
+    <p className="tg-chatinfo__status" data-online={text === t('w.chatInfo.0373ff') || undefined}>
       {text}
     </p>
   )
@@ -30,7 +31,7 @@ export function InfoIdentity({ header, onlineCount = 0 }: { header: InfoHeaderMo
 
   return (
     <div className="tg-chatinfo__identity" data-variant={header.variant}>
-      <Avatar label={header.title || '会话'} initials={header.avatarEmoji || undefined} size="xl" />
+      <Avatar label={header.title || t('w.chatInfo.836ffe')} initials={header.avatarEmoji || undefined} size="xl" />
       <h3 className="tg-chatinfo__title">{header.title || '…'}</h3>
       {status}
     </div>
@@ -80,13 +81,15 @@ export function InfoDetails({
 }: InfoDetailsProps) {
   const about = header.variant === 'private' ? header.bio : header.description
   return (
-    <ul className="tg-chatinfo__details" aria-label="详细信息">
-      {about ? <DetailRow icon={<InfoIcon />} value={<LinkifiedText text={about} />} label="简介" /> : null}
+    <ul className="tg-chatinfo__details" aria-label={t('w.chatInfo.b6e664')}>
+      {about ? (
+        <DetailRow icon={<InfoIcon />} value={<LinkifiedText text={about} />} label={t('w.chatInfo.5ea2e0')} />
+      ) : null}
       {header.username ? (
         <DetailRow
           icon={<AtIcon />}
           value={`@${header.username}`}
-          label={header.variant === 'private' ? '用户名' : '链接'}
+          label={header.variant === 'private' ? t('w.chatInfo.a1aaf3') : t('w.chatInfo.715022')}
         />
       ) : null}
       <li className="tg-chatinfo__row tg-chatinfo__row--toggle">
@@ -95,8 +98,8 @@ export function InfoDetails({
         </span>
         <Toggle
           className="tg-chatinfo__toggle"
-          label="通知"
-          description={notificationsOn ? '已开启' : '已静音'}
+          label={t('w.chatInfo.7a66c0')}
+          description={notificationsOn ? t('w.chatInfo.d78cde') : t('w.chatInfo.a074ec')}
           checked={notificationsOn}
           disabled={notificationsBusy}
           onCheckedChange={onNotificationsChange}

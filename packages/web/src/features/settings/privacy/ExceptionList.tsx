@@ -2,6 +2,7 @@
 import { Avatar, Button, IconButton } from '@tg/ui'
 import type { PrivacyUser } from '@tg/core'
 import { privacyUserName } from './privacyCopy'
+import { t } from '../../../i18n/index'
 
 export interface ExceptionListProps {
   title: string
@@ -22,7 +23,12 @@ export function ExceptionList({ title, users, disabled, onAdd, onRemove }: Excep
             <li key={user.id} className="tg-privacy__user">
               <Avatar label={name} size="sm" />
               <span className="tg-privacy__user-name">{name}</span>
-              <IconButton label={`移除 ${name}`} size="sm" disabled={disabled} onClick={() => onRemove(user.id)}>
+              <IconButton
+                label={t('w.settings.6a13fa', name)}
+                size="sm"
+                disabled={disabled}
+                onClick={() => onRemove(user.id)}
+              >
                 <span aria-hidden="true">×</span>
               </IconButton>
             </li>
@@ -30,7 +36,7 @@ export function ExceptionList({ title, users, disabled, onAdd, onRemove }: Excep
         })}
       </ul>
       <Button variant="text" size="sm" disabled={disabled} onClick={onAdd}>
-        添加用户
+        {t('w.settings.4f965d')}
       </Button>
     </section>
   )

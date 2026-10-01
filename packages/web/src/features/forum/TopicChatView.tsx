@@ -20,6 +20,7 @@ import { LockGlyph } from './TopicRow'
 import { createTopicListApi, createTopicSessionMode } from './topicSessionMode'
 import { topicsApi } from './topicsApi'
 import { useTopicList } from './useTopicList'
+import { t } from '../../i18n/index'
 import './forum.css'
 
 export const forumHref = (chatId: string) => `/chat/${encodeURIComponent(chatId)}`
@@ -29,10 +30,15 @@ function TopicHeader({ chatId, topic }: { chatId: string; topic: ForumTopic }) {
   const chatTitle = useStore(chatListStore, (state) => selectChatById(chatId)(state)?.title ?? '')
   return (
     <header className="tg-chat__header">
-      <IconButton label="返回话题列表" variant="plain" onClick={() => void navigate(forumHref(chatId))}>
+      <IconButton label={t('w.forum.42929c')} variant="plain" onClick={() => void navigate(forumHref(chatId))}>
         <ChatListIcon name="back" size={22} />
       </IconButton>
-      <button type="button" className="tg-chat__identity" onClick={() => toggleChatInfo()} aria-label="查看会话信息">
+      <button
+        type="button"
+        className="tg-chat__identity"
+        onClick={() => toggleChatInfo()}
+        aria-label={t('w.forum.49a948')}
+      >
         <TopicIcon
           title={topic.title}
           emoji={topic.icon_emoji}
@@ -44,7 +50,7 @@ function TopicHeader({ chatId, topic }: { chatId: string; topic: ForumTopic }) {
           <span className="tg-chat__title">
             {topic.title}
             {topic.is_closed ? (
-              <span className="tg-forum__title-lock" role="img" aria-label="已关闭">
+              <span className="tg-forum__title-lock" role="img" aria-label={t('w.forum.f62876')}>
                 <LockGlyph />
               </span>
             ) : null}
@@ -97,7 +103,7 @@ export function TopicChatView({ api = topicsApi }: { api?: TopicsApi | undefined
           </p>
         ) : (
           <div className="tg-forum__loading">
-            <Spinner label="正在加载话题" />
+            <Spinner label={t('w.forum.22dde1')} />
           </div>
         )}
       </div>
@@ -113,7 +119,7 @@ export function TopicChatView({ api = topicsApi }: { api?: TopicsApi | undefined
     composerLock:
       topic.is_closed && !list?.can_manage ? (
         <div className="tg-forum__closed" role="status">
-          话题已关闭
+          {t('w.forum.8e3f9e')}
         </div>
       ) : null,
   }

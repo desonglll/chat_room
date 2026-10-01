@@ -5,6 +5,7 @@
  */
 import { createStore } from 'zustand/vanilla'
 import { contactsApi } from './contactsApi'
+import { t } from '../../i18n/index'
 
 export interface TranslationState {
   available: boolean
@@ -34,8 +35,8 @@ export function checkTranslationAvailability(api = contactsApi): void {
 /** The viewer's language as a model-friendly name. */
 export function viewerLanguage(): string {
   const language = (globalThis.navigator?.language ?? 'zh-CN').toLowerCase()
-  if (language.startsWith('zh')) return '简体中文'
-  if (language.startsWith('ja')) return '日本語'
+  if (language.startsWith('zh')) return t('w.contact.936591')
+  if (language.startsWith('ja')) return t('w.contact.c12140')
   return 'English'
 }
 
@@ -43,6 +44,6 @@ export function translateMessage(messageId: string, original: string, api = cont
   translationStore.setState({ open: { messageId, original }, text: '', loading: true, error: '' })
   api.translate(messageId, viewerLanguage()).then(
     (text) => translationStore.setState({ text, loading: false }),
-    () => translationStore.setState({ loading: false, error: '翻译失败' }),
+    () => translationStore.setState({ loading: false, error: t('w.contact.cd2b82') }),
   )
 }

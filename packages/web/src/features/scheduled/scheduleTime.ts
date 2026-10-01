@@ -3,6 +3,7 @@
  * `datetime-local` input, which speaks local wall-clock time without a zone).
  */
 import { SCHEDULED_LIMITS } from '@tg/core'
+import { t } from '../../i18n/index'
 
 const MINUTE = 60_000
 const DAY = 24 * 60 * MINUTE
@@ -37,9 +38,9 @@ export function defaultScheduleTime(now: Date): Date {
 
 /** Error copy for an unusable time, or null when the server will accept it. */
 export function scheduleTimeError(at: Date | null, now: Date): string | null {
-  if (!at) return '请选择日期和时间'
-  if (at.getTime() <= now.getTime()) return '请选择将来的时间'
-  if (at.getTime() > now.getTime() + SCHEDULED_LIMITS.maxDaysAhead * DAY) return '最多只能提前一年定时'
+  if (!at) return t('w.scheduled.dd3427')
+  if (at.getTime() <= now.getTime()) return t('w.scheduled.7b61fc')
+  if (at.getTime() > now.getTime() + SCHEDULED_LIMITS.maxDaysAhead * DAY) return t('w.scheduled.593a65')
   return null
 }
 
@@ -50,10 +51,10 @@ function startOfDay(date: Date): number {
 /** «今天» / «明天» / «10月3日» / «2027年1月5日». */
 export function formatScheduleDay(at: Date, now: Date): string {
   const days = Math.round((startOfDay(at) - startOfDay(now)) / DAY)
-  if (days === 0) return '今天'
-  if (days === 1) return '明天'
-  const monthDay = `${at.getMonth() + 1}月${at.getDate()}日`
-  return at.getFullYear() === now.getFullYear() ? monthDay : `${at.getFullYear()}年${monthDay}`
+  if (days === 0) return t('w.scheduled.17e83c')
+  if (days === 1) return t('w.scheduled.b76ce2')
+  const monthDay = t('w.scheduled.fa0b40', at.getMonth() + 1, at.getDate())
+  return at.getFullYear() === now.getFullYear() ? monthDay : t('w.scheduled.a8571e', at.getFullYear(), monthDay)
 }
 
 export function formatScheduleClock(at: Date): string {
@@ -62,7 +63,7 @@ export function formatScheduleClock(at: Date): string {
 
 /** The send button's confirmation label: «今天 21:00 发送». */
 export function formatScheduleLabel(at: Date, now: Date): string {
-  return `${formatScheduleDay(at, now)} ${formatScheduleClock(at)} 发送`
+  return t('w.scheduled.275533', formatScheduleDay(at, now), formatScheduleClock(at))
 }
 
 export interface DayGroup<T> {

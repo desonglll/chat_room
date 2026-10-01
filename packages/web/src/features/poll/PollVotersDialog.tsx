@@ -9,6 +9,7 @@ import { authStore, listPollVoters, selectToken } from '@tg/core'
 import { Avatar, Modal, Spinner } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { pollErrorText } from './usePoll'
+import { t } from '../../i18n/index'
 
 export interface PollVotersDialogProps {
   poll: PollState
@@ -40,7 +41,7 @@ export default function PollVotersDialog({ poll, open, onClose }: PollVotersDial
   }, [open, poll.id, poll.options, token])
 
   return (
-    <Modal open={open} onClose={() => onClose()} title="投票结果" description={poll.question} size="sm">
+    <Modal open={open} onClose={() => onClose()} title={t('w.poll.484d36')} description={poll.question} size="sm">
       {error ? <p className="tg-poll-voters__empty">{error}</p> : null}
       {!error && pages === null ? <Spinner /> : null}
       {pages
@@ -51,7 +52,9 @@ export default function PollVotersDialog({ poll, open, onClose }: PollVotersDial
               <section key={index} className="tg-poll-voters__option">
                 <h3 className="tg-poll-voters__title">
                   {option.text}
-                  <span className="tg-poll-voters__total">{page.total} 票</span>
+                  <span className="tg-poll-voters__total">
+                    {page.total} {t('w.poll.e7965f')}
+                  </span>
                 </h3>
                 <ul className="tg-poll-voters__list">
                   {page.voters.map((voter) => (

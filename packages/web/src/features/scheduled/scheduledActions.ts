@@ -13,6 +13,7 @@ import {
 } from '@tg/core'
 import { activeTopicId } from '../forum/activeTopic'
 import type { ScheduledStore } from './scheduledStore'
+import { t } from '../../i18n/index'
 
 export interface ScheduledActionsDeps {
   client: ApiClient
@@ -98,16 +99,16 @@ export function scheduledErrorText(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.status) {
       case 400:
-        return '时间或内容无效'
+        return t('w.scheduled.97e561')
       case 403:
-        return '你没有在此聊天发送消息的权限'
+        return t('w.scheduled.b4fef1')
       case 404:
-        return '这条定时消息已发送或已删除'
+        return t('w.scheduled.5ccc07')
       case 409:
-        return '此聊天的定时消息已达上限（100 条）'
+        return t('w.scheduled.eaa626')
       default:
         break
     }
   }
-  return '操作失败，请重试'
+  return t('w.scheduled.51d3cb')
 }

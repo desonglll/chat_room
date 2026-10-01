@@ -9,6 +9,7 @@ import type { MediaItem } from './mediaItem'
 import type { Size } from './zoomGeometry'
 import { VideoPlayer } from './video/VideoPlayer'
 import { PlayGlyph } from './icons'
+import { t } from '../../i18n/index'
 
 export interface MediaSlideProps {
   item: MediaItem
@@ -27,7 +28,7 @@ export function MediaSlide({ item, active, revealed, onReveal, mediaRef, natural
         {item.kind === 'image' ? (
           <img className="tg-mv__media tg-mv__media--veiled" src={item.url} alt="" draggable={false} />
         ) : null}
-        <span className="tg-mv__veil-label">敏感内容 · 点击查看</span>
+        <span className="tg-mv__veil-label">{t('w.mediaViewer.8c0540')}</span>
       </button>
     )
   }

@@ -9,6 +9,7 @@ import { Button } from '@tg/ui'
 import { locationsApi, osmLink } from './locationApi'
 import { LocationMap, type MapPoint } from './LocationMap'
 import { stopSharing } from './liveSharing'
+import { t } from '../../i18n/index'
 
 export function LocationSheetBody({
   chatId,
@@ -76,7 +77,7 @@ export function LocationSheetBody({
       </ul>
       <div className="tg-location-sheet__actions">
         <a href={osmLink(location.latitude, location.longitude)} target="_blank" rel="noreferrer noopener">
-          在地图中打开
+          {t('w.location.f213c0')}
         </a>
         {mine && live ? (
           <Button
@@ -88,7 +89,7 @@ export function LocationSheetBody({
               void stopSharing(chatId, messageId, locationsApi).finally(() => setStopping(false))
             }}
           >
-            停止共享
+            {t('w.location.e3a482')}
           </Button>
         ) : null}
       </div>

@@ -8,6 +8,7 @@
 import type { PendingAttachment, PendingBatch } from '@tg/core'
 import { sendablePendingFiles, updatePendingFile } from '@tg/core'
 import type { UploadSource } from './uploadClient'
+import { t } from '../../i18n/index'
 
 export interface SendBatchDeps<F extends UploadSource> {
   upload(
@@ -51,7 +52,7 @@ export async function sendPendingBatch<F extends UploadSource>(
         reply = null
         sent += 1
       } catch (error) {
-        const message = error instanceof Error && error.message ? error.message : '上传失败'
+        const message = error instanceof Error && error.message ? error.message : t('w.composer.a6f805')
         deps.update((batch) => updatePendingFile(batch, item.id, { status: 'failed', error: message }))
         failed += 1
       }

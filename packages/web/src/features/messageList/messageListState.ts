@@ -3,6 +3,7 @@
  * `messageListController.ts` so the view and tests can derive rows without the async
  * state machine. `visibleWindow` is the single definition of "what rows are on screen".
  */
+import { t } from '../../i18n/index'
 import type { BroadcastMessage, DisplayMessage } from '@tg/core'
 import { broadcastIds, messageKey, withoutLive } from '@tg/core'
 import { createAlbumCollapser, rowMessageIds } from '../album/albumCollapse'
@@ -96,8 +97,8 @@ export interface MessageListControllerOptions {
   prependLive?: (rows: readonly BroadcastMessage[]) => number
 }
 
-export const MESSAGE_NOT_FOUND_NOTICE = '消息不存在或已被删除'
-export const LOAD_FAILED_NOTICE = '加载消息失败，请稍后重试'
+export const messageNotFoundNotice = () => t('w.messageList.notFound')
+export const loadFailedNotice = () => t('w.messageList.loadFailed')
 
 export const initialMessageListState = (): MessageListState => ({
   mode: 'live',

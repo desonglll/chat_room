@@ -8,6 +8,7 @@ import { authStore, selectToken } from '@tg/core'
 import { Avatar, Button } from '@tg/ui'
 import { apiClient } from '../../app/client'
 import { profileApi, type FoundUser } from './profileApi'
+import { t } from '../../i18n/index'
 
 export function AddContactRoute() {
   const { username = '' } = useParams()
@@ -30,7 +31,10 @@ export function AddContactRoute() {
   if (user === null) {
     return (
       <div className="tg-add-contact">
-        <p className="tg-add-contact__hint">找不到 @{username}</p>
+        <p className="tg-add-contact__hint">
+          {t('w.profile.57811c')}
+          {username}
+        </p>
       </div>
     )
   }
@@ -43,7 +47,7 @@ export function AddContactRoute() {
         body: { user_id: user.id },
       })
       .then((chat) => void navigate(`/chat/${encodeURIComponent(chat.room_id)}`))
-      .catch(() => setNote('无法打开会话'))
+      .catch(() => setNote(t('w.profile.ab0e25')))
   }
   return (
     <div className="tg-add-contact">
@@ -53,19 +57,19 @@ export function AddContactRoute() {
         <p className="tg-add-contact__hint">@{user.username}</p>
         {friends ? (
           <Button variant="filled" onClick={openChat}>
-            发消息
+            {t('w.profile.78345b')}
           </Button>
         ) : (
           <Button
             variant="filled"
             onClick={() =>
               void profileApi.addFriend(user.id).then(
-                () => setNote('好友申请已发送'),
-                () => setNote('无法发送好友申请'),
+                () => setNote(t('w.profile.b2af4e')),
+                () => setNote(t('w.profile.79ff65')),
               )
             }
           >
-            添加好友
+            {t('w.profile.8192c3')}
           </Button>
         )}
         {note ? (

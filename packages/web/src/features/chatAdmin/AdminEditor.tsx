@@ -9,6 +9,7 @@ import { MAX_ADMIN_TITLE_CHARS } from '@tg/core'
 import { Button, TextField } from '@tg/ui'
 import { adminOptions, defaultAdminSelection, memberName } from './chatAdminModel'
 import { PermissionChecklist } from './PermissionChecklist'
+import { t } from '../../i18n/index'
 
 export interface AdminEditorProps {
   target: ChatMemberEntry
@@ -30,10 +31,11 @@ export function AdminEditor({ target, actor, busy, onSave, onDismiss }: AdminEdi
   return (
     <div className="tg-chatadmin__editor">
       <p className="tg-chatadmin__lead">
-        {existing ? '编辑' : '任命'} <strong>{memberName(target)}</strong> 为管理员
+        {existing ? t('w.chatAdmin.a7f814') : t('w.chatAdmin.252767')} <strong>{memberName(target)}</strong>{' '}
+        {t('w.chatAdmin.d8ea06')}
       </p>
       <PermissionChecklist
-        title="这位管理员可以"
+        title={t('w.chatAdmin.d10ddd')}
         options={options}
         disabled={busy}
         onToggle={(key, checked) =>
@@ -47,11 +49,11 @@ export function AdminEditor({ target, actor, busy, onSave, onDismiss }: AdminEdi
       />
       <section className="tg-chatadmin__section">
         <TextField
-          label="自定义头衔"
+          label={t('w.chatAdmin.e4ae1a')}
           value={title}
           maxLength={MAX_ADMIN_TITLE_CHARS * 2}
-          hint="显示在群成员列表中名字旁边"
-          error={tooLong ? `最多 ${MAX_ADMIN_TITLE_CHARS} 个字符` : undefined}
+          hint={t('w.chatAdmin.601fcf')}
+          error={tooLong ? t('w.chatAdmin.c2e39f', MAX_ADMIN_TITLE_CHARS) : undefined}
           onChange={(event) => setTitle(event.target.value)}
           fullWidth
         />
@@ -59,11 +61,11 @@ export function AdminEditor({ target, actor, busy, onSave, onDismiss }: AdminEdi
       <div className="tg-chatadmin__actions">
         {existing && onDismiss ? (
           <Button variant="danger" disabled={busy} onClick={onDismiss}>
-            撤销管理员
+            {t('w.chatAdmin.2f24db')}
           </Button>
         ) : null}
         <Button loading={busy} disabled={busy || tooLong} onClick={() => onSave([...selected], title.trim())}>
-          保存
+          {t('w.chatAdmin.fadf24')}
         </Button>
       </div>
     </div>

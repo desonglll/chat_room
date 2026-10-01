@@ -6,13 +6,14 @@
 import { createPortal } from 'react-dom'
 import type { Sticker } from '@tg/core'
 import { StickerView } from '../StickerView'
+import { t } from '../../../i18n/index'
 
 export const PREVIEW_SIZE = 256
 
 export function StickerPreview({ sticker }: { sticker: Sticker | null }) {
   if (sticker === null || typeof document === 'undefined') return null
   return createPortal(
-    <div className="tg-sticker-preview" role="dialog" aria-label={`贴纸预览 ${sticker.emoji}`}>
+    <div className="tg-sticker-preview" role="dialog" aria-label={t('w.sticker.030833', sticker.emoji)}>
       <div className="tg-sticker-preview__card" key={sticker.id}>
         <StickerView src={sticker.file_url} format={sticker.format} size={PREVIEW_SIZE} label={sticker.emoji} />
         <span className="tg-sticker-preview__emoji">{sticker.emojis.join(' ') || sticker.emoji}</span>

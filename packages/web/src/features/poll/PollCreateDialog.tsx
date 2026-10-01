@@ -26,6 +26,7 @@ import {
 } from './pollForm'
 import { pollStore } from './pollStore'
 import { pollErrorText } from './usePoll'
+import { t } from '../../i18n/index'
 
 export interface PollCreateDialogProps {
   open: boolean
@@ -79,28 +80,28 @@ export function PollCreateDialog({ open, chatId, onClose, onCreated }: PollCreat
     <Modal
       open={open}
       onClose={close}
-      title={form.quiz ? '新建测验' : '新建投票'}
+      title={form.quiz ? t('w.poll.5f530e') : t('w.poll.414afa')}
       size="sm"
       className="tg-poll-create"
       footer={
         <>
           <Button variant="text" onClick={close}>
-            取消
+            {t('w.poll.4d0b46')}
           </Button>
           <Button onClick={submit} loading={sending} disabled={sending}>
-            创建
+            {t('w.poll.fcbd09')}
           </Button>
         </>
       }
     >
       <TextField
-        label="问题"
+        label={t('w.poll.2fb49e')}
         value={form.question}
         maxLength={POLL_LIMITS.questionChars}
         fullWidth
         onChange={(event) => setForm({ ...form, question: event.target.value })}
       />
-      <div className="tg-poll-create__section">选项</div>
+      <div className="tg-poll-create__section">{t('w.poll.221ee0')}</div>
       <ol className="tg-poll-create__options">
         {form.options.map((text, index) => (
           <li key={index} className="tg-poll-create__option">
@@ -111,19 +112,23 @@ export function PollCreateDialog({ open, chatId, onClose, onCreated }: PollCreat
                 checked={form.correctOption === index}
                 onSelect={() => setForm({ ...form, correctOption: index })}
                 size="sm"
-                label={<VisuallyHidden>{`设选项 ${index + 1} 为正确答案`}</VisuallyHidden>}
+                label={<VisuallyHidden>{t('w.poll.6a57fd', index + 1)}</VisuallyHidden>}
               />
             ) : null}
             <TextField
-              aria-label={`选项 ${index + 1}`}
-              placeholder="添加一个选项"
+              aria-label={t('w.poll.9305ce', index + 1)}
+              placeholder={t('w.poll.ec8639')}
               value={text}
               maxLength={POLL_LIMITS.optionChars}
               fullWidth
               onChange={(event) => setOption(index, event.target.value)}
             />
             {form.options.length > POLL_LIMITS.minOptions ? (
-              <IconButton label={`删除选项 ${index + 1}`} size="sm" onClick={() => setForm(removeOption(form, index))}>
+              <IconButton
+                label={t('w.poll.1c40a1', index + 1)}
+                size="sm"
+                onClick={() => setForm(removeOption(form, index))}
+              >
                 <CrossGlyph />
               </IconButton>
             ) : null}
@@ -132,33 +137,35 @@ export function PollCreateDialog({ open, chatId, onClose, onCreated }: PollCreat
       </ol>
       {canAddOption(form) ? (
         <Button variant="text" size="sm" onClick={() => setForm(addOption(form))}>
-          添加选项
+          {t('w.poll.aff6de')}
         </Button>
       ) : (
-        <div className="tg-poll-create__hint">最多 {POLL_LIMITS.maxOptions} 个选项</div>
+        <div className="tg-poll-create__hint">
+          {t('w.poll.4c5dfc')} {POLL_LIMITS.maxOptions} {t('w.poll.2ee9e7')}
+        </div>
       )}
-      {form.quiz ? <div className="tg-poll-create__hint">点击选项前的圆点标记正确答案</div> : null}
-      <div className="tg-poll-create__section">设置</div>
+      {form.quiz ? <div className="tg-poll-create__hint">{t('w.poll.ead6aa')}</div> : null}
+      <div className="tg-poll-create__section">{t('w.poll.7debf9')}</div>
       <Toggle
-        label="匿名投票"
+        label={t('w.poll.1df67e')}
         checked={form.anonymous}
         onCheckedChange={(anonymous) => setForm({ ...form, anonymous })}
       />
       <Toggle
-        label="多选"
+        label={t('w.poll.83c680')}
         checked={form.multipleChoice}
         onCheckedChange={(value) => setForm(setMultipleChoice(form, value))}
       />
       <Toggle
-        label="测验模式"
-        description="只有一个正确答案，作答后不可更改"
+        label={t('w.poll.0fda0d')}
+        description={t('w.poll.2ee19b')}
         checked={form.quiz}
         onCheckedChange={(value) => setForm(setQuiz(form, value))}
       />
       {form.quiz ? (
         <div className="tg-poll-create__explanation">
           <TextField
-            label="解析（可选）"
+            label={t('w.poll.471325')}
             value={form.explanation}
             maxLength={POLL_LIMITS.explanationChars}
             multiline
