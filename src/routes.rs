@@ -36,6 +36,10 @@ pub(crate) fn api_routes(
             get(crate::messages::link_previews::handlers::get_link_preview),
         )
         .route(
+            "/api/link-previews/images/:key",
+            get(crate::messages::link_previews::images::get_link_preview_image),
+        )
+        .route(
             "/api/messages/search",
             get(message_global_search::handlers::search_visible_messages),
         )

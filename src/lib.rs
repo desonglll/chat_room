@@ -111,7 +111,10 @@ pub fn build_app_with_web(state: Arc<AppState>, web_enabled: bool) -> Router {
         admin_backups::reject_during_restore,
     ))
     .layer(cors)
-    .layer(axum::middleware::from_fn(security::security_headers))
+    .layer(axum::middleware::from_fn_with_state(
+        security::content_security_policy(&state.config.map.tile_url),
+        security::security_headers,
+    ))
     .layer(axum::middleware::from_fn(observability::request_context))
     .with_state(state)
 }
