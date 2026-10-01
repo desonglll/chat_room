@@ -20,6 +20,7 @@ pub mod chat_type;
 pub mod compat;
 pub mod default_permissions;
 pub mod drafts;
+pub mod folders;
 pub mod governance_handlers;
 pub mod handlers;
 pub mod invite_links;

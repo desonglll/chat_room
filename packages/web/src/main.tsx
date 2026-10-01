@@ -21,6 +21,8 @@ import './features/videoNote/register'
 import './features/gif/register'
 // TG-509: 设置 › 数据与存储.
 import './features/settings/storage/register'
+// TG-501: 设置 › 聊天文件夹.
+import './features/folders/register'
 // TG-508: 设置 › 通知与声音.
 import './features/settings/notifications/register'
 // TG-410: contact card bubbles and «翻译».

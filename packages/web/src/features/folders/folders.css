@@ -1,0 +1,118 @@
+/* TG-501: folder tabs above the chat list, or a rail on its left. */
+.tg-chatlist__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tg-chatlist__body:has(> .tg-folders[data-layout='left']) {
+  flex-direction: row;
+}
+
+.tg-chatlist__body > .tg-chatlist__scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-folders {
+  display: flex;
+  flex: none;
+  gap: var(--tg-space-1);
+  padding: 0 var(--tg-space-2);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--tg-divider);
+  scrollbar-width: none;
+}
+
+.tg-folders[data-layout='left'] {
+  flex-direction: column;
+  width: var(--tg-space-20);
+  padding: var(--tg-space-2) 0;
+  overflow: hidden auto;
+  border-right: 1px solid var(--tg-divider);
+  border-bottom: none;
+  background: var(--tg-bg-secondary);
+}
+
+.tg-folders__tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-2) var(--tg-space-2-5);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--tg-text-secondary);
+  font: inherit;
+  font-size: var(--tg-type-subtitle-size);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tg-folders__tab:hover {
+  color: var(--tg-text-primary);
+}
+
+.tg-folders__tab[aria-selected='true'] {
+  border-bottom-color: var(--tg-accent);
+  color: var(--tg-accent);
+}
+
+.tg-folders[data-layout='left'] .tg-folders__tab {
+  flex-direction: column;
+  border-bottom: none;
+  border-inline-start: 3px solid transparent;
+  font-size: var(--tg-type-meta-size);
+  white-space: normal;
+  text-align: center;
+}
+
+.tg-folders[data-layout='left'] .tg-folders__tab[aria-selected='true'] {
+  border-inline-start-color: var(--tg-accent);
+}
+
+.tg-folders__emoji {
+  font-size: var(--tg-type-title-size);
+}
+
+.tg-folders__badge {
+  min-width: 1.25em;
+  padding: 0 var(--tg-space-1);
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+  font-size: var(--tg-type-badge-size);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.tg-folder-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-folder-editor__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+}
+
+.tg-folder-editor__chats {
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.tg-folder-list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-2) 0;
+}
+
+.tg-folder-list__title {
+  flex: 1;
+  min-width: 0;
+}
