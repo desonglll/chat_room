@@ -228,7 +228,7 @@ async fn private_message_history_requires_chat_password() {
 }
 
 #[tokio::test]
-async fn concurrent_duplicate_chat_creation_returns_conflict() {
+async fn concurrent_same_title_chat_creation_creates_two_chats() {
     let server = start_server().await;
     let url = format!("{}/api/chats", server);
     let token = session_token(&server, "concurrent-owner").await;
@@ -246,7 +246,7 @@ async fn concurrent_duplicate_chat_creation_returns_conflict() {
         second.unwrap().status().as_u16(),
     ];
     statuses.sort_unstable();
-    assert_eq!(statuses, vec![201, 409]);
+    assert_eq!(statuses, vec![201, 201]);
 
     let chats: Vec<serde_json::Value> = reqwest::get(format!("{url}/discover"))
         .await
@@ -254,7 +254,7 @@ async fn concurrent_duplicate_chat_creation_returns_conflict() {
         .json()
         .await
         .unwrap();
-    assert_eq!(chats.len(), 1);
+    assert_eq!(chats.len(), 2, "TG-1210: titles may repeat");
 }
 
 #[tokio::test]

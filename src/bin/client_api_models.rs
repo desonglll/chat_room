@@ -27,6 +27,9 @@ pub struct ChatSummary {
     pub has_password: bool,
     #[serde(default)]
     pub membership_status: Option<String>,
+    /// TG-1210: shown when a repeated title has to be disambiguated.
+    #[serde(default)]
+    pub member_count: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

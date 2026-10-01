@@ -345,23 +345,6 @@ async fn reject_invalid_chat_inputs() {
 }
 
 #[tokio::test]
-async fn reject_duplicate_room_name() {
-    let base = start_server().await;
-    create_chat(&base, "lobby", None).await;
-    let token = session_token(&base, "owner-lobby").await;
-
-    let client = reqwest::Client::new();
-    let resp = client
-        .post(format!("{}/api/chats", base))
-        .bearer_auth(token)
-        .json(&serde_json::json!({ "name": "lobby", "password": "" }))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), 409);
-}
-
-#[tokio::test]
 async fn get_chat_by_id() {
     let base = start_server().await;
     let (id, _) = create_chat(&base, "mychat", Some("secret")).await;
