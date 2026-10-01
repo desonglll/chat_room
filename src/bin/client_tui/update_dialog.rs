@@ -31,6 +31,13 @@ impl App {
         let Some(mut dialog) = self.dialog.take() else {
             return Vec::new();
         };
+        if matches!(dialog, Dialog::Scheduled { .. } | Dialog::ChatSearch { .. }) {
+            let (keep, actions) = self.messaging_dialog_key(key, &mut dialog);
+            if keep {
+                self.dialog = Some(dialog);
+            }
+            return actions;
+        }
         let (keep, actions) = match &mut dialog {
             Dialog::Help => (true, Vec::new()),
             Dialog::Prompt { kind, input, .. } => {
@@ -174,6 +181,7 @@ impl App {
                 }
                 _ => (true, Vec::new()),
             },
+            Dialog::Scheduled { .. } | Dialog::ChatSearch { .. } => unreachable!("handled above"),
         };
         if keep {
             self.dialog = Some(dialog);
@@ -207,16 +215,13 @@ impl App {
                     content: value,
                 })]
             }
-            PromptKind::Reaction(message_id) => {
-                vec![Action::Chat(crate::client_chat::ChatCommand::React {
-                    message_id,
-                    emoji: value,
-                    active: true,
-                })]
-            }
+            PromptKind::Reaction(message_id) => self.reaction_action(message_id, &value),
             PromptKind::AddContact => self.add_contact_action(value),
             PromptKind::Forward(message_id) => self.forward_action(message_id, &value),
             PromptKind::Vote(message_id) => self.vote_action(message_id, &value),
+            kind @ (PromptKind::Quote(_) | PromptKind::ChatSearch | PromptKind::JoinInvite) => {
+                self.submit_messaging_prompt(kind, value)
+            }
         }
     }
 

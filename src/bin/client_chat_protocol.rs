@@ -20,6 +20,8 @@ pub struct ChatMessage {
     pub delivery: DeliveryState,
     /// TG-1103: poll, voice, sticker, location … as text-renderable parts.
     pub media: Box<crate::client_chat_media::MessageMedia>,
+    /// TG-1205: what it replies to, its reactions, whether it was sent silently.
+    pub extras: Box<crate::client_chat_extras::MessageExtras>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,8 +44,11 @@ pub enum ChatEvent {
     ReactionChanged {
         message_id: Uuid,
         emoji: String,
+        /// TG-1205: who reacted; lets the client keep per-emoji counts.
+        user_id: Option<Uuid>,
         active: bool,
     },
+    /// The whole typing line (`alice is recording a voice message`), `None` once it stops.
     Typing(Option<String>),
     /// TG-907: a pin or unpin in this chat; the client re-reads the pins.
     PinsChanged,
@@ -62,6 +67,10 @@ pub enum ChatCommand {
         content: String,
         reply_to: Option<Uuid>,
         client_message_id: Uuid,
+        /// TG-1205: deliver without notifications.
+        silent: bool,
+        /// TG-1205: the quoted part of `reply_to`.
+        reply_quote: Option<String>,
     },
     Edit {
         message_id: Uuid,
@@ -116,6 +125,8 @@ pub(super) enum ServerMessage {
         edited_at: Option<String>,
         #[serde(flatten)]
         media: crate::client_chat_media::MessageMedia,
+        #[serde(flatten)]
+        extras: crate::client_chat_extras::MessageExtras,
     },
     /// TG-1103: a poll's new counts (and, for the voter's own connections, `chosen`).
     #[serde(rename = "poll_updated")]
@@ -133,6 +144,8 @@ pub(super) enum ServerMessage {
     ReactionChanged {
         message_id: Uuid,
         emoji: String,
+        #[serde(default)]
+        user_id: Option<Uuid>,
         active: bool,
     },
     #[serde(rename = "typing")]
@@ -140,6 +153,8 @@ pub(super) enum ServerMessage {
         content: String,
         #[serde(default)]
         username: Option<String>,
+        #[serde(default)]
+        action: Option<String>,
     },
     #[serde(rename = "presence")]
     Presence {},
@@ -159,12 +174,23 @@ pub(super) fn command_frame(command: ChatCommand) -> serde_json::Value {
             content,
             reply_to,
             client_message_id,
-        } => serde_json::json!({
-            "type": "message",
-            "content": content,
-            "reply_to": reply_to,
-            "client_message_id": client_message_id
-        }),
+            silent,
+            reply_quote,
+        } => {
+            let mut frame = serde_json::json!({
+                "type": "message",
+                "content": content,
+                "reply_to": reply_to,
+                "client_message_id": client_message_id
+            });
+            if silent {
+                frame["silent"] = true.into();
+            }
+            if let Some(text) = reply_quote.filter(|_| reply_to.is_some()) {
+                frame["reply_quote"] = serde_json::json!({ "text": text });
+            }
+            frame
+        }
         ChatCommand::Edit {
             message_id,
             content,
@@ -208,6 +234,7 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
             recalled_at,
             edited_at,
             media,
+            extras,
         } => ChatEvent::Message(ChatMessage {
             id: message_id,
             client_message_id,
@@ -219,6 +246,7 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
             edited: edited_at.is_some(),
             delivery: DeliveryState::Sent,
             media: Box::new(media),
+            extras: Box::new(extras),
         }),
         ServerMessage::PollUpdated { message_id, poll } => {
             ChatEvent::PollUpdated { message_id, poll }
@@ -236,14 +264,27 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
         ServerMessage::ReactionChanged {
             message_id,
             emoji,
+            user_id,
             active,
         } => ChatEvent::ReactionChanged {
             message_id,
             emoji: clean(&emoji),
+            user_id,
             active,
         },
-        ServerMessage::Typing { content, username } => {
-            ChatEvent::Typing((!content.is_empty()).then(|| username.unwrap_or_default()))
+        ServerMessage::Typing {
+            content,
+            username,
+            action,
+        } => {
+            let action = action.unwrap_or_default();
+            // Empty content stops plain typing; the media actions carry no draft text.
+            let active = action != "cancel"
+                && (!content.is_empty() || !action.is_empty() && action != "typing");
+            ChatEvent::Typing(active.then(|| {
+                let phrase = crate::client_chat_extras::typing_phrase(&action);
+                format!("{} {phrase}", clean(&username.unwrap_or_default()))
+            }))
         }
         ServerMessage::AuthFail { reason } => ChatEvent::Error(clean(&reason)),
         ServerMessage::PinsChanged {} => ChatEvent::PinsChanged,

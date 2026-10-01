@@ -9,8 +9,6 @@ use super::{
     model::{Action, App, ConfirmKind, Dialog, Focus, PromptKind},
 };
 
-const MAX_MESSAGE_CHARS: usize = 4096;
-
 impl App {
     pub(super) fn handle_chats_key(&mut self, key: KeyEvent) -> Vec<Action> {
         if self.focus == Focus::Input {
@@ -165,7 +163,7 @@ impl App {
             {
                 if let Some(message) = self.selected_message() {
                     self.dialog = Some(Dialog::Prompt {
-                        title: "Add reaction".into(),
+                        title: "React (prefix - to remove)".into(),
                         kind: PromptKind::Reaction(message.id),
                         input: TextField::default(),
                     });
@@ -187,6 +185,15 @@ impl App {
             KeyCode::Char('o') if self.focus == Focus::List && super::navigation::is_plain(key) => {
                 return self.cycle_folder();
             }
+            // TG-1205: quote reply, in-chat search, scheduled messages, join by invite link.
+            KeyCode::Char('Q') if self.focus == Focus::Content => self.prompt_quote_selected(),
+            KeyCode::Char('/') if self.active_chat.is_some() => {
+                self.prompt_simple("Search this chat", PromptKind::ChatSearch);
+            }
+            KeyCode::Char('S') if self.focus == Focus::Content => return self.open_scheduled(),
+            KeyCode::Char('J') if self.focus == Focus::List => {
+                self.prompt_simple("Invite link", PromptKind::JoinInvite);
+            }
             _ => {}
         }
         Vec::new()
@@ -197,24 +204,15 @@ impl App {
             KeyCode::Esc => {
                 self.focus = Focus::Content;
                 self.reply_to = None;
+                self.reply_quote = None;
             }
             KeyCode::Enter => {
                 let content = self.compose.value().trim().to_string();
                 if content.is_empty() {
                     return Vec::new();
                 }
-                if self.chat.is_none() {
-                    self.status = "Chat connection is not ready; draft preserved".into();
-                    return Vec::new();
-                }
-                if content.chars().count() > MAX_MESSAGE_CHARS {
-                    self.status = format!("Message is longer than {MAX_MESSAGE_CHARS} characters");
-                    return Vec::new();
-                }
-                self.compose.clear();
-                let reply_to = self.reply_to.take();
-                let command = self.queue_outgoing_message(content, reply_to);
-                return vec![Action::Chat(command)];
+                // TG-1205: `/silent`, `/schedule`, `/scheduled`, `/search`, `/join`, quotes.
+                return self.submit_compose(content);
             }
             _ => {
                 if self.compose.handle_key(key) {

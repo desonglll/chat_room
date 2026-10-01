@@ -102,6 +102,7 @@ impl App {
             }
             AppEvent::Chat { room_id, event } => self.apply_chat_event(room_id, event),
             AppEvent::Social(event) => self.apply_social_event(event),
+            AppEvent::Messaging(event) => self.apply_messaging_event(event),
             AppEvent::Uploaded(result) => {
                 self.busy = false;
                 self.status = result

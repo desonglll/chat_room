@@ -49,6 +49,12 @@ pub enum PromptKind {
     Forward(Uuid),
     /// TG-1103: option numbers to vote for in this poll message (empty retracts).
     Vote(Uuid),
+    /// TG-1205: the part of this message to quote in a reply.
+    Quote(Uuid),
+    /// TG-1205: text to find in the open chat.
+    ChatSearch,
+    /// TG-1205: an invite link (or its token) to join by.
+    JoinInvite,
 }
 
 #[derive(Clone, Debug)]
@@ -84,6 +90,18 @@ pub enum Dialog {
     Confirm {
         title: String,
         kind: ConfirmKind,
+    },
+    /// TG-1205: the open chat's scheduled messages (`update_messaging.rs`).
+    Scheduled {
+        room_id: Uuid,
+        items: Vec<crate::client_api_messages::ScheduledMessage>,
+        selected: usize,
+    },
+    /// TG-1205: in-chat search results.
+    ChatSearch {
+        query: String,
+        items: Vec<crate::client_api_messages::FoundMessage>,
+        selected: usize,
     },
 }
 
@@ -148,6 +166,8 @@ pub enum Action {
     },
     /// TG-907 contacts, pins and forwarding (`dispatch_social.rs`).
     Social(super::social::SocialAction),
+    /// TG-1205 scheduled sends, in-chat search, invite links (`dispatch_messaging.rs`).
+    Messaging(super::messaging::MessagingAction),
     Quit,
 }
 
@@ -194,6 +214,8 @@ pub enum AppEvent {
     AiRunPolled(ApiResult<AiRun>),
     /// TG-907: answers to `Action::Social` (`update_social.rs`).
     Social(super::social::SocialEvent),
+    /// TG-1205: answers to `Action::Messaging` (`update_messaging.rs`).
+    Messaging(super::messaging::MessagingEvent),
 }
 
 pub struct App {
@@ -217,6 +239,8 @@ pub struct App {
     pub chat: Option<ChatSender>,
     pub compose: TextField,
     pub reply_to: Option<Uuid>,
+    /// TG-1205: the quoted part of `reply_to`.
+    pub reply_quote: Option<String>,
     pub pending_message: Option<Uuid>,
     pub typing_user: Option<String>,
     pub search_input: TextField,
@@ -272,6 +296,7 @@ impl App {
             chat: None,
             compose: TextField::default(),
             reply_to: None,
+            reply_quote: None,
             pending_message: None,
             typing_user: None,
             search_input: TextField::default(),

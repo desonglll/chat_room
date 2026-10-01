@@ -163,10 +163,7 @@ fn render_header(frame: &mut Frame<'_>, app: &App, area: Rect) {
 fn render_composer(frame: &mut Frame<'_>, app: &App, area: Rect) {
     match app.view {
         View::Chats => {
-            let title = app.reply_to.map_or_else(
-                || "Message".into(),
-                |id| format!("Reply to #{}", &id.to_string()[..8]),
-            );
+            let title = super::render_messaging::composer_title(app);
             render_input(frame, area, &title, &app.compose, app.focus == Focus::Input);
         }
         View::Search => render_input(
@@ -206,7 +203,7 @@ fn render_footer(frame: &mut Frame<'_>, app: &App, area: Rect) {
         .typing_user
         .as_deref()
         .filter(|name| !name.is_empty())
-        .map(|name| format!("  {} is typing", clean(name)))
+        .map(|line| format!("  {}", clean(line)))
         .unwrap_or_default();
     frame.render_widget(
         Paragraph::new(format!("{}{}", clean(&app.status), typing))

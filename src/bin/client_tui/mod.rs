@@ -11,14 +11,17 @@ use uuid::Uuid;
 use crate::client_auth;
 
 mod dispatch;
+mod dispatch_messaging;
 mod dispatch_social;
 mod input;
+mod messaging;
 mod model;
 mod navigation;
 mod render;
 mod render_chats;
 mod render_dialog;
 mod render_list;
+mod render_messaging;
 mod render_social;
 mod render_views;
 #[cfg(test)]
@@ -30,6 +33,7 @@ mod update;
 mod update_chats;
 mod update_dialog;
 mod update_events;
+mod update_messaging;
 mod update_session;
 mod update_social;
 mod update_views;
@@ -259,6 +263,7 @@ mod tests {
                     edited: false,
                     delivery: crate::client_chat::DeliveryState::Sent,
                     media: Default::default(),
+                    extras: Default::default(),
                 }),
             );
         }
@@ -286,6 +291,7 @@ mod tests {
                 edited: false,
                 delivery: crate::client_chat::DeliveryState::Sent,
                 media: Default::default(),
+                extras: Default::default(),
             }),
         );
         assert_eq!(app.message_index, 8);

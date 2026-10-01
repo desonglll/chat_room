@@ -125,6 +125,7 @@ fn chat_app() -> (App, Uuid, Uuid) {
         edited: false,
         delivery: DeliveryState::Sent,
         media: Default::default(),
+        extras: Default::default(),
     });
     (app, room, message)
 }
@@ -260,6 +261,7 @@ fn poll_message(app: &mut App) -> Uuid {
             }),
             ..Default::default()
         }),
+        extras: Default::default(),
     });
     app.message_index = app.messages.len() - 1;
     message
