@@ -95,7 +95,8 @@ async fn administration_scenario(state: Arc<AppState>) {
     assert_eq!(status, StatusCode::FORBIDDEN);
 
     // Carol restricts Bob from sending for two seconds.
-    let until = Utc::now() + chrono::Duration::seconds(2);
+    // Long enough that a loaded CI machine still reads it before it lapses (TG-111 flake).
+    let until = Utc::now() + chrono::Duration::seconds(6);
     let (status, bob_entry) = server
         .put(
             &format!("{base}/members/{}/restrictions", bob.id),
@@ -153,7 +154,8 @@ async fn administration_scenario(state: Arc<AppState>) {
     assert_eq!(carol_view["items"][0]["user_id"], bob.id.as_str());
 
     // The restriction lifts by itself at `until`, without the sweeper having run.
-    tokio::time::sleep(Duration::from_millis(2200)).await;
+    let left = (until - Utc::now()).to_std().unwrap_or_default();
+    tokio::time::sleep(left + Duration::from_millis(200)).await;
     assert!(my_permissions(&server, &chat, bob)
         .await
         .contains(&"message.send".to_string()));
