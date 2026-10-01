@@ -214,6 +214,8 @@ impl App {
                     active: true,
                 })]
             }
+            PromptKind::AddContact => self.add_contact_action(value),
+            PromptKind::Forward(message_id) => self.forward_action(message_id, &value),
         }
     }
 

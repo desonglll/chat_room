@@ -43,6 +43,8 @@ pub enum ChatEvent {
         active: bool,
     },
     Typing(Option<String>),
+    /// TG-907: a pin or unpin in this chat; the client re-reads the pins.
+    PinsChanged,
     Closed,
     Error(String),
 }
@@ -126,6 +128,8 @@ pub(super) enum ServerMessage {
     },
     #[serde(rename = "presence")]
     Presence {},
+    #[serde(rename = "pins_changed")]
+    PinsChanged {},
     #[serde(rename = "read_receipt")]
     ReadReceipt {},
     /// Catch-all for frame kinds this frozen client does not know (the TG-007 extensions and
@@ -222,6 +226,7 @@ pub(super) fn emit_server_event(sender: &mpsc::UnboundedSender<ChatEvent>, messa
             ChatEvent::Typing((!content.is_empty()).then(|| username.unwrap_or_default()))
         }
         ServerMessage::AuthFail { reason } => ChatEvent::Error(clean(&reason)),
+        ServerMessage::PinsChanged {} => ChatEvent::PinsChanged,
         ServerMessage::AuthOk { .. }
         | ServerMessage::Presence {}
         | ServerMessage::ReadReceipt {}

@@ -73,6 +73,40 @@ pub struct MessagePreview {
     pub content: String,
     #[serde(default)]
     pub recalled: bool,
+    /// TG-802/TG-907: `voice`, `photo`, `poll`, … from the server; absent for text.
+    #[serde(default)]
+    pub media_kind: Option<String>,
+}
+
+impl MessagePreview {
+    /// The one-line body: Telegram-style `[Voice message]`-type label for media, then caption.
+    pub fn summary(&self) -> String {
+        let label = self.media_kind.as_deref().map(media_label);
+        match (label, self.content.trim()) {
+            (Some(label), "") => format!("[{label}]"),
+            (Some(label), text) => format!("[{label}] {text}"),
+            (None, text) => text.to_string(),
+        }
+    }
+}
+
+/// English labels for the server's preview media kinds (the TUI's copy is English).
+pub fn media_label(kind: &str) -> &'static str {
+    match kind {
+        "voice" => "Voice message",
+        "video_note" => "Video message",
+        "sticker" => "Sticker",
+        "gif" => "GIF",
+        "poll" => "Poll",
+        "location" => "Location",
+        "live_location" => "Live location",
+        "contact" => "Contact",
+        "album" => "Album",
+        "photo" => "Photo",
+        "video" => "Video",
+        "audio" => "Audio",
+        _ => "File",
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -182,4 +216,40 @@ pub struct PreferencePatch {
     pub is_archived: Option<bool>,
     pub notification_level: Option<String>,
     pub muted_until: Option<Option<String>>,
+}
+
+/// The preview kind of a live message's attachment, by MIME type (the chat frame carries no
+/// `media_kind` for plain uploads).
+pub fn attachment_media_kind(mime_type: &str) -> String {
+    match mime_type.split('/').next() {
+        _ if mime_type == "image/gif" => "gif",
+        Some("image") => "photo",
+        Some("video") => "video",
+        Some("audio") => "audio",
+        _ => "file",
+    }
+    .to_string()
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::MessagePreview;
+
+    fn preview(media_kind: Option<&str>, content: &str) -> MessagePreview {
+        MessagePreview {
+            sender: "a".into(),
+            content: content.into(),
+            recalled: false,
+            media_kind: media_kind.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn media_previews_carry_a_label() {
+        assert_eq!(preview(Some("voice"), "").summary(), "[Voice message]");
+        assert_eq!(preview(Some("poll"), "Lunch?").summary(), "[Poll] Lunch?");
+        assert_eq!(preview(None, "hi").summary(), "hi");
+        assert_eq!(super::attachment_media_kind("image/gif"), "gif");
+        assert_eq!(super::attachment_media_kind("application/pdf"), "file");
+    }
 }

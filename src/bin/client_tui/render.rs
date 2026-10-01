@@ -95,7 +95,7 @@ fn render_sign_in(frame: &mut Frame<'_>, app: &App, area: Rect) {
 fn render_main(frame: &mut Frame<'_>, app: &mut App, area: Rect) {
     let composer_height = match app.view {
         View::Chats | View::Search | View::Ai => 3,
-        View::Notifications | View::Favorites => 0,
+        View::Notifications | View::Favorites | View::Contacts => 0,
     };
     let rows = Layout::vertical([
         Constraint::Length(1),
@@ -124,6 +124,7 @@ fn render_main(frame: &mut Frame<'_>, app: &mut App, area: Rect) {
         View::Search => super::render_views::search(frame, app, rows[2]),
         View::Notifications => super::render_views::notifications(frame, app, rows[2]),
         View::Favorites => super::render_views::favorites(frame, app, rows[2]),
+        View::Contacts => super::render_social::contacts(frame, app, rows[2]),
         View::Ai => super::render_views::ai(frame, app, rows[2]),
     }
     if composer_height > 0 {
@@ -182,7 +183,7 @@ fn render_composer(frame: &mut Frame<'_>, app: &App, area: Rect) {
             &app.ai_input,
             app.focus == Focus::Input,
         ),
-        View::Notifications => frame.render_widget(
+        View::Notifications | View::Contacts => frame.render_widget(
             Paragraph::new("Enter open  a mark all read  r refresh")
                 .style(Style::default().fg(MUTED))
                 .block(Block::bordered().title("Actions")),
@@ -245,12 +246,14 @@ fn shortcuts(app: &App) -> &'static [(&'static str, &'static str)] {
             ("i", "Write"),
             ("C-b", "Chats"),
             ("R", "Reply"),
+            ("P/F", "Pin/Forward"),
         ],
         (View::Chats, Focus::Input) => &[("Enter", "Send"), ("C-g", "Messages")],
         (View::Search, Focus::Input) => &[("Enter", "Search"), ("C-g", "Results")],
         (View::Search, _) => &[("C-n/p", "Move"), ("/", "Search"), ("Enter", "Open")],
         (View::Notifications, _) => &[("C-n/p", "Move"), ("Enter", "Open"), ("a", "Read all")],
         (View::Favorites, _) => &[("C-n/p", "Move"), ("n", "New"), ("e", "Edit")],
+        (View::Contacts, _) => &[("Enter", "Chat"), ("a/x", "Accept/decline"), ("n", "Add")],
         (View::Ai, Focus::Input) => &[("Enter", "Ask"), ("C-g", "Threads")],
         (View::Ai, _) => &[("C-n/p", "Move"), ("n", "New"), ("i", "Ask")],
     }
@@ -281,6 +284,7 @@ fn focus_label(app: &App) -> &'static str {
         (View::Search, _) => "RESULTS",
         (View::Notifications, _) => "NOTICES",
         (View::Favorites, _) => "FAVORITES",
+        (View::Contacts, _) => "CONTACTS",
         (View::Ai, _) => "THREADS",
     }
 }

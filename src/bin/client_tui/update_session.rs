@@ -188,6 +188,11 @@ impl App {
                 };
             }
             ChatEvent::Typing(username) => self.typing_user = username,
+            ChatEvent::PinsChanged => {
+                return vec![Action::Social(super::social::SocialAction::LoadPins(
+                    room_id,
+                ))];
+            }
             ChatEvent::Closed => {
                 self.fail_sending_messages();
                 self.chat = None;
@@ -211,6 +216,9 @@ impl App {
                 sender: message.sender.clone(),
                 content: message.content.clone(),
                 recalled: message.recalled,
+                media_kind: message.attachment.as_ref().map(|attachment| {
+                    crate::client_api::attachment_media_kind(&attachment.mime_type)
+                }),
             });
             conversation.unread_count = 0;
         }

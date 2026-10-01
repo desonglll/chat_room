@@ -193,6 +193,7 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("R / e / x", "Reply / edit / recall"),
             ("+ / f", "React / favorite"),
             ("u / d", "Upload / download"),
+            ("P / F", "Pin-unpin / forward"),
         ],
         (View::Chats, Focus::Input) => &[
             ("Enter", "Send"),
@@ -216,6 +217,12 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("C-n / C-p", "Select favorite"),
             ("n / e / d", "New / edit / delete"),
             ("Enter", "Open source"),
+        ],
+        (View::Contacts, _) => &[
+            ("C-n / C-p", "Select contact"),
+            ("Enter", "Open private chat"),
+            ("a / x", "Accept / decline request"),
+            ("n", "Add by @username"),
         ],
         (View::Ai, Focus::Input) => &[("Enter", "Ask AI"), ("C-g / Esc", "Threads")],
         (View::Ai, _) => &[

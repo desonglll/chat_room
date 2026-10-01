@@ -88,12 +88,18 @@ impl App {
                         self.view = super::model::View::Chats;
                         self.focus = super::model::Focus::Content;
                         self.status = "Loading message history...".into();
+                        // TG-907: the pinned line under the chat header.
+                        self.social.pins.clear();
+                        return vec![Action::Social(super::social::SocialAction::LoadPins(
+                            room_id,
+                        ))];
                     }
                     Err(error) => self.status = error,
                 }
                 Vec::new()
             }
             AppEvent::Chat { room_id, event } => self.apply_chat_event(room_id, event),
+            AppEvent::Social(event) => self.apply_social_event(event),
             AppEvent::Uploaded(result) => {
                 self.busy = false;
                 self.status = result

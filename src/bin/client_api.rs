@@ -29,6 +29,14 @@ impl ApiError {
         }
     }
 
+    /// A failure the server did not report as a status (e.g. an empty batch answer).
+    pub(crate) fn other(message: impl Into<String>) -> Self {
+        Self {
+            status: None,
+            message: message.into(),
+        }
+    }
+
     fn response(operation: &str, status: StatusCode) -> Self {
         let detail = match status {
             StatusCode::BAD_REQUEST => "request was rejected",
@@ -168,6 +176,11 @@ impl ApiClient {
             "update conversation preferences",
         )
         .await
+    }
+
+    #[cfg(test)]
+    pub(crate) fn token(&self) -> Option<Uuid> {
+        self.token
     }
 
     pub(crate) fn auth(&self, method: Method, path: &str) -> ApiResult<RequestBuilder> {
