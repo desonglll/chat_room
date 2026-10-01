@@ -261,6 +261,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **TG-903 合并**：联系人页 Telegram 化（`GET /api/friends/statuses` 按 last_seen 互惠规则给在线/最后上线；在线优先排序、列表内筛选、点行进私聊、行菜单）。验证中发现并修复两处真缺陷：备注输入被菜单焦点回收立即取消；**手机宽度下联系人/通知/收藏夹等页面完全打不开**（壳只对 `/chat/*` 显示主栏）。浏览器 16/16，nextest 628/628。
 - **TG-904 合并**：频道帖对所有人（含发帖管理员）左侧显示、无已读对勾；搜索默认页在会话结果下列出「消息」命中。浏览器 6/6，nextest 628/628。
 - **TG-905 合并**：英文复数（含订阅者数恒为复数的根因：运行时按第一个数字参数选复数，原来只传了格式化字符串）、`GET /api/admin/access` 取代 403 探测、投票行 48→36 px、图片解码失败占位、通知行样式、信息面板「音乐」分类。浏览器 7/7，nextest 629/629。
+- **TG-906 合并**：`packages/core/src` 不再获得 Bun/DOM 类型（WebWorker lib，`window`/`document`/`localStorage` 实测报错）；socket 工厂同步抛错改为离线+重试；补拉按时刻而非字符串比较。nextest 629/629。
 
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
@@ -269,7 +270,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-903 联系人 Telegram 化 | M | **merged** | lead | — |
 | TG-904 频道帖与搜索默认页 | M | **merged** | lead | — |
 | TG-905 打磨批 | S | **merged** | lead | — |
-| TG-906 core 卫生 | S | not-started | lead | — |
+| TG-906 core 卫生 | S | **merged** | lead | — |
 | TG-907 TUI 对接新功能 | M | not-started | lead | — |
 
 ---
