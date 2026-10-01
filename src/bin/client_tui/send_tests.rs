@@ -96,6 +96,7 @@ fn connected_send_appears_immediately_and_reaches_the_chat_channel() {
         edited: false,
         delivery: DeliveryState::Sent,
         media: Default::default(),
+        extras: Default::default(),
     };
     app.apply_chat_event(room_id, ChatEvent::Message(echoed.clone()));
     app.apply_chat_event(room_id, ChatEvent::Message(echoed));

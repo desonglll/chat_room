@@ -26,6 +26,7 @@ impl App {
             edited: false,
             delivery: DeliveryState::Sending,
             media: Default::default(),
+            extras: Default::default(),
         };
         self.update_conversation_preview(&message);
         self.messages.push(message);
@@ -35,6 +36,8 @@ impl App {
             content,
             reply_to,
             client_message_id,
+            silent: false,
+            reply_quote: None,
         }
     }
 
@@ -179,8 +182,12 @@ impl App {
             ChatEvent::ReactionChanged {
                 message_id,
                 emoji,
+                user_id,
                 active,
             } => {
+                if let Some(message) = self.messages.iter_mut().find(|m| m.id == message_id) {
+                    message.extras.apply_reaction(&emoji, user_id, active);
+                }
                 let short_id = &message_id.to_string()[..8];
                 self.status = if active {
                     format!("Added reaction {emoji} to #{short_id}")

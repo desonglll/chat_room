@@ -132,6 +132,11 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 (false, true) => " · pinned",
                 (false, false) => "",
             };
+            let silent = if message.extras.silent {
+                " · silent"
+            } else {
+                ""
+            };
             let delivery = match message.delivery {
                 DeliveryState::Sending => " · sending",
                 DeliveryState::Failed => " · failed",
@@ -150,7 +155,7 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     Style::default().fg(author_color).bold(),
                 ),
                 Span::styled(
-                    format!("  #{}{edited}{delivery}", &id[..8]),
+                    format!("  #{}{edited}{silent}{delivery}", &id[..8]),
                     Style::default().fg(if message.delivery == DeliveryState::Failed {
                         Color::Red
                     } else {
@@ -159,6 +164,10 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 ),
             ]);
             let mut lines = vec![heading];
+            // TG-1205: what this message replies to (quote / cross-chat source).
+            if let Some(reply) = message.extras.reply_line() {
+                lines.push(Line::styled(reply, Style::default().fg(Color::Cyan)));
+            }
             if message.recalled {
                 lines.push(Line::styled("message recalled", Style::default().fg(MUTED)));
             } else if let Some(poll) = &message.media.poll {
@@ -183,6 +192,9 @@ fn render_messages(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     ),
                     Style::default().fg(Color::Green),
                 ));
+            }
+            if let Some(reactions) = message.extras.reaction_line().filter(|_| !message.recalled) {
+                lines.push(Line::styled(reactions, Style::default().fg(Color::Yellow)));
             }
             ListItem::new(Text::from(lines))
         })

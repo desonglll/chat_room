@@ -19,6 +19,9 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
     };
     match dialog {
         Dialog::Help => render_help(frame, app),
+        Dialog::Scheduled { .. } | Dialog::ChatSearch { .. } => {
+            super::render_messaging::render(frame, dialog)
+        }
         Dialog::Prompt { title, input, .. } => {
             let area = centered(frame.area(), 54, 5);
             frame.render_widget(Clear, area);
@@ -146,7 +149,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
 
 fn render_help(frame: &mut Frame<'_>, app: &App) {
     frame.render_widget(Clear, frame.area());
-    let area = centered(frame.area(), 72, 17);
+    let area = centered(frame.area(), 72, 21);
     frame.render_widget(
         Block::bordered()
             .title(format!(" Keyboard shortcuts · {} ", app.view.title()))
@@ -186,6 +189,8 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("n / g", "New / discover"),
             ("p a m t", "Chat preferences"),
             ("o", "Next chat folder"),
+            ("J", "Join by invite link"),
+            ("/", "Search open chat"),
         ],
         (View::Chats, Focus::Content) => &[
             ("C-n / C-p", "Select message"),
@@ -196,6 +201,8 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("u / d", "Upload / download"),
             ("P / F", "Pin-unpin / forward"),
             ("V", "Vote in poll"),
+            ("Q", "Quote part in reply"),
+            ("/ / S", "Search chat / scheduled"),
         ],
         (View::Chats, Focus::Input) => &[
             ("Enter", "Send"),
@@ -203,6 +210,9 @@ fn view_help(app: &App) -> &'static [(&'static str, &'static str)] {
             ("C-b / C-f", "Move cursor"),
             ("C-a / C-e", "Start / end"),
             ("C-d / C-k", "Delete / kill"),
+            ("/silent …", "Send without sound"),
+            ("/schedule 2h …", "Send later (S lists)"),
+            ("/search /join", "Search chat / join link"),
         ],
         (View::Search, Focus::Input) => &[("Enter", "Search"), ("C-g / Esc", "Results")],
         (View::Search, _) => &[

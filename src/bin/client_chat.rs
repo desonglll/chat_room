@@ -187,6 +187,8 @@ mod tests {
                 content: "hello socket".into(),
                 reply_to: None,
                 client_message_id,
+                silent: false,
+                reply_quote: None,
             })
             .unwrap();
         let event = tokio::time::timeout(Duration::from_secs(2), connection.events.recv())

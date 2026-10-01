@@ -221,6 +221,7 @@ pub fn action(app: &mut App, action: Action, sender: mpsc::UnboundedSender<AppEv
             chat_password,
         ),
         Action::Social(social) => super::dispatch_social::run(social, server, token, sender),
+        Action::Messaging(action) => super::dispatch_messaging::run(action, server, token, sender),
         Action::Chat(_) | Action::Quit => unreachable!("handled before dispatch"),
     }
 }
