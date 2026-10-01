@@ -64,6 +64,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-011 `packages/core` 骨架 | `9c78047`..`6fc80a6` | 负责人独立验证:bun 全仓 230/0、typecheck 零错;对抗审计逐字段核对 18 个帧标签/可选性方向/十个 typing action/七档 user_status/六个骨架帧 vs Rust serde 与字节级快照——两处失真已修(`6be5fa4`):TS `StoredMessage` 漏 `client_message_id`(会让重连补拉永远无法对账乐观发送)、`favorite_id` 错标可选;并揪出边界测试看不见的 WHATWG 全局(`URLSearchParams`/`globalThis.fetch`,RN 上会炸)——换纯 ES 实现、禁用表扩容加元钉。九个 store 均为 zustand vanilla、WS 客户端退避曲线与冻结 Vue 一致。zustand@5.0.8 为唯一新依赖(预批)。 |
 | TG-013 服务测试跳过可见性 | `e786895` | 负责人在合并树上实测：env 缺失 → 全量套件 exit 0 且 **16 个 `SKIPPED: PostgreSQL not verified` marker 逐一可见**（raw-fd 写 stderr 绕过 libtest capture——原来的静默机制正是 capture 吞掉 eprintln）；env 设定 → 0 marker、PG 测试真实执行；env 指向死端口 → panic 而非跳过。对抗审计确认 `tests/` 内零探测-回退残留；顺带揪出 `src/cache.rs` 里它没扫到的同类缺陷（负责人已修 `941b0b7`）与 CI 缺 Redis env（已修 `68dcd41`）。 |
 | TG-007 WebSocket 帧扩展 | `20913a5` | 负责人独立验证：合并树 68 个二进制 309/0（PG+Redis 全设）；**草稿隐私突变测试**——故意让 `frame_visible_to` 泄漏草稿，`ws_frame_routing_test` 立刻红，还原即绿，隐私过滤真实被钉住；对抗审计逐字段核对旧帧 vs `d12aae2` 线上真值，全部一致，typing 向后兼容机制（`serde(default)` + 未知 action 降级 + 空 content 停止语义）逐行确认；两个有意的旧帧扩展（typing.action、auth_ok.statuses）已记录且冻结客户端实测容忍（CLI 在 tmux 里真跑、Vue 用 FakeWebSocket 实测）。审计指出快照测试只比 Value 不锁字节序 → 负责人已加字节级 pin（`bd22ebf`）。附带落地其 Vue 集成补丁（`bc0e377`，实测消除空系统气泡）。 |
+| TG-508 通知例外与自定义声音 | 负责人实现 → 合并提交 | 既有 `chat_members.notification_level`/`muted_until` 仍是静音开关（1h/8h/2d = muted_until 到期自动恢复；永久 = level none），新增按聊天类型的默认值与按聊天例外（NULL 继承）。**一条纯函数规则** `decide`（带测试矩阵）：定时静音 > 例外 enabled > 旧 level > 类型默认；Web Push 投递经它取得是否推送、预览开关与声音（声音 none → 静默通知）。设置「通知与声音」页、信息面板静音时长与声音。分支 142 个二进制 588/0。 |
 | TG-509 数据与存储 | 负责人实现 → 合并提交 | Telegram 自动下载矩阵（Wi-Fi / 移动数据 / 漫游 × 图片 / 视频 / 文件 + 视频文件大小上限），纯函数在 core 带测试，网络类型取 Network Information API（Save-Data 视为漫游，未知视为 Wi-Fi）；图片/视频气泡在规则拒绝时显示「点击下载 · 大小」。「数据与存储」页：浏览器占用（`storage.estimate`）与 Cache Storage 分区、清除缓存（屏上媒体是 DOM 元素，不受影响）、最大缓存与保留天数（交 TG-601 的离线缓存执行）。按聊天清理暂不提供（今天无按聊天的缓存），记入 devlog。 |
 | TG-511 多头像与二维码名片 | 负责人实现 → 合并提交 | `user_avatar_files` 保留为「当前头像」指针（冻结客户端不受影响），新表 `user_avatar_history` 保存全部上传并回填现有头像；替换/改用 emoji 不再删文件，只有从历史删除才删；删当前头像时提升次新的一张（或清空），顺序与指针始终一致；历史读取同样经 TG-505 头像隐私判定。二维码编码 `/add/<username>` 绝对链接，强调色 + 两主题都为白色的新 token `--tg-scan-surface` 卡片（深色主题也能扫），颜色运行时取自 token（无字面量）；「设置 › 我的账号」挂「头像」「我的二维码」。双适配器测试且既有头像/隐私测试保持通过；分支 141 个二进制 584/0。 |
 | TG-410 联系人名片与消息翻译 | 负责人实现 → 合并提交 | 名片 = 普通消息（`media_kind: contact`）+ `message_contacts` 发送时快照，走 `message.send` 与 TG-204/207 发帖闸门；附件菜单「联系人」打开好友选择器；气泡带「发消息 / 添加好友」。翻译复用既有 AI 供应方（`AiAssistant::translate`），只返回给请求者、不回写原文；AI 关闭（D-009）时 `/api/translation` 为 `available:false`、前端不显示「翻译」、接口 503。整聊天翻译模式暂不做（AI 关闭时不可见），记入 devlog。分支 141 个二进制 584/0。 |
@@ -196,7 +197,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-505 隐私设置矩阵 | L | C | **merged**（含两轮合并后修复） | — | TG-107 |
 | TG-506 两步验证云密码 | M | C | **merged** `a2c73a5` | — | M0 |
 | TG-507 主题与聊天背景 | L | D | blocked | — | TG-009 |
-| TG-508 通知例外与自定义声音 | M | D | in-progress | — | M1 |
+| TG-508 通知例外与自定义声音 | M | D | **merged** | — | M1 |
 | TG-509 数据与存储 | M | A | **merged** | — | M4 |
 | TG-510 多语言 | M | B | blocked | — | M1 |
 | TG-511 多头像与二维码名片 | S | C | **merged** | — | M1 |
