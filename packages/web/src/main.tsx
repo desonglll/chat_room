@@ -19,6 +19,8 @@ import './features/voice/register'
 import './features/videoNote/register'
 // TG-305: GIF bubble body, the media panel's GIF tab, and the "保存 GIF" menu row.
 import './features/gif/register'
+// TG-509: 设置 › 数据与存储.
+import './features/settings/storage/register'
 // TG-410: contact card bubbles and «翻译».
 import './features/contact/register'
 // TG-511: «头像» and «我的二维码» in settings.
