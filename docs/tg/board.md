@@ -272,6 +272,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 - **2026-10-01** 运行中的 5 个 agent（TG-111/202/204/402/403）在同一时刻因 API 400「A maximum of 4 blocks with cache_control may be provided. Found 5」终止；随后任何带工具调用的新 agent（含 Sonnet/Opus、不同类型）第二次请求即失败，无工具调用的 agent 正常。属本会话 agent 基础设施问题，非任务代码问题。五个 worktree 的未提交工作均保留在磁盘上（TG-204 58 个文件、TG-402 36、TG-403 15、TG-111 5、TG-202 2 提交 + 2 文件），`.claude/tg-agent-brief.md` 已加「接管中断任务」规程。恢复前由负责人在主线程直接推进。
 
+- **2026-10-01（第二次）** 新会话里派出的 7 个后台 agent（TG-801/802/803/804/805 与一个只跑两条 `ls` 的 Haiku 探针）全部在第二次请求时报同一个 400（cache_control 块 5 > 4），与模型和任务无关。TG-802/803/804/805 未创建 worktree，无残留。TG-801 由负责人在主线程完成。
+
 ## 集成负责人自己引入的缺陷
 
 - **2026-10-01** 合并 TG-204 前在 worktree 里用**绝对路径**调用 `scripts/check_file_sizes.py`——该脚本按自身位置解析仓库根，所以审计的是主 checkout 而非 worktree，「通过」毫无意义。合并后 `main` 有三个文件越过 350 行（`api_doc.rs`、`favorites/store.rs`、`chatSession.ts`），TG-403 的门禁才暴露。已按职责拆分：TG 阶段 OpenAPI 条目移入 `api_doc_tg.rs`（在 `compat.rs` 唯一生成点 merge）、收藏转发移入 `favorites/forward_store.rs`、会话类型移入 `chatSessionTypes.ts`。教训：在 worktree 里用 worktree 自己的 `scripts/` 相对路径跑审计。
