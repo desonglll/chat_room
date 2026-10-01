@@ -76,6 +76,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 | TG-510 多语言 | 负责人实现 → 合并提交 | 不引入依赖：core 内 ~100 行运行时（`{n}` 参数、`Intl.PluralRules` 复数、回退）。用 TypeScript AST codemod 把 web 1149 条 + core 55 条中文文案抽到按功能分文件的 zh-CN/en 目录（模块级表格改 getter，常量改函数）。设置 › 语言即时切换（`LocaleRoot` 按语言重挂载，不刷新页面），`<html lang>` 同步。CI 闸门解析全部源码，组件中出现汉字即失败；两包目录完整性与参数一致性有测试。 |
 | TG-605 `packages/core` 抽离验证 | 负责人实现 → 合并提交 | `hosts/node/smoke.ts` 在 core 之外注入 Node 的存储（Map）、WebSocket（Node 24 内置 WHATWG）与时钟，跑通 注册 → 列会话 → 建群 → 连 socket → 发消息 → 收广播 → 读历史。集成测试以**无 DOM lib** 类型检查、Bun 打包、断言包内无 `document.`/`window.`，再用纯 `node` 运行（无 polyfill）。 |
 | TG-603 PySide6 桌面端处置 | 用户决策 D-010 → 负责人实现 → 合并提交 | 保留 PySide6 并接新 API：所有 HTTP 调用从 `/api/rooms/*` 改到 `/api/chats/*`，建群发 `title`，读取 `title`（兼容旧 `name`）；新增“客户端不含 `/api/rooms`”的静态测试。desktop pytest 16/16，ruff 干净。为 TG-602 删除别名扫清障碍。 |
+| TG-602 删除旧客户端与 alias | 负责人实现 → 合并提交 | 删除 `web/`（Vue 客户端）；`src/web.rs` 内嵌的 8 个文件迁到 `packages/web/public/`，build.rs/Dockerfile/CI/尺寸基线同步。删除 `/api/rooms/*` 别名、方言中间件与 OpenAPI 孪生条目、`ChatCompatView`（`name` 冗余字段；输入仍接受 `name`）。ratatui CLI、压测工具、桌面端全部走 `/api/chats`，并在“聊天目录”里过滤私聊（别名过去的行为）。`grep -rn "/api/rooms" src/ packages/` 无结果；能力矩阵与 README 架构图重写。 |
 | TG-509 数据与存储 | 负责人实现 → 合并提交 | Telegram 自动下载矩阵（Wi-Fi / 移动数据 / 漫游 × 图片 / 视频 / 文件 + 视频文件大小上限），纯函数在 core 带测试，网络类型取 Network Information API（Save-Data 视为漫游，未知视为 Wi-Fi）；图片/视频气泡在规则拒绝时显示「点击下载 · 大小」。「数据与存储」页：浏览器占用（`storage.estimate`）与 Cache Storage 分区、清除缓存（屏上媒体是 DOM 元素，不受影响）、最大缓存与保留天数（交 TG-601 的离线缓存执行）。按聊天清理暂不提供（今天无按聊天的缓存），记入 devlog。 |
 | TG-511 多头像与二维码名片 | 负责人实现 → 合并提交 | `user_avatar_files` 保留为「当前头像」指针（冻结客户端不受影响），新表 `user_avatar_history` 保存全部上传并回填现有头像；替换/改用 emoji 不再删文件，只有从历史删除才删；删当前头像时提升次新的一张（或清空），顺序与指针始终一致；历史读取同样经 TG-505 头像隐私判定。二维码编码 `/add/<username>` 绝对链接，强调色 + 两主题都为白色的新 token `--tg-scan-surface` 卡片（深色主题也能扫），颜色运行时取自 token（无字面量）；「设置 › 我的账号」挂「头像」「我的二维码」。双适配器测试且既有头像/隐私测试保持通过；分支 141 个二进制 584/0。 |
 | TG-410 联系人名片与消息翻译 | 负责人实现 → 合并提交 | 名片 = 普通消息（`media_kind: contact`）+ `message_contacts` 发送时快照，走 `message.send` 与 TG-204/207 发帖闸门；附件菜单「联系人」打开好友选择器；气泡带「发消息 / 添加好友」。翻译复用既有 AI 供应方（`AiAssistant::translate`），只返回给请求者、不回写原文；AI 关闭（D-009）时 `/api/translation` 为 `available:false`、前端不显示「翻译」、接口 503。整聊天翻译模式暂不做（AI 关闭时不可见），记入 devlog。分支 141 个二进制 584/0。 |
@@ -218,7 +219,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
 | TG-601 PWA 强化 | M | blocked | — | M5 |
-| TG-602 删除旧客户端与 alias | M | blocked | — | M5 |
+| TG-602 删除旧客户端与 alias | M | **merged** | — | M5 |
 | TG-603 PySide6 桌面端处置 ← 需用户决策 | S | **merged** | — | TG-602 |
 | TG-604 性能压测 | L | blocked | — | M5 |
 | TG-605 `packages/core` 抽离验证 | M | **merged** | — | M5 |
