@@ -33,7 +33,7 @@ cargo test --all-targets --all-features 2>&1 | grep -c 'SKIPPED: PostgreSQL not 
 
 ## 当前在飞的任务
 
-**M8 已全部合并**（TG-801…806，负责人主线程串行完成，agent 基础设施仍不可用）。M9–M11 已全部合并。**在飞：M12**（TG-1201…1205，5 路并行，见下方 M12 表）。
+**M8 已全部合并**（TG-801…806，负责人主线程串行完成，agent 基础设施仍不可用）。M9–M11 已全部合并。**M12 已全部合并**（TG-1201…1210，fork agent 并行）。
 
 历史：波次 1（基线 `2903b89`，2026-09-30 开工）：TG-101、TG-102、TG-103、TG-107、TG-208。缝合约定：TG-101 的 `renderMessage(message, MessageRenderContext)` ← TG-103 的 `MessageBubble`；TG-102 会话行的 `isOnline`/`typingText` 与聊天头部 ← TG-107 的 hooks，均由集成负责人在合并后接线。
 
@@ -309,7 +309,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-1205 TUI 补齐剩余消息操作 | M | **merged** | agent | — |
 | TG-1206 自定义 emoji 输入与表情状态接线 | S | **merged** | agent | TG-1201、1202 |
 | TG-1207 AI 关闭时的后台噪声与默认配置 | S | **merged** | agent | — |
-| TG-1208 走查遗留缺陷与英文标点 | S | in-progress | agent | TG-1203、1206 |
+| TG-1208 走查遗留缺陷与英文标点 | S | **merged** | agent | TG-1203、1206 |
 | TG-1209 安全头与外部图片 | S | **merged** | agent | TG-1206 |
 | TG-1210 群名允许重名 | S | **merged** | agent | TG-1203 |
 
@@ -334,6 +334,9 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 - **TG-1209 合并**（`816ce7b6` → `274ca363`，**SSRF 经负责人评审**）：CSP `img-src` 按 `map.tile_url` 只放行配置的瓦片主机（主机名字符白名单，配置无法注入指令）；链接预览图由服务端经 TG-408 同一逐跳抓取（每跳校验+DNS 固定+重定向复检+5 s 截止）获取，按文件头只收 PNG/JPEG/GIF/WebP、>1 MiB 拒收不截断，存入新表经 `/api/link-previews/images/:key`（随机 UUID 能力 URL，同附件模型）同源提供。迁移 `20271201000001` 双库。负责人复验：bun 全过；fmt/clippy 净；`cargo nextest run` **691/691**；parity 85 对。
 - **CI 第二处红**：packages 测试修好后 `Run Rust tests` 中途 runner 磁盘耗尽（约 180 个测试二进制 × 调试信息 + 增量缓存）。workflow 改为无调试信息、无增量（与本地门禁一致），并在该步前删除 runner 预装的 dotnet/android/ghc/CodeQL。
+
+- **TG-1208 合并**（`b7337adb` → `601322e4`）：**会话未就绪时发送**——同一根因（首个 `history_complete` 之前发送）导致回车被吞与自己的消息落在历史上方；现由会话暂存并在回放完成后按序发出，core `mergeIncomingBroadcast` 让到达消息排在自己未确认消息之上，4 个单步竞态测试。会话行在线点误把「对方是成员」当在线，改读与头部同源的隐私过滤状态；静音选项按状态显示；表情状态挂到会话行、成员列表并新增设置页；仅有 `members.ban` 的管理员可读封禁列表（双库测试）；12 处硬编码中文标点清零（core 新增 `quoted`/`parenthetical`/`joinClauses`）。E2E 6/6。风险：回放完成前离开会话，暂存的发送标记失败（无持久发件箱）。负责人复验：bun ui 120 / core 357 / web 831，0 挂；首屏 273 448 B；fmt/clippy 净；`cargo nextest run` **693/693**；parity 85 对。
+- **M12 完成**：10 张卡，修复约 40 个真实缺陷，其中线上级：Service Worker 使语音/圆形视频/GIF 无法播放、`Permissions-Policy` 使位置分享失败、CSP 拦地图瓦片与预览图、引用片段从未生效、两处管理员越权/欠权、频道无管理入口、换账号沿用上一账号数据、Redis 慢时每请求卡 2.5 s。CI 两处红（测试顺序依赖、runner 磁盘）已修。
 
 ## 状态取值
 
