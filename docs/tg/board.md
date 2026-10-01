@@ -229,7 +229,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-606 无障碍与键盘操作审计 | M | **merged** | — | M5 |
 | TG-701 聊天资料与生命周期 | M | **merged** | — | M6 |
 | TG-702 联系人 | M | **merged** | — | M6 |
-| TG-703 通知中心 | S | not-started | — | M6 |
+| TG-703 通知中心 | S | **merged** | — | M6 |
 | TG-704 账号安全补齐 | S | not-started | — | M6 |
 | TG-705 管理后台 | M | not-started | — | M6 |
 | TG-706 聊天任务与审计日志 | S | not-started | — | M6 |
