@@ -4,6 +4,7 @@
  */
 import { useRef, useState } from 'react'
 import type { MenuItem } from '@tg/ui'
+import { NotificationBell } from '../notifications/NotificationBell'
 import { IconButton, Menu } from '@tg/ui'
 import type { ChatListFolder } from './chatListFilters'
 import { ChatListIcon } from './chatListIcons'
@@ -88,6 +89,8 @@ export function ChatListHeader({
           ) : null}
         </label>
       )}
+      {/* TG-703: notification center. */}
+      {collapsed || folder === 'archive' ? null : <NotificationBell />}
       <Menu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}

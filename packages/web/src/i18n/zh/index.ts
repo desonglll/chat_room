@@ -17,6 +17,7 @@ import { gif } from './gif'
 import { inviteLinks } from './inviteLinks'
 import { contactsPage } from './contactsPage'
 import { lifecycle } from './lifecycle'
+import { notificationsPage } from './notificationsPage'
 import { linkPreview } from './linkPreview'
 import { location } from './location'
 import { mediaViewer } from './mediaViewer'
@@ -53,6 +54,7 @@ export const zh: Catalog = {
   ...inviteLinks,
   ...contactsPage,
   ...lifecycle,
+  ...notificationsPage,
   ...linkPreview,
   ...location,
   ...mediaViewer,

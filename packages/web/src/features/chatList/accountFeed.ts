@@ -21,6 +21,8 @@ export interface AccountFeedOptions {
   currentUserId?: (() => string) | undefined
   /** Reload the list: after a reconnect (missed events) and when an unknown chat appears. */
   resync: () => void
+  /** TG-703: every other frame (`notifications_changed`, `social_changed`, …). */
+  onSignal?: ((frame: { type: string } & Record<string, unknown>) => void) | undefined
 }
 
 type AccountFrame = AccountMessageEvent | { type: 'unread_counts'; chats: AccountChatState[] } | { type: string }
@@ -56,6 +58,8 @@ export function startAccountFeed(options: AccountFeedOptions): () => void {
       const unknown = chats.some((entry) => entry.membership_status === 'active' && !known.has(entry.room_id))
       state.applyUnreadCounts(chats)
       if (unknown) options.resync()
+    } else {
+      options.onSignal?.(frame as { type: string } & Record<string, unknown>)
     }
   }
 

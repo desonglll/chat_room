@@ -30,6 +30,7 @@ function AnonymousOnly({ children }: { children: ReactNode }) {
 }
 
 const ContactsPage = lazy(() => import('../features/contacts/ContactsPage'))
+const NotificationsPage = lazy(() => import('../features/notifications/NotificationsPage'))
 
 export const appRouter = createBrowserRouter([
   {
@@ -55,6 +56,15 @@ export const appRouter = createBrowserRouter([
       { path: '/public/:username', element: <PublicChatRoute /> },
       { path: '/add/:username', element: <AddContactRoute /> },
       { path: '/saved', element: <SavedMessagesRoute /> },
+      // TG-703: notification center.
+      {
+        path: '/notifications',
+        element: (
+          <Suspense fallback={null}>
+            <NotificationsPage />
+          </Suspense>
+        ),
+      },
       // TG-702: friends, requests, blocklist.
       {
         path: '/contacts',
