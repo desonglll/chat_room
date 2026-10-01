@@ -31,6 +31,7 @@ import { ConnectedChatRow } from './ConnectedChatRow'
 import { useFlipReorder } from './flipReorder'
 import { NewChatDialog } from './NewChatDialog'
 import { NewChatFab } from './NewChatFab'
+import { mainMenuIcon } from './mainMenuIcons'
 import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
 import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
@@ -47,12 +48,22 @@ export interface ChatListPaneProps {
 const isPlainClick = (event: MouseEvent) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
 
+const withMenuIcons = (items: MenuItem[]): MenuItem[] =>
+  items.map((item) => ({ ...item, icon: item.icon ?? mainMenuIcon(item.id) }))
+
+function isNight(): boolean {
+  const settings = settingsStore.getState()
+  return (
+    settings.theme === 'dark' ||
+    (settings.theme === 'system' &&
+      typeof document !== 'undefined' &&
+      document.documentElement.getAttribute('data-tg-theme') === 'night')
+  )
+}
+
 function toggleNightMode() {
   const settings = settingsStore.getState()
-  const night =
-    settings.theme === 'dark' ||
-    (settings.theme === 'system' && document.documentElement.getAttribute('data-tg-theme') === 'night')
-  settings.update({ theme: night ? 'light' : 'dark' })
+  settings.update({ theme: isNight() ? 'light' : 'dark' })
   settingsStore.getState().persist(browserStorage)
 }
 
@@ -113,7 +124,10 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
     void navigate(`/chat/${encodeURIComponent(chatId)}`)
   }
 
-  const menuItems: MenuItem[] = [
+  // TG-1002: every main-menu row carries its glyph (Telegram); night mode shows its state
+  // (subscribing to the theme re-renders the menu when it flips).
+  useStore(settingsStore, (state) => state.theme)
+  const menuItems: MenuItem[] = withMenuIcons([
     { id: 'new-group', label: t('w.chatList.07285a'), onSelect: () => setCreating(true) },
     { id: 'new-channel', label: t('w.chatList.b0e811'), onSelect: () => setCreatingChannel(true) },
     {
@@ -136,7 +150,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
     },
     ...(isAdmin ? [{ id: 'admin', label: t('w.admin.menu'), onSelect: () => void navigate('/admin') }] : []),
     { id: 'settings', label: t('w.chatList.7debf9'), onSelect: () => openSettings() },
-    { id: 'night', label: t('w.chatList.e32be0'), onSelect: toggleNightMode },
+    { id: 'night', label: t('w.chatList.e32be0'), selected: isNight(), onSelect: toggleNightMode },
     ...(onToggleCollapsed
       ? [
           {
@@ -147,13 +161,13 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
         ]
       : []),
     {
-      id: 'sign-out',
+      id: 'logout',
       label: t('w.chatList.094774'),
       danger: true,
       separatorBefore: true,
       onSelect: () => void signOut({ client: apiClient, storage: browserStorage, store: authStore }),
     },
-  ]
+  ])
 
   const showArchiveRow =
     folder === 'main' && !custom && !query.trim() && view.archivedCount > 0 && archiveMode !== 'hidden'

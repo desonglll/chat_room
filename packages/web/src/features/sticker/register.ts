@@ -3,9 +3,9 @@
  * the TG-103 content registry — no bubble, time overlaid, above the generic image/file
  * kinds (20/10) and below the recalled placeholder (100).
  */
-import { lazy } from 'react'
+import { createElement, lazy } from 'react'
 import { registerMessageContent } from '../message'
-import { registerSettingsPage } from '../settings/shell'
+import { registerSettingsPage, SettingsIcon } from '../settings/shell'
 import { StickerMessage } from './message/StickerMessage'
 import { isStickerMessage } from './message/stickerMessageModel'
 import { t } from '../../i18n/index'
@@ -25,6 +25,7 @@ registerSettingsPage({
   get title() {
     return t('w.sticker.4be31b')
   },
+  icon: createElement(SettingsIcon, { name: 'stickers' }),
   order: 50,
   component: lazy(() => import('./manage/StickerSetsSettings').then((m) => ({ default: m.StickerSetsSettings }))),
 })
