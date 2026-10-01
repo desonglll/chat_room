@@ -1,5 +1,6 @@
 /** TG-510: English messages; keys match ../zh. One file per feature area. */
 import type { Catalog } from '@tg/core'
+import { admin } from './admin'
 import { album } from './album'
 import { auth } from './auth'
 import { channel } from './channel'
@@ -38,6 +39,7 @@ import { videoNote } from './videoNote'
 import { voice } from './voice'
 
 export const en: Catalog = {
+  ...admin,
   ...album,
   ...auth,
   ...channel,
