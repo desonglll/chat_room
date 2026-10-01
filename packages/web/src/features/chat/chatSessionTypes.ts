@@ -13,6 +13,7 @@ import type {
   CoreClock,
   CoreSocketFactory,
   DraftsApi,
+  MessageEntity,
   MessageStore,
   PresenceStore,
   ServerFrame,
@@ -72,6 +73,8 @@ export interface SendMessageOptions {
   silent?: boolean
   /** TG-408: the sender dismissed the link card in the composer. */
   noLinkPreview?: boolean
+  /** TG-1206: custom emoji ranges of the (already trimmed) text; omitted from the frame when empty. */
+  entities?: MessageEntity[]
 }
 
 export interface ChatSession {

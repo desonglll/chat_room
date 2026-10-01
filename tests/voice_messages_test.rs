@@ -232,7 +232,7 @@ async fn postgres_voice_messages_are_stored_validated_and_privacy_gated() {
 }
 
 #[tokio::test]
-async fn the_page_may_open_the_microphone_and_camera_but_not_location() {
+async fn the_page_may_open_the_microphone_camera_and_location_for_itself_only() {
     let server = start_server().await;
     let response = server
         .client
@@ -247,5 +247,6 @@ async fn the_page_may_open_the_microphone_and_camera_but_not_location() {
     assert!(policy.contains("microphone=(self)"), "{policy}");
     // TG-402: round video messages record from the camera.
     assert!(policy.contains("camera=(self)"), "{policy}");
-    assert!(policy.contains("geolocation=()"), "{policy}");
+    // TG-407 shares the browser position (TG-1206: `geolocation=()` broke every share).
+    assert!(policy.contains("geolocation=(self)"), "{policy}");
 }

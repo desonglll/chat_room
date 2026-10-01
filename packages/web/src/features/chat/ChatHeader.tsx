@@ -8,6 +8,7 @@ import { chatListStore, selectChatById, uiStore } from '@tg/core'
 import { Avatar } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { ChannelSubtitle } from '../channel/ChannelSubtitle'
+import { EmojiStatus } from '../customEmoji/EmojiStatus'
 import { ChatHeaderStatus } from '../presence'
 import { MobileBackButton } from '../shell/MobileBackButton'
 import { t } from '../../i18n/index'
@@ -37,6 +38,8 @@ export function ChatHeader({ chatId, connection }: { chatId: string; connection:
   const row = useStore(chatListStore, (state) => state.conversations.find((entry) => entry.room_id === chatId))
   const title = chat?.title || row?.alias || row?.title || '…'
   const emoji = chat?.avatar_emoji || row?.avatar_emoji || undefined
+  // TG-1206: a private chat shows the peer's emoji status after the name, as Telegram does.
+  const peerId = row?.peer?.id
   const connectionCopy = CONNECTION_COPY[connection]
   const infoOpen = useStore(uiStore, (state) => state.activePanel === 'chatInfo')
 
@@ -52,7 +55,10 @@ export function ChatHeader({ chatId, connection }: { chatId: string; connection:
       >
         <Avatar label={title} initials={emoji} />
         <span className="tg-chat__titles">
-          <span className="tg-chat__title">{title}</span>
+          <span className="tg-chat__title">
+            {title}
+            {peerId ? <EmojiStatus userId={peerId} /> : null}
+          </span>
           {connectionCopy ? (
             <span className="tg-chat__subtitle">{connectionCopy}</span>
           ) : chat?.chat_type === 'channel' ? (

@@ -53,9 +53,11 @@ pub(crate) async fn security_headers(request: Request, next: Next) -> Response {
         HeaderValue::from_static("strict-origin-when-cross-origin"),
     );
     // TG-401/TG-402: voice and round video messages record from this origin's own pages only.
+    // TG-407 location sharing reads the browser position; `geolocation=()` (TG-401's original
+    // value) made every share fail with PERMISSION_DENIED in production (found by TG-1206).
     headers.insert(
         "permissions-policy",
-        HeaderValue::from_static("camera=(self), microphone=(self), geolocation=()"),
+        HeaderValue::from_static("camera=(self), microphone=(self), geolocation=(self)"),
     );
     response
 }

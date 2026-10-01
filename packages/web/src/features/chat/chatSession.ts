@@ -246,12 +246,14 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
       const clientMessageId = createRandomUuid()
       const draft = stores.composer.getState().drafts[chatId] ?? EMPTY_DRAFT
       const replyTo = draft.replyToMessageId ?? ''
+      const entities = options?.entities ?? []
       stores.message.getState().appendOptimistic(chatId, {
         clientMessageId,
         content,
         replyTo,
         currentUserId,
         participants: stores.presence.getState().chats[chatId]?.participants ?? [],
+        ...(entities.length ? { entities } : {}),
       })
       const sent = socket.send({
         type: 'message',
@@ -262,6 +264,7 @@ export function createChatSession(options: ChatSessionOptions): ChatSession {
         ...(topic?.sendTopicId ? { topic_id: topic.sendTopicId } : {}),
         ...(options?.silent ? { silent: true } : {}),
         ...(options?.noLinkPreview ? { no_link_preview: true } : {}),
+        ...(entities.length ? { entities } : {}),
       })
       if (!sent) stores.message.getState().markDelivery(chatId, clientMessageId, 'failed')
       stores.composer.getState().clearDraft(chatId)
