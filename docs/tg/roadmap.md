@@ -813,7 +813,7 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Acceptance** 回归测试：AI 关闭时零嵌入请求；Redis 不可达/慢时请求延迟有上界并有测试。
 
 ## TG-1208 走查遗留缺陷与英文标点 · S（来源 TG-1204 记录；等 TG-1203、TG-1206 合并后开工）
-- **Work** (1) 刚打开会话立即回车偶发静默丢弃（约 1/3，文字留在输入框）——查根因（会话/socket 未就绪时的发送路径），修复或排队发送；(2) 聊天头部显示「离线」而会话列表同一好友显示在线——统一在线状态来源；(3) 会话信息里未静音时也显示「取消静音」等时长选项；(4) `englishUi.test.ts` 白名单中 10 处硬编码中文标点（composer、message、album、location、videoNote、chatInfo、messageList）改走 i18n，修一处删一条白名单。
+- **Work** (1) 刚打开会话立即回车偶发静默丢弃（约 1/3，文字留在输入框）——查根因（会话/socket 未就绪时的发送路径），修复或排队发送；(2) 聊天头部显示「离线」而会话列表同一好友显示在线——统一在线状态来源；(3) 会话信息里未静音时也显示「取消静音」等时长选项；(5) 应用 TG-1206 devlog 遗留补丁第 4、6、7 项：会话行与成员列表显示 `EmojiStatus`，设置里加「设置表情状态」入口；(4) `englishUi.test.ts` 白名单中 10 处硬编码中文标点（composer、message、album、location、videoNote、chatInfo、messageList）改走 i18n，修一处删一条白名单。
 - **Allowed** 上述功能目录、`packages/web/test/**`、对应测试。
 - **Acceptance** 每个缺陷有回归测试；白名单清空；两账号浏览器复验 (1)(2)。
 
