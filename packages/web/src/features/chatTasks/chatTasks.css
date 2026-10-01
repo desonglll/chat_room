@@ -1,0 +1,58 @@
+/* TG-706: tasks and the audit log in the info panel. */
+.tg-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-4);
+  border-top: 1px solid var(--tg-divider);
+}
+
+.tg-tasks__title {
+  margin: 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-label-size);
+}
+
+.tg-tasks__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-tasks__row,
+.tg-tasks__add {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-1) 0;
+}
+
+.tg-tasks__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tg-tasks__row[data-status='done'] .tg-tasks__text,
+.tg-tasks__row[data-status='cancelled'] .tg-tasks__text {
+  color: var(--tg-text-secondary);
+  text-decoration: line-through;
+}
+
+.tg-tasks__meta,
+.tg-tasks__empty {
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-meta-size);
+}
+
+.tg-tasks__delete {
+  border: 0;
+  background: none;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-title-size);
+  cursor: pointer;
+}
+
+.tg-tasks__event {
+  padding: var(--tg-space-2) 0;
+  border-bottom: 1px solid var(--tg-divider);
+}

@@ -20,6 +20,7 @@ import { contactsPage } from './contactsPage'
 import { lifecycle } from './lifecycle'
 import { notificationsPage } from './notificationsPage'
 import { password } from './password'
+import { tasks } from './tasks'
 import { linkPreview } from './linkPreview'
 import { location } from './location'
 import { mediaViewer } from './mediaViewer'
@@ -59,6 +60,7 @@ export const zh: Catalog = {
   ...lifecycle,
   ...notificationsPage,
   ...password,
+  ...tasks,
   ...linkPreview,
   ...location,
   ...mediaViewer,
