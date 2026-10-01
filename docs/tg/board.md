@@ -342,10 +342,14 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 | 任务 | 规模 | 状态 | Owner | 依赖 |
 | --- | --- | --- | --- | --- |
-| TG-1301 HTTP 下表情/位置/语音/视频可用 | M | in-progress | agent | — |
-| TG-1302 图片缩略图（服务端生成） | M | in-progress | agent | — |
+| TG-1301 HTTP 下表情/位置/语音/视频可用 | M | **merged** | agent | — |
+| TG-1302 图片缩略图（服务端生成） | M | **merged** | agent | — |
 
 - 根因：手机经 `http://局域网IP` 访问为非安全上下文（无 `crypto.subtle`/`getUserMedia`/`geolocation`），代码无任何检测而静默失败。用户决定不上 HTTPS，要求 HTTP 下可用；缩略图服务端生成，批准 `image` crate。
+
+- **TG-1301 合并**（`7cd9febb` → `662d5fc1`）：缺 `crypto.subtle` 时为表情选择器装纯 JS SHA-1；无 `getUserMedia` 时语音/圆形视频调起系统录音机/相机（`<input capture>`），非 m4a/ogg/webm 音频在浏览器转 16 kHz WAV，服务端新增 WAV 识别（解析器经负责人评审：全部边界检查、字节率 0 拒绝、偏移 checked_add）；超限视频改发普通视频并提示；位置改地图选点。分支内 nextest 695/695、web 856/0、局域网 IP + 手机视口 E2E 13/13（修复前 12/13 失败）。未做真机测试。
+- **TG-1302 合并**（`f9f5cdef` → `cf65e72e`）：`GET /api/attachments/:id/thumbnail?key=` 首次请求生成长边 640 px（透明出 PNG，其余 JPEG），缓存于 `.thumbnails`（备份跳过），每次请求按原图重新鉴权，撤回后 404；`spawn_blocking` + 像素上限 + `image::Limits`，按 EXIF 旋转；新增依赖 `image 0.25.10`（仅 jpeg/png/gif/webp，用户批准）。气泡/相册/信息面板/查看器条只加载缩略图，查看器先缩略图后原图。E2E 8/8（网络请求为证）。遗留：收藏夹与 `DefaultMessage` 仍显示原图。
+- **门禁说明**：两张卡合并后的本地完整门禁两次被系统以内存不足终止（其他项目常驻约 5 GB）。用户指示直接推送，**由 GitHub CI 承担合并后门禁**；TG-1302 被终止前 clippy 报的常量断言已改但未本地复验。
 
 ## 状态取值
 
