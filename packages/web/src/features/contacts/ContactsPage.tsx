@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SocialApi, SocialUser } from '@tg/core'
-import { contactName } from '@tg/core'
+import { ApiError, contactName } from '@tg/core'
 import { Avatar, Button, TextField } from '@tg/ui'
 import { t } from '../../i18n/index'
 import { socialApi } from './socialApi'
@@ -35,7 +35,8 @@ function Person({
 }
 
 export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
-  const { data, loaded, failed, act } = useContacts(api)
+  const contacts = useContacts(api)
+  const { data, loaded, failed } = contacts
   const [tab, setTab] = useState<Tab>('friends')
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<SocialUser[] | null>(null)
@@ -49,11 +50,31 @@ export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
       (chatId) => void navigate(`/chat/${encodeURIComponent(chatId)}`),
       () => setNote(t('w.contacts.cannotOpen')),
     )
+  const [searchNote, setSearchNote] = useState('')
   const search = () => {
     const q = query.trim().replace(/^@/, '')
     if (!q) return
-    api.search(q).then(setFound, () => setFound([]))
+    // The server answers 400 below two characters and 429 when searching too fast; both
+    // used to read as «没有找到» (TG-801).
+    if ([...q].length < 2) {
+      setFound(null)
+      setSearchNote(t('w.contacts.tooShort'))
+      return
+    }
+    setSearchNote('')
+    api.search(q).then(setFound, (error: unknown) => {
+      setFound(null)
+      setSearchNote(
+        error instanceof ApiError && error.status === 429 ? t('w.contacts.tooFast') : t('w.contacts.searchFailed'),
+      )
+    })
   }
+  /** Every change reloads the lists and, when results are shown, the search too. */
+  const act = (change: () => Promise<unknown>) =>
+    contacts.act(change).then((ok) => {
+      if (ok && found) search()
+      return ok
+    })
   const tabs: { id: Tab; label: string }[] = [
     { id: 'friends', label: t('w.contacts.friends', data.friends.length) },
     { id: 'requests', label: t('w.contacts.requests', data.incoming.length) },
@@ -91,6 +112,9 @@ export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
             <Person key={friend.id} user={friend}>
               {editing?.id === friend.id ? (
                 <form
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') setEditing(null)
+                  }}
                   onSubmit={(event) => {
                     event.preventDefault()
                     void act(() => api.setRemark(friend.id, editing.remark.trim())).then((ok) => {
@@ -168,7 +192,13 @@ export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
           {data.outgoing.map((request) => (
             <Person key={`out-${request.user.id}`} user={request.user}>
               <span className="tg-contacts__handle">{t('w.contacts.waiting')}</span>
-              <Button size="sm" variant="text" onClick={() => void act(() => api.cancelRequest(request.user.id))}>
+              <Button
+                size="sm"
+                variant="text"
+                onClick={() =>
+                  void act(() => api.cancelRequest(request.user.id)).then((ok) => tell(ok, t('w.contacts.withdrawn')))
+                }
+              >
                 {t('w.contacts.cancel')}
               </Button>
             </Person>
@@ -212,6 +242,7 @@ export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
               {t('w.contacts.search')}
             </Button>
           </form>
+          {searchNote ? <p role="status">{searchNote}</p> : null}
           <ul className="tg-contacts__list">
             {found && found.length === 0 ? <li className="tg-contacts__empty">{t('w.contacts.nobody')}</li> : null}
             {(found ?? []).map((user) => (
@@ -226,15 +257,21 @@ export function ContactsPage({ api = socialApi }: { api?: SocialApi }) {
                   <Button
                     size="sm"
                     onClick={() =>
-                      void act(() => api.sendRequest(user.id)).then((ok) => {
-                        tell(ok, t('w.contacts.requestSent'))
-                        if (ok) search()
-                      })
+                      void act(() => api.sendRequest(user.id)).then((ok) =>
+                        tell(ok, user.relationship === 'incoming' ? t('w.contacts.accepted') : t('w.contacts.requestSent')),
+                      )
                     }
                   >
                     {user.relationship === 'incoming' ? t('w.contacts.accept') : t('w.contacts.addFriend')}
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="text"
+                  onClick={() => void act(() => api.block(user.id)).then((ok) => tell(ok, t('w.contacts.blockedDone')))}
+                >
+                  {t('w.contacts.block')}
+                </Button>
               </Person>
             ))}
           </ul>

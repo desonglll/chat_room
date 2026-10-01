@@ -33,5 +33,9 @@ export const contactsPage: Catalog = {
   'w.contacts.nobody': 'No such user',
   'w.contacts.addFriend': 'Add friend',
   'w.contacts.requestSent': 'Friend request sent',
+  'w.contacts.tooShort': 'Type at least 2 characters',
+  'w.contacts.tooFast': 'Searching too fast, try again shortly',
+  'w.contacts.searchFailed': 'Search failed, try again later',
+  'w.contacts.withdrawn': 'Request withdrawn',
   'w.contacts.menu': 'Contacts',
 }

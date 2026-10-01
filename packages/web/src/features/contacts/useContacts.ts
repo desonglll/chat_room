@@ -1,6 +1,8 @@
 /** TG-702: friends, both request queues and the blocklist, reloaded after every change. */
 import { useCallback, useEffect, useState } from 'react'
+import { useStore } from 'zustand'
 import type { FriendRequestView, SocialApi, SocialUser } from '@tg/core'
+import { notificationsStore } from '../notifications/notificationsStore'
 
 export interface ContactsData {
   friends: SocialUser[]
@@ -30,7 +32,10 @@ export function useContacts(api: SocialApi) {
       ),
     [api],
   )
-  useEffect(() => void reload(), [reload])
+  // TG-801: the account socket's `social_changed` (a request arrived, was accepted, a friend
+  // removed you) reloads the page live instead of waiting for a manual refresh.
+  const socialRevision = useStore(notificationsStore, (state) => state.socialRevision)
+  useEffect(() => void reload(), [reload, socialRevision])
   /** Run a change, then reload; resolves false when the server refused it. */
   const act = useCallback(
     (change: () => Promise<unknown>) =>
