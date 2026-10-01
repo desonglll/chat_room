@@ -18,4 +18,8 @@ export const profile: Catalog = {
   'w.profile.d133af': '@{0} 的二维码',
   'w.profile.d643e9': '还没有头像照片',
   'w.profile.de99c3': '我的二维码',
+  // TG-1204
+  'w.profile.uploadNew': '上传新头像',
+  'w.profile.uploadFailed': '上传失败，请换一张图片重试',
+  'w.profile.uploadTooLarge': '图片不能超过 5 MB',
 }

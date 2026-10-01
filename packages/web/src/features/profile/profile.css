@@ -116,3 +116,21 @@
   font-weight: 600;
   color: var(--tg-text-primary);
 }
+
+/* TG-1204: the owner's «上传新头像» — a label wrapping a hidden file input, styled as a tonal button. */
+.tg-avatar-carousel__upload {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 36px;
+  padding: 0 16px;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-accent-soft);
+  color: var(--tg-text-link);
+  font-size: var(--tg-type-body-size);
+  cursor: pointer;
+}
+
+.tg-avatar-carousel__upload[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: progress;
+}

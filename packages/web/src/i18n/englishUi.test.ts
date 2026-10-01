@@ -11,13 +11,7 @@ import { loadLocale, t } from './index'
 
 const PACKAGES = join(import.meta.dir, '../../..')
 const ROOTS = ['web/src', 'core/src', 'ui/src']
-const ALLOWED = [
-  /\/i18n\/zh(\/|\.ts$)/,
-  /\.test\.tsx?$/,
-  /\/test\//,
-  /\/fixtures\//,
-  /\/bench\//,
-]
+const ALLOWED = [/\/i18n\/zh(\/|\.ts$)/, /\.test\.tsx?$/, /\/test\//, /\/fixtures\//, /\/bench\//]
 /**
  * Lines that may keep CJK, as `[file, substring]`. INTENTIONAL entries parse user input or name a
  * language in itself. PENDING entries are real English-UI defects in paths other owners hold

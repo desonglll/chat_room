@@ -18,4 +18,8 @@ export const profile: Catalog = {
   'w.profile.d133af': 'QR code of @{0}',
   'w.profile.d643e9': 'No profile photos yet',
   'w.profile.de99c3': 'My QR code',
+  // TG-1204
+  'w.profile.uploadNew': 'Upload a new photo',
+  'w.profile.uploadFailed': 'Upload failed. Try another image',
+  'w.profile.uploadTooLarge': 'The image must be 5 MB or smaller',
 }
