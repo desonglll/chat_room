@@ -827,3 +827,12 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Work** Telegram 群/频道名不唯一。前向迁移去掉 `chats_title_active_idx`（双库成对，按前缀递增）；`client join --room-name` 重名时报错并列出候选（id、成员数），不随便挑一个；更新 `tests/integration_test.rs` 中断言重名 409 的测试为新契约；检查所有按标题查找聊天的服务端路径。
 - **Allowed** `migrations/`、`migrations-postgres/`（新文件）、`src/chats/**`、`src/bin/client*`、`tests/**`。
 - **Acceptance** 双库 fresh/upgrade 迁移测试；重名创建成功；CLI 重名提示测试。
+
+# M13 手机端问题（2026-10-01，用户：「手机端表情无法加载，位置无法发送，手机浏览器无法发送语音和发送视频；图片显示小尺寸略缩图，点击才显示原图」）
+
+根因（负责人核实）：手机经 `http://局域网IP` 访问不是安全上下文——`crypto.subtle`（`emoji-picker-element` 用它对表情数据做 SHA-1 校验和）、`getUserMedia`（语音/圆形视频）、`geolocation` 均不可用；代码无任何安全上下文检测，所以静默失败。服务端监听不支持 HTTPS。
+
+## TG-1301 非安全上下文下的降级与提示 · S
+- **Work** 表情面板在没有 `crypto.subtle` 时仍能加载（为 `emoji-picker-element` 提供 SHA-1 摘要的纯 JS 回退，仅在缺失时安装，不改变安全上下文下的行为）；语音、圆形视频、位置入口在 `!isSecureContext` 或能力缺失时给出明确提示（「需要通过 HTTPS 打开才能使用麦克风/摄像头/定位」）而非静默失败；权限被拒、设备不存在也各有提示。
+- **Allowed** `packages/web/src/features/{composer,voice,videoNote,location}/**`、`packages/core/src/i18n/**`（追加）、对应测试。
+- **Acceptance** 单元测试覆盖回退与各提示分支；Playwright 以 `http://<非 localhost 地址>` 打开（Chromium 视为非安全上下文）验证表情面板加载、三个入口显示提示。
