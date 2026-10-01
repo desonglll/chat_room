@@ -27,6 +27,8 @@ const LAST_SEEN_REFRESH: Duration = Duration::from_secs(60);
 
 pub(super) struct OutboundCursors {
     pub messages: Option<MessageCursor>,
+    /// TG-604: messages that committed behind the cursor.
+    pub late: super::late_commits::LateCommits,
     pub recalls: Option<RecallCursor>,
     pub edits: Option<EditCursor>,
 }
@@ -176,6 +178,7 @@ async fn poll_database_updates(
                     created_at: message.created_at,
                     id: message.id,
                 });
+                cursors.late.sent(message.id, message.created_at);
                 if send_json(sink, &stored_message_to_chat(message))
                     .await
                     .is_err()
@@ -185,6 +188,25 @@ async fn poll_database_updates(
             }
         }
         Err(error) => tracing::warn!("poll chat messages failed: {}", error),
+    }
+    if let Some(cursor_at) = cursors.messages.as_ref().map(|cursor| cursor.created_at) {
+        match cursors
+            .late
+            .missed(state, room_id, cursor_at, user_id)
+            .await
+        {
+            Ok(missed) => {
+                for message in missed {
+                    if send_json(sink, &stored_message_to_chat(message))
+                        .await
+                        .is_err()
+                    {
+                        return false;
+                    }
+                }
+            }
+            Err(error) => tracing::warn!("poll late-committed messages failed: {error}"),
+        }
     }
     match state
         .recalls_after(room_id, cursors.recalls.as_ref(), limit)

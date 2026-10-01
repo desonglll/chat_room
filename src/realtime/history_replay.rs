@@ -104,5 +104,6 @@ pub(super) async fn replay_history(
         messages: history_boundary,
         recalls: recall_boundary,
         edits: edit_boundary,
+        late: Default::default(),
     })
 }
