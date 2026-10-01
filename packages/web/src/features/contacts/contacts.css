@@ -1,73 +1,225 @@
-/* TG-702: the contacts page in the main pane. */
+/* «联系人» in the main pane (TG-702), laid out as Telegram's contacts list (TG-903). */
 .tg-contacts {
   display: flex;
   flex-direction: column;
-  gap: var(--tg-space-3);
   inline-size: 100%;
-  max-inline-size: 42rem;
+  max-inline-size: 36rem;
+  block-size: 100%;
   margin: 0 auto;
-  padding: var(--tg-space-4);
   overflow-y: auto;
   background: var(--tg-surface);
+  box-shadow: var(--tg-shadow-column);
 }
 
-.tg-contacts__header h2 {
-  margin: 0 0 var(--tg-space-2);
-  font-size: var(--tg-type-header-size);
-}
-
-.tg-contacts__tabs {
+.tg-contacts__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-4) 0;
+  background: var(--tg-surface);
+  border-bottom: 1px solid var(--tg-divider);
+}
+
+.tg-contacts__titlebar {
+  display: flex;
+  align-items: center;
   gap: var(--tg-space-1);
 }
 
-.tg-contacts__tabs button {
-  padding: var(--tg-space-1-5) var(--tg-space-3);
-  border: 0;
+.tg-contacts__header h2 {
+  margin: 0;
+  font-size: var(--tg-type-header-size);
+  font-weight: var(--tg-weight-medium);
+}
+
+.tg-contacts__filter {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 2.5rem;
+  padding: 0 var(--tg-space-4);
+  border: 2px solid transparent;
   border-radius: var(--tg-radius-pill);
   background: var(--tg-bg-secondary);
   color: var(--tg-text-primary);
   font: inherit;
+  outline: none;
+  transition: border-color var(--tg-transition-fade);
+}
+
+.tg-contacts__filter:focus {
+  border-color: var(--tg-accent);
+  background: var(--tg-surface);
+}
+
+.tg-contacts__tabs {
+  display: flex;
+  gap: var(--tg-space-1);
+}
+
+.tg-contacts__tabs button {
+  position: relative;
+  padding: var(--tg-space-2) var(--tg-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--tg-text-secondary);
+  font: inherit;
+  font-weight: var(--tg-weight-medium);
   cursor: pointer;
 }
 
 .tg-contacts__tabs button[aria-selected='true'] {
+  color: var(--tg-accent);
+}
+
+.tg-contacts__tabs button[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--tg-space-2);
+  bottom: 0;
+  block-size: 3px;
+  border-radius: 3px 3px 0 0;
   background: var(--tg-accent);
-  color: var(--tg-text-on-accent);
+}
+
+.tg-contacts__note {
+  margin: var(--tg-space-2) var(--tg-space-4) 0;
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
 }
 
 .tg-contacts__list {
   margin: 0;
-  padding: 0;
+  padding: var(--tg-space-2);
   list-style: none;
+}
+
+.tg-contacts__menu-region {
+  display: block;
 }
 
 .tg-contacts__row {
   display: flex;
   align-items: center;
+  gap: var(--tg-space-2);
+  border-radius: var(--tg-radius-lg);
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-contacts__row:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-contacts__open {
+  display: flex;
+  align-items: center;
   gap: var(--tg-space-3);
-  padding: var(--tg-space-2) 0;
-  border-bottom: 1px solid var(--tg-divider);
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 4.5rem;
+  padding: 0 var(--tg-space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+span.tg-contacts__open {
+  cursor: default;
+}
+
+.tg-contacts__open:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: calc(-1 * var(--tg-focus-ring-width));
+  border-radius: var(--tg-radius-lg);
 }
 
 .tg-contacts__name {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  min-width: 0;
+  min-inline-size: 0;
 }
 
-.tg-contacts__handle,
-.tg-contacts__empty {
+.tg-contacts__title {
+  overflow: hidden;
+  font-weight: var(--tg-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-contacts__status,
+.tg-contacts__hint {
+  overflow: hidden;
   color: var(--tg-text-secondary);
-  font-size: var(--tg-type-meta-size);
+  font-size: var(--tg-type-subtitle-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tg-contacts__actions,
-.tg-contacts__search {
+.tg-contacts__status[data-online] {
+  color: var(--tg-accent);
+}
+
+.tg-contacts__more {
+  margin-inline-end: var(--tg-space-2);
+  opacity: 0;
+  transition: opacity var(--tg-transition-fade);
+}
+
+.tg-contacts__row:hover .tg-contacts__more,
+.tg-contacts__more:focus-visible {
+  opacity: 1;
+}
+
+.tg-contacts__actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--tg-space-1);
+  padding-inline-end: var(--tg-space-2);
+}
+
+.tg-contacts__remark {
+  flex: 0 1 14rem;
+  padding-inline-end: var(--tg-space-2);
+}
+
+.tg-contacts__empty {
+  padding: var(--tg-space-8) var(--tg-space-4);
+  color: var(--tg-text-secondary);
+  text-align: center;
+}
+
+.tg-contacts__add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-2);
+  padding: var(--tg-space-3) var(--tg-space-2);
+}
+
+.tg-contacts__search {
+  display: flex;
+  gap: var(--tg-space-2);
+  padding: 0 var(--tg-space-2);
+}
+
+.tg-contacts__search > :first-child {
+  flex: 1;
+}
+
+@media (hover: none) {
+  .tg-contacts__more {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-contacts__row,
+  .tg-contacts__more,
+  .tg-contacts__filter {
+    transition: none;
+  }
 }

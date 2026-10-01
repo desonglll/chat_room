@@ -13,6 +13,7 @@ import { useStore } from 'zustand/react'
 import { linkify } from '../message/content/linkify'
 import { favoritesApi } from './savedMessagesApi'
 import { t } from '../../i18n/index'
+import { MobileBackButton } from '../shell/MobileBackButton'
 
 function time(iso: string): string {
   const date = new Date(iso)
@@ -143,6 +144,7 @@ export function SavedMessagesRoute({ api = favoritesApi }: { api?: typeof favori
   return (
     <section className="tg-saved" aria-label={t('w.savedMessages.e6f497')}>
       <header className="tg-saved__header">
+        <MobileBackButton />
         <h2 className="tg-saved__title">{t('w.savedMessages.e6f497')}</h2>
         {notice ? (
           <span className="tg-saved__notice" role="status">

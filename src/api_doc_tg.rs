@@ -45,6 +45,7 @@ use utoipa::OpenApi;
         messages::link_previews::handlers::get_link_preview,
         messages::link_previews::handlers::hide_link_preview,
         messages::shared_links::handlers::list_shared_links,
+        social::status_handlers::friend_statuses,
         messages::locations::handlers::send_location,
         messages::locations::handlers::update_live_location,
         messages::locations::handlers::stop_live_location,

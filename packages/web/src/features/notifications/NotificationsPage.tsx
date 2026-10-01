@@ -10,6 +10,7 @@ import { notificationTarget } from '@tg/core'
 import { Avatar, Button } from '@tg/ui'
 import { t } from '../../i18n/index'
 import { notificationsApi, notificationsStore } from './notificationsStore'
+import { MobileBackButton } from '../shell/MobileBackButton'
 
 const KIND_LABEL: Record<NotificationView['kind'], string> = {
   get friend_request() {
@@ -74,6 +75,7 @@ export function NotificationsPage({ api = notificationsApi }: { api?: Notificati
   return (
     <section className="tg-notifications" aria-label={t('w.notifications.title')}>
       <header className="tg-notifications__header">
+        <MobileBackButton />
         <h2>{t('w.notifications.title')}</h2>
         <Button size="sm" variant="text" disabled={!items.some((item) => !item.read_at)} onClick={readAll}>
           {t('w.notifications.readAll')}

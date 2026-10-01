@@ -13,7 +13,7 @@
  * picker, delete confirmation) is mounted once here, above every pane.
  */
 import type { CSSProperties } from 'react'
-import { Outlet, useMatch, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { authStore, selectToken, uiStore } from '@tg/core'
 import { useStore } from 'zustand/react'
 import { ChatOverlays } from '../chat/ChatOverlays'
@@ -34,7 +34,9 @@ export function WorkspaceShell() {
   const token = useStore(authStore, selectToken)
   const infoOpen = useStore(uiStore, (state) => state.activePanel === 'chatInfo')
   const chatMatch = useMatch('/chat/:chatId/*')
-  const chatOpen = chatMatch !== null
+  // TG-903: on phones the main pane is shown for every page, not only chats (contacts,
+  // notifications, saved messages… were unreachable at 390 px). Only `/` shows the list.
+  const chatOpen = useLocation().pathname !== '/'
   const mobile = useMobileLayout()
   const { layout, preview, commit, toggleCollapsed } = useSidebarLayout()
 

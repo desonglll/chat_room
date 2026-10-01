@@ -13,6 +13,7 @@ import { AdminAccess } from './AdminAccess'
 import { adminApi } from './adminApi'
 import { AdminChats } from './AdminChats'
 import { AdminOverviewCard } from './AdminOverviewCard'
+import { MobileBackButton } from '../shell/MobileBackButton'
 
 export function AdminPage({ api = adminApi, social = socialApi }: { api?: AdminApi; social?: SocialApi }) {
   const [overview, setOverview] = useState<AdminOverview | null>(null)
@@ -34,6 +35,7 @@ export function AdminPage({ api = adminApi, social = socialApi }: { api?: AdminA
   return (
     <section className="tg-admin" aria-label={t('w.admin.title')}>
       <header className="tg-admin__header">
+        <MobileBackButton />
         <h2>{t('w.admin.title')}</h2>
         <Button size="sm" variant="text" onClick={() => void load()}>
           {t('w.admin.refresh')}

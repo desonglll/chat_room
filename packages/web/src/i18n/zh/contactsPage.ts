@@ -38,4 +38,7 @@ export const contactsPage: Catalog = {
   'w.contacts.searchFailed': '查找失败，请稍后重试',
   'w.contacts.withdrawn': '已撤回申请',
   'w.contacts.menu': '联系人',
+  'w.contacts.filter': '搜索联系人',
+  'w.contacts.noMatch': '没有匹配的联系人',
+  'w.contacts.rowMenu': '联系人操作',
 }
