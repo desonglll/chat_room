@@ -1,0 +1,65 @@
+/* TG-902: Telegram Web A's new-chat button at the bottom-right of the chat list. */
+
+.tg-chatlist__body {
+  position: relative;
+}
+
+.tg-chatlist__fab {
+  position: absolute;
+  inset-inline-end: var(--tg-space-4);
+  inset-block-end: var(--tg-space-4);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+  border: 0;
+  border-radius: var(--tg-radius-circle);
+  background: var(--tg-accent);
+  color: var(--tg-text-on-accent);
+  box-shadow: var(--tg-shadow-menu);
+  cursor: pointer;
+  animation: tg-chatlist-fab-in var(--tg-duration-enter) var(--tg-ease-overshoot) both;
+  transition:
+    background-color var(--tg-transition-fade),
+    transform var(--tg-transition-press);
+}
+
+.tg-chatlist__fab:hover {
+  background: var(--tg-accent-hover);
+}
+
+.tg-chatlist__fab:active {
+  transform: scale(0.92);
+}
+
+.tg-chatlist__fab[data-open] svg {
+  transform: rotate(-45deg);
+}
+
+.tg-chatlist__fab svg {
+  transition: transform var(--tg-transition-press);
+}
+
+.tg-chatlist__fab:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: 2px;
+}
+
+@keyframes tg-chatlist-fab-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-chatlist__fab,
+  .tg-chatlist__fab svg {
+    transition: none;
+  }
+
+  .tg-chatlist__fab {
+    animation: none;
+  }
+}

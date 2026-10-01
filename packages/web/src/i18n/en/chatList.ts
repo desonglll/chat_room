@@ -73,4 +73,6 @@ export const chatList: Catalog = {
   'w.chatList.media.liveLocation': 'Live location',
   'w.chatList.media.contact': 'Contact',
   'w.chatList.media.album': 'Album',
+  'w.chatList.newChat': 'New',
+  'w.chatList.newMessage': 'New Message',
 }
