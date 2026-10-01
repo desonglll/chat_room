@@ -277,3 +277,55 @@ describe('chat socket', () => {
     expect(socket.lastBroadcastCursor()).toEqual({ timestamp: '2026-09-30T12:00:06Z', messageId: 'm3' })
   })
 })
+
+describe('TG-906 a factory that throws', () => {
+  test('goes offline and retries instead of sticking on connecting', () => {
+    const clock = new FakeClock()
+    const sockets: FakeSocket[] = []
+    let failures = 1
+    const statuses: string[] = []
+    const socket = createChatSocket({
+      url: 'ws://test/ws/chat-1',
+      token: 'tok',
+      createSocket: () => {
+        if (failures > 0) {
+          failures -= 1
+          throw new Error('blocked')
+        }
+        const next = new FakeSocket()
+        sockets.push(next)
+        return next
+      },
+      clock,
+    })
+    socket.onStatus((status) => statuses.push(status))
+    socket.connect()
+    expect(statuses.at(-1)).toBe('offline')
+    expect(clock.pendingDelays()).toHaveLength(1)
+    clock.fireNext()
+    expect(sockets).toHaveLength(1)
+    expect(statuses.at(-1)).toBe('connecting')
+  })
+})
+
+describe('TG-906 catch-up compares instants', () => {
+  test('a missed message with a fractional timestamp after a whole-second cursor is replayed', async () => {
+    const frames: ServerFrame[] = []
+    const { socket, latest, clock } = harness({
+      fetchMissed: async () => [stored('m2', '2026-10-01T09:00:00.500Z')],
+    })
+    socket.on('broadcast', (frame) => frames.push(frame))
+    socket.connect()
+    latest().open()
+    latest().receive(AUTH_OK)
+    latest().receive(broadcastFrame('m1', '2026-10-01T09:00:00Z'))
+    latest().receive({ type: 'history_complete' })
+    latest().dropFromServer()
+    clock.fireNext()
+    latest().open()
+    latest().receive(AUTH_OK)
+    latest().receive({ type: 'history_complete' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(frames.map((frame) => (frame as { message_id: string }).message_id)).toContain('m2')
+  })
+})

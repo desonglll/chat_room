@@ -13,7 +13,7 @@
     "./domain": "./src/domain/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "lint": "prettier --check src test",
     "format": "prettier --write src test",
     "test": "bun test",
