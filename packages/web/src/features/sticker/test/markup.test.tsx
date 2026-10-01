@@ -2,7 +2,7 @@
  * Static markup of the panel pieces (`bun test` has no DOM): structure, names, and that the
  * grid mounts only the rows near the viewport even with 300 stickers installed.
  */
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { stickerStore } from '@tg/core'
 import { mediaPanelTabStore } from '../panel/mediaPanelTabs'
@@ -36,6 +36,16 @@ afterAll(() => {
   mediaPanelTabStore.getInitialState = initial.tabs
 })
 afterEach(() => stickerStore.getState().reset())
+
+// The tab registry is module-global and `gif/register` fills it on import. Bun loads every
+// test file into one process in directory order, which differs between machines, so these
+// tests start from an empty registry instead of whatever an earlier file left behind.
+let savedTabs: ReturnType<typeof mediaPanelTabStore.getState>['tabs'] = []
+beforeEach(() => {
+  savedTabs = mediaPanelTabStore.getState().tabs
+  mediaPanelTabStore.setState({ tabs: [] })
+})
+afterEach(() => mediaPanelTabStore.setState({ tabs: savedTabs }))
 
 const panel = (tab: string) =>
   renderToStaticMarkup(

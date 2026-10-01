@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { moveId, shortNameFromLink, stickerSetLink } from '../manage/setOrder'
 import { mediaPanelTabStore, registerMediaPanelTab } from '../panel/mediaPanelTabs'
 import { searchStickers } from '../panel/stickerSearch'
@@ -46,6 +46,15 @@ describe('set management helpers', () => {
 })
 
 describe('media panel tab registry', () => {
+  // Start empty: `gif/register` may already have filled this module-global registry if its
+  // test file loaded first (bun's file order follows the directory listing, so CI differs).
+  let savedTabs: ReturnType<typeof mediaPanelTabStore.getState>['tabs'] = []
+  beforeEach(() => {
+    savedTabs = mediaPanelTabStore.getState().tabs
+    mediaPanelTabStore.setState({ tabs: [] })
+  })
+  afterEach(() => mediaPanelTabStore.setState({ tabs: savedTabs }))
+
   test('registration sorts by order, replaces by id, and undo restores', () => {
     const first = registerMediaPanelTab({ id: 'gif', label: 'GIF', order: 30, render: () => 'one' })
     registerMediaPanelTab({ id: 'extra', label: 'X', order: 25, render: () => null })
@@ -60,6 +69,5 @@ describe('media panel tab registry', () => {
     ).toBe('one')
     first()
     expect(mediaPanelTabStore.getState().tabs.map((tab) => tab.id)).toEqual(['extra'])
-    mediaPanelTabStore.setState({ tabs: [] })
   })
 })
