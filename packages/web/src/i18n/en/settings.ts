@@ -218,4 +218,7 @@ export const settings: Catalog = {
   'w.settings.fb3849': 'Settings sections',
   'w.settings.fc2484': 'Set a two-step password',
   'w.settings.febcf8': 'Pink',
+  // TG-1204
+  'w.settings.localeZh': 'Chinese (Simplified)',
+  'w.settings.localeEn': 'English',
 }

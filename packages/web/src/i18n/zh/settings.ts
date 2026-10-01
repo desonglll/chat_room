@@ -214,4 +214,7 @@ export const settings: Catalog = {
   'w.settings.fb3849': '设置分区',
   'w.settings.fc2484': '设置两步验证密码',
   'w.settings.febcf8': '粉',
+  // TG-1204
+  'w.settings.localeZh': '简体中文',
+  'w.settings.localeEn': '英语',
 }
