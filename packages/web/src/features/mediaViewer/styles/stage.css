@@ -107,6 +107,22 @@
   cursor: pointer;
 }
 
+/* TG-1302: the thumbnail fills the box the original will take; the original paints over it. */
+.tg-mv__media--preview {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  max-block-size: none;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.tg-mv__media[data-loading] {
+  opacity: 0;
+}
+
 .tg-mv__media--veiled {
   filter: blur(var(--tg-blur-glass));
   transform: scale(1.1);

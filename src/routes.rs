@@ -83,6 +83,10 @@ pub(crate) fn api_routes(
             get(attachment_handlers::download_attachment),
         )
         .route(
+            "/api/attachments/:id/thumbnail",
+            get(crate::attachments::thumbnails::download_thumbnail),
+        )
+        .route(
             "/api/attachments/uploads/:id/chunks",
             axum::routing::put(attachment_upload_handlers::upload_chunk)
                 .layer(axum::extract::DefaultBodyLimit::max(chunk_body_limit)),

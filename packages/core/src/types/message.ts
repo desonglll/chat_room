@@ -15,6 +15,8 @@ export interface Attachment {
   size_bytes: number
   download_url: string
   is_sensitive: boolean
+  /** TG-1302: server-made preview (longest edge 640 px) for raster images; absent otherwise. */
+  thumbnail_url?: string | null
 }
 
 export interface ReplyPreview {

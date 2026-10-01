@@ -1,6 +1,6 @@
-import { expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import type { BroadcastMessage, DisplayMessage } from '@tg/core'
-import { compareItems, mediaFromMessages, mergeItems, viewerKind } from '../mediaItem'
+import { compareItems, mediaFromFileItem, mediaFromMessages, mergeItems, viewerKind } from '../mediaItem'
 import { toMediaPage } from '../chatMediaSource'
 import { fileRow, media } from './fixtures'
 
@@ -83,4 +83,19 @@ test('a /files page keeps its raw cursor and oldest row time even when it filter
   const page = toMediaPage({ items: [fileRow(9, 'application/zip'), fileRow(8, 'text/plain')], next_before: 'm8' })
   expect(page).toEqual({ items: [], nextBefore: 'm8', oldestAt: fileRow(8).created_at })
   expect(toMediaPage({ items: [], next_before: null })).toEqual({ items: [], nextBefore: null, oldestAt: null })
+})
+
+describe('TG-1302 previewUrl', () => {
+  test('an image previews through its thumbnail; the original stays the url', () => {
+    const row = fileRow(1)
+    row.attachment.thumbnail_url = '/api/attachments/a1/thumbnail?key=k1'
+    const item = mediaFromFileItem(row)!
+    expect(item.url).toBe('/api/attachments/a1?key=k1')
+    expect(item.previewUrl).toBe('/api/attachments/a1/thumbnail?key=k1')
+  })
+
+  test('videos and thumbnail-less images preview through the original', () => {
+    expect(mediaFromFileItem(fileRow(2, 'video/mp4'))!.previewUrl).toBe('/api/attachments/a2?key=k2')
+    expect(mediaFromFileItem(fileRow(3))!.previewUrl).toBe('/api/attachments/a3?key=k3')
+  })
 })

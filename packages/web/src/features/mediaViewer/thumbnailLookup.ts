@@ -1,7 +1,8 @@
 /**
  * Finding the bubble thumbnail a medium flies from and back to. The bubble (TG-103) renders
  * the media frame as `.tg-bubble__media` around an `<img>`/`<video>` whose `src` is the
- * attachment's `download_url`, which is unique per attachment — so the URL is the join key
+ * item's `previewUrl` (the thumbnail, TG-1302, else `download_url`), unique per attachment —
+ * so the URL is the join key
  * and the bubble needs no extra attribute. A virtualised-away or scrolled-off thumbnail is
  * simply not found, and the viewer fades instead of flying.
  */

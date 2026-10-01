@@ -8,6 +8,7 @@ import type { Ref } from 'react'
 import type { MediaItem } from './mediaItem'
 import type { Size } from './zoomGeometry'
 import { VideoPlayer } from './video/VideoPlayer'
+import { ViewerImage } from './ViewerImage'
 import { PlayGlyph } from './icons'
 import { t } from '../../i18n/index'
 
@@ -26,24 +27,13 @@ export function MediaSlide({ item, active, revealed, onReveal, mediaRef, natural
     return (
       <button type="button" className="tg-mv__veil" onClick={onReveal} data-mv-chrome="">
         {item.kind === 'image' ? (
-          <img className="tg-mv__media tg-mv__media--veiled" src={item.url} alt="" draggable={false} />
+          <img className="tg-mv__media tg-mv__media--veiled" src={item.previewUrl} alt="" draggable={false} />
         ) : null}
         <span className="tg-mv__veil-label">{t('w.mediaViewer.8c0540')}</span>
       </button>
     )
   }
-  if (item.kind === 'image') {
-    return (
-      <img
-        ref={active ? mediaRef : undefined}
-        className="tg-mv__media"
-        src={item.url}
-        alt={item.fileName}
-        draggable={false}
-        decoding="async"
-      />
-    )
-  }
+  if (item.kind === 'image') return <ViewerImage item={item} mediaRef={active ? mediaRef : undefined} />
   if (active) return <VideoPlayer key={item.url} item={item} natural={natural} />
   return (
     <span className="tg-mv__still">

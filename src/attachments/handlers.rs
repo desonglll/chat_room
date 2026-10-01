@@ -28,7 +28,7 @@ const MAX_MESSAGE_CHARS: usize = 4096;
 
 #[derive(Deserialize)]
 pub struct AttachmentAccess {
-    key: Uuid,
+    pub(crate) key: Uuid,
 }
 
 #[utoipa::path(

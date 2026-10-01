@@ -56,12 +56,17 @@ pub(super) struct FavoriteRow {
 impl FavoriteRow {
     pub(super) fn into_item(self) -> FavoriteItem {
         let attachment = self.attachment_id.and_then(|id| {
+            let access_key = self.attachment_access_key?;
+            let mime_type = self.attachment_mime_type?;
             Some(Attachment {
                 id,
                 file_name: self.attachment_file_name?,
-                mime_type: self.attachment_mime_type?,
+                thumbnail_url: crate::attachments::thumbnails::thumbnail_url(
+                    id, &mime_type, access_key,
+                ),
+                mime_type,
                 size_bytes: self.attachment_size_bytes?,
-                download_url: format!("/api/attachments/{id}?key={}", self.attachment_access_key?),
+                download_url: format!("/api/attachments/{id}?key={access_key}"),
                 is_sensitive: self.attachment_is_sensitive.unwrap_or(false),
             })
         });

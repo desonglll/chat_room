@@ -4,6 +4,7 @@
  */
 import type { Attachment, ChatFileItem, DisplayMessage } from '@tg/core'
 import { attachmentKind } from '../message/content/attachmentKind'
+import { attachmentPreviewUrl } from '../message/content/attachmentPreview'
 
 export type MediaKind = 'image' | 'video'
 
@@ -11,7 +12,13 @@ export interface MediaItem {
   attachmentId: string
   messageId: string
   kind: MediaKind
+  /** The original — what the stage shows once loaded, and what "download" saves. */
   url: string
+  /**
+   * TG-1302: what the chat bubble and the strip show — the server thumbnail for an image, else
+   * `url`. The stage paints it first and swaps to `url` when that has loaded.
+   */
+  previewUrl: string
   fileName: string
   mimeType: string
   sizeBytes: number
@@ -40,6 +47,7 @@ function fromAttachment(
     attachmentId: attachment.id,
     kind,
     url: attachment.download_url,
+    previewUrl: kind === 'image' ? attachmentPreviewUrl(attachment) : attachment.download_url,
     fileName: attachment.file_name,
     mimeType: attachment.mime_type,
     sizeBytes: attachment.size_bytes,

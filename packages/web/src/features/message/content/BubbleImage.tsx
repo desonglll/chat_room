@@ -5,8 +5,14 @@
 import { useState } from 'react'
 import { t } from '../../../i18n/index'
 
-export function BubbleImage({ src, name }: { src: string; name: string }) {
+/**
+ * `fallbackSrc` (TG-1302): the original, tried once if the thumbnail cannot be served (too large
+ * or undecodable on the server), before the image is shown as unavailable.
+ */
+export function BubbleImage({ src, name, fallbackSrc }: { src: string; name: string; fallbackSrc?: string }) {
   const [broken, setBroken] = useState(false)
+  const [usingFallback, setUsingFallback] = useState(false)
+  const shown = usingFallback && fallbackSrc ? fallbackSrc : src
   if (broken) {
     return (
       <span
@@ -35,12 +41,15 @@ export function BubbleImage({ src, name }: { src: string; name: string }) {
   return (
     <img
       className="tg-bubble__image"
-      src={src}
+      src={shown}
       alt={name}
       loading="lazy"
       decoding="async"
       draggable={false}
-      onError={() => setBroken(true)}
+      onError={() => {
+        if (!usingFallback && fallbackSrc && fallbackSrc !== src) setUsingFallback(true)
+        else setBroken(true)
+      }}
     />
   )
 }

@@ -70,7 +70,7 @@ export default function ViewerSurface({ request, actions, fetchPage, onClosed }:
   })
 
   // Keep the current item's bubble thumbnail hidden while its copy is up here.
-  const currentUrl = current?.url ?? ''
+  const currentUrl = current?.previewUrl ?? ''
   useEffect(() => {
     const thumbnail = findThumbnail(currentUrl)
     return thumbnail ? hideThumbnail(thumbnail.frame) : undefined

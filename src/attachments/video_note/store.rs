@@ -147,6 +147,7 @@ impl AppState {
                 size_bytes: note.size_bytes,
                 download_url: format!("/api/attachments/{attachment_id}?key={access_key}"),
                 is_sensitive: false,
+                thumbnail_url: None,
             }),
             reply_to,
             created_at,

@@ -209,6 +209,12 @@ impl AttachmentStore {
         self.root.join(&key[..2]).join(key)
     }
 
+    /// TG-1302: derived image thumbnails, cached locally even with OSS (they regenerate from
+    /// the original). A top-level dot directory, so backups and restores skip it like `.staging`.
+    pub fn thumbnail_cache_dir(&self) -> PathBuf {
+        self.root.join(".thumbnails")
+    }
+
     pub fn oss_enabled(&self) -> bool {
         self.oss.is_some()
     }
