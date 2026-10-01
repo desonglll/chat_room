@@ -63,11 +63,11 @@ class ApiClient(FeatureApiMixin, QObject):
         self.request_json("conversations", "GET", "/api/conversations")
 
     def rooms(self) -> None:
-        self.request_json("rooms", "GET", "/api/rooms")
+        self.request_json("rooms", "GET", "/api/chats")
 
     def get_room(self, room_id: str) -> None:
         room_path = quote(room_id.strip(), safe="")
-        self.request_json("room-lookup", "GET", f"/api/rooms/{room_path}")
+        self.request_json("room-lookup", "GET", f"/api/chats/{room_path}")
 
     def create_room(
         self,
@@ -80,9 +80,9 @@ class ApiClient(FeatureApiMixin, QObject):
         self.request_json(
             "create-room",
             "POST",
-            "/api/rooms",
+            "/api/chats",
             {
-                "name": name,
+                "title": name,
                 "password": password or None,
                 "join_policy": join_policy,
                 "avatar_emoji": avatar_emoji,
@@ -95,7 +95,7 @@ class ApiClient(FeatureApiMixin, QObject):
         self.request_json(
             f"join-room:{room_id}",
             "POST",
-            f"/api/rooms/{room_path}/join-requests",
+            f"/api/chats/{room_path}/join-requests",
             {"password": password or None},
         )
 
@@ -112,18 +112,18 @@ class ApiClient(FeatureApiMixin, QObject):
 
     def ai_suggestions(self, room_id: str) -> None:
         room_path = quote(room_id, safe="")
-        self.request_json("ai-suggestions", "POST", f"/api/rooms/{room_path}/ai/suggest")
+        self.request_json("ai-suggestions", "POST", f"/api/chats/{room_path}/ai/suggest")
 
     def room_members(self, room_id: str) -> None:
         room_path = quote(room_id, safe="")
-        self.request_json(f"room-members:{room_id}", "GET", f"/api/rooms/{room_path}/members")
+        self.request_json(f"room-members:{room_id}", "GET", f"/api/chats/{room_path}/members")
 
     def invite_room_member(self, room_id: str, username: str) -> None:
         room_path = quote(room_id, safe="")
         self.request_json(
             f"invite-member:{room_id}",
             "POST",
-            f"/api/rooms/{room_path}/invitations",
+            f"/api/chats/{room_path}/invitations",
             {"username": username},
         )
 
@@ -136,7 +136,7 @@ class ApiClient(FeatureApiMixin, QObject):
         self.request_json(
             f"member-action:{room_id}",
             "PATCH",
-            f"/api/rooms/{room_path}/members/{user_path}",
+            f"/api/chats/{room_path}/members/{user_path}",
             payload,
         )
 
@@ -186,7 +186,7 @@ class ApiClient(FeatureApiMixin, QObject):
             self.failed.emit("attachment-upload", "无法读取所选文件", 0)
             return
         request = self._request_headers(
-            f"/api/rooms/{quote(room_id, safe='')}/attachments",
+            f"/api/chats/{quote(room_id, safe='')}/attachments",
             authenticated=True,
         )
         if room_password:

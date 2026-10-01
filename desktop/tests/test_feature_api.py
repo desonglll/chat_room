@@ -39,7 +39,7 @@ def test_search_notifications_and_preferences_use_frozen_contracts() -> None:
     )
     assert api.requests[3][1:3] == (
         "GET",
-        "/api/rooms/room%2Fone/messages/message%2Fone/context?limit=60",
+        "/api/chats/room%2Fone/messages/message%2Fone/context?limit=60",
     )
     assert api.requests[3][5] == {"x-room-password": "room-password"}
 
