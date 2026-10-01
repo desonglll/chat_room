@@ -11,6 +11,8 @@ import { Avatar, Button } from '@tg/ui'
 import { t } from '../../i18n/index'
 import { notificationsApi, notificationsStore } from './notificationsStore'
 import { MobileBackButton } from '../shell/MobileBackButton'
+// TG-1003: this screen is lazy, so its stylesheet travels with it, not in the first paint.
+import './notifications.css'
 
 const KIND_LABEL: Record<NotificationView['kind'], string> = {
   get friend_request() {

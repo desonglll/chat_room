@@ -61,4 +61,5 @@ export const composer: Catalog = {
   'w.composer.fe87c8': 'Nothing to schedule',
   'w.composer.fecd66': 'Emoji',
   'w.composer.otherChat': 'another chat',
+  'w.composer.recorderLoading': 'Preparing the recorder',
 }

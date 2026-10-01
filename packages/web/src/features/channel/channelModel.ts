@@ -42,7 +42,7 @@ export function channelPostOf(message: BroadcastMessage): ChannelPostParts | nul
 
 /** The post's part of the meta's accessible sentence. */
 export function channelPostLabel(post: ChannelPostParts): string {
-  return [t('w.channel.fdaf57', formatViews(post.views)), post.author].filter(Boolean).join(' ')
+  return [t('w.channel.fdaf57', formatViews(post.views), post.views), post.author].filter(Boolean).join(' ')
 }
 
 /** Whether `myPermissions` (from `GET /permissions`) lets the viewer publish. */

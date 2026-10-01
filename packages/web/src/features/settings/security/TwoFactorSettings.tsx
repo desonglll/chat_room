@@ -14,6 +14,8 @@ import { apiClient } from '../../../app/client'
 import { ChangeForm, DisableForm, EmailForm, EnableForm } from './TwoFactorForms'
 import { securityErrorCopy, type SecurityView } from './securityRules'
 import { t } from '../../../i18n/index'
+// TG-1003: this screen is lazy, so its stylesheet travels with it, not in the first paint.
+import './security.css'
 
 export function TwoFactorSettings() {
   const token = useStore(authStore, selectToken)

@@ -19,6 +19,8 @@ import { SharedSection } from './SharedSection'
 import type { ChatInfoSourceOverrides } from './useChatInfo'
 import { useChatInfo } from './useChatInfo'
 import { t } from '../../i18n/index'
+// TG-1003: this screen is lazy, so its stylesheet travels with it, not in the first paint.
+import './chatInfo.css'
 
 export interface ChatInfoPanelProps {
   chatId: string

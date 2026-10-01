@@ -227,16 +227,27 @@ impl AttachmentStore {
             .context("read staged attachment")?
         {
             let path = entry.path();
-            let metadata = entry.metadata().await?;
+            // An entry can vanish between listing and inspecting it: another process sharing
+            // the directory committed (renamed) or swept it. Already gone is the goal — skip.
+            let metadata = match entry.metadata().await {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
             let abandoned = metadata
                 .modified()
                 .ok()
                 .and_then(|modified| modified.elapsed().ok())
                 .is_some_and(|age| age >= self.abandoned_upload_age);
             if metadata.is_file() && abandoned {
-                tokio::fs::remove_file(&path)
-                    .await
-                    .with_context(|| format!("remove abandoned upload {}", path.display()))?;
+                match tokio::fs::remove_file(&path).await {
+                    Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                        return Err(error).with_context(|| {
+                            format!("remove abandoned upload {}", path.display())
+                        });
+                    }
+                    _ => {}
+                }
             }
         }
         Ok(())

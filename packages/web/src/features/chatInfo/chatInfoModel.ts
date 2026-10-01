@@ -101,12 +101,12 @@ const COUNT_FORMAT = new Intl.NumberFormat('zh-CN')
 
 /** Same rule as TG-107's header line: the online part only when more than one is online. */
 export function memberCountText(count: number, onlineCount = 0): string {
-  const base = t('w.chatInfo.0ece20', COUNT_FORMAT.format(count))
+  const base = t('w.chatInfo.0ece20', COUNT_FORMAT.format(count), count)
   return onlineCount > 1 ? t('w.chatInfo.40c5a7', base, COUNT_FORMAT.format(onlineCount)) : base
 }
 
 export function subscriberCountText(count: number): string {
-  return t('w.chatInfo.2b75a3', COUNT_FORMAT.format(count))
+  return t('w.chatInfo.2b75a3', COUNT_FORMAT.format(count), count)
 }
 
 export const PANEL_HEADING: Record<InfoVariant, string> = {
