@@ -6,7 +6,17 @@
  * (keyboard, caret); pasted/dropped/picked files go to `usePendingBatch`. TG-404: the send
  * button's long-press menu (`SendMenu`) and the scheduled-messages entry (`ScheduledEntry`).
  */
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+} from 'react'
 import type { ChatMember, Sticker } from '@tg/core'
 import { activeComposerBar, composerStore, evaluateArithmeticExpression, messageStore, settingsStore } from '@tg/core'
 import { IconButton, Popover } from '@tg/ui'
@@ -32,7 +42,6 @@ import { usePendingBatch } from './usePendingBatch'
 import { LazyMediaPanel } from '../sticker/LazyMediaPanel'
 import { stickerLibrary } from '../sticker/stickerLibrary'
 import { StickerSuggestions } from '../sticker/suggest/StickerSuggestions'
-import { RecordModeButton } from '../videoNote'
 import { t } from '../../i18n/index'
 import { useForwardNotice } from './forwardNotice'
 
@@ -68,6 +77,12 @@ function lastOwnMessageId(chatId: string, userId: string): string | null {
   }
   return null
 }
+
+// TG-1003: the voice / round-video recorder (MediaRecorder, waveform, viewfinder) is not needed
+// for first paint; a same-looking disabled mic holds its place until the chunk arrives.
+const RecordModeButton = lazy(() =>
+  import('../videoNote/RecordModeButton').then((module) => ({ default: module.RecordModeButton })),
+)
 
 export function Composer({ chatId, currentUserId, members, session, canSend = true }: ComposerProps) {
   const { sendMessage, setDraftText, sendFrame } = session
@@ -266,15 +281,29 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
         </SendMenu>
       ) : (
         // TG-401/TG-402: tap toggles mic ↔ camera; hold records, slide cancels, slide up locks.
-        <RecordModeButton
-          chatId={chatId}
-          replyTo={replyTo}
-          canSend={canSend}
-          sendFrame={sendFrame}
-          onSent={() => controller.consumeReply()}
-          micGlyph={<MicGlyph />}
-          sendGlyph={<SendGlyph />}
-        />
+        <Suspense
+          fallback={
+            <IconButton
+              label={t('w.composer.recorderLoading')}
+              variant="filled"
+              size="lg"
+              className="tg-compose__send"
+              disabled
+            >
+              <MicGlyph />
+            </IconButton>
+          }
+        >
+          <RecordModeButton
+            chatId={chatId}
+            replyTo={replyTo}
+            canSend={canSend}
+            sendFrame={sendFrame}
+            onSent={() => controller.consumeReply()}
+            micGlyph={<MicGlyph />}
+            sendGlyph={<SendGlyph />}
+          />
+        </Suspense>
       )}
       <Popover
         open={emojiOpen}

@@ -9,6 +9,8 @@ import { ApiError, TASK_STATUSES, TASK_TITLE_MAX } from '@tg/core'
 import { Button, TextField } from '@tg/ui'
 import { t } from '../../i18n/index'
 import { tasksApi } from './tasksApi'
+// TG-1003: this screen is lazy, so its stylesheet travels with it, not in the first paint.
+import './chatTasks.css'
 
 const STATUS_KEY: Record<TaskStatus, string> = {
   open: 'w.tasks.open',

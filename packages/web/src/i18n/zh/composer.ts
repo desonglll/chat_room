@@ -61,4 +61,5 @@ export const composer: Catalog = {
   'w.composer.fe87c8': '没有可定时发送的内容',
   'w.composer.fecd66': '表情',
   'w.composer.otherChat': '其他会话',
+  'w.composer.recorderLoading': '正在准备录音',
 }

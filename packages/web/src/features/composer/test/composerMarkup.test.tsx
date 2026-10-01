@@ -13,15 +13,31 @@ import { MentionPopup } from '../MentionPopup'
 const session = { sendMessage: () => true, setDraftText: () => undefined, sendFrame: () => true }
 
 describe('Composer markup', () => {
-  test('idle: emoji, labelled textarea, attachments, and the TG-401 voice button', () => {
+  test('idle: emoji, labelled textarea, attachments, and the recorder slot (TG-1003: lazy)', () => {
     const html = renderToStaticMarkup(<Composer chatId="c1" currentUserId="me" members={[]} session={session} />)
     expect(html).toContain('class="tg-compose"')
     expect(html).toContain('aria-label="表情"')
     expect(html).toContain('aria-label="消息内容"')
     expect(html).toContain('aria-label="添加附件"')
+    // The recorder chunk loads after first paint; until then a disabled mic holds its place.
+    expect(html).toContain('aria-label="正在准备录音"')
+    expect(html).not.toContain('data-kind="send"')
+  })
+
+  test('the lazily loaded recorder is the TG-401 voice button', async () => {
+    const { RecordModeButton } = await import('../../videoNote/RecordModeButton')
+    const html = renderToStaticMarkup(
+      <RecordModeButton
+        chatId="c1"
+        replyTo={null}
+        canSend
+        sendFrame={() => true}
+        micGlyph={<span />}
+        sendGlyph={<span />}
+      />,
+    )
     expect(html).toContain('aria-label="按住录制语音消息"')
     expect(html).toContain('data-kind="voice"')
-    expect(html).not.toContain('data-kind="send"')
   })
 
   test('reply / edit / forward bars name what they do and offer a cancel', () => {

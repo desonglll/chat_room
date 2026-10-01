@@ -16,9 +16,7 @@
 @import url('../features/composer/composer.css');
 @import url('../features/mediaViewer/mediaViewer.css');
 @import url('../features/messageList/messageList.css');
-@import url('../features/chatInfo/chatInfo.css');
 @import url('../features/auth/twoFactorLogin.css');
-@import url('../features/settings/security/security.css');
 @import url('../features/poll/poll.css');
 @import url('../features/voice/voice.css');
 @import url('../features/videoNote/videoNote.css');
@@ -30,7 +28,3 @@
 @import url('../features/search/search.css');
 @import url('../features/pwa/pwa.css');
 @import url('../features/chatLifecycle/lifecycle.css');
-@import url('../features/contacts/contacts.css');
-@import url('../features/notifications/notifications.css');
-@import url('../features/admin/admin.css');
-@import url('../features/chatTasks/chatTasks.css');

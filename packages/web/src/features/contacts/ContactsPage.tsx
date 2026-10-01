@@ -13,6 +13,8 @@ import { socialApi } from './socialApi'
 import { useContacts } from './useContacts'
 import { useFriendStatuses } from './useFriendStatuses'
 import { MobileBackButton } from '../shell/MobileBackButton'
+// TG-1003: this screen is lazy, so its stylesheet travels with it, not in the first paint.
+import './contacts.css'
 
 type Tab = 'friends' | 'requests' | 'blocked' | 'add'
 

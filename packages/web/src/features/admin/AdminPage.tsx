@@ -14,6 +14,8 @@ import { adminApi } from './adminApi'
 import { AdminChats } from './AdminChats'
 import { AdminOverviewCard } from './AdminOverviewCard'
 import { MobileBackButton } from '../shell/MobileBackButton'
+// TG-1003: this screen is lazy, so its stylesheet travels with it, not in the first paint.
+import './admin.css'
 
 export function AdminPage({ api = adminApi, social = socialApi }: { api?: AdminApi; social?: SocialApi }) {
   const [overview, setOverview] = useState<AdminOverview | null>(null)
