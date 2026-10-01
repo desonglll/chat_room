@@ -4,18 +4,21 @@
  * socket covers none of those). Framework-free; returns the unsubscribe function.
  */
 import type { ChatListStore, ConversationLastMessage, DisplayMessage, MessageStore } from '@tg/core'
+import { previewMediaKind } from './previewMediaKind'
 
 export function latestSettledMessage(messages: readonly DisplayMessage[]): ConversationLastMessage | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index]
     if (message?.type !== 'broadcast') continue
     if (message.delivery_state === 'sending' || message.delivery_state === 'failed') continue
+    const mediaKind = previewMediaKind(message)
     return {
       message_id: message.message_id,
       sender_id: message.sender_id,
       sender: message.sender,
       content: message.content.slice(0, 120),
       attachment_file_name: message.attachment?.file_name ?? null,
+      ...(mediaKind ? { media_kind: mediaKind } : {}),
       recalled: message.recalled_at !== null,
       created_at: message.timestamp,
     }

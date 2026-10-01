@@ -5,6 +5,9 @@ use crate::chats::ChatType;
 use crate::conversations::models::{
     ConversationPreferences, ConversationSummary, MessagePreview, NotificationLevel,
 };
+use crate::conversations::preview_media::{
+    preview_media_columns, preview_media_kind, PreviewMediaColumns,
+};
 use crate::models::{Chat, UserSummary};
 use crate::state::{with_pool, AppState};
 
@@ -50,6 +53,8 @@ struct ConversationRow {
     last_attachment_file_name: Option<String>,
     last_recalled_at: Option<DateTime<Utc>>,
     last_created_at: Option<DateTime<Utc>>,
+    #[sqlx(flatten)]
+    last_media: PreviewMediaColumns,
 }
 
 fn preview_content(value: &str) -> String {
@@ -96,6 +101,7 @@ impl ConversationRow {
             sender: self.last_sender.unwrap_or_default(),
             content: preview_content(&self.last_content.unwrap_or_default()),
             attachment_file_name: self.last_attachment_file_name,
+            media_kind: preview_media_kind(&self.last_media).map(str::to_string),
             recalled: self.last_recalled_at.is_some(),
             created_at: self.last_created_at.unwrap_or(self.created_at),
         });
@@ -133,7 +139,7 @@ impl AppState {
         room_id: Option<Uuid>,
     ) -> Result<Vec<ConversationRow>, sqlx::Error> {
         with_pool!(self, |pool| {
-            sqlx::query_as(
+            sqlx::query_as(concat!(
                 "SELECT chats.id AS room_id, \
                  CASE WHEN chats.chat_type = 'private' THEN 'direct' ELSE 'group' END AS kind, \
                  CASE WHEN chats.chat_type <> 'private' THEN chats.title \
@@ -175,8 +181,9 @@ impl AppState {
                  last_message.sender AS last_sender, last_message.content AS last_content, \
                  attachments.file_name AS last_attachment_file_name, \
                  last_message.recalled_at AS last_recalled_at, \
-                 last_message.created_at AS last_created_at \
-                 FROM chat_members AS memberships \
+                 last_message.created_at AS last_created_at, ",
+                preview_media_columns!("last_message", "attachments"),
+                " FROM chat_members AS memberships \
                  JOIN chats ON chats.id = memberships.room_id AND chats.deleted_at IS NULL \
                  JOIN chat_roles AS roles ON roles.id = memberships.role_id \
                  LEFT JOIN chat_role_permissions AS review ON review.role_id = roles.id \
@@ -197,8 +204,8 @@ impl AppState {
                    AND ($2 IS NULL OR chats.id = $2) \
                  ORDER BY memberships.is_archived ASC, \
                    CASE WHEN memberships.is_archived THEN FALSE ELSE memberships.is_pinned END DESC, \
-                   last_activity_at DESC, chats.id",
-            )
+                   last_activity_at DESC, chats.id"
+            ))
             .bind(user_id)
             .bind(room_id)
             .fetch_all(pool)

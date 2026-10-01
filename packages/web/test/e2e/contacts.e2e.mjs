@@ -60,7 +60,8 @@ try {
     page.on('pageerror', (error) => pageErrors.push(String(error)))
     page.on('response', (response) => {
       // The main menu probes whether the account is an administrator; 403 is its answer.
-      if (response.status() >= 400 && !response.url().endsWith('/api/admin/overview')) pageErrors.push(`${response.status()} ${new URL(response.url()).pathname}`)
+      if (response.status() >= 400 && !response.url().endsWith('/api/admin/overview'))
+        pageErrors.push(`${response.status()} ${new URL(response.url()).pathname}`)
     })
   }
 

@@ -67,4 +67,10 @@ export const chatList: Catalog = {
   'w.chatList.tue': 'Tue',
   'w.chatList.unreadSuffix': ', {0} unread',
   'w.chatList.wed': 'Wed',
+  'w.chatList.media.videoNote': 'Video message',
+  'w.chatList.media.poll': 'Poll',
+  'w.chatList.media.location': 'Location',
+  'w.chatList.media.liveLocation': 'Live location',
+  'w.chatList.media.contact': 'Contact',
+  'w.chatList.media.album': 'Album',
 }

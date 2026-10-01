@@ -67,4 +67,10 @@ export const chatList: Catalog = {
   'w.chatList.tue': '周二',
   'w.chatList.unreadSuffix': '，{0} 条未读',
   'w.chatList.wed': '周三',
+  'w.chatList.media.videoNote': '视频消息',
+  'w.chatList.media.poll': '投票',
+  'w.chatList.media.location': '位置',
+  'w.chatList.media.liveLocation': '实时位置',
+  'w.chatList.media.contact': '联系人',
+  'w.chatList.media.album': '相册',
 }

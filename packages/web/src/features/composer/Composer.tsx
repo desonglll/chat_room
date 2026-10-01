@@ -34,6 +34,7 @@ import { stickerLibrary } from '../sticker/stickerLibrary'
 import { StickerSuggestions } from '../sticker/suggest/StickerSuggestions'
 import { RecordModeButton } from '../videoNote'
 import { t } from '../../i18n/index'
+import { useForwardNotice } from './forwardNotice'
 
 export interface ComposerProps {
   chatId: string
@@ -75,6 +76,7 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
     [sendMessage, setDraftText, sendFrame],
   )
   const controller = useComposerController(chatId, stableSession)
+  const forwardNotice = useForwardNotice(chatId)
   const draftText = useStore(composerStore, (state) => state.drafts[chatId]?.text ?? '')
   const replyTo = useStore(composerStore, (state) => state.drafts[chatId]?.replyToMessageId ?? null)
   const edit = useStore(composerStore, (state) => state.editing[chatId] ?? null)
@@ -232,6 +234,11 @@ export function Composer({ chatId, currentUserId, members, session, canSend = tr
           <ScheduledEntry chatId={chatId} />
           {bar.kind !== 'edit' ? <AttachMenu chatId={chatId} onFiles={addFiles} /> : null}
         </div>
+        {forwardNotice ? (
+          <p className="tg-compose__notice" role="alert">
+            {forwardNotice}
+          </p>
+        ) : null}
         {input.calcError ? (
           <p className="tg-compose__notice" role="alert">
             {input.calcError}
