@@ -1,6 +1,6 @@
 /**
  * TG-705 system administration (`/api/admin/*`). Every call is refused with 403 for anyone
- * who is not a system administrator; `isAdmin` uses that to decide whether to show the console.
+ * who is not a system administrator; `isAdmin` asks `GET /api/admin/access` instead (TG-905).
  * AI governance and model endpoints stay unused while AI features are switched off.
  */
 import type { User } from '../types'
@@ -79,11 +79,12 @@ export function createAdminApi(client: ApiClient, token: () => string | null): A
   }
   const chatLock = (chatId: string) => `/api/admin/room-locks/${encodePathSegment(chatId)}`
   return {
+    // TG-905: a plain yes/no (never 403), so ordinary accounts log no error on every load.
     isAdmin: () =>
-      client.request('GET', '/api/admin/overview', auth()).then(
-        () => true,
+      client.json<{ is_admin: boolean }>('GET', '/api/admin/access', auth()).then(
+        (answer) => answer.is_admin,
         (error: unknown) => {
-          if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
+          if (error instanceof ApiError && error.status === 401) return false
           throw error
         },
       ),

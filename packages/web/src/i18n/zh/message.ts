@@ -40,4 +40,5 @@ export const message: Catalog = {
   'w.message.f98e94': '添加回应',
   'w.message.fcb979': '处理中',
   'w.message.ffc785': '回复',
+  'w.message.imageUnavailable': '图片无法显示：{0}',
 }

@@ -27,7 +27,7 @@ const link = (n: number): SharedLink => ({
 })
 
 test('paging one tab leaves every other tab cursor, items and request log untouched', async () => {
-  const logs = { media: [], files: [], links: [], voice: [], gif: [] } as Record<
+  const logs = { media: [], files: [], links: [], music: [], voice: [], gif: [] } as Record<
     keyof SharedSources,
     Array<string | null>
   >
@@ -35,6 +35,7 @@ test('paging one tab leaves every other tab cursor, items and request log untouc
     media: countingSource(file, 6, logs.media),
     files: countingSource(file, 6, logs.files),
     links: countingSource(link, 6, logs.links),
+    music: countingSource(file, 6, logs.music),
     voice: countingSource(file, 6, logs.voice),
     gif: countingSource(file, 6, logs.gif),
   }

@@ -231,11 +231,11 @@
   color: var(--tg-text-secondary);
 }
 
-/* TG-508 per-chat mute durations and sound. */
+/* TG-508 per-chat mute durations and sound (TG-905: Telegram-like pills and select). */
 .tg-chatinfo__notify {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--tg-space-2);
   flex: 1;
   min-width: 0;
 }
@@ -243,22 +243,56 @@
 .tg-chatinfo__notify-choices {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--tg-space-1);
 }
 
 .tg-chatinfo__notify-choices button {
-  padding: 4px 10px;
-  border: 1px solid var(--tg-divider);
-  border-radius: 14px;
-  background: transparent;
+  padding: var(--tg-space-1) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background: var(--tg-bg-secondary);
   color: var(--tg-text-primary);
+  font: inherit;
+  font-size: var(--tg-type-label-size);
   cursor: pointer;
+  transition: background-color var(--tg-transition-fade);
+}
+
+.tg-chatinfo__notify-choices button:hover {
+  background: var(--tg-surface-hover);
+}
+
+.tg-chatinfo__notify-choices button:focus-visible,
+.tg-chatinfo__notify-sound select:focus-visible {
+  outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
+  outline-offset: 1px;
 }
 
 .tg-chatinfo__notify-sound {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--tg-space-2);
   font-size: var(--tg-type-label-size);
   color: var(--tg-text-secondary);
+}
+
+.tg-chatinfo__notify-sound select {
+  appearance: none;
+  padding: var(--tg-space-1) var(--tg-space-6) var(--tg-space-1) var(--tg-space-2-5);
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--tg-accent) 50%) calc(100% - 14px) 55% / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--tg-accent) 50%) calc(100% - 9px) 55% / 5px 5px no-repeat,
+    var(--tg-bg-secondary);
+  color: var(--tg-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-chatinfo__notify-choices button {
+    transition: none;
+  }
 }

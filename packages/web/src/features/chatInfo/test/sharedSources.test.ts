@@ -10,7 +10,7 @@ test('media / files / voice / GIF each ask the server for their own kind', async
     next_before: null,
   }))
   const sources = createSharedSources('c1', { client, token: () => 't' })
-  for (const tab of ['media', 'files', 'voice', 'gif'] as const) {
+  for (const tab of ['media', 'files', 'music', 'voice', 'gif'] as const) {
     const page = await sources[tab](null)
     expect(page.items).toHaveLength(1)
     expect(page.next).toBeNull()
@@ -18,6 +18,7 @@ test('media / files / voice / GIF each ask the server for their own kind', async
   expect(calls.map((call) => [call.path, call.query.kind, call.query.limit])).toEqual([
     ['/api/chats/c1/files', 'media', String(FILES_PAGE_SIZE)],
     ['/api/chats/c1/files', 'document', String(FILES_PAGE_SIZE)],
+    ['/api/chats/c1/files', 'music', String(FILES_PAGE_SIZE)],
     ['/api/chats/c1/files', 'voice', String(FILES_PAGE_SIZE)],
     ['/api/chats/c1/files', 'gif', String(FILES_PAGE_SIZE)],
   ])

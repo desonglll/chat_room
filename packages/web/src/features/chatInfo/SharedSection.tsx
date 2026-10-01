@@ -189,6 +189,17 @@ export function SharedSection({ chatId, pagers, showMembers, scrollerRef }: Shar
             render={(file) => <FileRow file={file} />}
           />
         )
+      case 'music':
+        return (
+          <SharedTabPanel<SharedFile>
+            key={id}
+            {...common}
+            layout="list"
+            pager={pagers.music}
+            keyOf={fileKey}
+            render={(file) => <FileRow file={file} />}
+          />
+        )
       case 'voice':
         return (
           <SharedTabPanel<SharedFile>

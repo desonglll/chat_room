@@ -89,16 +89,16 @@ function section(showMembers: boolean) {
   )
 }
 
-test('tabs: members first for groups, then the five shared tabs; only the active panel is mounted', () => {
-  expect(infoTabs(true).map((tab) => tab.id)).toEqual(['members', 'media', 'files', 'links', 'voice', 'gif'])
-  expect(infoTabs(false).map((tab) => tab.id)).toEqual(['media', 'files', 'links', 'voice', 'gif'])
+test('tabs: members first for groups, then the six shared tabs (music since TG-905); only the active panel is mounted', () => {
+  expect(infoTabs(true).map((tab) => tab.id)).toEqual(['members', 'media', 'files', 'links', 'music', 'voice', 'gif'])
+  expect(infoTabs(false).map((tab) => tab.id)).toEqual(['media', 'files', 'links', 'music', 'voice', 'gif'])
   const html = section(true)
   expect(html).toContain('aria-label="共享内容"')
-  expect(html.match(/role="tab"/g)).toHaveLength(6)
+  expect(html.match(/role="tab"/g)).toHaveLength(7)
   expect(html.match(/role="tabpanel"/g)).toHaveLength(1)
   expect(html).toContain('data-tab="members"')
   const noMembers = section(false)
-  expect(noMembers.match(/role="tab"/g)).toHaveLength(5)
+  expect(noMembers.match(/role="tab"/g)).toHaveLength(6)
   expect(noMembers).toContain('data-tab="media"')
   expect(noMembers).toContain('data-layout="grid"')
 })

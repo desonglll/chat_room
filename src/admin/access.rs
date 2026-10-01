@@ -24,3 +24,29 @@ pub(crate) async fn require_admin(
         .then_some(user)
         .ok_or(StatusCode::FORBIDDEN)
 }
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct AdminAccess {
+    pub is_admin: bool,
+}
+
+/// TG-905: whether the caller is a system administrator — a plain answer for the main menu,
+/// instead of probing `/api/admin/overview` and logging a 403 for every ordinary account.
+#[utoipa::path(
+    get,
+    path = "/api/admin/access",
+    responses(
+        (status = 200, description = "Whether the caller administers the system", body = AdminAccess),
+        (status = 401, description = "Missing or expired session")
+    )
+)]
+pub async fn access(
+    axum::extract::State(state): axum::extract::State<crate::state::SharedState>,
+    headers: HeaderMap,
+) -> Result<axum::Json<AdminAccess>, StatusCode> {
+    match require_admin(&state, &headers).await {
+        Ok(_) => Ok(axum::Json(AdminAccess { is_admin: true })),
+        Err(StatusCode::FORBIDDEN) => Ok(axum::Json(AdminAccess { is_admin: false })),
+        Err(status) => Err(status),
+    }
+}

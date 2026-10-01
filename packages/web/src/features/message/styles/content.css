@@ -66,6 +66,16 @@
 }
 
 /* Borderless: the bubble is exactly the photo, up to the bubble's max width. */
+/* TG-905: an undecodable photo is a neutral tile, not the browser's broken-image icon. */
+.tg-bubble__image--broken {
+  display: grid;
+  place-items: center;
+  inline-size: calc(var(--tg-space-20) * 2.5);
+  aspect-ratio: 4 / 3;
+  background: var(--tg-bg-secondary);
+  color: var(--tg-text-tertiary);
+}
+
 .tg-bubble[data-frame='media'] .tg-bubble__image {
   inline-size: auto;
   max-inline-size: 100%;

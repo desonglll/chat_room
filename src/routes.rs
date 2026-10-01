@@ -289,6 +289,7 @@ pub(crate) fn api_routes(
             axum::routing::post(user_handlers::logout),
         )
         .route("/api/admin/overview", get(admin_metrics::overview))
+        .route("/api/admin/access", get(crate::admin::access::access))
         .route("/api/admin/system-admins", get(admin_system_admins::list))
         .route(
             "/api/admin/system-admins/:user_id",

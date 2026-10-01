@@ -22,7 +22,9 @@ export function formatViews(views: number): string {
 
 /** The header subtitle: "12,345 位订阅者". */
 export function subscriberLine(count: number): string {
-  return t('w.channel.2b75a3', Math.max(0, count).toLocaleString('zh-CN'))
+  const total = Math.max(0, count)
+  // The grouped string fills {0}; the raw number (TG-905) is what picks the plural form.
+  return t('w.channel.2b75a3', total.toLocaleString('zh-CN'), total)
 }
 
 /** The channel fields of one post, as the meta shows them. */

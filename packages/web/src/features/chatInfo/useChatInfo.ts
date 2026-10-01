@@ -30,6 +30,7 @@ export interface ChatInfoPagers {
   media: SharedPager<SharedFile>
   files: SharedPager<SharedFile>
   links: SharedPager<SharedLink>
+  music: SharedPager<SharedFile>
   voice: SharedPager<SharedFile>
   gif: SharedPager<SharedFile>
   members: SharedPager<ChatMembership>
@@ -59,6 +60,7 @@ export function createChatInfoPagers(
     media: createSharedPager(shared.media, byKey),
     files: createSharedPager(shared.files, byKey),
     links: createSharedPager(shared.links, byKey),
+    music: createSharedPager(shared.music, byKey),
     voice: createSharedPager(shared.voice, byKey),
     gif: createSharedPager(shared.gif, byKey),
     members: createSharedPager(members, (member) => member.user_id),

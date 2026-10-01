@@ -30,7 +30,7 @@
 
 .tg-poll__options {
   display: grid;
-  gap: var(--tg-space-1);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -43,14 +43,21 @@
   align-items: center;
   gap: var(--tg-space-2-5);
   inline-size: 100%;
-  min-block-size: var(--tg-touch-min);
-  padding: var(--tg-space-1) 0;
+  /* TG-905: Telegram's ballot rows are ~36 px; the 44 px touch minimum applies to touch only. */
+  min-block-size: 2.25rem;
+  padding: var(--tg-space-0-5) 0;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
   text-align: start;
   cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .tg-poll__choice {
+    min-block-size: var(--tg-touch-min);
+  }
 }
 
 .tg-poll__choice:disabled {
