@@ -113,10 +113,7 @@ function ComingSoon({ section }: { section: SettingsSection }) {
     <div className="tg-settings__placeholder" role="status">
       <SettingsIcon name={section.id} size={48} />
       <p className="tg-settings__placeholder-title">{t('w.settings.7553b9')}</p>
-      <p className="tg-settings__hint">
-        「{section.title}
-        {t('w.settings.76d626')}
-      </p>
+      <p className="tg-settings__hint">{t('w.settings.76d626', section.title)}</p>
     </div>
   )
 }

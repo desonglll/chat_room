@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react'
 import type { AccentId, ThemePreference, WallpaperWrite } from '@tg/core'
 import { ACCENTS, exportTheme, GLOBAL_WALLPAPER, importTheme, settingsStore, uiStore } from '@tg/core'
-import { Button, TextField, Toggle } from '@tg/ui'
+import { Button, RadioGroup, TextField, Toggle } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { browserStorage } from '../../../app/platform'
 import {
@@ -17,6 +17,7 @@ import {
   uploadWallpaper,
   wallpaperStore,
 } from '../../wallpaper/wallpaperStore'
+import { toHexColor } from './cssColor'
 import { t } from '../../../i18n/index'
 
 const THEMES: { id: ThemePreference; label: string }[] = [
@@ -90,8 +91,7 @@ const PRESETS = [
 
 /** The current accent as a `#rrggbb` start value for the colour inputs. */
 function accentHex(): string {
-  const value = globalThis.getComputedStyle?.(document.documentElement).getPropertyValue('--tg-accent').trim() ?? ''
-  return /^#[0-9a-f]{6}$/i.test(value) ? value : ''
+  return toHexColor(globalThis.getComputedStyle?.(document.documentElement).getPropertyValue('--tg-accent') ?? '')
 }
 
 export function AppearanceSettingsPage() {
@@ -121,19 +121,16 @@ export function AppearanceSettingsPage() {
     <div className="tg-appearance">
       <section className="tg-appearance__card" aria-label={t('w.settings.e848dd')}>
         <h3 className="tg-appearance__title">{t('w.settings.e848dd')}</h3>
-        <div className="tg-appearance__row" role="radiogroup" aria-label={t('w.settings.e848dd')}>
-          {THEMES.map((theme) => (
-            <label key={theme.id}>
-              <input
-                type="radio"
-                name="theme"
-                checked={settings.theme === theme.id}
-                onChange={() => save({ theme: theme.id })}
-              />{' '}
-              {theme.label}
-            </label>
-          ))}
-        </div>
+        <RadioGroup
+          name="theme"
+          aria-label={t('w.settings.e848dd')}
+          value={settings.theme}
+          onValueChange={(value) => {
+            const theme = THEMES.find((item) => item.id === value)
+            if (theme) save({ theme: theme.id })
+          }}
+          options={THEMES.map((theme) => ({ value: theme.id, label: theme.label }))}
+        />
         {settings.theme === 'scheduled' ? (
           <div className="tg-appearance__row">
             <label>
@@ -171,28 +168,17 @@ export function AppearanceSettingsPage() {
 
       <section className="tg-appearance__card" aria-label={t('w.settings.7e9e15')}>
         <h3 className="tg-appearance__title">{t('w.settings.7e9e15')}</h3>
-        <div className="tg-appearance__row">
-          <label>
-            <input
-              type="radio"
-              name="scope"
-              checked={scope === GLOBAL_WALLPAPER}
-              onChange={() => setScope(GLOBAL_WALLPAPER)}
-            />{' '}
-            {t('w.settings.c082c4')}
-          </label>
-          {activeChatId ? (
-            <label>
-              <input
-                type="radio"
-                name="scope"
-                checked={scope === activeChatId}
-                onChange={() => setScope(activeChatId)}
-              />{' '}
-              {t('w.settings.89297a')}
-            </label>
-          ) : null}
-        </div>
+        <RadioGroup
+          name="scope"
+          aria-label={t('w.settings.7e9e15')}
+          orientation="horizontal"
+          value={scope}
+          onValueChange={setScope}
+          options={[
+            { value: GLOBAL_WALLPAPER, label: t('w.settings.c082c4') },
+            ...(activeChatId ? [{ value: activeChatId, label: t('w.settings.89297a') }] : []),
+          ]}
+        />
         <div className="tg-appearance__presets">
           {PRESETS.map((preset) => (
             <button

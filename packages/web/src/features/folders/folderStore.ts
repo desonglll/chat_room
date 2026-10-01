@@ -15,7 +15,15 @@ export interface FolderState {
   loaded: boolean
 }
 
-export const folderStore = createStore<FolderState>()(() => ({ folders: [], activeId: null, loaded: false }))
+const EMPTY: FolderState = { folders: [], activeId: null, loaded: false }
+
+export const folderStore = createStore<FolderState>()(() => EMPTY)
+
+// TG-1204: folders are per account. Without this, signing out and into another account in the
+// same tab kept the previous account's folder tabs (`loaded` stayed true, so nothing refetched).
+authStore.subscribe((next, previous) => {
+  if (selectToken(next) !== selectToken(previous)) folderStore.setState(EMPTY)
+})
 
 export function loadFolders(api = foldersApi): Promise<void> {
   return api.list().then(

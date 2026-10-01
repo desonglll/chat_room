@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { GlobalSearchResult } from '@tg/core'
+import { speaker } from '@tg/core'
 import { Button } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { resultDay, SEARCH_TABS } from './searchModel'
@@ -90,7 +91,7 @@ export function MessageSearchResults({ query, inline = false }: { query: string;
                 {KIND_GLYPH[item.content_type] ? (
                   <span aria-hidden="true">{KIND_GLYPH[item.content_type]} </span>
                 ) : null}
-                <span className="tg-search-results__sender">{item.sender}：</span>
+                <span className="tg-search-results__sender">{speaker(item.sender)}</span>
                 {item.excerpt || item.attachment_file_name || ''}
               </span>
             </button>

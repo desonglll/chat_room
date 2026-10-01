@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react'
 import { IconButton, Spinner } from '@tg/ui'
 import { PRIVACY_KEYS, privacyRuleWrite, type PrivacyApi, type PrivacyKey, type PrivacyRule } from '@tg/core'
-import { SpriteIcon } from '../../shell/SpriteIcon'
+import { SettingsIcon } from '../shell/settingsIcons'
 import { PrivacyRuleEditor } from './PrivacyRuleEditor'
 import { PRIVACY_KEY_COPY, privacyRuleSummary } from './privacyCopy'
 import { replaceRule } from './privacyEditing'
@@ -84,8 +84,9 @@ export function PrivacySettingsPage({
     <div className="tg-privacy" aria-busy={saving || load.state === 'loading'}>
       <header className="tg-privacy__header">
         {back ? (
-          <IconButton label={t('w.settings.11d024')} onClick={back}>
-            <SpriteIcon name="back" />
+          // TG-1204: the same arrow and button style as every other settings header.
+          <IconButton label={t('w.settings.11d024')} variant="plain" onClick={back}>
+            <SettingsIcon name="back" />
           </IconButton>
         ) : null}
         <h2 className="tg-privacy__title">{title}</h2>

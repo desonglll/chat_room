@@ -23,6 +23,14 @@ export interface WallpaperState {
 
 export const wallpaperStore = createStore<WallpaperState>()(() => ({ wallpapers: [], loaded: false, images: {} }))
 
+// TG-1204: wallpapers are per account. Without this, the next account signing in to the same
+// tab kept the previous account's wallpapers (`loaded` stayed true, so nothing refetched).
+authStore.subscribe((next, previous) => {
+  if (selectToken(next) === selectToken(previous)) return
+  for (const objectUrl of Object.values(wallpaperStore.getState().images)) URL.revokeObjectURL?.(objectUrl)
+  wallpaperStore.setState({ wallpapers: [], loaded: false, images: {} })
+})
+
 function replace(next: Wallpaper | null, scope: string): void {
   wallpaperStore.setState((state) => ({
     wallpapers: [...state.wallpapers.filter((item) => item.scope !== scope), ...(next ? [next] : [])],

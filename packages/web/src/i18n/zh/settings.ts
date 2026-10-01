@@ -95,7 +95,7 @@ export const settings: Catalog = {
   'w.settings.7553b9': '即将推出',
   'w.settings.765198': '模糊（图片背景）',
   'w.settings.76b988': '结束',
-  'w.settings.76d626': '」还在开发中。',
+  'w.settings.76d626': '「{0}」还在开发中。',
   'w.settings.76e1a9': '自定义主题',
   'w.settings.7719bd': '编辑资料',
   'w.settings.77569c': '粘贴主题文件，或点「导出」得到当前主题',
@@ -214,4 +214,7 @@ export const settings: Catalog = {
   'w.settings.fb3849': '设置分区',
   'w.settings.fc2484': '设置两步验证密码',
   'w.settings.febcf8': '粉',
+  // TG-1204
+  'w.settings.localeZh': '简体中文',
+  'w.settings.localeEn': '英语',
 }
