@@ -12,6 +12,35 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* TG-805: the list is keyed per chat, so switching chats mounts it: it settles in with a
+     short fade and rise instead of the new history appearing in one frame. */
+  animation: tg-mlist-enter var(--tg-duration-panel) var(--tg-ease-decelerate) both;
+}
+
+@keyframes tg-mlist-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--tg-space-3));
+  }
+}
+
+/* Phones already slide the whole chat pane in (styles/shell.css); reduced motion fades only. */
+@media (max-width: 599px) {
+  .tg-mlist {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-mlist {
+    animation-name: tg-mlist-fade;
+  }
+}
+
+@keyframes tg-mlist-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .tg-mlist--state {

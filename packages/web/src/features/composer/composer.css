@@ -76,6 +76,31 @@
   transform: scale(0.92);
 }
 
+/* TG-805: mic ↔ send is a morph, not a swap — the new glyph turns and grows in (Telegram
+   Web A). Each glyph mounts with its button state, so the animation plays on every switch. */
+.tg-compose__send svg {
+  animation: tg-compose-glyph-in var(--tg-duration-panel) var(--tg-ease-decelerate) both;
+}
+
+@keyframes tg-compose-glyph-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-45deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-compose__send svg {
+    animation-name: tg-compose-glyph-fade;
+  }
+}
+
+@keyframes tg-compose-glyph-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 /* ---- reply / edit / forward bar ---- */
 
 .tg-compose__bar {

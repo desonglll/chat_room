@@ -170,6 +170,12 @@
   background: var(--tg-surface-hover);
 }
 
+/* TG-805: press feedback — the row darkens while held, as Telegram's does. */
+.tg-chatrow:active:not(.tg-chatrow--active) {
+  background: var(--tg-surface-active);
+  transition-duration: var(--tg-duration-press);
+}
+
 .tg-chatrow:focus-visible {
   outline: var(--tg-focus-ring-width) solid var(--tg-focus-ring);
   outline-offset: calc(-1 * var(--tg-focus-ring-width));

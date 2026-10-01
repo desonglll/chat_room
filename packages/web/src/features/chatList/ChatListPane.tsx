@@ -5,7 +5,7 @@
  * owns width, collapse persistence and the mobile list ↔ chat switch.
  */
 import type { MouseEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMatch, useNavigate } from 'react-router-dom'
 import type { MenuItem } from '@tg/ui'
 import { authStore, chatListStore, selectToken, settingsStore } from '@tg/core'
@@ -28,6 +28,7 @@ import { ChatListHeader } from './ChatListHeader'
 import type { ChatListFolder } from './chatListFilters'
 import { selectChatListView } from './chatListFilters'
 import { ConnectedChatRow } from './ConnectedChatRow'
+import { useFlipReorder } from './flipReorder'
 import { NewChatDialog } from './NewChatDialog'
 import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
@@ -87,6 +88,10 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   )
   const badge = useMemo(() => archiveBadge(conversations, now.getTime()), [conversations, now])
   const previewChats = useMemo(() => archivePreviewChats(view.archived, 3), [view.archived])
+  // TG-805: a chat that jumps to the top glides there (a new folder / query is a new list).
+  const itemsRef = useRef<HTMLUListElement>(null)
+  const flipContext = `${folder}|${custom?.id ?? ''}|${query}|${String(collapsed)}`
+  useFlipReorder(itemsRef, view.rows.map((row) => row.room_id).join(','), flipContext)
 
   // Telegram leaves the archive once its last chat is unarchived.
   useEffect(() => {
@@ -184,7 +189,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
             <p className="tg-chatlist__empty">{query.trim() ? t('w.chatList.39a166') : t('w.chatList.c40e5d')}</p>
           ) : null}
           {messageTab ? <MessageSearchResults query={query} /> : null}
-          <ul className="tg-chatlist__items" hidden={messageTab}>
+          <ul className="tg-chatlist__items" hidden={messageTab} ref={itemsRef}>
             {folder === 'main' && !custom && !query.trim() ? (
               <li>
                 <SavedMessagesRow collapsed={collapsed} />
@@ -205,7 +210,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
               </li>
             ) : null}
             {view.rows.map((conversation) => (
-              <li key={conversation.room_id}>
+              <li key={conversation.room_id} data-flip-key={conversation.room_id}>
                 <ArchivableChatRow
                   archived={conversation.preferences.is_archived}
                   collapsed={collapsed}
