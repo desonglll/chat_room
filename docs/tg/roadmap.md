@@ -834,5 +834,12 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 
 ## TG-1301 非安全上下文下的降级与提示 · S
 - **Work** 表情面板在没有 `crypto.subtle` 时仍能加载（为 `emoji-picker-element` 提供 SHA-1 摘要的纯 JS 回退，仅在缺失时安装，不改变安全上下文下的行为）；语音、圆形视频、位置入口在 `!isSecureContext` 或能力缺失时给出明确提示（「需要通过 HTTPS 打开才能使用麦克风/摄像头/定位」）而非静默失败；权限被拒、设备不存在也各有提示。
-- **Allowed** `packages/web/src/features/{composer,voice,videoNote,location}/**`、`packages/core/src/i18n/**`（追加）、对应测试。
+- **用户决定（2026-10-01）**：没有 HTTPS，要求在 HTTP 下可用。因此本卡同时提供可用回退：位置在无定位时改为地图点选发送；语音/圆形视频在无 `getUserMedia` 时用 `<input type=file capture>` 调起系统录音机/相机（HTTP 下可用）再上传；服务端如需放宽可接受的音视频类型，做最小改动并测试。
+- **Allowed** `packages/web/src/features/{composer,voice,videoNote,location}/**`、`packages/core/src/i18n/**`（追加）、语音/圆形视频上传端点（仅类型放宽）、对应测试。
 - **Acceptance** 单元测试覆盖回退与各提示分支；Playwright 以 `http://<非 localhost 地址>` 打开（Chromium 视为非安全上下文）验证表情面板加载、三个入口显示提示。
+
+## TG-1302 图片缩略图（服务端生成）· M
+- **用户决定（2026-10-01）**：服务端统一生成，批准新增 `image` crate（负责人选最小特性集：jpeg/png/gif/webp 解码，jpeg/webp 编码）。
+- **Work** 图片附件上传完成后服务端生成长边约 320 px（2x 屏约 640 px，取一档即可，记录理由）的缩略图并存储；消息/附件载荷新增 `thumbnail_url`（可选，旧客户端忽略）；聊天气泡、相册马赛克、共享媒体网格显示缩略图，点开媒体查看器才加载原图（查看器内先显示缩略图再换原图）；历史图片按需（首次请求缩略图时）生成并缓存，不做全库启动回填。尊重 EXIF 方向；超大图（解码像素上限）拒绝生成而非耗尽内存；GIF 取首帧；敏感（`is_sensitive`）图片缩略图同样受附件鉴权。
+- **Allowed** `Cargo.toml`/`Cargo.lock`（仅 `image`，负责人授权）、`src/attachments/**`、迁移（如需，前缀 `202713010000xx`，双库成对）、`packages/web/src/features/{message,album,mediaViewer,chatInfo}/**` 中图片渲染处、`packages/core` 对应类型、对应测试。
+- **Acceptance** 缩略图接口与原图同等鉴权（非成员 403/404 的测试）；解码像素上限测试；浏览器网络面板实测：会话里只下载缩略图，点开查看器才请求原图；E2E 脚本。

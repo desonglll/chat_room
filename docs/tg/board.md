@@ -338,6 +338,15 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **TG-1208 合并**（`b7337adb` → `601322e4`）：**会话未就绪时发送**——同一根因（首个 `history_complete` 之前发送）导致回车被吞与自己的消息落在历史上方；现由会话暂存并在回放完成后按序发出，core `mergeIncomingBroadcast` 让到达消息排在自己未确认消息之上，4 个单步竞态测试。会话行在线点误把「对方是成员」当在线，改读与头部同源的隐私过滤状态；静音选项按状态显示；表情状态挂到会话行、成员列表并新增设置页；仅有 `members.ban` 的管理员可读封禁列表（双库测试）；12 处硬编码中文标点清零（core 新增 `quoted`/`parenthetical`/`joinClauses`）。E2E 6/6。风险：回放完成前离开会话，暂存的发送标记失败（无持久发件箱）。负责人复验：bun ui 120 / core 357 / web 831，0 挂；首屏 273 448 B；fmt/clippy 净；`cargo nextest run` **693/693**；parity 85 对。
 - **M12 完成**：10 张卡，修复约 40 个真实缺陷，其中线上级：Service Worker 使语音/圆形视频/GIF 无法播放、`Permissions-Policy` 使位置分享失败、CSP 拦地图瓦片与预览图、引用片段从未生效、两处管理员越权/欠权、频道无管理入口、换账号沿用上一账号数据、Redis 慢时每请求卡 2.5 s。CI 两处红（测试顺序依赖、runner 磁盘）已修。
 
+## M13 手机端问题（用户 2026-10-01 报告）
+
+| 任务 | 规模 | 状态 | Owner | 依赖 |
+| --- | --- | --- | --- | --- |
+| TG-1301 HTTP 下表情/位置/语音/视频可用 | M | in-progress | agent | — |
+| TG-1302 图片缩略图（服务端生成） | M | in-progress | agent | — |
+
+- 根因：手机经 `http://局域网IP` 访问为非安全上下文（无 `crypto.subtle`/`getUserMedia`/`geolocation`），代码无任何检测而静默失败。用户决定不上 HTTPS，要求 HTTP 下可用；缩略图服务端生成，批准 `image` crate。
+
 ## 状态取值
 
 `not-started` · `in-progress` · `blocked` · `review` · `merged` · `abandoned`
