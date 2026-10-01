@@ -125,3 +125,13 @@
 .tg-search-results__sender {
   color: var(--tg-text-primary);
 }
+
+/* TG-904: the «消息» heading of the default search page. */
+.tg-search-results__section {
+  margin: 0;
+  padding: var(--tg-space-2) var(--tg-space-4);
+  background: var(--tg-bg-secondary);
+  color: var(--tg-text-secondary);
+  font-size: var(--tg-type-subtitle-size);
+  font-weight: var(--tg-weight-medium);
+}

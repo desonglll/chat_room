@@ -21,9 +21,13 @@ const KIND_GLYPH: Partial<Record<GlobalSearchResult['content_type'], string>> = 
   file: '📄',
 }
 
-export function MessageSearchResults({ query }: { query: string }) {
+/**
+ * `inline` (TG-904) is Telegram's default search page: message hits listed under the chat hits
+ * with a «消息» heading, no filters, and nothing at all when there are none.
+ */
+export function MessageSearchResults({ query, inline = false }: { query: string; inline?: boolean }) {
   const tabId = useStore(searchStore, (state) => state.tab)
-  const tab = SEARCH_TABS.find((item) => item.id === tabId)
+  const tab = SEARCH_TABS.find((item) => item.id === (inline ? 'messages' : tabId))
   const [filters, setFilters] = useState<SearchFilterInput>({ senderId: '', from: '', to: '' })
   const search = useMessageSearch(query, tab?.contentType ?? null, filters)
   const navigate = useNavigate()
@@ -38,34 +42,38 @@ export function MessageSearchResults({ query }: { query: string }) {
     void navigate(`/chat/${encodeURIComponent(item.room_id)}?message=${encodeURIComponent(item.message_id)}`)
   }
 
+  if (inline && search.items.length === 0) return null
   return (
     <section className="tg-search-results" aria-label={t('w.search.bc89f9', tab?.label ?? '')}>
-      <div className="tg-search-results__filters">
-        <select
-          aria-label={t('w.search.008629')}
-          value={filters.senderId}
-          onChange={(event) => setFilters({ ...filters, senderId: event.target.value })}
-        >
-          <option value="">{t('w.search.f40c84')}</option>
-          {senders.map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          aria-label={t('w.search.1f2919')}
-          value={filters.from}
-          onChange={(event) => setFilters({ ...filters, from: event.target.value })}
-        />
-        <input
-          type="date"
-          aria-label={t('w.search.f4b9b2')}
-          value={filters.to}
-          onChange={(event) => setFilters({ ...filters, to: event.target.value })}
-        />
-      </div>
+      {inline ? <h3 className="tg-search-results__section">{tab?.label}</h3> : null}
+      {inline ? null : (
+        <div className="tg-search-results__filters">
+          <select
+            aria-label={t('w.search.008629')}
+            value={filters.senderId}
+            onChange={(event) => setFilters({ ...filters, senderId: event.target.value })}
+          >
+            <option value="">{t('w.search.f40c84')}</option>
+            {senders.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            aria-label={t('w.search.1f2919')}
+            value={filters.from}
+            onChange={(event) => setFilters({ ...filters, from: event.target.value })}
+          />
+          <input
+            type="date"
+            aria-label={t('w.search.f4b9b2')}
+            value={filters.to}
+            onChange={(event) => setFilters({ ...filters, to: event.target.value })}
+          />
+        </div>
+      )}
       {search.failed ? <p className="tg-search-results__empty">{t('w.search.75f73b')}</p> : null}
       {!search.loading && !search.failed && search.items.length === 0 ? (
         <p className="tg-search-results__empty">{t('w.search.a6fb2c')}</p>
