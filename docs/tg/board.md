@@ -304,14 +304,14 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | --- | --- | --- | --- | --- |
 | TG-1201 消息操作走查并修复 | M | **merged** | agent | — |
 | TG-1202 富媒体消息走查并修复 | M | **merged** | agent | — |
-| TG-1203 群组与频道管理走查并修复 | M | in-progress | agent | — |
+| TG-1203 群组与频道管理走查并修复 | M | **merged** | agent | — |
 | TG-1204 设置与组织走查并修复 | M | **merged** | agent | — |
 | TG-1205 TUI 补齐剩余消息操作 | M | **merged** | agent | — |
 | TG-1206 自定义 emoji 输入与表情状态接线 | S | **merged** | agent | TG-1201、1202 |
 | TG-1207 AI 关闭时的后台噪声与默认配置 | S | in-progress | agent | — |
-| TG-1208 走查遗留缺陷与英文标点 | S | ready | — | TG-1203、1206 |
+| TG-1208 走查遗留缺陷与英文标点 | S | in-progress | agent | TG-1203、1206 |
 | TG-1209 安全头与外部图片 | S | in-progress | agent | TG-1206 |
-| TG-1210 群名允许重名 | S | ready | — | TG-1203 |
+| TG-1210 群名允许重名 | S | in-progress | agent | TG-1203 |
 
 - 基线 `fb1e93c1`。普通子 agent 仍报 cache_control 400，fork 类型可用，本轮全部用 fork。每任务私有 `CARGO_TARGET_DIR`，cargo 命令经 `flock /home/mike/workspace/.cargo-target/m12.lock` 全局串行（14 GB 内存，其他项目常驻约 5 GB）。
 
@@ -324,6 +324,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 - **TG-1204 合并**（`5369ad76` → `97d7a8ec`）：修 7 处——**同一标签页换账号沿用上一账号的文件夹标签、单聊壁纸与最近搜索**；**Web 无上传头像入口**（服务端早有接口）；英文界面引号与冒号；语言/外观/隐私页样式统一；强调色被打包压成 `#08f` 导致颜色框打开即黑。新增 `englishUi.test.ts` 扫描 JSX 硬编码中文（白名单 10 处，TG-1208 清零）。E2E 29/29。
 - **TG-1206 合并**（`4a6f1a8c` → `d27ff0aa`）：表情面板「标准 | 自定义」，自定义 emoji 以 entities 发送、对方实时内联显示；编辑保留 entities；`compareInstants` 亚毫秒决胜；私聊头部显示表情状态。**线上缺陷**：`Permissions-Policy: geolocation=()`（TG-401 遗留）使线上所有位置分享失败，改为 `(self)` 并有测试。`tg1202.e2e.mjs` 27/27。遗留第 4/6/7 项并入 TG-1208；CSP 拦截地图瓦片与预览图 → TG-1209。
 - 负责人复验（含两者）：bun ui 120 / core 356 / web 814，0 挂；首屏 271 417 B；fmt/clippy 净，`cargo nextest run` **662/662**，迁移 parity 83 对。
+
+- **TG-1203 合并**（`2ef5342a` → `afce9c10`）：**服务端权限两处**——有移除权的管理员可移出/封禁群主任命的其他管理员（现仅群主，409）；封禁错误地要求 `members.remove`（现 `members.ban`），双库回归测试。**频道完全进不去管理面板**（邀请链接/讨论组/公开链接/任命管理员均不可用）已修；管理面板加署名开关、封禁入口与已封禁列表；被禁言成员的输入框改为提示（原先发出即被服务端静默丢弃）；慢速模式升级超级群后标签实时更新；`/audit-events` 只对 `members.review` 挂载。4 账号 E2E 31/31。遗留：群名唯一 → TG-1210（负责人按 Telegram 行为定：允许重名）；封禁列表读权限与「会话未就绪时发送」 → TG-1208。负责人复验：bun ui 120 / core 356 / web 823，0 挂；首屏 271 710 B；fmt/clippy 净；`cargo nextest run` **664/664**；parity 83 对。
 
 ## 状态取值
 
