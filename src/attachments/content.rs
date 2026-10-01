@@ -251,25 +251,20 @@ impl AppState {
         let persisted: Result<(), sqlx::Error> = with_pool!(self, |pool| {
             async {
                 let mut transaction = pool.begin().await?;
-                let allowed: bool = sqlx::query_scalar(
-                    "SELECT EXISTS(SELECT 1 FROM chat_members \
-                     JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
-                     WHERE chat_members.room_id = $1 AND chat_members.user_id = $2 \
-                       AND chat_members.status = 'active' \
-                       AND chat_role_permissions.permission_key = 'message.send')",
-                )
-                .bind(room_id)
-                .bind(sender.id)
-                .fetch_one(&mut *transaction)
-                .await?;
-                if !allowed {
-                    return Err(sqlx::Error::RowNotFound);
-                }
-                sqlx::query(
+                // TG-604: the permission check is part of the first write, so on SQLite the
+                // transaction takes the write lock before reading anything. A deferred
+                // read-then-write transaction cannot be upgraded once another writer has
+                // committed (SQLITE_BUSY_SNAPSHOT), which failed concurrent uploads.
+                let inserted = sqlx::query(
                     "INSERT INTO attachments \
                      (id, access_key, room_id, uploader_id, file_name, mime_type, size_bytes, \
                       is_sensitive, created_at, content_hash, storage_key) \
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 \
+                     WHERE EXISTS (SELECT 1 FROM chat_members \
+                       JOIN chat_role_permissions ON chat_role_permissions.role_id = chat_members.role_id \
+                       WHERE chat_members.room_id = $3 AND chat_members.user_id = $4 \
+                         AND chat_members.status = 'active' \
+                         AND chat_role_permissions.permission_key = 'message.send')",
                 )
                 .bind(attachment_id)
                 .bind(access_key)
@@ -283,7 +278,11 @@ impl AppState {
                 .bind(&content_hash)
                 .bind(&storage_key)
                 .execute(&mut *transaction)
-                .await?;
+                .await?
+                .rows_affected();
+                if inserted == 0 {
+                    return Err(sqlx::Error::RowNotFound);
+                }
                 sqlx::query(
                     "INSERT INTO messages \
                      (id, room_id, sender_id, sender, content, attachment_id, reply_to_id, created_at, \

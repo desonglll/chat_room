@@ -2,6 +2,7 @@ pub(crate) mod auth;
 pub(crate) mod frames;
 mod history_replay;
 pub(crate) mod inbound;
+mod late_commits;
 mod outbound;
 pub(crate) mod payloads;
 pub(crate) mod protocol;
