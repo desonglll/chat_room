@@ -317,6 +317,7 @@ impl AppState {
                     return Ok(messages);
                 }
                 Ok(MessageCacheLookup::Miss(ticket)) => Some(ticket),
+                Ok(MessageCacheLookup::Bypass) => None,
                 Err(error) => {
                     tracing::warn!(%room_id, "read Redis message cache failed: {error:#}");
                     None

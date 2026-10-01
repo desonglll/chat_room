@@ -123,13 +123,22 @@ impl AppState {
             None
         };
         let auth_rate_limits = AuthRateLimits::new(&config.auth, redis_cache.clone());
-        let message_index = match MessageIndex::connect(&config.vector_store).await {
-            Ok(index) => index,
-            Err(error) => {
-                tracing::warn!(
-                    "vector message index unavailable; semantic retrieval disabled: {error:#}"
-                );
-                None
+        // TG-1207: the index only serves AI retrieval, so AI off means no vector or embedding
+        // traffic at all, even when a deployment leaves `[vector_store] enabled = true`.
+        let message_index = if !config.ai.enabled {
+            if config.vector_store.enabled {
+                tracing::info!("AI is disabled; vector message index not started");
+            }
+            None
+        } else {
+            match MessageIndex::connect(&config.vector_store).await {
+                Ok(index) => index,
+                Err(error) => {
+                    tracing::warn!(
+                        "vector message index unavailable; semantic retrieval disabled: {error:#}"
+                    );
+                    None
+                }
             }
         };
         let mut chats = HashMap::with_capacity(loaded.len());

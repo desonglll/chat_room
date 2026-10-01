@@ -5,7 +5,6 @@
   "src/attachments/content.rs": 444,
   "src/attachments/handlers.rs": 422,
   "src/attachments/upload_handlers.rs": 431,
-  "src/cache.rs": 436,
   "src/favorites/handlers.rs": 416,
   "src/knowledge/client.rs": 380,
   "src/messages/store.rs": 457,

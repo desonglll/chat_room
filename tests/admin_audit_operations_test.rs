@@ -3,6 +3,7 @@ mod support;
 use std::sync::Arc;
 
 use chat_room::{
+    ai::AiConfig,
     build_app,
     config::{AppConfig, VectorStoreConfig},
     state::AppState,
@@ -12,6 +13,11 @@ use tokio::net::TcpListener;
 #[tokio::test]
 async fn model_index_and_cleanup_operations_are_privacy_safe_audit_events() {
     let config = AppConfig {
+        // TG-1207: the vector index only starts when AI is enabled.
+        ai: AiConfig {
+            enabled: true,
+            ..AiConfig::default()
+        },
         vector_store: VectorStoreConfig {
             enabled: true,
             url: "http://127.0.0.1:9".into(),

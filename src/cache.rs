@@ -1,6 +1,9 @@
-use std::time::Duration;
+mod breaker;
+mod messages;
 
-use anyhow::{Context, Result};
+use std::time::{Duration, Instant};
+
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
@@ -8,8 +11,8 @@ use uuid::Uuid;
 
 use crate::ai_threads::{AiCitationSource, AiRunTraceStep};
 use crate::config::RedisConfig;
-use crate::message_store::MessageCursor;
 use crate::models::{StoredMessage, User};
+use breaker::{Admission, Breaker};
 
 #[derive(Clone)]
 pub(crate) struct RedisCache {
@@ -17,11 +20,14 @@ pub(crate) struct RedisCache {
     pub(crate) key_prefix: String,
     pub(crate) command_timeout: Duration,
     message_ttl_secs: u64,
+    breaker: Breaker,
 }
 
 pub(crate) enum MessageCacheLookup {
     Hit(Vec<StoredMessage>),
     Miss(MessageCacheTicket),
+    /// Redis is bypassed after a recent failure; read the database and do not populate.
+    Bypass,
 }
 
 pub(crate) struct MessageCacheTicket(String);
@@ -76,32 +82,66 @@ impl RedisCache {
             key_prefix: config.key_prefix.trim_end_matches(':').to_string(),
             command_timeout: Duration::from_millis(config.command_timeout_ms),
             message_ttl_secs: config.message_ttl_secs,
+            breaker: Breaker::new(breaker::OPEN_COOLDOWN),
         })
+    }
+
+    /// Runs one Redis command behind the circuit breaker and the command timeout.
+    /// `Ok(None)` means the breaker is open and Redis was skipped: fall back to the database.
+    pub(crate) async fn run<T>(
+        &self,
+        command: impl std::future::Future<Output = redis::RedisResult<T>>,
+    ) -> Result<Option<T>> {
+        if self.breaker.admit(Instant::now()) == Admission::Bypass {
+            return Ok(None);
+        }
+        let outcome = tokio::time::timeout(self.command_timeout, command).await;
+        let transport_ok = match &outcome {
+            Ok(Ok(_)) => true,
+            // A server reply (e.g. WRONGTYPE) proves Redis is reachable.
+            Ok(Err(error)) => !is_transport_failure(error),
+            Err(_) => false,
+        };
+        if self.breaker.record(Instant::now(), transport_ok) {
+            if transport_ok {
+                tracing::info!("Redis reachable again; cache re-enabled");
+            } else {
+                tracing::warn!(
+                    "Redis slow or unreachable; using database reads for {}s",
+                    breaker::OPEN_COOLDOWN.as_secs()
+                );
+            }
+        }
+        match outcome {
+            Ok(Ok(value)) => Ok(Some(value)),
+            Ok(Err(error)) => Err(error).context("Redis command failed"),
+            Err(_) => Err(anyhow!(
+                "Redis command timed out after {} ms",
+                self.command_timeout.as_millis()
+            )),
+        }
     }
 
     pub(crate) async fn ping(&self) -> Result<()> {
         let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("PING").query_async::<String>(&mut connection),
-        )
-        .await
-        .context("Redis PING timed out")?
-        .context("Redis PING failed")?;
+        self.run(redis::cmd("PING").query_async::<String>(&mut connection))
+            .await
+            .context("Redis PING failed")?
+            .ok_or_else(|| anyhow!("Redis bypassed after a recent failure"))?;
         Ok(())
     }
 
     pub async fn get_session(&self, token: Uuid) -> Result<Option<User>> {
         let mut connection = self.manager.clone();
-        let value = tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("GET")
-                .arg(self.session_key(token))
-                .query_async::<Option<String>>(&mut connection),
-        )
-        .await
-        .context("Redis GET timed out")?
-        .context("read cached session")?;
+        let value = self
+            .run(
+                redis::cmd("GET")
+                    .arg(self.session_key(token))
+                    .query_async::<Option<String>>(&mut connection),
+            )
+            .await
+            .context("read cached session")?
+            .flatten();
         value
             .map(|json| serde_json::from_str(&json).context("decode cached session"))
             .transpose()
@@ -118,8 +158,7 @@ impl RedisCache {
         let user_key = self.user_sessions_key(user.id);
         let json = serde_json::to_string(user).context("encode cached session")?;
         let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
+        self.run(
             redis::pipe()
                 .atomic()
                 .cmd("SET")
@@ -139,16 +178,17 @@ impl RedisCache {
                 .query_async::<()>(&mut connection),
         )
         .await
-        .context("Redis session write timed out")?
-        .context("write cached session")
+        .context("write cached session")?;
+        Ok(())
     }
 
+    // Skipping a session delete while Redis is bypassed is safe: `session_user` checks the
+    // database row on every request, so a revoked session never authenticates from cache.
     pub async fn delete_session(&self, token: Uuid, user_id: Uuid) -> Result<()> {
         let session_key = self.session_key(token);
         let user_key = self.user_sessions_key(user_id);
         let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
+        self.run(
             redis::pipe()
                 .atomic()
                 .cmd("DEL")
@@ -161,32 +201,31 @@ impl RedisCache {
                 .query_async::<()>(&mut connection),
         )
         .await
-        .context("Redis session delete timed out")?
-        .context("delete cached session")
+        .context("delete cached session")?;
+        Ok(())
     }
 
     pub async fn delete_user_sessions(&self, user_id: Uuid) -> Result<()> {
         let user_key = self.user_sessions_key(user_id);
         let mut connection = self.manager.clone();
-        let session_keys = tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("SMEMBERS")
-                .arg(&user_key)
-                .query_async::<Vec<String>>(&mut connection),
-        )
-        .await
-        .context("Redis SMEMBERS timed out")?
-        .context("list cached user sessions")?;
-        let mut keys = session_keys;
+        let Some(mut keys) = self
+            .run(
+                redis::cmd("SMEMBERS")
+                    .arg(&user_key)
+                    .query_async::<Vec<String>>(&mut connection),
+            )
+            .await
+            .context("list cached user sessions")?
+        else {
+            return Ok(());
+        };
         keys.push(user_key);
-        tokio::time::timeout(
-            self.command_timeout,
+        self.run(
             redis::cmd("DEL")
                 .arg(keys)
                 .query_async::<usize>(&mut connection),
         )
         .await
-        .context("Redis user session delete timed out")?
         .context("delete cached user sessions")?;
         Ok(())
     }
@@ -196,29 +235,29 @@ impl RedisCache {
         let mut cursor = 0_u64;
         let mut deleted = 0;
         loop {
-            let (next, keys) = tokio::time::timeout(
-                self.command_timeout,
-                redis::cmd("SCAN")
-                    .arg(cursor)
-                    .arg("MATCH")
-                    .arg(format!("{}:*", self.key_prefix))
-                    .arg("COUNT")
-                    .arg(500)
-                    .query_async::<(u64, Vec<String>)>(&mut connection),
-            )
-            .await
-            .context("Redis SCAN timed out")?
-            .context("scan cached sessions")?;
-            if !keys.is_empty() {
-                deleted += tokio::time::timeout(
-                    self.command_timeout,
-                    redis::cmd("DEL")
-                        .arg(keys)
-                        .query_async::<usize>(&mut connection),
+            let (next, keys) = self
+                .run(
+                    redis::cmd("SCAN")
+                        .arg(cursor)
+                        .arg("MATCH")
+                        .arg(format!("{}:*", self.key_prefix))
+                        .arg("COUNT")
+                        .arg(500)
+                        .query_async::<(u64, Vec<String>)>(&mut connection),
                 )
                 .await
-                .context("Redis cache clear timed out")?
-                .context("clear cached sessions")?;
+                .context("scan cached sessions")?
+                .ok_or_else(|| anyhow!("Redis bypassed after a recent failure"))?;
+            if !keys.is_empty() {
+                deleted += self
+                    .run(
+                        redis::cmd("DEL")
+                            .arg(keys)
+                            .query_async::<usize>(&mut connection),
+                    )
+                    .await
+                    .context("clear cached sessions")?
+                    .ok_or_else(|| anyhow!("Redis bypassed after a recent failure"))?;
             }
             cursor = next;
             if cursor == 0 {
@@ -227,85 +266,17 @@ impl RedisCache {
         }
     }
 
-    pub async fn message_history(
-        &self,
-        room_id: Uuid,
-        limit: i64,
-        through: Option<&MessageCursor>,
-        viewer_id: Option<Uuid>,
-    ) -> Result<MessageCacheLookup> {
-        let version = self.message_version(room_id).await?;
-        let key = self.message_history_key(room_id, version, limit, through, viewer_id);
-        let mut connection = self.manager.clone();
-        let value = tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("GET")
-                .arg(&key)
-                .query_async::<Option<String>>(&mut connection),
-        )
-        .await
-        .context("Redis message GET timed out")?
-        .context("read cached message history")?;
-        match value {
-            Some(json) => Ok(MessageCacheLookup::Hit(
-                serde_json::from_str(&json).context("decode cached message history")?,
-            )),
-            None => Ok(MessageCacheLookup::Miss(MessageCacheTicket(key))),
-        }
-    }
-
-    pub async fn set_message_history(
-        &self,
-        ticket: MessageCacheTicket,
-        messages: &[StoredMessage],
-    ) -> Result<()> {
-        let json = serde_json::to_string(messages).context("encode cached message history")?;
-        let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("SET")
-                .arg(ticket.0)
-                .arg(json)
-                .arg("EX")
-                .arg(self.message_ttl_secs)
-                .query_async::<()>(&mut connection),
-        )
-        .await
-        .context("Redis message SET timed out")?
-        .context("cache message history")
-    }
-
-    pub async fn invalidate_message_history(&self, room_id: Uuid) -> Result<()> {
-        let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
-            redis::pipe()
-                .atomic()
-                .cmd("INCR")
-                .arg(self.message_version_key(room_id))
-                .ignore()
-                .cmd("EXPIRE")
-                .arg(self.message_version_key(room_id))
-                .arg(self.message_ttl_secs.max(900))
-                .ignore()
-                .query_async::<()>(&mut connection),
-        )
-        .await
-        .context("Redis message invalidation timed out")?
-        .context("invalidate cached message history")
-    }
-
     pub async fn ai_answer(&self, message_id: Uuid) -> Result<Option<CachedAiAnswer>> {
         let mut connection = self.manager.clone();
-        let value = tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("GET")
-                .arg(self.ai_answer_key(message_id))
-                .query_async::<Option<String>>(&mut connection),
-        )
-        .await
-        .context("Redis AI answer GET timed out")?
-        .context("read cached AI answer")?;
+        let value = self
+            .run(
+                redis::cmd("GET")
+                    .arg(self.ai_answer_key(message_id))
+                    .query_async::<Option<String>>(&mut connection),
+            )
+            .await
+            .context("read cached AI answer")?
+            .flatten();
         value
             .map(|json| serde_json::from_str(&json).context("decode cached AI answer"))
             .transpose()
@@ -319,8 +290,7 @@ impl RedisCache {
     ) -> Result<()> {
         let json = serde_json::to_string(answer).context("encode cached AI answer")?;
         let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
+        self.run(
             redis::cmd("SET")
                 .arg(self.ai_answer_key(message_id))
                 .arg(json)
@@ -329,22 +299,8 @@ impl RedisCache {
                 .query_async::<()>(&mut connection),
         )
         .await
-        .context("Redis AI answer SET timed out")?
-        .context("cache AI answer")
-    }
-
-    async fn message_version(&self, room_id: Uuid) -> Result<u64> {
-        let mut connection = self.manager.clone();
-        tokio::time::timeout(
-            self.command_timeout,
-            redis::cmd("GET")
-                .arg(self.message_version_key(room_id))
-                .query_async::<Option<u64>>(&mut connection),
-        )
-        .await
-        .context("Redis message version GET timed out")?
-        .context("read message cache version")
-        .map(|version| version.unwrap_or(0))
+        .context("cache AI answer")?;
+        Ok(())
     }
 
     fn session_key(&self, token: Uuid) -> String {
@@ -355,33 +311,20 @@ impl RedisCache {
         format!("{}:user-sessions:{user_id}", self.key_prefix)
     }
 
-    fn message_version_key(&self, room_id: Uuid) -> String {
-        format!("{}:messages:{room_id}:version", self.key_prefix)
-    }
-
     fn ai_answer_key(&self, message_id: Uuid) -> String {
         format!("{}:ai-answer:{message_id}", self.key_prefix)
     }
+}
 
-    fn message_history_key(
-        &self,
-        room_id: Uuid,
-        version: u64,
-        limit: i64,
-        through: Option<&MessageCursor>,
-        viewer_id: Option<Uuid>,
-    ) -> String {
-        let through = through
-            .map(|cursor| format!("{}-{}", cursor.created_at.timestamp_micros(), cursor.id))
-            .unwrap_or_else(|| "latest".into());
-        let viewer = viewer_id
-            .map(|id| id.to_string())
-            .unwrap_or_else(|| "public".into());
-        format!(
-            "{}:messages:{room_id}:v{version}:{viewer}:{limit}:{through}",
-            self.key_prefix
-        )
-    }
+#[cfg(test)]
+mod stall_tests;
+
+fn is_transport_failure(error: &redis::RedisError) -> bool {
+    error.is_io_error()
+        || error.is_timeout()
+        || error.is_connection_dropped()
+        || error.is_connection_refusal()
+        || error.is_unrecoverable_error()
 }
 
 #[cfg(test)]

@@ -145,19 +145,21 @@ impl AuthRateLimits {
     ) -> Result<bool, ()> {
         let mut connection = redis.manager.clone();
         let prefix = redis.key_prefix.trim_end_matches(':');
-        let result = tokio::time::timeout(
-            redis.command_timeout,
-            Script::new(LIMIT_SCRIPT)
-                .key(format!("{prefix}:auth-rate:{ip_key}"))
-                .key(format!("{prefix}:auth-rate:{account_key}"))
-                .arg(self.inner.window.as_secs())
-                .arg(self.inner.ip_limit)
-                .arg(self.inner.account_limit)
-                .invoke_async::<i64>(&mut connection),
-        )
-        .await
-        .map_err(|_| ())?
-        .map_err(|_| ())?;
+        // TG-1207: shares the cache's circuit breaker, so a slow Redis costs one timeout per
+        // cooldown instead of one per login attempt; a bypass uses the local fallback.
+        let script = Script::new(LIMIT_SCRIPT);
+        let mut invocation = script.prepare_invoke();
+        invocation
+            .key(format!("{prefix}:auth-rate:{ip_key}"))
+            .key(format!("{prefix}:auth-rate:{account_key}"))
+            .arg(self.inner.window.as_secs())
+            .arg(self.inner.ip_limit)
+            .arg(self.inner.account_limit);
+        let result = redis
+            .run(invocation.invoke_async::<i64>(&mut connection))
+            .await
+            .map_err(|_| ())?
+            .ok_or(())?;
         Ok(result == 1)
     }
 
