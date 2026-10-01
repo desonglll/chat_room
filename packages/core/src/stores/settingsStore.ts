@@ -22,6 +22,8 @@ export interface SettingsSnapshot {
   /** TG-509: the offline media cache's ceiling (MB) and how long entries are kept (days; 0 = forever). */
   cacheLimitMb: number
   cacheRetentionDays: number
+  /** TG-501: chat folders as a tab strip above the list, or a rail on the left (Telegram Desktop). */
+  folderLayout: 'top' | 'left'
 }
 
 export const DEFAULT_SETTINGS: SettingsSnapshot = {
@@ -32,6 +34,7 @@ export const DEFAULT_SETTINGS: SettingsSnapshot = {
   autoDownload: DEFAULT_AUTO_DOWNLOAD,
   cacheLimitMb: 1024,
   cacheRetentionDays: 7,
+  folderLayout: 'top',
 }
 
 export const SETTINGS_STORAGE_KEY = 'tg.settings.v1'
@@ -67,6 +70,7 @@ export const createSettingsStore = () =>
         autoDownload,
         cacheLimitMb,
         cacheRetentionDays,
+        folderLayout,
       } = get()
       storage.setItem(
         SETTINGS_STORAGE_KEY,
@@ -78,6 +82,7 @@ export const createSettingsStore = () =>
           autoDownload,
           cacheLimitMb,
           cacheRetentionDays,
+          folderLayout,
         }),
       )
     },

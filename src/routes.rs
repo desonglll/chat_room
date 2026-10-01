@@ -136,6 +136,19 @@ pub(crate) fn api_routes(
             axum::routing::put(crate::notifications::exception_handlers::put_defaults),
         )
         .route(
+            "/api/users/me/folders",
+            get(crate::chats::folders::list_folders).post(crate::chats::folders::create_folder),
+        )
+        .route(
+            "/api/users/me/folders/order",
+            axum::routing::put(crate::chats::folders::reorder_folders),
+        )
+        .route(
+            "/api/users/me/folders/:id",
+            axum::routing::put(crate::chats::folders::update_folder)
+                .delete(crate::chats::folders::delete_folder),
+        )
+        .route(
             "/api/users/me/verify-password",
             axum::routing::post(user_handlers::verify_password),
         )

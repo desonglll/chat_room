@@ -30,6 +30,7 @@ import { channelApi, CreateChannelDialog } from '../channel'
 import { useMinuteClock } from './useMinuteClock'
 import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
 import { SavedMessagesRow } from '../savedMessages/SavedMessagesRow'
+import { FolderTabs, useActiveFolder } from '../folders/FolderTabs'
 
 export interface ChatListPaneProps {
   collapsed?: boolean | undefined
@@ -63,7 +64,12 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const now = useMinuteClock()
   const [archiveMode, setArchiveMode] = useState<ArchiveRowMode>(() => readArchiveRowMode(browserStorage))
 
-  const view = useMemo(() => selectChatListView(conversations, folder, query), [conversations, folder, query])
+  const activeFolder = useActiveFolder()
+  const custom = folder === 'main' ? activeFolder : undefined
+  const view = useMemo(
+    () => selectChatListView(conversations, folder, query, custom ? { folder: custom, now: now.getTime() } : undefined),
+    [conversations, folder, query, custom, now],
+  )
   const badge = useMemo(() => archiveBadge(conversations, now.getTime()), [conversations, now])
   const previewChats = useMemo(() => archivePreviewChats(view.archived, 3), [view.archived])
 
@@ -113,7 +119,8 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
     },
   ]
 
-  const showArchiveRow = folder === 'main' && !query.trim() && view.archivedCount > 0 && archiveMode !== 'hidden'
+  const showArchiveRow =
+    folder === 'main' && !custom && !query.trim() && view.archivedCount > 0 && archiveMode !== 'hidden'
   const empty = !loading && !failed && view.rows.length === 0 && !showArchiveRow
 
   return (
@@ -126,66 +133,69 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
         onCloseFolder={() => setFolder('main')}
         menuItems={menuItems}
       />
-      <ScrollArea className="tg-chatlist__scroll" orientation="vertical" overlay>
-        {loading && conversations.length === 0 ? (
-          <div className="tg-chatlist__loading" aria-hidden="true">
-            {[0, 1, 2, 3].map((key) => (
-              <div key={key} className="tg-chatlist__skeleton-row">
-                <Skeleton variant="circle" width="var(--tg-avatar-md)" height="var(--tg-avatar-md)" />
-                {collapsed ? null : <Skeleton variant="text" lines={2} />}
-              </div>
-            ))}
-          </div>
-        ) : null}
-        {!loading && failed && conversations.length === 0 ? (
-          <p className="tg-chatlist__empty">会话列表加载失败，请刷新重试</p>
-        ) : null}
-        {empty && !collapsed ? (
-          <p className="tg-chatlist__empty">
-            {query.trim() ? '没有找到匹配的会话' : '还没有会话 — 建一个群，或等别人拉你进来'}
-          </p>
-        ) : null}
-        <ul className="tg-chatlist__items">
-          {folder === 'main' && !query.trim() ? (
-            <li>
-              <SavedMessagesRow collapsed={collapsed} />
-            </li>
+      <div className="tg-chatlist__body">
+        {folder === 'main' && !collapsed ? <FolderTabs conversations={conversations} /> : null}
+        <ScrollArea className="tg-chatlist__scroll" orientation="vertical" overlay>
+          {loading && conversations.length === 0 ? (
+            <div className="tg-chatlist__loading" aria-hidden="true">
+              {[0, 1, 2, 3].map((key) => (
+                <div key={key} className="tg-chatlist__skeleton-row">
+                  <Skeleton variant="circle" width="var(--tg-avatar-md)" height="var(--tg-avatar-md)" />
+                  {collapsed ? null : <Skeleton variant="text" lines={2} />}
+                </div>
+              ))}
+            </div>
           ) : null}
-          {showArchiveRow ? (
-            <li>
-              <ArchiveRow
-                mode={archiveMode === 'expanded' ? 'expanded' : 'collapsed'}
-                previewChats={previewChats}
-                count={view.archivedCount}
-                badge={badge}
-                now={now.getTime()}
-                collapsed={collapsed}
-                onOpen={() => setFolder('archive')}
-                onModeChange={changeArchiveMode}
-              />
-            </li>
+          {!loading && failed && conversations.length === 0 ? (
+            <p className="tg-chatlist__empty">会话列表加载失败，请刷新重试</p>
           ) : null}
-          {view.rows.map((conversation) => (
-            <li key={conversation.room_id}>
-              <ArchivableChatRow
-                archived={conversation.preferences.is_archived}
-                collapsed={collapsed}
-                onToggleArchive={() => toggleArchive(conversation.room_id, conversation.preferences.is_archived)}
-              >
-                <ConnectedChatRow
-                  conversation={conversation}
-                  currentUserId={currentUserId}
-                  activeChatId={activeChatId}
+          {empty && !collapsed ? (
+            <p className="tg-chatlist__empty">
+              {query.trim() ? '没有找到匹配的会话' : '还没有会话 — 建一个群，或等别人拉你进来'}
+            </p>
+          ) : null}
+          <ul className="tg-chatlist__items">
+            {folder === 'main' && !custom && !query.trim() ? (
+              <li>
+                <SavedMessagesRow collapsed={collapsed} />
+              </li>
+            ) : null}
+            {showArchiveRow ? (
+              <li>
+                <ArchiveRow
+                  mode={archiveMode === 'expanded' ? 'expanded' : 'collapsed'}
+                  previewChats={previewChats}
+                  count={view.archivedCount}
+                  badge={badge}
+                  now={now.getTime()}
                   collapsed={collapsed}
-                  now={now}
-                  onOpen={openChat}
+                  onOpen={() => setFolder('archive')}
+                  onModeChange={changeArchiveMode}
                 />
-              </ArchivableChatRow>
-            </li>
-          ))}
-        </ul>
-        {query.trim() && !collapsed ? <PublicSearchResults query={query} /> : null}
-      </ScrollArea>
+              </li>
+            ) : null}
+            {view.rows.map((conversation) => (
+              <li key={conversation.room_id}>
+                <ArchivableChatRow
+                  archived={conversation.preferences.is_archived}
+                  collapsed={collapsed}
+                  onToggleArchive={() => toggleArchive(conversation.room_id, conversation.preferences.is_archived)}
+                >
+                  <ConnectedChatRow
+                    conversation={conversation}
+                    currentUserId={currentUserId}
+                    activeChatId={activeChatId}
+                    collapsed={collapsed}
+                    now={now}
+                    onOpen={openChat}
+                  />
+                </ArchivableChatRow>
+              </li>
+            ))}
+          </ul>
+          {query.trim() && !collapsed ? <PublicSearchResults query={query} /> : null}
+        </ScrollArea>
+      </div>
       <NewChatDialog
         open={creating}
         onClose={() => setCreating(false)}
