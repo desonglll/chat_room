@@ -13,6 +13,7 @@
  *   replay window may miss, and both paths converge on ordinary `broadcast` frames whose
  *   downstream merge (`domain/chatIncoming`) is idempotent on `message_id`.
  */
+import { compareInstants } from '../domain/instant'
 import type {
   ClientFrame,
   CoreClock,
@@ -128,7 +129,7 @@ export function createChatSocket(options: ChatSocketOptions): ChatSocket {
       return
     }
     for (const message of missed) {
-      if (message.id === since.messageId || message.created_at < since.timestamp) continue
+      if (message.id === since.messageId || compareInstants(message.created_at, since.timestamp) < 0) continue
       emit(storedMessageToBroadcast(message) as ServerFrame)
     }
   }
@@ -158,7 +159,17 @@ export function createChatSocket(options: ChatSocketOptions): ChatSocket {
   function openSocket(): void {
     cursorAtDisconnect = everAuthenticated ? cursor : null
     setStatus('connecting')
-    const next = options.createSocket(options.url)
+    let next: ReturnType<CoreSocketFactory>
+    try {
+      next = options.createSocket(options.url)
+    } catch {
+      // TG-906: a factory that throws synchronously (bad URL, blocked by CSP, out of sockets)
+      // is a failed attempt like any close — it must not leave the status stuck on
+      // `connecting` with no retry scheduled.
+      setStatus(reconnectEnabled ? 'offline' : 'idle')
+      scheduleReconnect()
+      return
+    }
     socket = next
     next.onopen = () => {
       handshakeTimer = clearTimer(handshakeTimer)

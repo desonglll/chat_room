@@ -1,7 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
+  "_comment": [
+    "TG-906: src/ is type-checked WITHOUT Bun's ambient types. `WebWorker` supplies the platform-",
+    "neutral Fetch API surface (fetch, Response, Blob, FormData, AbortSignal, console) that every",
+    "host has, but not window/document/localStorage — the second net behind the boundary test.",
+    "Tests and the Bun-only benchmark are checked by tsconfig.test.json."
+  ],
   "compilerOptions": {
-    "types": ["bun"]
+    "types": [],
+    "lib": ["ES2022", "WebWorker"]
   },
-  "include": ["src", "test"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/test/**", "src/domain/messageViewportBenchmark.ts"]
 }
