@@ -31,6 +31,7 @@ import { useMinuteClock } from './useMinuteClock'
 import { PublicSearchResults } from '../chatPreview/PublicSearchResults'
 import { SavedMessagesRow } from '../savedMessages/SavedMessagesRow'
 import { FolderTabs, useActiveFolder } from '../folders/FolderTabs'
+import { MessageSearchResults, SearchTabs, searchStore } from '../search'
 
 export interface ChatListPaneProps {
   collapsed?: boolean | undefined
@@ -65,6 +66,10 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
   const [archiveMode, setArchiveMode] = useState<ArchiveRowMode>(() => readArchiveRowMode(browserStorage))
 
   const activeFolder = useActiveFolder()
+  // TG-504: while searching, a tab other than «聊天» replaces the chat rows with message results.
+  const searchTab = useStore(searchStore, (state) => state.tab)
+  const searching = query.trim() !== '' && !collapsed
+  const messageTab = searching && searchTab !== 'chats'
   const custom = folder === 'main' ? activeFolder : undefined
   const view = useMemo(
     () => selectChatListView(conversations, folder, query, custom ? { folder: custom, now: now.getTime() } : undefined),
@@ -134,7 +139,8 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
         menuItems={menuItems}
       />
       <div className="tg-chatlist__body">
-        {folder === 'main' && !collapsed ? <FolderTabs conversations={conversations} /> : null}
+        {folder === 'main' && !collapsed && !searching ? <FolderTabs conversations={conversations} /> : null}
+        {searching ? <SearchTabs query={query} onPick={setQuery} /> : null}
         <ScrollArea className="tg-chatlist__scroll" orientation="vertical" overlay>
           {loading && conversations.length === 0 ? (
             <div className="tg-chatlist__loading" aria-hidden="true">
@@ -149,12 +155,13 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
           {!loading && failed && conversations.length === 0 ? (
             <p className="tg-chatlist__empty">会话列表加载失败，请刷新重试</p>
           ) : null}
-          {empty && !collapsed ? (
+          {empty && !collapsed && !messageTab ? (
             <p className="tg-chatlist__empty">
               {query.trim() ? '没有找到匹配的会话' : '还没有会话 — 建一个群，或等别人拉你进来'}
             </p>
           ) : null}
-          <ul className="tg-chatlist__items">
+          {messageTab ? <MessageSearchResults query={query} /> : null}
+          <ul className="tg-chatlist__items" hidden={messageTab}>
             {folder === 'main' && !custom && !query.trim() ? (
               <li>
                 <SavedMessagesRow collapsed={collapsed} />
@@ -193,7 +200,7 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
               </li>
             ))}
           </ul>
-          {query.trim() && !collapsed ? <PublicSearchResults query={query} /> : null}
+          {searching && !messageTab ? <PublicSearchResults query={query} /> : null}
         </ScrollArea>
       </div>
       <NewChatDialog

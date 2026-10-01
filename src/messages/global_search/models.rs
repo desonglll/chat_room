@@ -15,6 +15,14 @@ pub enum SearchContentType {
     Image,
     Video,
     Audio,
+    /// TG-504 tabs. `media` = photos and videos; `document` = files that are not media, music
+    /// or voice; `link` = text carrying a URL; `music` = audio files; `voice` = voice and round
+    /// video messages. The older `file` (any attachment) and `audio` stay for older clients.
+    Media,
+    Document,
+    Link,
+    Music,
+    Voice,
 }
 
 impl SearchContentType {
@@ -26,6 +34,19 @@ impl SearchContentType {
             Self::Image => "image",
             Self::Video => "video",
             Self::Audio => "audio",
+            Self::Media => "media",
+            Self::Document => "document",
+            Self::Link => "link",
+            Self::Music => "music",
+            Self::Voice => "voice",
+        }
+    }
+
+    /// What a result is, for its icon: voice/round messages by kind, everything else by type.
+    pub(crate) fn of_message(media_kind: Option<&str>, mime_type: Option<&str>) -> Self {
+        match media_kind {
+            Some("voice" | "video_note") => Self::Voice,
+            _ => Self::from_mime_type(mime_type),
         }
     }
 

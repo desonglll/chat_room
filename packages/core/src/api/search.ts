@@ -5,7 +5,19 @@
  */
 import { QueryParams, type ApiClient } from './http'
 
-export type GlobalSearchContentType = 'all' | 'text' | 'file' | 'image' | 'video' | 'audio'
+/** TG-504 adds the tab kinds: media (photo+video), document, link, music, voice. */
+export type GlobalSearchContentType =
+  | 'all'
+  | 'text'
+  | 'file'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'media'
+  | 'document'
+  | 'link'
+  | 'music'
+  | 'voice'
 
 export interface GlobalSearchFilters {
   q: string
