@@ -230,6 +230,8 @@ export function ChatListPane({ collapsed = false, onToggleCollapsed }: ChatListP
             ))}
           </ul>
           {searching && !messageTab ? <PublicSearchResults query={query} /> : null}
+          {/* TG-904: Telegram's default results list messages under the chats. */}
+          {searching && !messageTab ? <MessageSearchResults query={query} inline /> : null}
         </ScrollArea>
         {collapsed || searching ? null : (
           <NewChatFab

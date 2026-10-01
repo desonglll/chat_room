@@ -16,6 +16,8 @@ export interface UseMessageListControllerInput {
   chatId: string
   currentUserId: string
   showGroupIdentity: boolean
+  /** TG-904: a broadcast channel — every post on the incoming side. */
+  channel?: boolean
   live: DisplayMessage[]
   api: MessageListApi | undefined
   /** Called right before rows are prepended (the view pins its scroll anchor). */
@@ -31,6 +33,7 @@ export function useMessageListController({
   chatId,
   currentUserId,
   showGroupIdentity,
+  channel = false,
   live,
   api,
   onBeforePrepend,
@@ -65,8 +68,8 @@ export function useMessageListController({
   )
   const layoutCache = useMemo(() => createMessageLayoutCache(), [controller])
   const entries: MessageLayoutEntry[] = useMemo(
-    () => layoutCache(view.all, { currentUserId, showGroupIdentity }),
-    [layoutCache, view.all, currentUserId, showGroupIdentity],
+    () => layoutCache(view.all, { currentUserId, showGroupIdentity, channel }),
+    [layoutCache, view.all, currentUserId, showGroupIdentity, channel],
   )
   return { controller, state, view, entries }
 }

@@ -214,3 +214,26 @@ describe('createMessageLayoutCache', () => {
     expect(privateLayout.some((entry) => entry.showSenderName)).toBe(false)
   })
 })
+
+describe('TG-904 channels', () => {
+  test("every post is on the incoming side in a channel, the admin's own included", () => {
+    const messages = [msg('1', 'me', 0), msg('2', 'me', 1), msg('3', 'other', 2)]
+    const channel = computeMessageLayout(messages, {
+      currentUserId: 'me',
+      showGroupIdentity: false,
+      channel: true,
+      dayKeyOf: utcDay,
+    })
+    expect(channel.map((entry) => entry.isOutgoing)).toEqual([false, false, false])
+    const group = computeMessageLayout(messages, { currentUserId: 'me', showGroupIdentity: false, dayKeyOf: utcDay })
+    expect(group.map((entry) => entry.isOutgoing)).toEqual([true, true, false])
+  })
+
+  test('the cache recomputes when a chat becomes a channel', () => {
+    const cache = createMessageLayoutCache()
+    const messages = [msg('1', 'me', 0)]
+    const base = { currentUserId: 'me', showGroupIdentity: false, dayKeyOf: utcDay }
+    expect(cache(messages, base)[0]?.isOutgoing).toBe(true)
+    expect(cache(messages, { ...base, channel: true })[0]?.isOutgoing).toBe(false)
+  })
+})

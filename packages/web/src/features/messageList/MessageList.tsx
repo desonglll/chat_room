@@ -73,6 +73,7 @@ export function MessageList({
     chatId,
     currentUserId,
     showGroupIdentity: chatType === 'group' || chatType === 'supergroup',
+    channel: chatType === 'channel',
     live: timeline.messages,
     api,
     onBeforePrepend: anchorGuard.pin,

@@ -23,6 +23,12 @@ export interface MessageLayoutOptions {
   currentUserId: string
   /** Group/supergroup chats show sender names and avatars on incoming runs. */
   showGroupIdentity: boolean
+  /**
+   * TG-904: a broadcast channel. Telegram draws every post on the incoming side — the
+   * channel speaks, not the admin who typed it — so no post is "outgoing" (no right side,
+   * no read ticks), the publishing admin's own included.
+   */
+  channel?: boolean
   /** Maximum gap between two messages of one run. Telegram-like default: 5 minutes. */
   groupWindowMs?: number
   /** Local calendar day of an epoch-ms instant; injectable for deterministic tests. */
@@ -86,6 +92,7 @@ function isOutgoingMessage(message: DisplayMessage, currentUserId: string): bool
 interface Settings {
   currentUserId: string
   showGroupIdentity: boolean
+  channel: boolean
   windowMs: number
   dayOf: (epochMs: number) => number
 }
@@ -94,6 +101,7 @@ function settingsOf(options: MessageLayoutOptions): Settings {
   return {
     currentUserId: options.currentUserId,
     showGroupIdentity: options.showGroupIdentity,
+    channel: options.channel ?? false,
     windowMs: options.groupWindowMs ?? DEFAULT_GROUP_WINDOW_MS,
     dayOf: options.dayKeyOf ?? localDayKey,
   }
@@ -129,7 +137,7 @@ function baseEntry(
     joinsPrevious,
     startsDay,
     groupPosition: 'single',
-    isOutgoing: isOutgoingMessage(message, settings.currentUserId),
+    isOutgoing: !settings.channel && isOutgoingMessage(message, settings.currentUserId),
     showAvatar: false,
     showSenderName: false,
   }
@@ -245,6 +253,7 @@ export function createMessageLayoutCache(): MessageLayoutCache {
       previousSettings !== null &&
       previousSettings.currentUserId === settings.currentUserId &&
       previousSettings.showGroupIdentity === settings.showGroupIdentity &&
+      previousSettings.channel === settings.channel &&
       previousSettings.windowMs === settings.windowMs &&
       previousSettings.dayOf === settings.dayOf
     if (previous && previous.messages === messages && reusable) return previous.entries as MessageLayoutEntry[]
