@@ -15,6 +15,7 @@ import { folders } from './folders'
 import { forum } from './forum'
 import { gif } from './gif'
 import { inviteLinks } from './inviteLinks'
+import { lifecycle } from './lifecycle'
 import { linkPreview } from './linkPreview'
 import { location } from './location'
 import { mediaViewer } from './mediaViewer'
@@ -49,6 +50,7 @@ export const en: Catalog = {
   ...forum,
   ...gif,
   ...inviteLinks,
+  ...lifecycle,
   ...linkPreview,
   ...location,
   ...mediaViewer,

@@ -5,12 +5,13 @@
  */
 import { useRef } from 'react'
 import type { ApiClient } from '@tg/core'
-import { presenceStore } from '@tg/core'
+import { chatListStore, presenceStore } from '@tg/core'
 import { IconButton, ScrollArea } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import { countMembers, PANEL_HEADING, withKnownMembers } from './chatInfoModel'
 import { CloseIcon, SearchIcon } from './icons'
 import { ChatAdminEntry } from '../chatAdmin/ChatAdminEntry'
+import { ChatActions } from '../chatLifecycle'
 import { InfoDetails, InfoIdentity } from './InfoHeader'
 import { SharedSection } from './SharedSection'
 import type { ChatInfoSourceOverrides } from './useChatInfo'
@@ -46,6 +47,7 @@ export function ChatInfoPanel({
   const scrollerRef = useRef<HTMLDivElement>(null)
   // The loaded member list is proof too, once it is complete.
   const listedMembers = useStore(info.pagers.members, (state) => (state.done ? state.items.length : 0))
+  const chat = useStore(chatListStore, (state) => state.chats.find((candidate) => candidate.id === chatId))
   const header = withKnownMembers(info.header, Math.max(knownMembers, listedMembers))
 
   return (
@@ -87,6 +89,8 @@ export function ChatInfoPanel({
               showMembers={header.variant === 'group'}
               scrollerRef={scrollerRef}
             />
+            {/* TG-701: edit, invite, leave, delete. */}
+            {chat ? <ChatActions chat={chat} /> : null}
           </>
         ) : null}
       </ScrollArea>

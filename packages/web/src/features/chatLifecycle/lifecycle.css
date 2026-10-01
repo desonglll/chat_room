@@ -1,0 +1,30 @@
+/* TG-701: chat lifecycle actions at the bottom of the info panel. */
+.tg-lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-1);
+  padding: var(--tg-space-3) var(--tg-space-4);
+  border-top: 1px solid var(--tg-divider);
+}
+
+.tg-lifecycle__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-space-3);
+}
+
+.tg-lifecycle__row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tg-space-2);
+}
+
+.tg-chatinfo__item-remove {
+  padding: 0 var(--tg-space-1);
+  border: 0;
+  background: none;
+  color: var(--tg-text-danger);
+  font: inherit;
+  font-size: var(--tg-type-meta-size);
+  cursor: pointer;
+}

@@ -16,6 +16,7 @@ import type { ChatMembership } from '@tg/core'
 import { Spinner, Tabs } from '@tg/ui'
 import { useStore } from 'zustand/react'
 import type { SharedPager } from './sharedPager'
+import { MemberRemove } from '../chatLifecycle'
 import { FileRow, GifTile, LinkRow, MediaTile, MemberRow, VoiceRow } from './sharedItems'
 import type { SharedFile, SharedLink, SharedTabId } from './sharedSources'
 import { SHARED_TABS } from './sharedSources'
@@ -152,7 +153,7 @@ export function SharedSection({ chatId, pagers, showMembers, scrollerRef }: Shar
             layout="list"
             pager={pagers.members}
             keyOf={(member) => member.user_id}
-            render={(member) => <MemberRow member={member} />}
+            render={(member) => <MemberRow member={member} action={<MemberRemove chatId={chatId} member={member} />} />}
           />
         )
       case 'media':
