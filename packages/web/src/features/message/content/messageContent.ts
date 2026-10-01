@@ -7,6 +7,7 @@ import type { BroadcastMessage } from '@tg/core'
 import { createContentRegistry } from './registry'
 import { DeletedContent, FileContent, ImageContent, TextContent, VideoContent } from './builtinContents'
 import { hasAttachmentOf, hasCaption } from './attachmentKind'
+import { BigEmojiContent, isBigEmojiMessage } from './BigEmojiContent'
 
 export const messageContent = createContentRegistry()
 
@@ -28,6 +29,13 @@ messageContent.register('video', VideoContent, {
   metaPlacement: mediaMeta,
   leadingMedia: true,
   priority: 20,
+})
+// TG-411: one to three emoji alone are drawn large without a bubble (above text, below every media kind).
+messageContent.register('bigEmoji', BigEmojiContent, {
+  match: isBigEmojiMessage,
+  frame: 'bare',
+  metaPlacement: 'overlay',
+  priority: 5,
 })
 messageContent.register('deleted', DeletedContent, { match: (m) => m.recalled_at !== null, priority: 100 })
 

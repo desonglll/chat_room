@@ -201,6 +201,9 @@
   --tg-raw-font-size-18: 18px;
   --tg-raw-font-size-20: 20px;
   --tg-raw-font-size-24: 24px;
+  --tg-raw-font-size-44: 44px; /* [ours] TG-411 three big emoji */
+  --tg-raw-font-size-56: 56px; /* [ours] TG-411 two big emoji */
+  --tg-raw-font-size-72: 72px; /* [ours] TG-411 one big emoji — Telegram desktop draws ~70px */
   --tg-raw-line-height-11: 15px;
   --tg-raw-line-height-12: 16px;
   --tg-raw-line-height-13: 17px;
