@@ -310,7 +310,7 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-1206 自定义 emoji 输入与表情状态接线 | S | **merged** | agent | TG-1201、1202 |
 | TG-1207 AI 关闭时的后台噪声与默认配置 | S | **merged** | agent | — |
 | TG-1208 走查遗留缺陷与英文标点 | S | in-progress | agent | TG-1203、1206 |
-| TG-1209 安全头与外部图片 | S | in-progress | agent | TG-1206 |
+| TG-1209 安全头与外部图片 | S | **merged** | agent | TG-1206 |
 | TG-1210 群名允许重名 | S | **merged** | agent | TG-1203 |
 
 - 基线 `fb1e93c1`。普通子 agent 仍报 cache_control 400，fork 类型可用，本轮全部用 fork。每任务私有 `CARGO_TARGET_DIR`，cargo 命令经 `flock /home/mike/workspace/.cargo-target/m12.lock` 全局串行（14 GB 内存，其他项目常驻约 5 GB）。
@@ -331,6 +331,9 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 
 - **TG-1210 合并**（`26892c71` → `61ca6ba4`）：迁移 `20271001000001_allow_duplicate_chat_titles`（双库，仅删 `chats_title_active_idx`；公开 @username 仍唯一），双库 fresh/upgrade 测试；新建与改名可重名；CLI `--room-name` 重名时报错并列出调用者可见的候选。负责人复验：bun 全过；fmt/clippy 净；`cargo nextest run` **680/680**；parity 84 对。
 - **CI 自 M11 起一直红**（用户 2026-10-01 指出）：`Run packages tests` 中 3 个 sticker 面板测试失败——`gif/register` 导入即向模块全局的标签表注册，bun 在单进程内按目录顺序加载测试文件，CI runner 上 GIF 测试先加载；本机顺序相反所以一直绿。`bf7fe940` 让两个测试从空注册表开始；预加载 `gif/register` 复现：无修复 2 挂、有修复 0 挂。CI 被这一步挡住的后续步骤中，桌面端 pytest 16/16、ruff check/format 已在本地补跑通过。**教训：负责人门禁只看本机 bun 结果，从未核对 CI 状态——推送后必须看 `gh run list`。**
+
+- **TG-1209 合并**（`816ce7b6` → `274ca363`，**SSRF 经负责人评审**）：CSP `img-src` 按 `map.tile_url` 只放行配置的瓦片主机（主机名字符白名单，配置无法注入指令）；链接预览图由服务端经 TG-408 同一逐跳抓取（每跳校验+DNS 固定+重定向复检+5 s 截止）获取，按文件头只收 PNG/JPEG/GIF/WebP、>1 MiB 拒收不截断，存入新表经 `/api/link-previews/images/:key`（随机 UUID 能力 URL，同附件模型）同源提供。迁移 `20271201000001` 双库。负责人复验：bun 全过；fmt/clippy 净；`cargo nextest run` **691/691**；parity 85 对。
+- **CI 第二处红**：packages 测试修好后 `Run Rust tests` 中途 runner 磁盘耗尽（约 180 个测试二进制 × 调试信息 + 增量缓存）。workflow 改为无调试信息、无增量（与本地门禁一致），并在该步前删除 runner 预装的 dotnet/android/ghc/CodeQL。
 
 ## 状态取值
 
