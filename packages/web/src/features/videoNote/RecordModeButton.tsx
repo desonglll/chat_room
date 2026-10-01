@@ -6,12 +6,16 @@
  *
  * Both recorders are TG-401's `RecordController`; only the camera one gets the round
  * viewfinder overlay and loses the live waveform.
+ *
+ * TG-1301: when the page cannot record live (plain http on a LAN address), each mode opens the
+ * system recorder / camera instead (`CaptureRecordButton`); the tap still toggles the mode.
  */
 import { useState, type ReactNode } from 'react'
 import type { ClientFrame } from '@tg/core'
 import { browserStorage } from '../../app/platform'
 import { useVoiceRecording } from '../voice/useVoiceRecording'
 import { VoiceRecordView } from '../voice/VoiceRecordButton'
+import { CaptureRecordButton } from '../voice/CaptureRecordButton'
 import { CameraGlyph } from './glyphs'
 import { useVideoNoteRecording } from './useVideoNoteRecording'
 import { VideoNoteViewfinder } from './VideoNoteViewfinder'
@@ -39,6 +43,39 @@ export function RecordModeButton(props: RecordModeButtonProps) {
     const next = mode === 'voice' ? 'video' : 'voice'
     browserStorage.setItem(MODE_KEY, next)
     setMode(next)
+  }
+  if (mode === 'voice' && !voice.live) {
+    return (
+      <CaptureRecordButton
+        state={voice.state}
+        controller={voice.controller}
+        canSend={props.canSend}
+        micGlyph={props.micGlyph}
+        accept="audio/*"
+        capture
+        hint={t('w.voice.4a05b0')}
+        onTap={toggle}
+        idleLabel={t('w.videoNote.9ccb9e')}
+      />
+    )
+  }
+  if (mode === 'video' && !video.live) {
+    return (
+      <CaptureRecordButton
+        state={video.state}
+        controller={video.controller}
+        canSend={props.canSend}
+        micGlyph={<CameraGlyph />}
+        accept="video/*"
+        capture="user"
+        hint={t('w.videoNote.92b4c5')}
+        onTap={toggle}
+        kind="video_note"
+        idleLabel={t('w.videoNote.e87e92')}
+        notice={video.notice}
+        onNoticeShown={video.dismissNotice}
+      />
+    )
   }
   if (mode === 'voice') {
     return (

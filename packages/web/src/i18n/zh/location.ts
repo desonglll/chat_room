@@ -24,4 +24,8 @@ export const location: Catalog = {
   'w.location.db9cc6': '未获得定位权限',
   'w.location.e3a482': '停止共享',
   'w.location.f213c0': '在地图中打开',
+  'w.location.a14d34': '需要通过 HTTPS 打开本站才能使用定位：当前地址不安全，浏览器已禁用定位',
+  'w.location.175289': '拖动地图，让图钉对准要发送的位置',
+  'w.location.704cff': '发送所选位置',
+  'w.location.466085': '实时位置需要设备定位，现在不可用',
 }

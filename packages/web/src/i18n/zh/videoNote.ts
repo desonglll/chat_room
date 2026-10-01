@@ -16,4 +16,9 @@ export const videoNote: Catalog = {
   'w.videoNote.ea8edf': '视频消息发送失败，请重试',
   'w.videoNote.ecea6e': '未观看',
   'w.videoNote.f2368c': '发送视频消息',
+  'w.videoNote.7660f2': '需要通过 HTTPS 打开本站才能录制视频消息：当前地址不安全，浏览器已禁用摄像头',
+  'w.videoNote.554443': '没有找到摄像头',
+  'w.videoNote.6aba12': '无法识别该视频格式',
+  'w.videoNote.756e8a': '视频超过 16 MB 或 60 秒，已作为普通视频发送',
+  'w.videoNote.92b4c5': '通过 HTTP 访问时将使用系统相机',
 }

@@ -45,7 +45,25 @@ export interface VoiceRecording {
   waveform: number[]
 }
 
-export type RecorderFailure = 'unsupported' | 'permission' | 'device'
+/**
+ * Why recording could not start. TG-1301 split two cases users could not tell apart:
+ * `insecure` — the page is not a secure context (http on a LAN address), so the browser hides the
+ * microphone/camera API entirely; `nodevice` — the API works but there is no such device.
+ */
+export type RecorderFailure = 'unsupported' | 'insecure' | 'permission' | 'nodevice' | 'device'
+
+/** The failure for a browser that offers no recording API: is it the page, or the browser? */
+export function unavailableFailure(scope: { isSecureContext?: boolean } = globalThis): RecorderFailure {
+  return scope.isSecureContext === false ? 'insecure' : 'unsupported'
+}
+
+/** The failure for a `getUserMedia` rejection, by its DOMException name. */
+export function mediaFailure(error: unknown): RecorderFailure {
+  const name = (error as { name?: string } | null)?.name
+  if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError') return 'permission'
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') return 'nodevice'
+  return 'device'
+}
 
 export class RecorderError extends Error {
   constructor(readonly reason: RecorderFailure) {
@@ -101,8 +119,7 @@ export function createVoiceRecorder(env: RecorderEnv): VoiceRecorder {
       try {
         stream = await env.getUserMedia()
       } catch (error) {
-        const name = (error as { name?: string } | null)?.name
-        throw new RecorderError(name === 'NotAllowedError' || name === 'SecurityError' ? 'permission' : 'device')
+        throw new RecorderError(mediaFailure(error))
       }
       if (cancelled) {
         release()

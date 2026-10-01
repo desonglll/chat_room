@@ -88,3 +88,43 @@
 .tg-location-share__periods > * {
   flex: 1;
 }
+
+/* TG-1301: the reason the device position is unavailable, kept as a quiet line above the picker. */
+.tg-location-share__reason {
+  margin: 0;
+  color: var(--tg-text-danger);
+  font-size: var(--tg-type-subtitle-size);
+}
+
+/* TG-1301: the map picker — the map moves under a pin fixed at its centre. */
+.tg-location-picker {
+  position: relative;
+  block-size: 260px;
+  border-radius: var(--tg-radius-md);
+  overflow: hidden;
+  background: var(--tg-bg-secondary);
+}
+
+.tg-location-picker__map {
+  position: absolute;
+  inset: 0;
+}
+
+/* A teardrop whose tip sits on the centre of the map. */
+.tg-location-picker__pin {
+  position: absolute;
+  z-index: 500; /* above Leaflet's tile and overlay panes (≤ 400) */
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: 28px;
+  block-size: 28px;
+  margin-block-start: -28px;
+  margin-inline-start: -14px;
+  border: 3px solid var(--tg-surface);
+  border-radius: 50% 50% 50% 0;
+  background: var(--tg-accent);
+  box-shadow: var(--tg-shadow-menu);
+  transform: rotate(-45deg);
+  transform-origin: 50% 50%;
+  pointer-events: none;
+}

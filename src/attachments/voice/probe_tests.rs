@@ -170,3 +170,69 @@ fn unknown_bytes_are_not_a_voice_container() {
         })
     );
 }
+
+/// TG-1301: a canonical PCM WAV — `fmt ` (16-byte PCM body), optional extra chunk, `data`.
+fn wav(
+    sample_rate: u32,
+    channels: u16,
+    pcm_bytes: usize,
+    extra: Option<(&[u8; 4], &[u8])>,
+) -> Vec<u8> {
+    let byte_rate = sample_rate * u32::from(channels) * 2;
+    let mut fmt = Vec::new();
+    fmt.extend_from_slice(&1u16.to_le_bytes());
+    fmt.extend_from_slice(&channels.to_le_bytes());
+    fmt.extend_from_slice(&sample_rate.to_le_bytes());
+    fmt.extend_from_slice(&byte_rate.to_le_bytes());
+    fmt.extend_from_slice(&(channels * 2).to_le_bytes());
+    fmt.extend_from_slice(&16u16.to_le_bytes());
+    let chunk = |id: &[u8], body: &[u8]| {
+        let mut out = id.to_vec();
+        out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        out.extend_from_slice(body);
+        if body.len() % 2 == 1 {
+            out.push(0);
+        }
+        out
+    };
+    let mut body = b"WAVE".to_vec();
+    body.extend(chunk(b"fmt ", &fmt));
+    if let Some((id, payload)) = extra {
+        body.extend(chunk(id, payload));
+    }
+    body.extend(chunk(b"data", &vec![0u8; pcm_bytes]));
+    let mut out = b"RIFF".to_vec();
+    out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    out.extend(body);
+    out
+}
+
+#[test]
+fn wav_duration_is_the_data_size_over_the_byte_rate() {
+    // 16 kHz mono 16-bit = 32 000 B/s; 2.5 s of PCM.
+    assert_eq!(
+        probe(&wav(16_000, 1, 80_000, None)),
+        Some(Probe {
+            container: Container::Wav,
+            duration_ms: Some(2_500)
+        })
+    );
+    // An odd-sized LIST chunk before `data` is skipped, pad byte included.
+    let listed = wav(44_100, 2, 176_400, Some((b"LIST", b"INFOabc")));
+    assert_eq!(probe(&listed).and_then(|p| p.duration_ms), Some(1_000));
+    assert_eq!(Container::Wav.mime_type(), "audio/wav");
+    // WAV never carries the round-video track.
+    assert!(!has_video_track(&listed, Container::Wav));
+}
+
+#[test]
+fn a_wav_without_fmt_or_data_sniffs_but_has_no_duration() {
+    assert_eq!(
+        probe(b"RIFF\x04\0\0\0WAVE"),
+        Some(Probe {
+            container: Container::Wav,
+            duration_ms: None
+        })
+    );
+    assert_eq!(probe(b"RIFF\x04\0\0\0AVI "), None);
+}

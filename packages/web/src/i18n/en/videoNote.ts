@@ -16,4 +16,10 @@ export const videoNote: Catalog = {
   'w.videoNote.ea8edf': 'Could not send the video message, please try again',
   'w.videoNote.ecea6e': 'Not watched',
   'w.videoNote.f2368c': 'Send video message',
+  'w.videoNote.7660f2':
+    'Video messages need this site opened over HTTPS: the browser blocks the camera on an insecure address',
+  'w.videoNote.554443': 'No camera found',
+  'w.videoNote.6aba12': 'This video format cannot be read',
+  'w.videoNote.756e8a': 'The video is over 16 MB or 60 seconds, so it was sent as a regular video',
+  'w.videoNote.92b4c5': 'Over plain HTTP the system camera is used instead',
 }

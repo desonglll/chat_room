@@ -68,11 +68,11 @@ describe('video note recorder', () => {
     expect(recording.blob.type).toBe('video/mp4')
   })
 
-  test('a denied camera is a permission error; a missing one a device error', async () => {
+  test('a denied camera is a permission error; a missing one is "no device" (TG-1301)', async () => {
     const denied = createVideoNoteRecorder(fakeVideoEnv({ denied: 'NotAllowedError' }).env)
     expect(denied.start()).rejects.toEqual(new RecorderError('permission'))
     const missing = createVideoNoteRecorder(fakeVideoEnv({ denied: 'NotFoundError' }).env)
-    expect(missing.start()).rejects.toEqual(new RecorderError('device'))
+    expect(missing.start()).rejects.toEqual(new RecorderError('nodevice'))
     expect(() => createVideoNoteRecorder(fakeVideoEnv({ supported: [] }).env)).toThrow(RecorderError)
   })
 

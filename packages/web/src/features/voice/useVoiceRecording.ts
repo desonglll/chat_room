@@ -10,7 +10,8 @@ import { activeTopicId } from '../forum/activeTopic'
 import { browserRecorderEnv } from './browserRecorderEnv'
 import { createRecordController, type RecordController, type RecordState } from './recordController'
 import { voiceFileName } from './recorderFormat'
-import { createVoiceRecorder, RecorderError } from './voiceRecorder'
+import { voiceRecordingFromFile } from './voiceFile'
+import { createVoiceRecorder, RecorderError, unavailableFailure } from './voiceRecorder'
 
 export interface VoiceRecordingOptions {
   chatId: string
@@ -22,6 +23,8 @@ export interface VoiceRecordingOptions {
 export function useVoiceRecording(options: VoiceRecordingOptions): {
   state: RecordState
   controller: RecordController
+  /** TG-1301: whether a live microphone recording can start; otherwise the system recorder. */
+  live: boolean
 } {
   const latest = useRef(options)
   latest.current = options
@@ -38,7 +41,7 @@ export function useVoiceRecording(options: VoiceRecordingOptions): {
       now: () => performance.now(),
       createRecorder: () => {
         const env = browserRecorderEnv()
-        if (!env) throw new RecorderError('unsupported')
+        if (!env) throw new RecorderError(unavailableFailure())
         return createVoiceRecorder(env)
       },
       upload: async (recording) => {
@@ -54,6 +57,7 @@ export function useVoiceRecording(options: VoiceRecordingOptions): {
         })
       },
       onSent: () => latest.current.onSent?.(),
+      fromFile: (file) => voiceRecordingFromFile(file),
     })
     const dispose = created.dispose
     created.dispose = () => {
@@ -65,5 +69,6 @@ export function useVoiceRecording(options: VoiceRecordingOptions): {
 
   useEffect(() => () => controller.dispose(), [controller])
   const state = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState)
-  return { state, controller }
+  const live = useMemo(() => browserRecorderEnv() !== undefined, [])
+  return { state, controller, live }
 }

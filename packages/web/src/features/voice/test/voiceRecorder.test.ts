@@ -44,11 +44,11 @@ describe('voice recorder', () => {
     expect(() => createVoiceRecorder(fakeEnv({ supported: [] }).env)).toThrow(RecorderError)
   })
 
-  test('a denied microphone is a permission error; a missing one a device error', async () => {
+  test('a denied microphone is a permission error; a missing one is "no device" (TG-1301)', async () => {
     const denied = createVoiceRecorder(fakeEnv({ denied: 'NotAllowedError' }).env)
     expect(await denied.start().catch((error: RecorderError) => error.reason)).toBe('permission')
     const missing = createVoiceRecorder(fakeEnv({ denied: 'NotFoundError' }).env)
-    expect(await missing.start().catch((error: RecorderError) => error.reason)).toBe('device')
+    expect(await missing.start().catch((error: RecorderError) => error.reason)).toBe('nodevice')
   })
 
   test('cancel releases the microphone and discards the data', async () => {

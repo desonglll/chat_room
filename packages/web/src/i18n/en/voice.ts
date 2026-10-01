@@ -20,4 +20,9 @@ export const voice: Catalog = {
   'w.voice.d821bd': 'Not listened',
   'w.voice.ed7ef4': 'Play voice message',
   'w.voice.fbd8f0': 'Playback speed {0}x, tap to change',
+  'w.voice.eec4bc':
+    'Voice messages need this site opened over HTTPS: the browser blocks the microphone on an insecure address',
+  'w.voice.c72649': 'No microphone found',
+  'w.voice.a056b7': 'This recording format cannot be read',
+  'w.voice.4a05b0': 'Over plain HTTP the system recorder is used instead',
 }
