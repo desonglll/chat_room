@@ -801,3 +801,13 @@ i18n：新增文案追加到 `packages/core/src/i18n/{zh,en}.ts` 对应分区末
 - **Work** 先列出服务端已有而 TUI 缺失的能力（写进 devlog），再实现最有价值的：回复（含引用）、编辑、撤回、表情回应、会话内搜索、定时/静默发送、会话置顶/静音/归档、通过邀请链接加入、对方输入状态显示。
 - **Allowed** `src/bin/client_tui/**`、`tests/` 下新增的 TUI 端到端测试。
 - **Acceptance** 单元/渲染测试 + 对真实服务器的端到端测试；`--help` 或帮助面板列出新按键。
+
+## TG-1206 自定义 emoji 输入与表情状态接线 · S（来源 TG-1202 集成补丁清单）
+- **Work** 应用 TG-304 遗留补丁第 1、2、3、5、8 项：`messageStore.applyEdit` 保留 entities；`chatSession.sendMessage(text, entities)`；输入框表情面板加「自定义」分区并按 entities 发送；私聊头部显示 `EmojiStatus`；`compareInstants` 亚毫秒决胜。第 4、6、7 项（会话行、成员列表、设置入口）等 TG-1203/1204 合并后由本卡续做或负责人补。
+- **Allowed** `packages/core/src/stores/messageStore.ts`、`packages/core/src/domain/instant.ts`、`packages/web/src/features/{chat,composer,customEmoji}/**`、`packages/web/test/e2e/tg1202.e2e.mjs`、对应测试。
+- **Acceptance** 从面板选自定义 emoji 发送，对方实时看到内联图；E2E 步骤 `custom-emoji-sent-shows` 改为面板选择并通过。
+
+## TG-1207 AI 关闭时的后台噪声与默认配置 · S（来源 TG-1201 记录）
+- **Work** AI 关闭时知识索引不再调用嵌入接口，也不对 401 无限重试（不可重试错误退避或停止）；评估 `chat-room.toml` 默认开 Redis 导致每请求约 2.5 s 卡顿的根因（连接超时？每请求新建连接？），修根因而非只改默认值。
+- **Allowed** `src/knowledge/**`、`src/ai_*/**`（仅开关与重试）、Redis 客户端所在模块、`chat-room.toml`、对应测试。
+- **Acceptance** 回归测试：AI 关闭时零嵌入请求；Redis 不可达/慢时请求延迟有上界并有测试。

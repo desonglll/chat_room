@@ -307,6 +307,8 @@ M0 全部 merged。用户 2026-09-30 指示开放 M1 并完成全部剩余里程
 | TG-1203 群组与频道管理走查并修复 | M | in-progress | agent | — |
 | TG-1204 设置与组织走查并修复 | M | in-progress | agent | — |
 | TG-1205 TUI 补齐剩余消息操作 | M | in-progress | agent | — |
+| TG-1206 自定义 emoji 输入与表情状态接线 | S | in-progress | agent | TG-1201、1202 |
+| TG-1207 AI 关闭时的后台噪声与默认配置 | S | in-progress | agent | — |
 
 - 基线 `fb1e93c1`。普通子 agent 仍报 cache_control 400，fork 类型可用，本轮全部用 fork。每任务私有 `CARGO_TARGET_DIR`，cargo 命令经 `flock /home/mike/workspace/.cargo-target/m12.lock` 全局串行（14 GB 内存，其他项目常驻约 5 GB）。
 
