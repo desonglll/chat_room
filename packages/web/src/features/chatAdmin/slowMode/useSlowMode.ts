@@ -20,6 +20,15 @@ export interface SlowModeView {
 
 const OFF: SlowModeView = { seconds: 0, exempt: false, wait: 0 }
 
+/**
+ * Whole seconds left before the viewer may send. A chat without slow mode, or an exempt
+ * viewer, never waits — whatever the clock says. `now` may lag `deadline` by a render.
+ */
+export function slowModeWait(state: SlowModeState | null, deadline: number, now: number): number {
+  if (!state || state.exempt || state.seconds <= 0) return 0
+  return Math.max(0, Math.ceil((deadline - now) / 1000))
+}
+
 /** Newest timestamp (ms) of the viewer's own server-acknowledged message in the chat. */
 function lastOwnSend(chatId: string, userId: string): number {
   const messages = messageStore.getState().timelines[chatId]?.messages ?? []
@@ -69,13 +78,12 @@ export function useSlowMode(chatId: string, userId: string, api = slowModeApi): 
   }, [chatId, state, userId])
 
   useEffect(() => {
-    if (deadline <= Date.now()) return
     setNow(Date.now())
+    if (deadline <= Date.now()) return
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [deadline])
 
   if (!state) return OFF
-  const wait = state.exempt ? 0 : Math.max(0, Math.ceil((deadline - now) / 1000))
-  return { seconds: state.seconds, exempt: state.exempt, wait }
+  return { seconds: state.seconds, exempt: state.exempt, wait: slowModeWait(state, deadline, now) }
 }

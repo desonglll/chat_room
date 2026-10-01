@@ -8,9 +8,15 @@ import { apiClient } from '../../app/client'
 
 export const notificationsApi = createNotificationsApi(apiClient, () => selectToken(authStore.getState()) || null)
 
-export const notificationsStore = createStore<{ unread: number; incomingRequests: number }>()(() => ({
+export const notificationsStore = createStore<{
+  unread: number
+  incomingRequests: number
+  /** TG-801: bumps on every `social_changed` frame so open contact views reload. */
+  socialRevision: number
+}>()(() => ({
   unread: 0,
   incomingRequests: 0,
+  socialRevision: 0,
 }))
 
 /** Feed one account-socket frame the chat list does not handle itself. */
@@ -18,7 +24,10 @@ export function applyAccountSignal(frame: { type: string } & Record<string, unkn
   if (frame.type === 'notifications_changed' && typeof frame.unread_count === 'number') {
     notificationsStore.setState({ unread: frame.unread_count })
   } else if (frame.type === 'social_changed' && typeof frame.incoming_request_count === 'number') {
-    notificationsStore.setState({ incomingRequests: frame.incoming_request_count })
+    notificationsStore.setState((state) => ({
+      incomingRequests: frame.incoming_request_count as number,
+      socialRevision: state.socialRevision + 1,
+    }))
   }
 }
 

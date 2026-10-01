@@ -33,5 +33,9 @@ export const contactsPage: Catalog = {
   'w.contacts.nobody': '没有找到这个用户',
   'w.contacts.addFriend': '加为好友',
   'w.contacts.requestSent': '好友申请已发送',
+  'w.contacts.tooShort': '至少输入 2 个字符',
+  'w.contacts.tooFast': '查找太频繁，请稍后再试',
+  'w.contacts.searchFailed': '查找失败，请稍后重试',
+  'w.contacts.withdrawn': '已撤回申请',
   'w.contacts.menu': '联系人',
 }
