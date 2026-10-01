@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use chat_room::{
+    ai::AiConfig,
     build_app,
     config::{AdminConfig, AppConfig, VectorStoreConfig},
     state::AppState,
@@ -31,6 +32,11 @@ impl Drop for Server {
 
 async fn start() -> Server {
     let config = AppConfig {
+        // TG-1207: the vector index only starts when AI is enabled.
+        ai: AiConfig {
+            enabled: true,
+            ..AiConfig::default()
+        },
         admin: AdminConfig {
             usernames: vec!["index-admin".into()],
             ..AdminConfig::default()
