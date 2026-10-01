@@ -5,6 +5,7 @@
 import type { MessageContentProps } from './contentTypes'
 import { MessageText } from './MessageText'
 import { MediaFrame } from './MediaFrame'
+import { BubbleImage } from './BubbleImage'
 import { AutoDownloadGate } from '../../settings/storage/AutoDownloadGate'
 import { formatBytes, hasCaption } from './attachmentKind'
 import { DeletedGlyph, FileGlyph, PlayGlyph } from '../icons'
@@ -28,14 +29,7 @@ export function ImageContent(props: MessageContentProps) {
     <>
       <MediaFrame attachment={attachment} actions={actions} label={t('w.message.d5948e', attachment.file_name)}>
         <AutoDownloadGate kind="photo" sizeBytes={attachment.size_bytes}>
-          <img
-            className="tg-bubble__image"
-            src={attachment.download_url}
-            alt={attachment.file_name}
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-          />
+          <BubbleImage src={attachment.download_url} name={attachment.file_name} />
         </AutoDownloadGate>
       </MediaFrame>
       <Caption {...props} />

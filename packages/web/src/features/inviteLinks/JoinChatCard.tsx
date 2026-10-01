@@ -60,7 +60,10 @@ export function JoinChatCard({
         <Avatar label={preview.title} initials={preview.avatar_emoji || undefined} size="xl" />
         <p className="tg-join__title">{preview.title}</p>
         <p className="tg-invite__meta">
-          {TYPE_LABEL[preview.chat_type]} · {preview.member_count} {t('w.inviteLinks.b8d0b7')}
+          {TYPE_LABEL[preview.chat_type]} ·{' '}
+          {preview.chat_type === 'channel'
+            ? t('w.channel.2b75a3', preview.member_count)
+            : t('w.chatInfo.0ece20', preview.member_count)}
         </p>
         {preview.description ? <p className="tg-join__description">{preview.description}</p> : null}
         {pending ? (

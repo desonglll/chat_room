@@ -68,7 +68,7 @@ export function listChatFiles(
   chatId: string,
   credentials: ChatCredentials,
   /** TG-803: `media` / `document` / `voice` / `gif` are the info panel's tabs, classified server-side. */
-  kind: 'all' | 'image' | 'video' | 'file' | 'media' | 'document' | 'voice' | 'gif',
+  kind: 'all' | 'image' | 'video' | 'file' | 'media' | 'document' | 'music' | 'voice' | 'gif',
   before = '',
   limit = 50,
 ): Promise<ChatFilePage> {

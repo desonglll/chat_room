@@ -58,4 +58,6 @@ export const chatInfo: Catalog = {
   'w.chatInfo.ef84e7': 'Administrators',
   'w.chatInfo.fa4e33': 'Videos',
   'w.chatInfo.fe3330': 'Media',
+  'w.chatInfo.music': 'Music',
+  'w.chatInfo.noMusic': 'No shared music yet',
 }

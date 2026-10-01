@@ -59,8 +59,10 @@ export function PublicSearchResults({
               <span className="tg-publicsearch__text">
                 <span className="tg-publicsearch__name">{chat.title}</span>
                 <span className="tg-publicsearch__meta">
-                  @{chat.username} · {chat.member_count}{' '}
-                  {chat.chat_type === 'channel' ? t('w.chatPreview.597e61') : t('w.chatPreview.b8d0b7')}
+                  @{chat.username} ·{' '}
+                  {chat.chat_type === 'channel'
+                    ? t('w.chatPreview.2b75a3', chat.member_count)
+                    : t('w.chatPreview.0ece20', chat.member_count)}
                 </span>
               </span>
             </button>

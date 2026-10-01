@@ -66,7 +66,7 @@ impl FileRow {
         ("id" = Uuid, description = "Chat id"),
         ("before" = Option<Uuid>, Query, description = "Exclusive message cursor"),
         ("limit" = Option<i64>, Query, description = "Page size (1-100)"),
-        ("kind" = Option<String>, Query, description = "all, image, video, file; TG-803: media, document, voice, gif")
+        ("kind" = Option<String>, Query, description = "all, image, video, file; TG-803: media, document, voice, gif; TG-905: music")
     ),
     responses(
         (status = 200, description = "Paginated chat files", body = ChatFilePage),
@@ -120,8 +120,8 @@ pub async fn list_chat_files(
 /// TG-803 adds the chat info panel's tabs, decided by `messages.media_kind` before the MIME
 /// type so a voice message is never "a file" and a sticker never "a photo":
 /// `media` photos and videos (no GIFs, stickers or round videos), `document` everything else
-/// that is not one of those kinds (music included, as Telegram's «文件»), `voice` voice and
-/// round video messages, `gif` GIFs.
+/// that is not one of those kinds nor audio, `music` audio files that are not voice messages
+/// (TG-905, Telegram's «音乐»), `voice` voice and round video messages, `gif` GIFs.
 fn kind_clause(kind: &str) -> Option<&'static str> {
     Some(match kind {
         "all" => "TRUE",
@@ -137,7 +137,12 @@ fn kind_clause(kind: &str) -> Option<&'static str> {
         }
         "document" => {
             "attachments.mime_type NOT LIKE 'image/%' AND attachments.mime_type NOT LIKE 'video/%' \
+             AND attachments.mime_type NOT LIKE 'audio/%' \
              AND COALESCE(messages.media_kind, '') NOT IN ('sticker', 'gif', 'video_note', 'voice')"
+        }
+        "music" => {
+            "attachments.mime_type LIKE 'audio/%' \
+             AND COALESCE(messages.media_kind, '') NOT IN ('voice', 'video_note')"
         }
         "voice" => "messages.media_kind IN ('voice', 'video_note')",
         "gif" => "(messages.media_kind = 'gif' OR attachments.mime_type = 'image/gif')",

@@ -2,21 +2,25 @@ import { describe, expect, test } from 'bun:test'
 import { createAdminApi, formatStorageBytes } from './admin'
 import { ApiError, type ApiClient } from './http'
 
-const clientAnswering = (status: number) =>
-  ({
-    request: async (_method: string, path: string) => {
-      if (status >= 400) throw new ApiError(status, path, 'Forbidden')
-      return new Response('{}', { status })
-    },
-    json: async () => ({}),
-  }) as unknown as ApiClient
-
 describe('TG-705 admin client', () => {
-  test('a 403 means "not an administrator", other failures stay errors', async () => {
-    expect(await createAdminApi(clientAnswering(200), () => 't').isAdmin()).toBe(true)
-    expect(await createAdminApi(clientAnswering(403), () => 't').isAdmin()).toBe(false)
-    expect(await createAdminApi(clientAnswering(401), () => null).isAdmin()).toBe(false)
-    await expect(createAdminApi(clientAnswering(500), () => 't').isAdmin()).rejects.toBeInstanceOf(ApiError)
+  test('isAdmin reads GET /api/admin/access; 401 is "no", other failures stay errors (TG-905)', async () => {
+    const answering = (status: number, isAdmin = false) => {
+      const paths: string[] = []
+      const client = {
+        json: async (_method: string, path: string) => {
+          paths.push(path)
+          if (status >= 400) throw new ApiError(status, path, 'Refused')
+          return { is_admin: isAdmin }
+        },
+      } as unknown as ApiClient
+      return { client, paths }
+    }
+    const admin = answering(200, true)
+    expect(await createAdminApi(admin.client, () => 't').isAdmin()).toBe(true)
+    expect(admin.paths).toEqual(['/api/admin/access'])
+    expect(await createAdminApi(answering(200, false).client, () => 't').isAdmin()).toBe(false)
+    expect(await createAdminApi(answering(401).client, () => null).isAdmin()).toBe(false)
+    await expect(createAdminApi(answering(500).client, () => 't').isAdmin()).rejects.toBeInstanceOf(ApiError)
   })
 
   test('storage sizes read in binary units', () => {

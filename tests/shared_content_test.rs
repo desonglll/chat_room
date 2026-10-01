@@ -84,7 +84,11 @@ async fn file_tabs_are_classified_on_the_server(server: &TestServer) {
     );
     assert_eq!(
         file_names(server, &owner, chat, "document").await,
-        ["song.mp3", "report.pdf"]
+        ["report.pdf"]
+    );
+    assert_eq!(
+        file_names(server, &owner, chat, "music").await,
+        ["song.mp3"]
     );
     assert_eq!(file_names(server, &owner, chat, "voice").await.len(), 1);
     assert_eq!(file_names(server, &owner, chat, "gif").await, ["dance.gif"]);
@@ -93,7 +97,7 @@ async fn file_tabs_are_classified_on_the_server(server: &TestServer) {
     let (status, _) = get(
         server,
         &owner,
-        &format!("/api/chats/{chat}/files?kind=music"),
+        &format!("/api/chats/{chat}/files?kind=nonsense"),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);

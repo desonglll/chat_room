@@ -4,7 +4,8 @@
  * paged on the server (TG-803), so every page is a full page of that tab:
  *
  *   media  `/api/chats/:id/files?kind=media`     photos + videos (no GIFs, stickers, round videos)
- *   files  `/api/chats/:id/files?kind=document`  everything else that is not voice/GIF/sticker
+ *   files  `/api/chats/:id/files?kind=document`  everything else that is not audio/voice/GIF/sticker
+ *   music  `/api/chats/:id/files?kind=music`     audio files that are not voice messages (TG-905)
  *   voice  `/api/chats/:id/files?kind=voice`     voice + round video messages
  *   gif    `/api/chats/:id/files?kind=gif`
  *   links  `/api/chats/:id/links`                the server's link index (text + hidden links)
@@ -16,7 +17,7 @@ import { extractLinks } from './linkExtract'
 import type { FetchSharedPage, SharedPage } from './sharedPager'
 import { t } from '../../i18n/index'
 
-export type SharedTabId = 'media' | 'files' | 'links' | 'voice' | 'gif'
+export type SharedTabId = 'media' | 'files' | 'links' | 'music' | 'voice' | 'gif'
 
 export const SHARED_TABS: ReadonlyArray<{ id: SharedTabId; label: string; empty: string }> = [
   {
@@ -44,6 +45,15 @@ export const SHARED_TABS: ReadonlyArray<{ id: SharedTabId; label: string; empty:
     },
     get empty() {
       return t('w.chatInfo.3cbf8a')
+    },
+  },
+  {
+    id: 'music',
+    get label() {
+      return t('w.chatInfo.music')
+    },
+    get empty() {
+      return t('w.chatInfo.noMusic')
     },
   },
   {
@@ -84,6 +94,7 @@ export interface SharedLink {
 export interface SharedSources {
   media: FetchSharedPage<SharedFile>
   files: FetchSharedPage<SharedFile>
+  music: FetchSharedPage<SharedFile>
   voice: FetchSharedPage<SharedFile>
   gif: FetchSharedPage<SharedFile>
   links: FetchSharedPage<SharedLink>
@@ -114,7 +125,7 @@ export interface SharedSourceDeps {
 
 export function createSharedSources(chatId: string, deps: SharedSourceDeps): SharedSources {
   const files =
-    (kind: 'media' | 'document' | 'voice' | 'gif'): FetchSharedPage<SharedFile> =>
+    (kind: 'media' | 'document' | 'music' | 'voice' | 'gif'): FetchSharedPage<SharedFile> =>
     async (cursor) => {
       const page = await listChatFiles(
         deps.client,
@@ -142,5 +153,12 @@ export function createSharedSources(chatId: string, deps: SharedSourceDeps): Sha
     }
   }
 
-  return { media: files('media'), files: files('document'), voice: files('voice'), gif: files('gif'), links }
+  return {
+    media: files('media'),
+    files: files('document'),
+    music: files('music'),
+    voice: files('voice'),
+    gif: files('gif'),
+    links,
+  }
 }

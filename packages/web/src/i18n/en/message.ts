@@ -40,4 +40,5 @@ export const message: Catalog = {
   'w.message.f98e94': 'Add reaction',
   'w.message.fcb979': 'Processing',
   'w.message.ffc785': 'Reply',
+  'w.message.imageUnavailable': 'Image unavailable: {0}',
 }
